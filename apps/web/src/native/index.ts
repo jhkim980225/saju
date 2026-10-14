@@ -96,3 +96,15 @@ export function onBannerSizeChanged(cb: (height: number) => void): () => void {
     off?.();
   };
 }
+
+// ── 인쇄(PDF 저장) ───────────────────────────────────────────
+
+/**
+ * 지금 화면을 시스템 인쇄 화면으로 연다(Android 'PDF로 저장' / iOS 공유 → '파일에 저장'). 인쇄 화면이 닫히면 끝난다.
+ * 웹에서는 false — 호출부가 window.print() 를 쓴다.
+ */
+export async function printCurrentPage(name: string): Promise<boolean> {
+  if (!isNativeApp()) return false;
+  await (await import('./print')).printWebView(name);
+  return true;
+}

@@ -32,5 +32,8 @@ project(':capacitor-splash-screen').projectDir = new File('../../../node_modules
 include ':capacitor-status-bar'
 project(':capacitor-status-bar').projectDir = new File('../../../node_modules/@capacitor/status-bar/android')
 
+include ':capgo-capacitor-printer'
+project(':capgo-capacitor-printer').projectDir = new File('../../../node_modules/@capgo/capacitor-printer/android')
+
 include ':capgo-native-purchases'
 project(':capgo-native-purchases').projectDir = new File('../../../node_modules/@capgo/native-purchases/android')

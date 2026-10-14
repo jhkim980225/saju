@@ -9,7 +9,8 @@ import { toast } from './Toast';
 import { Button, Card } from './ui';
 
 /**
- * 구매한 보고서 열기 — 처음이면 서버가 만들고(AI 다듬기 포함, 최대 1분), 이미 있으면 저장본을 돌려준다.
+ * 구매한 보고서 열기 — 결제 직후 서버가 미리 만들어 두므로 보통은 저장본을 바로 돌려준다.
+ * 처음 만드는 경우에도 규칙 기반 본문을 바로 돌려주고, AI 다듬기는 보고서 화면에서 진행률과 함께 이어진다.
  * 사주분석서(내 사주) · 신년운세 · 궁합 화면 아래에 둔다.
  */
 export function OpenReportCard({ dto, title, body }: { dto: ReportCreateDto; title: string; body: string }) {
@@ -19,6 +20,8 @@ export function OpenReportCard({ dto, title, body }: { dto: ReportCreateDto; tit
     mutationFn: () => api.createReport(dto),
     onSuccess: (r) => {
       void qc.invalidateQueries({ queryKey: qk.reports });
+      // 받은 본문을 그대로 넘겨 보고서 화면이 다시 받지 않게 한다
+      qc.setQueryData(['report', r.id], r);
       navigate(`/reports/${r.id}`);
     },
     onError: (e) => toast(e instanceof Error ? e.message : t('error.server.title')),
@@ -33,7 +36,7 @@ export function OpenReportCard({ dto, title, body }: { dto: ReportCreateDto; tit
         </div>
       </div>
       <Button block className="mt-4" loading={open.isPending} onClick={() => open.mutate()}>
-        {open.isPending ? '보고서를 만들고 있어요 · 처음엔 1분쯤 걸려요' : '보고서 열기'}
+        {open.isPending ? '보고서를 여는 중이에요' : '보고서 열기'}
       </Button>
     </Card>
   );

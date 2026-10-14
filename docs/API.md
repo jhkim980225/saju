@@ -46,8 +46,9 @@
 ## 유료 리포트 · AI 상담
 | 메서드 | 경로 | 인증 | 설명 |
 |---|---|---|---|
-| POST | `/reports` | ✓ | `{ type: lifetime|yearly|compatibility, profileId, partnerProfileId?, year? }` — 권한 없으면 **402 + details.productId**, 궁합 1회권 자동 사용 |
-| GET | `/reports`, `/reports/:id` | ✓ | 보관함 |
+| POST | `/reports` | ✓ | `{ type: lifetime|yearly|compatibility, profileId, partnerProfileId?, year? }` — 권한 없으면 **402 + details.productId**, 궁합 1회권 자동 사용(이미 열린 조합은 차감 없음). 규칙 기반 본문을 바로 돌려주고, AI 가 설정돼 있으면 `status: 'polishing'` + `progress: { done, total }`(덩어리 수)로 뒤에서 다듬는다. 같은 조건은 저장본(결제 직후 미리 만든 것 포함)을 돌려준다 |
+| GET | `/reports`, `/reports/:id` | ✓ | 보관함. 리포트는 결제 확정(웹 승인·인앱결제·웹훅) 직후 자동으로 만들어진다(궁합 1회권·미니 리포트 제외) |
+| GET | `/reports/:id/progress` | ✓ | `{ status: polishing|ready, progress: { done, total } | null }` — 다듬는 동안 본문 없이 폴링(화면은 2초 간격). ready 가 되면 `/reports/:id` 를 다시 받는다 |
 | GET / POST / DELETE | `/chat?profileId` | ✓ | 상담 기록 / 질문(질문권 1회, 부족하면 402 INSUFFICIENT_CREDITS) / 기록 삭제 |
 
 ## 타로

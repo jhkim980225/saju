@@ -181,6 +181,7 @@ export const reports = sqliteTable(
     title: text('title').notNull(),
     /** ReadingSection[] JSON */
     content: text('content', { mode: 'json' }).$type<unknown>().notNull(),
+    /** 'rule' | 'ai' | 'polishing'(규칙 기반 본문을 저장해 두고 AI 가 다듬는 중 — 끝나면 'ai' 또는 'rule') */
     generator: text('generator').notNull(),
     model: text('model'),
     createdAt: integer('created_at').notNull().default(sql`(unixepoch() * 1000)`),

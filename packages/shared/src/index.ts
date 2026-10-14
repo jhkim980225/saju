@@ -271,6 +271,13 @@ export const reportCreateSchema = z.object({
 });
 export type ReportCreateDto = z.input<typeof reportCreateSchema>;
 
+/**
+ * 리포트 본문 상태
+ * - polishing: 규칙 기반 본문을 먼저 저장해 바로 보여 주고, AI 가 뒤에서 문장을 다듬는 중(끝나면 같은 ID 의 본문이 바뀐다)
+ * - ready: 최종본 (AI 로 다듬었거나, AI 를 쓰지 않는/실패한 경우 규칙 기반)
+ */
+export type ReportStatus = 'polishing' | 'ready';
+
 export interface ReportDto {
   id: string;
   type: ReportType;
@@ -280,8 +287,14 @@ export interface ReportDto {
   year: number | null;
   sections: ReadingSection[];
   generator: 'rule' | 'ai';
+  status: ReportStatus;
+  /** AI 다듬기 진행 — 덩어리(약 3,500자) 단위. 다듬는 중이 아니면 null */
+  progress: { done: number; total: number } | null;
   createdAt: string;
 }
+
+/** GET /reports/:id/progress — 다듬는 동안 본문 없이 진행 상황만 폴링한다 */
+export type ReportProgressDto = Pick<ReportDto, 'status' | 'progress'>;
 
 export interface ReportSummaryDto {
   id: string;

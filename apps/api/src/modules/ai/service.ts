@@ -22,7 +22,13 @@ export interface AiService {
   model: string | null;
   /** 카드끼리 엮어 읽는 해석처럼 추론이 필요한 곳 — 타로 이야기 */
   premiumModel: string | null;
-  enhanceSections(input: { title: string; chart: SajuChart; draft: ReadingSection[] }): Promise<{ sections: ReadingSection[]; generator: 'ai' | 'rule'; model: string | null }>;
+  /** 리포트 문장 다듬기 — onProgress 는 시작할 때 (0, 전체) 한 번, 덩어리가 끝날 때마다(실패 포함) 불린다 */
+  enhanceSections(input: {
+    title: string;
+    chart: SajuChart;
+    draft: ReadingSection[];
+    onProgress?: (done: number, total: number) => void;
+  }): Promise<{ sections: ReadingSection[]; generator: 'ai' | 'rule'; model: string | null }>;
   chat(input: { chart: SajuChart; profileName: string; chartSummary: string; history: ChatTurn[]; message: string }): Promise<{ text: string; generator: 'ai' | 'rule' } | null>;
   /** 타로 — 카드끼리 이어지는 이야기 문단. 실패하면 null (규칙 기반 문단 사용) */
   tarotStory(input: TarotStoryInput): Promise<string[] | null>;
@@ -62,7 +68,16 @@ const REPORT_SYSTEM = `당신은 20년 경력의 자평명리 전문가이자 �
 
 /** 리포트 다듬기 한 번에 보낼 초안 분량(글자) — 2만 자 분석서는 여러 덩어리로 나눠 동시에 다듬는다 */
 const REPORT_CHUNK_CHARS = 3_500;
-const REPORT_CONCURRENCY = 4;
+/**
+ * 리포트 하나의 동시 호출 수 — 사주분석서(공백 포함 약 2만 7천 자)가 9덩어리라 한 번에 모두 보낸다.
+ * 전에는 4개씩이라 4 → 4 → 1 세 차례를 차례로 기다려 첫 생성이 1분 가까이 걸렸다.
+ */
+const REPORT_CONCURRENCY = 10;
+/**
+ * 서버 전체(AI 서비스 하나) 동시 호출 상한 — 여러 리포트가 한꺼번에 다듬어져도(신년 패키지는 분석서+신년운세) 분당 출력 토큰 한도를 넘지 않게.
+ * 16개 × 초당 약 200토큰 ≈ 분당 19만 토큰으로 Start 등급 Haiku 출력 한도(분당 40만)의 절반 이하. 넘치면 차례를 기다린다.
+ */
+const REPORT_GLOBAL_CONCURRENCY = 16;
 
 function chunkSections(draft: ReadingSection[]): ReadingSection[][] {
   const chunks: ReadingSection[][] = [];
@@ -94,6 +109,52 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
   };
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
   return out;
+}
+
+/** 동시 실행 상한 — 끝난 자리를 기다리던 작업에 바로 넘겨 순간적으로도 max 를 넘지 않는다 */
+function createLimiter(max: number) {
+  let active = 0;
+  const waiting: (() => void)[] = [];
+  return async <T>(fn: () => Promise<T>): Promise<T> => {
+    if (active >= max) await new Promise<void>((resolve) => waiting.push(resolve));
+    else active++;
+    try {
+      return await fn();
+    } finally {
+      const next = waiting.shift();
+      if (next) next();
+      else active--;
+    }
+  };
+}
+
+type PolishedSection = z.infer<typeof EnhancedSchema>['sections'][number];
+
+/**
+ * 초안을 덩어리로 나눠 동시에 다듬고 key 로 다시 합친다. AI 호출은 enhanceChunk 가 맡는다.
+ * 실패한 덩어리(null)와 문단이 빈 섹션은 규칙 기반 초안을 그대로 둔다.
+ */
+async function polishSections(
+  draft: ReadingSection[],
+  enhanceChunk: (part: ReadingSection[]) => Promise<PolishedSection[] | null>,
+  slots: ReturnType<typeof createLimiter>,
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ sections: ReadingSection[]; chunks: number; polishedChunks: number }> {
+  const chunks = chunkSections(draft);
+  let done = 0;
+  onProgress?.(0, chunks.length);
+  const results = await mapLimit(chunks, REPORT_CONCURRENCY, async (part) => {
+    const r = await slots(() => enhanceChunk(part));
+    onProgress?.(++done, chunks.length);
+    return r;
+  });
+  const byKey = new Map(results.flatMap((r) => r ?? []).map((s) => [s.key, s]));
+  const sections = draft.map((s) => {
+    const e = byKey.get(s.key);
+    if (!e || e.paragraphs.length === 0) return s;
+    return { ...s, summary: e.summary || s.summary, paragraphs: e.paragraphs };
+  });
+  return { sections, chunks: chunks.length, polishedChunks: results.filter((r) => r && r.length > 0).length };
 }
 
 const StorySchema = z.object({ paragraphs: z.array(z.string()) });
@@ -140,6 +201,7 @@ export function createAiService(config: AppConfig): AiService {
   const client = new Anthropic({ apiKey: config.ANTHROPIC_API_KEY, timeout: 120_000, maxRetries: 2 });
   const model = config.ANTHROPIC_MODEL;
   const premiumModel = config.ANTHROPIC_MODEL_PREMIUM;
+  const reportSlots = createLimiter(REPORT_GLOBAL_CONCURRENCY);
 
   const logError = (where: string, error: unknown) => {
     if (error instanceof Anthropic.RateLimitError) console.warn(`[ai:${where}] rate limited`);
@@ -153,7 +215,7 @@ export function createAiService(config: AppConfig): AiService {
     enabled: true,
     model,
     premiumModel,
-    async enhanceSections({ title, chart, draft }) {
+    async enhanceSections({ title, chart, draft, onProgress }) {
       const summary = {
         pillars: [chart.pillars.year, chart.pillars.month, chart.pillars.day, chart.pillars.hour].filter(Boolean).map((p) => ({
           position: p!.position,
@@ -168,6 +230,8 @@ export function createAiService(config: AppConfig): AiService {
         yongsin: chart.yongsin.yongsin,
         shinsal: chart.shinsal.map((s) => s.name),
       };
+      const startedAt = Date.now();
+      let outputTokens = 0;
       /** 덩어리 하나 다듬기 — 실패하면 null (그 덩어리는 규칙 기반 초안 유지) */
       const enhanceChunk = async (part: ReadingSection[]) => {
         try {
@@ -183,6 +247,7 @@ export function createAiService(config: AppConfig): AiService {
               },
             ],
           });
+          outputTokens += response.usage.output_tokens;
           if (response.stop_reason === 'refusal' || !response.parsed_output) return null;
           return response.parsed_output.sections;
         } catch (error) {
@@ -190,16 +255,10 @@ export function createAiService(config: AppConfig): AiService {
           return null;
         }
       };
-      const results = await mapLimit(chunkSections(draft), REPORT_CONCURRENCY, enhanceChunk);
-      const enhanced = results.flatMap((r) => r ?? []);
-      if (enhanced.length === 0) return { sections: draft, generator: 'rule', model: null };
-      const byKey = new Map(enhanced.map((s) => [s.key, s]));
-      const sections = draft.map((s) => {
-        const e = byKey.get(s.key);
-        if (!e || e.paragraphs.length === 0) return s;
-        return { ...s, summary: e.summary || s.summary, paragraphs: e.paragraphs };
-      });
-      return { sections, generator: 'ai', model };
+      const result = await polishSections(draft, enhanceChunk, reportSlots, onProgress);
+      // 첫 생성 대기 시간이 어디서 나는지 운영 로그로 확인할 수 있게 리포트마다 한 줄 남긴다
+      console.info(`[ai:report] ${result.chunks}덩어리 중 ${result.polishedChunks}개 다듬음 · ${((Date.now() - startedAt) / 1000).toFixed(1)}초 · 출력 ${outputTokens}토큰`);
+      return result.polishedChunks > 0 ? { sections: result.sections, generator: 'ai', model } : { sections: draft, generator: 'rule', model: null };
     },
     async chat({ profileName, chartSummary, history, message }) {
       try {

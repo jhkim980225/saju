@@ -24,6 +24,7 @@
 | 하드웨어 뒤로가기 | ✅ 바텀시트 닫힘 → 탭 기록 역순 이동(궁합→마이→오늘) → 홈에서 앱 최소화 | `adb shell input tap/keyevent 4` |
 | iOS 빌드 | ⏳ macOS + Xcode 필요(이 저장소 개발 PC 는 Windows) → **`.github/workflows/ci.yml` 의 `ios` 잡이 macOS 러너에서 서명 없이 시뮬레이터 빌드**(`xcodebuild -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO`). Windows 에서는 SPM 플러그인 심볼릭 링크 생성 권한이 없어(`EPERM symlink`) `CapApp-SPM/Package.swift` 가 갱신되지 않음 → **macOS 에서 `npm run build:app:ios` 실행 시 자동 생성** | — |
 | 실결제(IAP)·푸시 수신·소셜 로그인 | ⏳ 스토어 상품 등록·Firebase 프로젝트·각 콘솔 키 발급 후 실기기 확인 필요 (`docs/ENV_KEYS.md`) | — |
+| 보고서 PDF 저장 플러그인 (2026-10-15) | ✅ `@capgo/capacitor-printer` 8.1.7 추가 → `cap sync android` 플러그인 12개, `assembleDebug` 성공(JDK 21), APK 의 `capacitor.plugins.json`·dex 에 `com.capgo.printer.PrinterPlugin` 포함. ⏳ 인쇄 화면·'PDF로 저장' 실제 동작은 에뮬레이터/실기기에서 확인 필요(당시 PC 에 에뮬레이터 없음), iOS 는 macOS 에서 `npm run build:app:ios` 시 SPM 에 자동 추가 | `npm run build:app:android -w @saju/web` → `./gradlew assembleDebug` |
 
 실기 검증 중 발견해 수정한 버그 2건:
 1. 서버에 연결하지 못하면 탭 화면이 빈 화면으로 남음 → `useSessionGate` 로 오류 안내 + 재시도 버튼
@@ -61,6 +62,7 @@ apps/web
    ├─ push.ts                   FCM 권한·토큰·서버 등록·알림 탭 라우팅
    ├─ purchases.ts              IAP 구매 → 영수증 · finishPurchase · 미완료 거래 복구
    ├─ ads.ts                    AdMob 보상형(하루 3회) · 배너
+   ├─ print.ts                  보고서 PDF 저장 — 웹뷰를 시스템 인쇄 화면으로(@capgo/capacitor-printer)
    ├─ env.ts                    앱 빌드 환경 값 (VITE_*)
    └─ __tests__/native.test.ts  vitest + jsdom (플러그인은 vi.mock)
 ```
@@ -88,6 +90,7 @@ apps/web
 | `@capacitor-firebase/messaging` | ^8.5.2 | FCM 푸시 (iOS 도 FCM 토큰) |
 | `@capgo/native-purchases` | ^8.9.2 | 인앱결제(StoreKit 2 / Play Billing) |
 | `@capacitor-community/admob` | ^8.2.1 | AdMob 보상형·배너 |
+| `@capgo/capacitor-printer` | ^8.1.7 | 보고서 PDF 저장 — 웹뷰를 시스템 인쇄 화면으로 (MPL-2.0, 수정 없이 의존성으로만 사용) |
 
 설치 정책: 위 패키지들은 설치 스크립트가 없어 `npm install-scripts approve` 가 필요 없었습니다. `@capacitor/assets`(아이콘 생성기)는 `sharp` 를 쓰므로 프로젝트 의존성에 넣지 않고 필요할 때 `npx` 로 실행합니다(§10).
 
@@ -105,6 +108,20 @@ apps/web
 서버(`apps/api/src/modules/commerce/providers/iap.ts`)가 이미 App Store Server API·Play Developer API 로 직접 검증하고 거래 ID 로 멱등 처리하므로, 영수증을 그대로 넘겨주는 얇은 네이티브 플러그인이 가장 단순합니다.
 
 **광고: `@capacitor-community/admob`** — Capacitor 진영의 사실상 표준 AdMob 플러그인. Capacitor 8 대응(8.2.x), 보상형·배너·전면·앱 오프닝, SSV(서버 측 보상 검증) 파라미터, UMP 동의, iOS ATT 상태 조회를 모두 지원합니다. Google Mobile Ads SDK 를 플러그인이 고정 버전으로 포함합니다.
+
+**보고서 PDF 저장: `@capgo/capacitor-printer`의 `printWebView`** (대안: 클라이언트 PDF 생성(jsPDF·html2canvas·pdf-lib) + `@capacitor/share`·`@capacitor/filesystem`, 서버 PDF 렌더링, Capawesome Printer)
+
+| 기준 | printWebView ✅ | 클라이언트 PDF 생성 + 공유 | 서버 렌더링(헤드리스 Chromium) | Capawesome Printer |
+|---|---|---|---|---|
+| 한글·한자 | 화면을 그린 웹뷰가 그대로 인쇄 → Pretendard·마루 부리·Noto Serif KR 가 화면·웹 인쇄와 똑같이 | 한글 글꼴(수 MB)을 PDF 에 직접 넣거나 html2canvas 로 이미지화(흐릿함·텍스트 선택 불가·용량 큼) | 서버에 한글 글꼴 설치 필요 | printWebView 와 같음 |
+| 오프라인 | O (네트워크 불필요) | O | X | O |
+| 웹 번들 | 앱에서만 동적 import 되는 0.45kB 청크 | 수백 kB~수 MB(지연 로드해도 앱 용량 증가) | 영향 없음(서버 부담) | 작음 |
+| 유지보수 | 8.1.7(2026-10-13), peer `@capacitor/core >=8`, Android·iOS 네이티브 구현 | — | Chromium 운영 | 유료 후원자 전용 |
+
+- Android: `WebView.createPrintDocumentAdapter` + `PrintManager` → 인쇄 화면에서 프린터를 **'PDF로 저장'** 으로 고르면 파일로 남습니다(기본 파일명 = 보고서 제목).
+- iOS: `WKWebView.viewPrintFormatter` + `UIPrintInteractionController` → 인쇄 옵션 위쪽 **공유 버튼 → '파일에 저장'**(또는 메일·메시지로 바로 보내기).
+- 두 플랫폼 모두 인쇄 화면이 닫힐 때 promise 가 끝나므로, 그동안 밝은 테마로 바꿔 두었다가 되돌립니다(`pages/ReportsPage.tsx` `printAsPdf`). `@media print`(A4·여백·흰 바탕, 헤더·탭바 숨김)는 웹 인쇄와 공유합니다.
+- 인쇄 화면을 거치지 않고 곧장 공유 시트로 PDF 파일을 넘기려면(한 단계 줄임) 네이티브로 PDF 를 쓰는 별도 코드(Android `PrintDocumentAdapter` → 파일, iOS `UIPrintPageRenderer` → PDF 컨텍스트)와 `@capacitor/filesystem` 이 필요해 이번에는 하지 않았습니다.
 
 **푸시: `@capacitor-firebase/messaging`** — `@capacitor/push-notifications` 는 iOS 에서 APNs 토큰을 돌려주지만 서버는 FCM HTTP v1 로 보내므로 FCM 토큰이 필요합니다(AUTH_PUSH §6-2). 이 패키지의 JS 진입점은 웹 구현용 `firebase/messaging` 을 동적 import 하므로 그대로 import 하면 Vite 가 `firebase` 패키지를 요구합니다. 앱에서는 네이티브 구현만 쓰므로 `push.ts` 에서 `registerPlugin('FirebaseMessaging')` 으로 프록시를 직접 만들고 타입만 패키지에서 가져옵니다.
 
@@ -543,6 +560,7 @@ rm -rf .assets
 |---|---|
 | 푸시(오늘의 운세·리포트 완성), 알림 탭 딥링크 | ✅ 이번 작업(src/native/push.ts) |
 | 시스템 공유 시트, 햅틱, 하드웨어 뒤로가기, 시트 닫기, 상태바·키보드 테마 동기화 | ✅ |
+| 유료 보고서 PDF 저장(시스템 인쇄 화면 → 'PDF로 저장' / '파일에 저장', 오프라인) | ✅ |
 | 유니버설 링크/App Links, 인앱결제(StoreKit 2), 보상형 광고 | ✅ |
 | 앱 저장소(Preferences)에 세션·마지막 결과 보관 → 재방문 즉시 표시 | ✅ |
 | **오프라인 만세력**: `@saju/core` 가 클라이언트에서 결정론적으로 계산 → 네트워크 없이 명식 표 | 🔶 오프라인 화면/캐시 정책 정리 필요 |
