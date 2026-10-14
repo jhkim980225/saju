@@ -10,6 +10,7 @@
  *   report:love / report:career_wealth → report:<kind>:<profileId>
  *   ticket:compatibility   → ticket:compatibility:<orderId> (나중에 궁합 1회 열람에 사용)
  *   tarot:reading          → tarot:reading:<readingId> (타로 리딩 1건 깊은 풀이)
+ *   taekil:reading         → taekil:reading:<readingId> (택일 결과 1건 상세)
  */
 export interface CatalogItem {
   id: string;
@@ -177,4 +178,15 @@ export const CATALOG: CatalogItem[] = [
   { id: 'chat_pack_100', name: 'AI 상담 질문권 100회', description: '1회당 269원. 유효기간 없음.', type: 'credit_pack', price: 26900, credits: 100, comingSoon: true },
   { id: 'sub_plus_monthly', name: '플러스 월 구독', description: '광고 제거 · 월운 자동 발행 · 질문권 월 100회 · 리포트 20% 할인', type: 'subscription', price: 6900, credits: 100, periodDays: 30, comingSoon: true },
   { id: 'sub_plus_yearly', name: '플러스 연 구독', description: '월 구독 혜택 + 신년운세 포함', type: 'subscription', price: 59000, credits: 100, periodDays: 365, comingSoon: true },
+  // ── 택일 (docs/research/05-tarot-market.md §2.2 사주아이 '990원 택일') — 택일 결과 1건의 상세를 여는 소모성 상품 ──
+  {
+    id: 'report_taekil',
+    name: '택일 상세 풀이',
+    description: 'Top 3 길일의 근거와 좋은 시간, 날짜마다 좋고 아쉬운 이유와 빠진 까닭, 목적에 맞춘 조언까지 열어 봐요.',
+    type: 'one_time',
+    price: 990,
+    grants: ['taekil:reading'],
+    iosProductId: 'kr.dalbitsaju.report.taekil',
+    androidProductId: 'report_taekil',
+  },
 ];

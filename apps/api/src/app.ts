@@ -27,6 +27,7 @@ import { rewardRoutes } from './modules/rewards/routes.js';
 import { tojeongRoutes } from './modules/tojeong/routes.js';
 import { dreamRoutes } from './modules/dream/routes.js';
 import { zodiacRoutes } from './modules/zodiac/routes.js';
+import { taekilRoutes } from './modules/taekil/routes.js';
 
 export interface AuthUser {
   id: string;
@@ -146,6 +147,7 @@ export async function buildApp(opts: { config: AppConfig; db: Db; logger?: boole
       await api.register(tojeongRoutes, { prefix: '/tojeong' });
       await api.register(dreamRoutes, { prefix: '/dream' });
       await api.register(zodiacRoutes);
+      await api.register(taekilRoutes, { prefix: '/taekil' });
     },
     { prefix: '/api/v1' },
   );

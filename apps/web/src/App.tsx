@@ -47,6 +47,8 @@ const ZodiacHubPage = lazyPage(() => import('./pages/ZodiacPage'), 'ZodiacHubPag
 const ZodiacDetailPage = lazyPage(() => import('./pages/ZodiacPage'), 'ZodiacDetailPage');
 const HoroscopeHubPage = lazyPage(() => import('./pages/HoroscopePage'), 'HoroscopeHubPage');
 const HoroscopeDetailPage = lazyPage(() => import('./pages/HoroscopePage'), 'HoroscopeDetailPage');
+const TaekilPage = lazyPage(() => import('./pages/TaekilPage'), 'TaekilPage');
+const TaekilResultPage = lazyPage(() => import('./pages/TaekilResultPage'), 'TaekilResultPage');
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -123,6 +125,8 @@ export const routes = [
       { path: '/dream', element: <DreamHomePage /> },
       { path: '/dream/ask', element: <DreamAskPage /> },
       { path: '/dream/:slug', element: <DreamEntryPage /> },
+      { path: '/taekil', element: <TaekilPage /> },
+      { path: '/taekil/r/:id', element: <TaekilResultPage /> },
       {
         element: <TabLayout />,
         children: [

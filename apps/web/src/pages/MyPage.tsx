@@ -150,6 +150,7 @@ export function MyPage() {
               ['/dream', '꿈해몽'],
               ['/zodiac', '띠별 운세'],
               ['/horoscope', '별자리 운세'],
+              ['/taekil', t('taekil.meta.menuLabel')],
             ].map(([to, label]) => (
               <Link key={to} to={to!} className="flex items-center justify-between px-5 py-4">
                 {label}

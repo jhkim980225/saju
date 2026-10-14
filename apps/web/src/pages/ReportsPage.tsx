@@ -22,6 +22,12 @@ const TYPE_LABEL = { lifetime: '사주분석서', yearly: '신년운세', compat
 export function ReportsPage() {
   const navigate = useNavigate();
   const q = useQuery({ queryKey: qk.reports, queryFn: api.reports });
+  // 결제로 연 택일 결과도 보관함에 함께 보여 준다 (잠긴 미리보기는 택일 화면의 '최근에 본 택일'에)
+  const taekil = useQuery({ queryKey: ['taekil', 'list'], queryFn: api.taekilList });
+  const items = [
+    ...(q.data ?? []).map((r) => ({ id: r.id, to: `/reports/${r.id}`, label: TYPE_LABEL[r.type] as string, title: r.title, createdAt: r.createdAt })),
+    ...(taekil.data ?? []).filter((r) => !r.locked).map((r) => ({ id: r.id, to: `/taekil/r/${r.id}`, label: t('taekil.result.libraryBadge'), title: r.title, createdAt: r.createdAt })),
+  ].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   return (
     <div className="min-h-page">
       <PageHeader
@@ -35,13 +41,13 @@ export function ReportsPage() {
       />
       <Page width="medium" className="pb-10">
         {q.isLoading && <Spinner />}
-        {q.data && q.data.length === 0 && <EmptyState title={t('empty.history.title')} body="구매한 리포트는 여기에 보관돼요." action={<Button onClick={() => navigate('/saju')}>{t('empty.history.cta')}</Button>} />}
+        {q.data && !taekil.isLoading && items.length === 0 && <EmptyState title={t('empty.history.title')} body="구매한 리포트는 여기에 보관돼요." action={<Button onClick={() => navigate('/saju')}>{t('empty.history.cta')}</Button>} />}
         <ul className="mt-2 space-y-2">
-          {q.data?.map((r) => (
+          {items.map((r) => (
             <li key={r.id}>
-              <Link to={`/reports/${r.id}`} className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4">
+              <Link to={r.to} className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4">
                 <div className="flex-1">
-                  <Badge>{TYPE_LABEL[r.type]}</Badge>
+                  <Badge>{r.label}</Badge>
                   <p className="mt-1.5 font-semibold">{r.title}</p>
                   <p className="text-xs text-ink-3">{formatDateKo(r.createdAt)}</p>
                 </div>

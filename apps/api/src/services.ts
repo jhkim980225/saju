@@ -15,6 +15,7 @@ import { createReportService } from './modules/reports/service.js';
 import { createRewardsService } from './modules/rewards/service.js';
 import { createTarotService } from './modules/tarot/service.js';
 import { createUserService } from './modules/users/service.js';
+import { createTaekilService } from './modules/taekil/service.js';
 
 /** 테스트용 외부 의존성 주입 (생략 시 실제 값) */
 export interface ServiceDeps {
@@ -35,9 +36,11 @@ export function createServices(config: AppConfig, db: Db, deps: ServiceDeps = {}
   const rewards = createRewardsService(config, db, commerce);
   const tarot = createTarotService(config, db, profiles, commerce, ai);
   commerce.setReadingCheck(tarot.assertPurchasable);
+  const taekil = createTaekilService(db, profiles, commerce, ai);
+  commerce.setGrantReadingCheck('taekil:reading', taekil.assertPurchasable);
   // 결제가 확정되면 산 리포트를 바로 만들기 시작한다(처음 열 때 기다리지 않게)
   commerce.setFulfilledListener((e) => reports.prewarm(e));
-  return { users, auth, oauth, profiles, gateways, commerce, ai, reports, chat, push, rewards, tarot };
+  return { users, auth, oauth, profiles, gateways, commerce, ai, reports, chat, push, rewards, tarot, taekil };
 }
 
 export type Services = ReturnType<typeof createServices>;

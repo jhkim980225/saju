@@ -10,6 +10,7 @@ import { ShareSheet } from '@/components/ShareSheet';
 import { TodayTarotCard } from '@/components/TodayTarotCard';
 import { TojeongEntryCard } from '@/components/TojeongEntryCard';
 import { DreamEntryCard } from '@/components/DreamEntryCard';
+import { TaekilEntryCard } from '@/components/TaekilEntryCard';
 import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, ScoreBar, Spinner, cx } from '@/components/ui';
 import { useProfiles } from '@/hooks/queries';
 import { SessionGateError, useSessionGate } from '@/hooks/useSessionGate';
@@ -173,6 +174,7 @@ export function TodayPage() {
                   <span className="mt-0.5 block font-semibold">별자리 운세</span>
                 </Link>
               </div>
+              <TaekilEntryCard />
             </div>
 
             <div className="lg:pt-4">

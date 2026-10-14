@@ -42,6 +42,9 @@ import type {
   HoroscopeOverviewDto,
   ZodiacFortuneDto,
   ZodiacOverviewDto,
+  TaekilCreateDto,
+  TaekilResultDto,
+  TaekilSummaryDto,
 } from '@saju/shared';
 import type { DreamInterpretDto, DreamInterpretationDto } from '@saju/shared/dream';
 import { API_BASE } from './config';
@@ -201,4 +204,8 @@ export const api = {
   zodiac: (slug: string, period: FreeFortunePeriod, date: string) => get<ZodiacFortuneDto>(`/zodiac/${slug}?period=${period}&date=${date}`, 'none'),
   horoscopeOverview: (period: FreeFortunePeriod, date: string) => get<HoroscopeOverviewDto>(`/horoscope?period=${period}&date=${date}`, 'none'),
   horoscope: (slug: string, period: FreeFortunePeriod, date: string) => get<HoroscopeDto>(`/horoscope/${slug}?period=${period}&date=${date}`, 'none'),
+  // 택일
+  taekilCreate: (dto: TaekilCreateDto) => post<TaekilResultDto>('/taekil', dto, 'required'),
+  taekilList: () => get<TaekilSummaryDto[]>('/taekil', 'required'),
+  taekilGet: (id: string) => get<TaekilResultDto>(`/taekil/${id}`, 'required'),
 };

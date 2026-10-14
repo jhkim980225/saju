@@ -446,6 +446,7 @@ else window.location.assign(url);
 | `tarot_choice_3` | 양자택일 타로 3장 깊은 풀이 (리딩 1건, 질문권 1회) | 990 | `kr.dalbitsaju.tarot.choice3` | `tarot_choice_3` | 소모성 |
 | `tarot_compat_5` | 궁합 타로 5장 깊은 풀이 (리딩 1건, 질문권 1회) | 2,900 | `kr.dalbitsaju.tarot.compat5` | `tarot_compat_5` | 소모성 |
 | `tarot_celtic_10` | 켈틱 크로스 10장 깊은 풀이 (리딩 1건, 질문권 3회) | 4,900 | `kr.dalbitsaju.tarot.celtic10` | `tarot_celtic_10` | 소모성 |
+| `report_taekil` | 택일 상세 풀이 (택일 결과 1건, `readingId` 필요) | 990 | `kr.dalbitsaju.report.taekil` | `report_taekil` | 소모성 |
 | `report_love` 외 2차 상품 | (comingSoon) | — | 미정 | 미정 | — |
 | `sub_plus_monthly` / `sub_plus_yearly` | 플러스 구독 (2차) | 6,900 / 59,000 | 미정 | 미정 | 자동 갱신 구독, 그룹 `plus` |
 

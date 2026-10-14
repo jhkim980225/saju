@@ -38,7 +38,9 @@ export function StorePage() {
     }
   };
   const onClick = (p: ProductDto) => {
-    if (p.requiresProfile) setTarget(p);
+    // 택일 상세는 택일 결과 화면에서 그 결과에 대해 연다
+    if (p.grants.includes('taekil:reading')) navigate('/taekil');
+    else if (p.requiresProfile) setTarget(p);
     else void buy(p);
   };
 

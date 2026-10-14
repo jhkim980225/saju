@@ -19,6 +19,16 @@ declare module 'lunar-javascript' {
   interface LunarLunar {
     getJieQiTable(): Record<string, LunarSolar>;
     getEightChar(): LunarEightChar;
+    // 택일 교차 검증(test/taekil.test.ts)용
+    getMonthZhi(): string;
+    getZhiXing(): string;
+    getDayTianShen(): string;
+    getDayTianShenType(): string;
+    getTimeTianShenType(): string;
+    getDayJiShen(): string[];
+    getDayXiongSha(): string[];
+    getDayYi(): string[];
+    getDayJi(): string[];
   }
   export const Solar: {
     fromYmd(year: number, month: number, day: number): LunarSolar;

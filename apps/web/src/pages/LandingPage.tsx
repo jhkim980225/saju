@@ -150,6 +150,9 @@ export function LandingPage() {
             <Link to="/horoscope" className="underline">
               별자리 운세
             </Link>
+            <Link to="/taekil" className="underline">
+              {t('taekil.meta.navLabel')}
+            </Link>
           </p>
         </footer>
       </Page>

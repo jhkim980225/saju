@@ -56,7 +56,7 @@ export function seedCatalog(db: Db) {
 export const requiresProfile = (p: Pick<Product, 'grants'>) => p.grants.some((g) => g.startsWith('report:'));
 export const requiresPartner = (p: Pick<Product, 'grants'>) => p.grants.includes('report:compatibility');
 /** 타로 상세 리딩처럼 특정 리딩 하나를 여는 상품 */
-export const requiresReading = (p: Pick<Product, 'grants'>) => p.grants.includes('tarot:reading');
+export const requiresReading = (p: Pick<Product, 'grants'>) => p.grants.includes('tarot:reading') || p.grants.includes('taekil:reading');
 
 /** 현재 판매가 — 할인 기간이 끝나면 정가 */
 export function currentPrice(p: Product, now = Date.now()): number {
@@ -124,10 +124,13 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
 
   /** 타로 리딩 소유·상품 일치 확인 — 타로 서비스가 만들어진 뒤 setReadingCheck 로 연결된다 */
   let readingCheck: ((userId: string, readingId: string, productId: string) => void) | null = null;
+  /** 타로 외에 결과 하나를 여는 상품(택일 등)의 확인 함수 — grant 별로 setGrantReadingCheck 로 연결 */
+  const grantReadingChecks = new Map<string, (userId: string, readingId: string, productId: string) => void>();
   const assertReading = (userId: string, product: Product, readingId: string | undefined) => {
     if (!requiresReading(product)) return;
     if (!readingId) throw badRequest('열어 볼 타로 리딩을 다시 선택해 주세요.');
-    readingCheck?.(userId, readingId, product.id);
+    const byGrant = product.grants.map((g) => grantReadingChecks.get(g)).find(Boolean);
+    (byGrant ?? readingCheck)?.(userId, readingId, product.id);
   };
 
   const assertOwnedProfile = (userId: string, profileId: string) => {
@@ -160,6 +163,7 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
       if (g === 'report:compatibility') return meta.profileId && meta.partnerProfileId ? compatKey(meta.profileId, meta.partnerProfileId) : `ticket:compatibility:${order.id}`;
       if (g.startsWith('report:yearly:')) return `report:yearly:${meta.profileId}:${g.split(':')[2]}`;
       if (g === 'tarot:reading') return `tarot:reading:${meta.readingId}`;
+      if (g === 'taekil:reading') return `taekil:reading:${meta.readingId}`;
       return `${g}:${meta.profileId}`;
     });
   };
@@ -558,6 +562,10 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
     },
     setFulfilledListener(fn: (e: FulfilledEvent) => void) {
       fulfilledListener = fn;
+    },
+    /** 특정 grant(예: taekil:reading)를 가진 상품의 결과 소유·상품 일치 확인 */
+    setGrantReadingCheck(grant: string, fn: (userId: string, readingId: string, productId: string) => void) {
+      grantReadingChecks.set(grant, fn);
     },
 
     hasEntitlement(userId: string, key: string): boolean {

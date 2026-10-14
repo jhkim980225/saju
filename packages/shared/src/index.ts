@@ -798,3 +798,111 @@ export interface TojeongDto {
 }
 // 띠별·별자리 운세 (무료 SEO 콘텐츠)
 export * from './zodiac.js';
+// 택일 (좋은 날 고르기) — 무료 미리보기(등급·Top 3 날짜) / 상세(근거·빠진 이유·조언)는 결제 후
+// ---------------------------------------------------------------------------
+
+/** @saju/core 의 TaekilPurpose 와 같은 순서 (런타임 의존을 피하려고 값만 복제) */
+export const TAEKIL_PURPOSE_IDS = ['move', 'contract', 'exam', 'wedding', 'opening', 'travel'] as const;
+export type TaekilPurposeId = (typeof TAEKIL_PURPOSE_IDS)[number];
+export const TAEKIL_PURPOSE_LABEL: Record<TaekilPurposeId, string> = { move: '이사', contract: '계약', exam: '면접·시험', wedding: '결혼', opening: '개업', travel: '여행·출발' };
+export const TAEKIL_GRADE_IDS = ['best', 'good', 'normal', 'caution', 'avoid'] as const;
+export type TaekilGradeId = (typeof TAEKIL_GRADE_IDS)[number];
+export const TAEKIL_GRADE_NAME: Record<TaekilGradeId, string> = { best: '대길', good: '길', normal: '보통', caution: '주의', avoid: '피함' };
+/** 기간은 최대 92일, 후보 날짜는 2~10개 */
+export const TAEKIL_LIMITS = { maxRangeDays: 92, minCandidates: 2, maxCandidates: 10, maxDaysAhead: 730 } as const;
+/** 택일 상세를 여는 상품 */
+export const TAEKIL_PRODUCT_ID = 'report_taekil';
+
+const ymdString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '날짜는 YYYY-MM-DD 형식이에요.');
+
+export const taekilCreateSchema = z
+  .object({
+    profileId: z.string().min(1),
+    /** 결혼 택일에서 함께 볼 상대 프로필(선택) */
+    partnerProfileId: z.string().min(1).optional(),
+    purpose: z.enum(TAEKIL_PURPOSE_IDS),
+    /** 기간으로 찾기 */
+    from: ymdString.optional(),
+    to: ymdString.optional(),
+    /** 후보 날짜 비교 */
+    dates: z.array(ymdString).min(TAEKIL_LIMITS.minCandidates, `후보 날짜를 ${TAEKIL_LIMITS.minCandidates}개 이상 골라 주세요.`).max(TAEKIL_LIMITS.maxCandidates, `후보 날짜는 ${TAEKIL_LIMITS.maxCandidates}개까지 고를 수 있어요.`).optional(),
+  })
+  .refine((v) => Boolean(v.dates) !== Boolean(v.from && v.to), { message: '기간(from·to) 또는 후보 날짜(dates) 중 하나를 골라 주세요.' });
+export type TaekilCreateDto = z.input<typeof taekilCreateSchema>;
+
+export interface TaekilReasonDto {
+  tone: 'good' | 'bad' | 'info';
+  /** 짧은 이름 — 예: '성(成)일', '일지 충(沖)' */
+  label: string;
+  /** 풀어 쓴 한두 문장 */
+  text: string;
+  /** 점수 가감 */
+  weight: number;
+  /** 이 날을 후보에서 빼는 사유인가 */
+  excludes: boolean;
+}
+
+export interface TaekilDayDto {
+  date: string;
+  /** '월' … '일' */
+  weekday: string;
+  ganzhi: { hanja: string; hangul: string };
+  lunar: { month: number; day: number; isLeapMonth: boolean } | null;
+  grade: TaekilGradeId;
+  gradeLabel: string;
+  /** 추천 순위 1~3 (Top 3 가 아니면 null) */
+  rank: number | null;
+  // ── 아래는 상세(결제 후)에만 채워진다. 잠겨 있으면 null ──
+  score: number | null;
+  officer: { name: string; hanja: string } | null;
+  tianShen: { name: string; hanja: string; yellow: boolean } | null;
+  /** 이 날을 한 줄로 */
+  summary: string | null;
+  reasons: TaekilReasonDto[] | null;
+  /** Top 3 에 들지 못한 까닭 (Top 3 는 null) */
+  dropReason: string | null;
+  /** 황도시(길한 시간) — Top 3 만 */
+  goodHours: string[] | null;
+}
+
+export interface TaekilResultDto {
+  id: string;
+  title: string;
+  purpose: TaekilPurposeId;
+  purposeLabel: string;
+  profileId: string;
+  profileName: string;
+  partnerName: string | null;
+  mode: 'range' | 'dates';
+  from: string;
+  to: string;
+  createdAt: string;
+  /** 무료 한 줄 요약 */
+  headline: string;
+  /** 계산 기준 — 일주·띠·용신 */
+  basis: string;
+  counts: Record<TaekilGradeId, number>;
+  /** 추천 Top 3 날짜(좋은 날이 없으면 비어 있다) */
+  top: string[];
+  /** 날짜순 */
+  days: TaekilDayDto[];
+  /** 종합 분석 · 목적 맞춤 조언 · 위기를 기회로 · 빠진 날짜 — 잠겨 있으면 목차만 */
+  sections: ReadingSection[];
+  locked: boolean;
+  productId: string;
+  generator: 'rule' | 'ai';
+  disclaimer: string;
+}
+
+export interface TaekilSummaryDto {
+  id: string;
+  title: string;
+  purpose: TaekilPurposeId;
+  purposeLabel: string;
+  profileName: string;
+  from: string;
+  to: string;
+  top: string[];
+  locked: boolean;
+  createdAt: string;
+}

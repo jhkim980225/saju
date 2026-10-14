@@ -143,3 +143,16 @@
 | POST | `/tojeong` | opt | `{ birth?: { calendar, year, month, day, isLeapMonth? }, profileId?, year? }` → `TojeongDto`. 비회원은 `birth`(양력·음력 생년월일만, 시각·성별 불필요 — 저장한 `BirthInputDto` 를 그대로 보내도 됨), 세션이 있으면 저장한 사주 `profileId`(남의 프로필 404, 세션 없이 401). `year` 기본 2027(1900~2049). 응답: 괘(번호·상중하·괘사 원문·독음·제목·요약·키워드), 총평 2문단, 음력 1~12월(양력 기간·`flow: rise|even|care`·문장), 작괘 근거(`basis`: 음력 생일·세는나이·태세수/월건수/일진수와 합, 보정 메모), 공유 문구. 없는 음력 날짜·윤달, 태어난 해보다 앞선 대상 연도는 400 |
 
 - 계산: `@saju/core` `computeTojeong` — 규칙은 [`SAJU_ENGINE.md`](./SAJU_ENGINE.md)「토정비결 작괘」. 원고: `apps/api/src/modules/tojeong/content/gwae1.ts`~`gwae8.ts`(144괘, AI 미사용 → 키 없이 동작).
+
+## 택일
+| 메서드 | 경로 | 인증 | 설명 |
+|---|---|---|---|
+| POST | `/taekil` | ✓ | `{ profileId, purpose: move|contract|exam|wedding|opening|travel, from, to }`(기간, 최대 92일) 또는 `{ ..., dates: string[] }`(후보 2~10개), 결혼만 `partnerProfileId?`. 날짜는 `YYYY-MM-DD`(KST), 오늘~2년 안. → **201** `TaekilResultDto`(무료 미리보기). 같은 입력은 저장본을 돌려준다 |
+| GET | `/taekil` | ✓ | 내 택일 목록(`TaekilSummaryDto[]`, `locked` 포함) — 보관함은 `locked=false` 만 보여 준다 |
+| GET | `/taekil/:id` | ✓ | 결과. 권한(`taekil:reading:<id>` 또는 플러스)이 없으면 `locked: true` |
+
+- 무료(`locked: true`): 날짜마다 `grade`·`gradeLabel`·`rank`, `top`(추천 Top 3 날짜), `counts`, `headline`, `basis`. 날짜의 `score`·`officer`·`tianShen`·`summary`·`reasons`·`dropReason`·`goodHours` 는 `null`, 섹션 4개(`taekil_overview`·`taekil_advice`·`taekil_turn`·`taekil_dropped`)는 `locked` + 소개(종합 분석만 첫 문단)
+- 상세: 위 필드 전부 + 섹션 본문. AI 키가 있으면 종합 분석·조언·위기를 기회로만 한 번 다듬어 저장(`generator: 'ai'`), 날짜별 근거는 규칙 계산 그대로
+- 결제: `POST /orders { productId: report_taekil, readingId: <택일 결과 ID> }` (IAP 는 `/payments/iap/verify` 에 `readingId`). `readingId` 가 없으면 400, 내 택일 결과가 아니면 404. 지급 권한은 `taekil:reading:<readingId>` — **그 결과 하나만** 열린다
+- 저장: 마이그레이션 없이 `reports` 테이블에 `type='taekil'` 로 둔다(계산 결과를 그대로 저장해 엔진이 바뀌어도 산 결과는 그대로). `/reports` 목록·조회에는 나오지 않는다
+- 계산 규칙과 근거: `docs/SAJU_ENGINE.md` §8

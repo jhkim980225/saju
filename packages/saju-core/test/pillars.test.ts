@@ -88,7 +88,7 @@ describe('lunar-javascript(八字) 교차 검증 — 무작위 3000건', () => {
     }
     // 절입 시각과 정확히 같은 분에 걸친 경우(초 단위 차이)만 허용
     expect(mismatches.length, mismatches.slice(0, 5).join('\n')).toBeLessThanOrEqual(1);
-  });
+  }, 60_000); // 3000건 — 기본 5초는 다른 작업과 CPU 를 나눠 쓰면 넘는다
 });
 
 describe('시간 보정', () => {

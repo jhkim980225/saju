@@ -14,3 +14,4 @@ export * from './compatibility.js';
 export * from './tojeong.js';
 export * from './astro.js';
 export * from './zodiac.js';
+export * from './taekil.js';
