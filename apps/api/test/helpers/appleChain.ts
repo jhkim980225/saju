@@ -58,7 +58,8 @@ function buildCert(spec: CertSpec): X509Certificate {
   const [hash, sigOid] = curve === 'secp384r1' ? ['sha384', ECDSA_SHA384] : ['sha256', ECDSA_SHA256];
   const sigAlg = seq(oid(sigOid));
   const serial = randomBytes(8);
-  serial[0]! &= 0x7f;
+  // 양수이면서 첫 바이트가 0이 아니게 — 0x00 으로 시작하면 DER 최소 인코딩 위반이라 OpenSSL 이 인증서를 거부한다(약 1/256 확률로 테스트가 깨졌음)
+  serial[0] = (serial[0]! & 0x7f) | 0x01;
   const extensions = [
     extension('2.5.29.19', spec.ca ? seq(bool(true)) : seq(), true), // basicConstraints
     extension('2.5.29.15', spec.ca ? tlv(0x03, Buffer.from([0x01, 0x06])) : tlv(0x03, Buffer.from([0x07, 0x80])), true), // keyUsage: keyCertSign+cRLSign / digitalSignature
