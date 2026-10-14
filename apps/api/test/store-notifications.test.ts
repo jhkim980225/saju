@@ -140,7 +140,7 @@ async function appleNotification(
           transactionId: opts.txId ?? '2000000000000001',
           originalTransactionId: opts.txId ?? '2000000000000001',
           bundleId: BUNDLE,
-          productId: 'kr.saju.report.lifetime',
+          productId: 'kr.dalbitsaju.report.lifetime',
           purchaseDate: Date.now() - 3_600_000,
           type: 'Consumable',
           inAppOwnershipType: 'PURCHASED',
@@ -257,7 +257,7 @@ describe('스토어 알림 엔드포인트', () => {
     const TX = '2000000000000001';
 
     it('REFUND → 권한·질문권 회수, 주문 refunded (관리자 환불과 같은 경로)', async () => {
-      const v = await api('POST', '/payments/iap/verify', { token, body: { platform: 'ios', productId: 'kr.saju.report.lifetime', receipt: `mock:${TX}`, profileId } });
+      const v = await api('POST', '/payments/iap/verify', { token, body: { platform: 'ios', productId: 'kr.dalbitsaju.report.lifetime', receipt: `mock:${TX}`, profileId } });
       expect(v.status).toBe(200);
       expect((await wallet()).entitlements.map((e: any) => e.key)).toContain(`report:lifetime:${profileId}`);
       expect((await wallet()).credits).toBe(3);
@@ -296,9 +296,9 @@ describe('스토어 알림 엔드포인트', () => {
 
     it('REVOKE(가족 공유 해제) → 회수, 주문 canceled', async () => {
       const tx = '2000000000000002';
-      await api('POST', '/payments/iap/verify', { token, body: { platform: 'ios', productId: 'kr.saju.chat.10', receipt: `mock:${tx}` } });
+      await api('POST', '/payments/iap/verify', { token, body: { platform: 'ios', productId: 'kr.dalbitsaju.chat.10', receipt: `mock:${tx}` } });
       const before = (await wallet()).credits;
-      const r = await apple(await appleNotification('REVOKE', { txId: tx, tx: { productId: 'kr.saju.chat.10', inAppOwnershipType: 'FAMILY_SHARED' } }));
+      const r = await apple(await appleNotification('REVOKE', { txId: tx, tx: { productId: 'kr.dalbitsaju.chat.10', inAppOwnershipType: 'FAMILY_SHARED' } }));
       expect(r.body).toMatchObject({ type: 'REVOKE', applied: true });
       expect((await wallet()).credits).toBe(before - 10);
       expect(orderOf(tx).status).toBe('canceled');
@@ -308,7 +308,7 @@ describe('스토어 알림 엔드포인트', () => {
       const tx = '2000000000000099';
       const r = await apple(await appleNotification('REFUND', { txId: tx }));
       expect(r.body).toMatchObject({ applied: false });
-      const v = await api('POST', '/payments/iap/verify', { token, body: { platform: 'ios', productId: 'kr.saju.chat.10', receipt: `mock:${tx}` } });
+      const v = await api('POST', '/payments/iap/verify', { token, body: { platform: 'ios', productId: 'kr.dalbitsaju.chat.10', receipt: `mock:${tx}` } });
       expect(v.status).toBe(402);
       expect(v.body.error.details.code).toBe('REVOKED');
     });
