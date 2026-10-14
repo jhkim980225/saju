@@ -722,8 +722,7 @@ export const RELATION_LABEL: Record<ProfileRelation, string> = { self: '나', pa
 // 토정비결 (무료 · 신년 시즌 콘텐츠)
 // ---------------------------------------------------------------------------
 
-/** 토정비결 기본 대상 연도 — 2027 丁未년 */
-export const TOJEONG_DEFAULT_YEAR = 2027;
+export { TOJEONG_DEFAULT_YEAR } from './tojeong.js';
 
 /** 토정비결은 음력 생년월일만 쓴다 — 저장된 출생 정보(BirthInputDto)를 그대로 넣어도 된다(시각·성별은 무시) */
 export const tojeongBirthSchema = z.object({

@@ -1,4 +1,5 @@
-import { TOJEONG_DEFAULT_YEAR } from '@saju/shared';
+// 랜딩(첫 번들)에서도 쓰므로 zod 스키마가 든 '@saju/shared' 대신 가벼운 하위 경로에서 가져온다
+import { TOJEONG_DEFAULT_YEAR } from '@saju/shared/tojeong';
 import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router';
 import { cx } from './ui';
