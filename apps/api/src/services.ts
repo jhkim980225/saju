@@ -35,6 +35,8 @@ export function createServices(config: AppConfig, db: Db, deps: ServiceDeps = {}
   const rewards = createRewardsService(config, db, commerce);
   const tarot = createTarotService(config, db, profiles, commerce, ai);
   commerce.setReadingCheck(tarot.assertPurchasable);
+  // 결제가 확정되면 산 리포트를 바로 만들기 시작한다(처음 열 때 기다리지 않게)
+  commerce.setFulfilledListener((e) => reports.prewarm(e));
   return { users, auth, oauth, profiles, gateways, commerce, ai, reports, chat, push, rewards, tarot };
 }
 

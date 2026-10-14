@@ -180,10 +180,16 @@ describe('회원 흐름 — 게스트 → 가입 → 결제 → 리포트', () =
     const o = await api('POST', '/orders', { token, body: { productId: 'report_saju_lifetime', profileId } });
     const c = await api('POST', '/payments/confirm', { token, body: { provider: 'mock', orderId: o.body.order.id, amount: 9900 } });
     expect(c.body.creditsBalance).toBe(3);
+    // 결제가 확정되면 바로 만들어 보관함에 둔다 (AI 키가 없으면 규칙 기반 최종본)
+    const prewarmed = await api('GET', '/reports', { token });
+    expect(prewarmed.body).toHaveLength(1);
     const rep = await api('POST', '/reports', { token, body: { type: 'lifetime', profileId } });
     expect(rep.status).toBe(201);
+    expect(rep.body.id).toBe(prewarmed.body[0].id);
+    expect(rep.body).toMatchObject({ status: 'ready', generator: 'rule', progress: null });
     expect(rep.body.sections.length).toBeGreaterThan(10);
     expect(rep.body.sections.every((s: any) => !s.locked)).toBe(true);
+    expect((await api('GET', `/reports/${rep.body.id}/progress`, { token })).body).toEqual({ status: 'ready', progress: null });
     // 같은 조건이면 저장본 재사용
     const rep2 = await api('POST', '/reports', { token, body: { type: 'lifetime', profileId } });
     expect(rep2.body.id).toBe(rep.body.id);

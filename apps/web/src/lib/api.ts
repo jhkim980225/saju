@@ -24,6 +24,7 @@ import type {
   ReadingDto,
   ReportCreateDto,
   ReportDto,
+  ReportProgressDto,
   ReportSummaryDto,
   SajuChart,
   SignupDto,
@@ -158,6 +159,7 @@ export const api = {
   // 리포트 / 상담
   reports: () => get<ReportSummaryDto[]>('/reports', 'required'),
   report: (id: string) => get<ReportDto>(`/reports/${id}`, 'required'),
+  reportProgress: (id: string) => get<ReportProgressDto>(`/reports/${id}/progress`, 'required'),
   createReport: (dto: ReportCreateDto) => post<ReportDto>('/reports', dto, 'required'),
   chatHistory: (profileId: string) => get<ChatMessageDto[]>(`/chat?profileId=${profileId}`, 'required'),
   chatSend: (profileId: string, message: string) => post<ChatReplyDto>('/chat', { profileId, message }, 'required'),

@@ -17,6 +17,14 @@ import { GatewayError } from './providers/types.js';
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 type Channel = 'web' | 'ios' | 'android' | 'system';
 
+/** 결제 지급 완료 — 지급된 권한 키와 주문의 대상 프로필 */
+export interface FulfilledEvent {
+  userId: string;
+  entitlements: string[];
+  profileId?: string;
+  partnerProfileId?: string;
+}
+
 const DAY = 86_400_000;
 
 /** 카탈로그 → DB upsert */
@@ -224,12 +232,34 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
   };
 
   type Granted = ReturnType<typeof fulfill>;
+
+  /** 지급 직후 알림(산 리포트 미리 만들기) — 리포트 서비스가 만들어진 뒤 setFulfilledListener 로 연결된다 */
+  let fulfilledListener: ((e: FulfilledEvent) => void) | null = null;
+  const notifyFulfilled = (order: Order, granted: Granted) => {
+    if (!fulfilledListener || granted.entitlements.length === 0) return;
+    const meta = (order.metadata ?? {}) as { profileId?: string; partnerProfileId?: string };
+    try {
+      fulfilledListener({ userId: order.userId, entitlements: granted.entitlements, profileId: meta.profileId, partnerProfileId: meta.partnerProfileId });
+    } catch (e) {
+      // 결제·지급은 이미 끝났다 — 후처리 실패가 결제 응답을 깨지 않게 한다
+      console.error('[commerce] 지급 후처리 실패', e);
+    }
+  };
+
   /**
    * 결제 확정 + 지급을 한 트랜잭션에서 원자적으로 처리한다.
    * - pending/failed 주문만 paid 로 바꾼다(조건부 UPDATE) → 동시 승인·웹훅 경쟁에서도 지급은 정확히 1회
    * - 계정당 구매 한도를 트랜잭션 안에서 다시 확인한다(주문 생성 시점 확인만으로는 우회 가능)
+   * - 커밋된 뒤에만 지급 알림을 보낸다(웹 승인·인앱결제·웹훅 모두 여기를 지난다)
    */
-  const settle = (order: Order, pay: { paymentKey: string | null; method: string | null; paidAt: number }, channel: Channel): { ok: true; granted: Granted } | { ok: false; reason: 'ALREADY_SETTLED' | 'PER_USER_LIMIT' } =>
+  type Payment = { paymentKey: string | null; method: string | null; paidAt: number };
+  type Settled = { ok: true; granted: Granted } | { ok: false; reason: 'ALREADY_SETTLED' | 'PER_USER_LIMIT' };
+  const settle = (order: Order, pay: Payment, channel: Channel): Settled => {
+    const result = settleTx(order, pay, channel);
+    if (result.ok) notifyFulfilled(order, result.granted);
+    return result;
+  };
+  const settleTx = (order: Order, pay: Payment, channel: Channel): Settled =>
     db.transaction((tx) => {
       const product = tx.select().from(products).where(eq(products.id, order.productId)).get();
       if (product && product.perUserLimit !== null) {
@@ -525,6 +555,9 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
     // ── 권한 ───────────────────────────────────────────────────
     setReadingCheck(fn: (userId: string, readingId: string, productId: string) => void) {
       readingCheck = fn;
+    },
+    setFulfilledListener(fn: (e: FulfilledEvent) => void) {
+      fulfilledListener = fn;
     },
 
     hasEntitlement(userId: string, key: string): boolean {

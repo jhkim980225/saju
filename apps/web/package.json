@@ -33,6 +33,7 @@
     "@capacitor/share": "^8.0.3",
     "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/status-bar": "^8.0.4",
+    "@capgo/capacitor-printer": "^8.1.7",
     "@capgo/native-purchases": "^8.9.2",
     "@saju/core": "0.1.0",
     "@saju/shared": "0.1.0",
