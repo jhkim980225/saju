@@ -11,3 +11,4 @@ export * from './chart.js';
 export * from './luck.js';
 export * from './fortune.js';
 export * from './compatibility.js';
+export * from './taekil.js';

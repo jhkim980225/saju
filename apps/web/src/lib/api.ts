@@ -36,6 +36,9 @@ import type {
   WalletDto,
   YearlyFortuneDto,
   BirthInputDto,
+  TaekilCreateDto,
+  TaekilResultDto,
+  TaekilSummaryDto,
 } from '@saju/shared';
 import { API_BASE } from './config';
 import { reloadSessionFromStorage, useSession } from './session';
@@ -184,4 +187,9 @@ export const api = {
   registerPush: (token: string, platform: 'web' | 'ios' | 'android') => post<void>('/push/tokens', { token, platform }, 'required'),
   unregisterPush: (token: string) => request<void>('DELETE', '/push/tokens', { body: { token }, auth: 'required' }),
   rewardStatus: () => get<{ used: number; limit: number; remaining: number; creditsPerReward: number }>('/rewards/status', 'required'),
+
+  // 택일
+  taekilCreate: (dto: TaekilCreateDto) => post<TaekilResultDto>('/taekil', dto, 'required'),
+  taekilList: () => get<TaekilSummaryDto[]>('/taekil', 'required'),
+  taekilGet: (id: string) => get<TaekilResultDto>(`/taekil/${id}`, 'required'),
 };

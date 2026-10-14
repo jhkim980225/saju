@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Page } from '@/components/AppShell';
+import { TaekilEntryCard } from '@/components/TaekilEntryCard';
 import { Button, Card, EmptyState, IconButton, PageHeader, Spinner, TextInput } from '@/components/ui';
 import { api } from '@/lib/api';
 import { t } from '@/lib/copy';
@@ -66,6 +67,7 @@ export function MansePage() {
               </ul>
               <p className="mt-3 text-xs text-ink-3">절기 시각은 한국 표준시(KST) 기준이에요.</p>
             </Card>
+            <TaekilEntryCard date={date > todayKst().iso ? date : undefined} className="" />
           </>
         )}
       </Page>

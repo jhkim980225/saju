@@ -398,6 +398,7 @@ else window.location.assign(url);
 | `bundle_newyear_2027` | 2027 신년 패키지 | 16,900 | `kr.dalbitsaju.bundle.newyear2027` | `bundle_newyear_2027` | 소모성 |
 | `chat_pack_10` | AI 상담 질문권 10회 | 3,900 | `kr.dalbitsaju.chat.10` | `chat_pack_10` | 소모성 |
 | `chat_pack_30` | AI 상담 질문권 30회 | 9,900 | `kr.dalbitsaju.chat.30` | `chat_pack_30` | 소모성 |
+| `report_taekil` | 택일 상세 풀이 (택일 결과 1건, `readingId` 필요) | 990 | `kr.dalbitsaju.report.taekil` | `report_taekil` | 소모성 |
 | `report_love` 외 2차 상품 | (comingSoon) | — | 미정 | 미정 | — |
 | `sub_plus_monthly` / `sub_plus_yearly` | 플러스 구독 (2차) | 6,900 / 59,000 | 미정 | 미정 | 자동 갱신 구독, 그룹 `plus` |
 

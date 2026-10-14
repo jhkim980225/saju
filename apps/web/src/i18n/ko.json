@@ -1427,5 +1427,133 @@
       "body": "카드는 다시 뽑지 않아요. 아까 펼친 카드 그대로 이어서 읽어 볼까요?",
       "cta": "그 결과 보기"
     }
+  },
+  "taekil": {
+    "meta": {
+      "navLabel": "택일",
+      "title": "택일 · 좋은 날 고르기",
+      "menuLabel": "택일 · 좋은 날 고르기"
+    },
+    "entry": {
+      "eyebrow": "택일",
+      "title": "중요한 날, 언제가 좋을까요?",
+      "body": "이사·계약·면접·결혼·개업·여행 날짜를 내 사주와 전통 역법으로 견줘 봐요. 날짜별 등급과 추천 날짜는 무료예요.",
+      "cta": "좋은 날 고르기"
+    },
+    "home": {
+      "intro": "내 사주와 전통 역법(통서)을 함께 보고, 고른 날짜 가운데 좋은 날을 추려 드려요.",
+      "purposeTitle": "무엇을 위한 날인가요?",
+      "profileTitle": "누구의 사주로 볼까요?",
+      "partnerTitle": "함께 볼 상대 (선택)",
+      "partnerNone": "나만 보기",
+      "partnerHint": "결혼은 두 사람의 사주를 함께 보면 서로에게 맞는 날을 고를 수 있어요.",
+      "dateTitle": "날짜를 골라 주세요",
+      "modeRange": "기간으로 찾기",
+      "modeDates": "후보 날짜 비교",
+      "rangeHint": "시작일과 끝일을 차례로 눌러 주세요. 최대 92일(약 3개월)까지 볼 수 있어요.",
+      "datesHint": "견줘 볼 날짜를 2~10개 눌러 주세요.",
+      "quick1": "다음 1개월",
+      "quick2": "다음 2개월",
+      "quick3": "다음 3개월",
+      "rangeSummary": "{{from}} ~ {{to}} · {{count}}일",
+      "rangeStartOnly": "{{from}}부터 — 끝일을 눌러 주세요",
+      "datesSummary": "{{count}}개 골랐어요",
+      "clear": "다시 고르기",
+      "submit": "좋은 날 찾기",
+      "submitting": "날짜를 살펴보는 중이에요",
+      "freeNote": "날짜별 등급과 추천 Top 3는 무료로 볼 수 있어요.",
+      "recentTitle": "최근에 본 택일",
+      "noProfileTitle": "사주를 먼저 저장해 주세요",
+      "noProfileBody": "택일은 내 사주와 그날의 기운을 함께 봐요.",
+      "noProfileCta": "내 사주 저장하기"
+    },
+    "purposes": {
+      "move": {
+        "label": "이사",
+        "hint": "손 없는 날도 함께 봐요"
+      },
+      "contract": {
+        "label": "계약",
+        "hint": "서명하고 도장 찍는 날"
+      },
+      "exam": {
+        "label": "면접·시험",
+        "hint": "글과 말이 풀리는 날"
+      },
+      "wedding": {
+        "label": "결혼",
+        "hint": "두 사람의 사주를 함께"
+      },
+      "opening": {
+        "label": "개업",
+        "hint": "첫 손님을 맞는 날"
+      },
+      "travel": {
+        "label": "여행·출발",
+        "hint": "집을 나서는 날"
+      }
+    },
+    "calendar": {
+      "prev": "이전 달",
+      "next": "다음 달",
+      "monthTitle": "{{year}}년 {{month}}월",
+      "today": "오늘"
+    },
+    "result": {
+      "eyebrow": "{{name}}님의 {{purpose}} 택일",
+      "period": "{{from}} ~ {{to}} · {{count}}일",
+      "periodDates": "후보 {{count}}일",
+      "topTitle": "추천 Top 3",
+      "topEmpty": "이번에 고른 날짜에는 권할 만한 날이 없어요. 기간을 넓혀 다시 살펴보세요.",
+      "rank": "{{rank}}위",
+      "viewCalendar": "달력",
+      "viewList": "목록",
+      "viewLabel": "보기 방식",
+      "sortRank": "추천순",
+      "sortDate": "날짜순",
+      "allDays": "모든 날짜",
+      "more": "나머지 {{count}}일 더 보기",
+      "reasonsGood": "좋은 점",
+      "reasonsBad": "아쉬운 점",
+      "reasonsInfo": "참고",
+      "goodHours": "좋은 시간(황도시)",
+      "dropReason": "Top 3에 들지 못한 까닭",
+      "score": "{{score}}점",
+      "officer": "{{name}}({{hanja}})일",
+      "lockedDay": "이 날의 근거와 빠진 이유는 상세 풀이에서 볼 수 있어요.",
+      "again": "다른 날짜로 다시 보기",
+      "basisLabel": "계산 기준",
+      "aiNotice": "종합 분석·조언·위기를 기회로는 AI가 규칙 기반 풀이를 바탕으로 문장을 다듬었어요. 날짜별 근거는 규칙 계산 그대로예요.",
+      "libraryBadge": "택일"
+    },
+    "paywall": {
+      "cta": "상세 풀이 열기 · {{price}}",
+      "ctaNoPrice": "상세 풀이 열기",
+      "lockTitle": "상세 풀이에서 이어서 볼 수 있어요",
+      "lockBody": "Top 3의 근거와 좋은 시간, 날짜마다 좋고 아쉬운 이유, 목적에 맞춘 조언을 담았어요.",
+      "sheetTitle": "{{purpose}} 택일 상세 풀이",
+      "sheetSubtitle": "지금 본 날짜와 등급 그대로 이어서 열어요.",
+      "benefitTop": "Top 3 길일의 근거와 좋은 시간(황도시)",
+      "benefitDays": "날짜마다 좋고 아쉬운 이유, 빠진 날짜의 까닭",
+      "benefitAdvice": "목적에 맞춘 조언과 '위기를 기회로'",
+      "benefitRevisit": "보관함에서 언제든 다시 볼 수 있어요",
+      "freeIncluded": "무료: 날짜별 등급 · 추천 Top 3 날짜",
+      "unlocked": "상세 풀이를 열었어요."
+    },
+    "grade": {
+      "best": "대길",
+      "good": "길",
+      "normal": "보통",
+      "caution": "주의",
+      "avoid": "피함"
+    },
+    "error": {
+      "notFound": "택일 결과를 찾을 수 없어요.",
+      "load": "택일 결과를 불러오지 못했어요."
+    },
+    "fromManse": {
+      "title": "이 달력으로 좋은 날 고르기",
+      "body": "이사·계약·결혼처럼 중요한 날을 내 사주와 함께 골라 봐요."
+    }
   }
 }

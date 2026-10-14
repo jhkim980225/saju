@@ -138,6 +138,9 @@ export function LandingPage() {
             <Link to="/manse" className="underline">
               만세력
             </Link>
+            <Link to="/taekil" className="underline">
+              {t('taekil.meta.navLabel')}
+            </Link>
           </p>
         </footer>
       </Page>

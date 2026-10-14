@@ -85,3 +85,16 @@
 | 메서드 | 경로 | 인증 | 설명 |
 |---|---|---|---|
 | POST / DELETE | `/push/tokens` | ✓ | FCM 토큰 등록/해제 `{ token, platform: web|ios|android }` |
+
+## 택일
+| 메서드 | 경로 | 인증 | 설명 |
+|---|---|---|---|
+| POST | `/taekil` | ✓ | `{ profileId, purpose: move|contract|exam|wedding|opening|travel, from, to }`(기간, 최대 92일) 또는 `{ ..., dates: string[] }`(후보 2~10개), 결혼만 `partnerProfileId?`. 날짜는 `YYYY-MM-DD`(KST), 오늘~2년 안. → **201** `TaekilResultDto`(무료 미리보기). 같은 입력은 저장본을 돌려준다 |
+| GET | `/taekil` | ✓ | 내 택일 목록(`TaekilSummaryDto[]`, `locked` 포함) — 보관함은 `locked=false` 만 보여 준다 |
+| GET | `/taekil/:id` | ✓ | 결과. 권한(`taekil:reading:<id>` 또는 플러스)이 없으면 `locked: true` |
+
+- 무료(`locked: true`): 날짜마다 `grade`·`gradeLabel`·`rank`, `top`(추천 Top 3 날짜), `counts`, `headline`, `basis`. 날짜의 `score`·`officer`·`tianShen`·`summary`·`reasons`·`dropReason`·`goodHours` 는 `null`, 섹션 4개(`taekil_overview`·`taekil_advice`·`taekil_turn`·`taekil_dropped`)는 `locked` + 소개(종합 분석만 첫 문단)
+- 상세: 위 필드 전부 + 섹션 본문. AI 키가 있으면 종합 분석·조언·위기를 기회로만 한 번 다듬어 저장(`generator: 'ai'`), 날짜별 근거는 규칙 계산 그대로
+- 결제: `POST /orders { productId: report_taekil, readingId: <택일 결과 ID> }` (IAP 는 `/payments/iap/verify` 에 `readingId`). `readingId` 가 없으면 400, 내 택일 결과가 아니면 404. 지급 권한은 `taekil:reading:<readingId>` — **그 결과 하나만** 열린다
+- 저장: 마이그레이션 없이 `reports` 테이블에 `type='taekil'` 로 둔다(계산 결과를 그대로 저장해 엔진이 바뀌어도 산 결과는 그대로). `/reports` 목록·조회에는 나오지 않는다
+- 계산 규칙과 근거: `docs/SAJU_ENGINE.md` §6

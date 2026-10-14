@@ -15,6 +15,7 @@ import { createReportService } from './modules/reports/service.js';
 import { createRewardsService } from './modules/rewards/service.js';
 import { createTarotService } from './modules/tarot/service.js';
 import { createUserService } from './modules/users/service.js';
+import { createTaekilService } from './modules/taekil/service.js';
 
 export function createServices(config: AppConfig, db: Db) {
   const users = createUserService(config, db);
@@ -30,7 +31,9 @@ export function createServices(config: AppConfig, db: Db) {
   const rewards = createRewardsService(config, db, commerce);
   const tarot = createTarotService(config, db, profiles, commerce, ai);
   commerce.setReadingCheck(tarot.assertPurchasable);
-  return { users, auth, oauth, profiles, gateways, commerce, ai, reports, chat, push, rewards, tarot };
+  const taekil = createTaekilService(db, profiles, commerce, ai);
+  commerce.setGrantReadingCheck('taekil:reading', taekil.assertPurchasable);
+  return { users, auth, oauth, profiles, gateways, commerce, ai, reports, chat, push, rewards, tarot, taekil };
 }
 
 export type Services = ReturnType<typeof createServices>;
