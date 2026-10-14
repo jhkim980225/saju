@@ -24,6 +24,7 @@ import { commerceRoutes } from './modules/commerce/routes.js';
 import { pushRoutes } from './modules/push/routes.js';
 import { configRoutes } from './modules/config/routes.js';
 import { rewardRoutes } from './modules/rewards/routes.js';
+import { tojeongRoutes } from './modules/tojeong/routes.js';
 
 export interface AuthUser {
   id: string;
@@ -140,6 +141,7 @@ export async function buildApp(opts: { config: AppConfig; db: Db; logger?: boole
       await api.register(commerceRoutes);
       await api.register(pushRoutes, { prefix: '/push' });
       await api.register(rewardRoutes, { prefix: '/rewards' });
+      await api.register(tojeongRoutes, { prefix: '/tojeong' });
     },
     { prefix: '/api/v1' },
   );

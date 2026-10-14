@@ -637,3 +637,82 @@ export const pushRegisterSchema = z.object({
 export const ELEMENT_LABEL = { wood: '목', fire: '화', earth: '토', metal: '금', water: '수' } as const;
 export const FORTUNE_CATEGORY_LABEL = { total: '총운', wealth: '재물운', love: '애정운', career: '직장·사업운', health: '건강운', study: '학업운' } as const;
 export const RELATION_LABEL: Record<ProfileRelation, string> = { self: '나', partner: '연인·배우자', family: '가족', friend: '친구', colleague: '동료', other: '기타' };
+
+// ---------------------------------------------------------------------------
+// 토정비결 (무료 · 신년 시즌 콘텐츠)
+// ---------------------------------------------------------------------------
+
+/** 토정비결 기본 대상 연도 — 2027 丁未년 */
+export const TOJEONG_DEFAULT_YEAR = 2027;
+
+/** 토정비결은 음력 생년월일만 쓴다 — 저장된 출생 정보(BirthInputDto)를 그대로 넣어도 된다(시각·성별은 무시) */
+export const tojeongBirthSchema = z.object({
+  calendar: z.enum(['solar', 'lunar']),
+  year: z.number().int().min(1900).max(2050),
+  month: z.number().int().min(1).max(12),
+  day: z.number().int().min(1).max(31),
+  isLeapMonth: z.boolean().optional().default(false),
+});
+export type TojeongBirthDto = z.input<typeof tojeongBirthSchema>;
+
+export const tojeongRequestSchema = z
+  .object({
+    birth: tojeongBirthSchema.optional(),
+    profileId: z.string().optional(),
+    /** 신수를 보는 해 (기본 TOJEONG_DEFAULT_YEAR) */
+    year: z.number().int().min(1900).max(2049).optional(),
+  })
+  .refine((v) => v.birth || v.profileId, { message: 'birth 또는 profileId 가 필요합니다.' });
+export type TojeongRequestDto = z.input<typeof tojeongRequestSchema>;
+
+/** 그달의 기운 — rise 힘이 붙는 달, even 고른 달, care 살피는 달 */
+export type TojeongMonthFlow = 'rise' | 'even' | 'care';
+
+export interface TojeongDto {
+  year: number;
+  yearPillar: { hanja: string; hangul: string };
+  profileId: string | null;
+  gwae: {
+    /** 괘 번호 111 ~ 863 */
+    code: number;
+    upper: number;
+    middle: number;
+    lower: number;
+    /** 괘사 한문 원문 */
+    verse: string;
+    /** 괘사 한글 독음 */
+    reading: string;
+    title: string;
+    summary: string;
+    keywords: string[];
+  };
+  /** 총평 문단 */
+  overview: string[];
+  /** 음력 1~12월 */
+  months: {
+    month: number;
+    /** '음력 1월' */
+    label: string;
+    /** 양력 기간 '2.7 ~ 3.7' (그달 뒤에 윤달이 있으면 윤달 끝까지) */
+    period: string;
+    flow: TojeongMonthFlow;
+    flowLabel: string;
+    text: string;
+  }[];
+  /** 작괘 근거 — 화면의 '괘를 뽑은 방법' */
+  basis: {
+    lunarBirth: { year: number; month: number; day: number; isLeapMonth: boolean };
+    /** 그해 세는나이 */
+    age: number;
+    /** 상괘: 세는나이 + 태세수 */
+    upper: { ganzhi: string; value: number; sum: number };
+    /** 중괘: 그해 생월 날수 + 월건수 */
+    middle: { ganzhi: string; value: number; monthDays: number; sum: number };
+    /** 하괘: 생일수 + 그해 생일 일진수 */
+    lower: { ganzhi: string; value: number; birthDay: number; solarDate: string; sum: number };
+    notes: string[];
+  };
+  /** 공유 문구(생년월일 없이) */
+  shareText: string;
+  disclaimer: string;
+}

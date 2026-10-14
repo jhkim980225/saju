@@ -39,6 +39,7 @@ const TarotDrawPage = lazyPage(() => import('./pages/TarotDrawPage'), 'TarotDraw
 const TarotResultPage = lazyPage(() => import('./pages/TarotResultPage'), 'TarotResultPage');
 const TarotDailyPage = lazyPage(() => import('./pages/TarotResultPage'), 'TarotDailyPage');
 const TarotHistoryPage = lazyPage(() => import('./pages/TarotHistoryPage'), 'TarotHistoryPage');
+const TojeongPage = lazyPage(() => import('./pages/TojeongPage'), 'TojeongPage');
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -111,6 +112,7 @@ export const routes = [
       { path: '/tarot/daily', element: <TarotDailyPage /> },
       { path: '/tarot/r/:id', element: <TarotResultPage /> },
       { path: '/tarot/history', element: <TarotHistoryPage /> },
+      { path: '/tojeong', element: <TojeongPage /> },
       {
         element: <TabLayout />,
         children: [

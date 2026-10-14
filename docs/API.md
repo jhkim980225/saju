@@ -88,3 +88,10 @@
 | 메서드 | 경로 | 인증 | 설명 |
 |---|---|---|---|
 | POST / DELETE | `/push/tokens` | ✓ | FCM 토큰 등록/해제 `{ token, platform: web|ios|android }` |
+
+## 토정비결 (무료)
+| 메서드 | 경로 | 인증 | 설명 |
+|---|---|---|---|
+| POST | `/tojeong` | opt | `{ birth?: { calendar, year, month, day, isLeapMonth? }, profileId?, year? }` → `TojeongDto`. 비회원은 `birth`(양력·음력 생년월일만, 시각·성별 불필요 — 저장한 `BirthInputDto` 를 그대로 보내도 됨), 세션이 있으면 저장한 사주 `profileId`(남의 프로필 404, 세션 없이 401). `year` 기본 2027(1900~2049). 응답: 괘(번호·상중하·괘사 원문·독음·제목·요약·키워드), 총평 2문단, 음력 1~12월(양력 기간·`flow: rise|even|care`·문장), 작괘 근거(`basis`: 음력 생일·세는나이·태세수/월건수/일진수와 합, 보정 메모), 공유 문구. 없는 음력 날짜·윤달, 태어난 해보다 앞선 대상 연도는 400 |
+
+- 계산: `@saju/core` `computeTojeong` — 규칙은 [`SAJU_ENGINE.md`](./SAJU_ENGINE.md)「토정비결 작괘」. 원고: `apps/api/src/modules/tojeong/content/gwae1.ts`~`gwae8.ts`(144괘, AI 미사용 → 키 없이 동작).

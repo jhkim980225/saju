@@ -2,6 +2,7 @@ import { Check, ChevronDown } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { Page } from '@/components/AppShell';
 import { Wordmark } from '@/components/Seal';
+import { TojeongEntryCard } from '@/components/TojeongEntryCard';
 import { Button } from '@/components/ui';
 import { t } from '@/lib/copy';
 import { ELEMENT_META, targetFortuneYear } from '@/lib/format';
@@ -110,6 +111,8 @@ export function LandingPage() {
             ))}
           </ul>
         </section>
+
+        <TojeongEntryCard className="mt-12 lg:mt-20 lg:max-w-md" />
 
         <section className="mt-12 lg:mt-20 lg:max-w-3xl">
           <h2 className="text-lg font-semibold">{t('landing.faqTitle')}</h2>
