@@ -24,6 +24,7 @@
 |---|---|---|---|---|
 | `result_bottom` | 무료 결과 본문 하단, 유료 상품 추천(전체 풀이 열기) **아래** | `ReadingView.tsx` (잠긴 섹션이 있고 프리미엄이 아닐 때) | AdSense 반응형 디스플레이 / 애드핏 320×100 | AdSense 250px, 애드핏 100px |
 | `home_infeed` | 오늘 탭, 운세 카드들 아래·공유 버튼 위 | `TodayPage.tsx` | AdSense 반응형 디스플레이 / 애드핏 320×100 | 같음 |
+| `content_mid` | 띠별·별자리 운세(SEO 콘텐츠) 본문 중간 — 상세는 근거 카드 아래·년생별 목록 위, 허브는 12개 목록 아래. 같은 화면 하단(오늘의 운세 안내 카드 **아래**)은 `result_bottom` | `ZodiacPage.tsx`, `HoroscopePage.tsx` (키: `VITE_ADSENSE_SLOT_CONTENT_MID`, `VITE_ADFIT_UNIT_CONTENT_MID`) | 같음 | 같음 |
 
 2차 후보(리서치 §5.7): SEO 콘텐츠 본문 중간·하단(`web_content_mid`), AdSense Offerwall(`web_offerwall_detail`, 하루 1~2회). 추가할 때는 `AdPlacement` 타입과 env 키를 함께 늘립니다.
 

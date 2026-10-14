@@ -128,7 +128,7 @@ export function LandingPage() {
 
         <footer className="mt-12 space-y-2 text-xs leading-relaxed text-ink-3 lg:mt-20 lg:border-t lg:border-line lg:pt-8">
           <p>{t('disclaimer.standard')}</p>
-          <p className="flex gap-3">
+          <p className="flex flex-wrap gap-x-3 gap-y-1">
             <Link to="/legal/terms" className="underline">
               {t('my.terms')}
             </Link>
@@ -137,6 +137,12 @@ export function LandingPage() {
             </Link>
             <Link to="/manse" className="underline">
               만세력
+            </Link>
+            <Link to="/zodiac" className="underline">
+              띠별 운세
+            </Link>
+            <Link to="/horoscope" className="underline">
+              별자리 운세
             </Link>
           </p>
         </footer>

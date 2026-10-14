@@ -624,3 +624,6 @@ export const pushRegisterSchema = z.object({
 export const ELEMENT_LABEL = { wood: '목', fire: '화', earth: '토', metal: '금', water: '수' } as const;
 export const FORTUNE_CATEGORY_LABEL = { total: '총운', wealth: '재물운', love: '애정운', career: '직장·사업운', health: '건강운', study: '학업운' } as const;
 export const RELATION_LABEL: Record<ProfileRelation, string> = { self: '나', partner: '연인·배우자', family: '가족', friend: '친구', colleague: '동료', other: '기타' };
+
+// 띠별·별자리 운세 (무료 SEO 콘텐츠)
+export * from './zodiac.js';

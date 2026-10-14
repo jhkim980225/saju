@@ -61,6 +61,20 @@
 
 - 결제: `POST /orders { productId: tarot_question_3 | tarot_love_5, readingId }` (IAP 는 `/payments/iap/verify` 에 `readingId`). 리딩과 상품의 펼침 방식이 맞아야 하며, 지급 권한은 `tarot:reading:<readingId>` + 질문권 1회.
 
+## 띠별 · 별자리 운세 (무료 공개 콘텐츠)
+| 메서드 | 경로 | 인증 | 설명 |
+|---|---|---|---|
+| GET | `/zodiac?period&date` | - | 12띠 한 줄 요약 `ZodiacOverviewDto` (띠·흐름·제목·근거 한 줄, 이번 주는 좋은 날·살필 날 요일) |
+| GET | `/zodiac/:animal?period&date` | - | 띠 하나 `ZodiacFortuneDto` — `animal`: `rat ox tiger rabbit dragon snake horse sheep monkey rooster dog pig` |
+| GET | `/horoscope?period&date` | - | 12별자리 한 줄 요약 `HoroscopeOverviewDto` |
+| GET | `/horoscope/:sign?period&date` | - | 별자리 하나 `HoroscopeDto` — `sign`: `aries taurus gemini cancer leo virgo libra scorpio sagittarius capricorn aquarius pisces` |
+
+- `period`: `today`(기본) · `tomorrow` · `week`(그 날이 속한 월~일) · `month` · `year`. `date`: `YYYY-MM-DD`(KST, 기본 오늘, 1900~2100). 잘못된 값은 400, 없는 띠·별자리는 404.
+- 개인 정보를 받지 않고 같은 입력이면 같은 응답이라 `Cache-Control: public, max-age=600`.
+- 띠: `pillar`(오늘·내일 일진 / 이번 달 월건 / 올해 세운, 이번 주는 `null`), `reasons`(관계와 오행 작용 근거), `keyDays`(이번 주 좋은 날·살필 날), `lucky`, `years`(7~90세 년생별 한 줄 + 근거), `range`(이번 달은 절기 달, 올해는 입춘~입춘), `basisNote`(입춘 기준 안내).
+- 별자리: `sky`(달·태양·목성·토성이 지나는 별자리, 내 별자리에서 몇 번째 자리·각, 근거 문장), `keyDays`(이번 주), `range`(이번 달은 태양이 지금 별자리에 머무는 기간, 올해는 그 해 1~12월), `basisNote`(계산 방법·오차).
+- 계산 방법: [`SAJU_ENGINE.md`](SAJU_ENGINE.md) §6. 생일 → 별자리는 `@saju/shared` 의 `starSignOfBirthday(month, day)` (날짜표, 경계일 `isCusp`).
+
 ## 커머스
 | 메서드 | 경로 | 인증 | 설명 |
 |---|---|---|---|

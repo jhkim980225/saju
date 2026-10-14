@@ -36,6 +36,11 @@ import type {
   WalletDto,
   YearlyFortuneDto,
   BirthInputDto,
+  FreeFortunePeriod,
+  HoroscopeDto,
+  HoroscopeOverviewDto,
+  ZodiacFortuneDto,
+  ZodiacOverviewDto,
 } from '@saju/shared';
 import { API_BASE } from './config';
 import { reloadSessionFromStorage, useSession } from './session';
@@ -184,4 +189,10 @@ export const api = {
   registerPush: (token: string, platform: 'web' | 'ios' | 'android') => post<void>('/push/tokens', { token, platform }, 'required'),
   unregisterPush: (token: string) => request<void>('DELETE', '/push/tokens', { body: { token }, auth: 'required' }),
   rewardStatus: () => get<{ used: number; limit: number; remaining: number; creditsPerReward: number }>('/rewards/status', 'required'),
+
+  // 띠별·별자리 운세 (공개 콘텐츠, 로그인 불필요)
+  zodiacOverview: (period: FreeFortunePeriod, date: string) => get<ZodiacOverviewDto>(`/zodiac?period=${period}&date=${date}`, 'none'),
+  zodiac: (slug: string, period: FreeFortunePeriod, date: string) => get<ZodiacFortuneDto>(`/zodiac/${slug}?period=${period}&date=${date}`, 'none'),
+  horoscopeOverview: (period: FreeFortunePeriod, date: string) => get<HoroscopeOverviewDto>(`/horoscope?period=${period}&date=${date}`, 'none'),
+  horoscope: (slug: string, period: FreeFortunePeriod, date: string) => get<HoroscopeDto>(`/horoscope/${slug}?period=${period}&date=${date}`, 'none'),
 };

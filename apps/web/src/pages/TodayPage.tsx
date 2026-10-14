@@ -159,6 +159,16 @@ export function TodayPage() {
               </Card>
 
               <TodayTarotCard />
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <Link to="/zodiac" className="rounded-2xl border border-line bg-surface px-4 py-3.5 transition-colors hover:border-line-strong">
+                  <span className="block text-xs text-ink-3">무료</span>
+                  <span className="mt-0.5 block font-semibold">띠별 운세</span>
+                </Link>
+                <Link to="/horoscope" className="rounded-2xl border border-line bg-surface px-4 py-3.5 transition-colors hover:border-line-strong">
+                  <span className="block text-xs text-ink-3">무료</span>
+                  <span className="mt-0.5 block font-semibold">별자리 운세</span>
+                </Link>
+              </div>
             </div>
 
             <div className="lg:pt-4">
