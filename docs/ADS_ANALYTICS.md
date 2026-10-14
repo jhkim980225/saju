@@ -24,6 +24,7 @@
 |---|---|---|---|---|
 | `result_bottom` | 무료 결과 본문 하단, 유료 상품 추천(전체 풀이 열기) **아래** | `ReadingView.tsx` (잠긴 섹션이 있고 프리미엄이 아닐 때) | AdSense 반응형 디스플레이 / 애드핏 320×100 | AdSense 250px, 애드핏 100px |
 | `home_infeed` | 오늘 탭, 운세 카드들 아래·공유 버튼 위 | `TodayPage.tsx` | AdSense 반응형 디스플레이 / 애드핏 320×100 | 같음 |
+| `result_bottom` | 토정비결(무료) 결과 — 신년운세 추천 카드 **아래**·공유 버튼 위 (리서치의 `web_free_result_bottom`) | `TojeongPage.tsx` | 위와 같음 | 위와 같음 |
 
 2차 후보(리서치 §5.7): SEO 콘텐츠 본문 중간·하단(`web_content_mid`), AdSense Offerwall(`web_offerwall_detail`, 하루 1~2회). 추가할 때는 `AdPlacement` 타입과 env 키를 함께 늘립니다.
 
