@@ -486,8 +486,9 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
           : undefined;
       // 다른 결제사로 생성된 주문은 이 웹훅으로 상태를 바꿀 수 없다(목업·타 PG 웹훅 위조 방지)
       const order = found && found.provider === providerId ? found : undefined;
-      if (!order && event.status !== 'other') {
-        // ref 없이 결제 링크로 바로 산 경우 등 — 운영자가 결제사 화면에서 확인해 처리한다
+      if (!order && event.status === 'paid') {
+        // ref 없이 결제 링크로 바로 산 경우 등 — 운영자가 결제사 화면에서 확인해 처리한다.
+        // (우리 주문이 없는 환불 알림은 같은 계정을 쓰는 다른 서비스의 것일 수 있어 경고하지 않는다)
         console.warn(`[commerce] 주문을 찾지 못한 결제 웹훅 (${providerId} ${event.type} order=${event.orderId ?? '-'} key=${event.paymentKey ?? '-'})`);
       }
       if (order && (event.status === 'canceled' || event.status === 'refunded') && order.status === 'paid') {

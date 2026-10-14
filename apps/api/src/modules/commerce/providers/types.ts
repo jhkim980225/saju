@@ -26,6 +26,8 @@ export interface WebhookEvent {
   productRef?: string | null;
   /** 부분 환불이면 true — 자동 회수하지 않고 기록만 한다(운영자가 판단) */
   partial?: boolean;
+  /** 같은 결제사 계정을 쓰는 다른 서비스의 알림(그로블 ref 접두어가 다름) — 기록만 하고 건너뛴다 */
+  foreign?: boolean;
   raw: unknown;
 }
 

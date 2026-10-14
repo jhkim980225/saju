@@ -56,6 +56,11 @@ const schema = z.object({
    * 그로블은 가격을 결제창마다 정하므로 catalog.ts 의 판매가와 같게 맞춰 둔다(다르면 지급하지 않음).
    */
   GROBLE_PRODUCT_LINKS: opt,
+  /**
+   * 한 그로블 계정을 여러 서비스가 같이 쓸 때 이 서비스의 ref 접두어(영숫자 1~16자, 예: saju).
+   * 주문 링크의 ref 가 `saju-<주문 ID>` 가 되고, 다른 접두어(다른 서비스)의 웹훅은 조용히 건너뛴다. 비우면 접두어 없음
+   */
+  GROBLE_REF_PREFIX: opt.refine((v) => v === undefined || /^[A-Za-z0-9]{1,16}$/.test(v), '영문·숫자 1~16자로 적어 주세요.'),
   TOSS_CLIENT_KEY: opt,
   TOSS_SECRET_KEY: opt,
   TOSS_WEBHOOK_SECRET: opt,

@@ -19,6 +19,8 @@ const BIRTH = { calendar: 'solar', year: 1990, month: 5, day: 15, hour: 14, minu
 
 let app: FastifyInstance;
 let db: ReturnType<typeof createDb>['db'];
+/** 요청을 보낼 앱 — 기본은 app, 접두어 테스트에서만 바꾼다 */
+let target: FastifyInstance | undefined;
 
 beforeAll(async () => {
   const config = loadConfig({
@@ -39,7 +41,7 @@ beforeAll(async () => {
 afterAll(() => app.close());
 
 const api = async (method: 'GET' | 'POST', url: string, opts: { token?: string; body?: unknown; headers?: Record<string, string> } = {}) => {
-  const res = await app.inject({
+  const res = await (target ?? app).inject({
     method,
     url: `/api/v1${url}`,
     headers: { ...(opts.token ? { authorization: `Bearer ${opts.token}` } : {}), ...(opts.headers ?? {}) },
@@ -70,7 +72,7 @@ async function send(body: object, opts: { secret?: string; ts?: string; previous
     headers['x-groble-signature'] = '00'.repeat(32);
     headers['x-groble-signature-previous'] = sig;
   } else headers['x-groble-signature'] = sig;
-  const res = await app.inject({ method: 'POST', url: '/api/v1/payments/webhooks/groble', headers, payload: opts.tamper ? raw.replace('"KRW"', '"USD"') : raw });
+  const res = await (target ?? app).inject({ method: 'POST', url: '/api/v1/payments/webhooks/groble', headers, payload: opts.tamper ? raw.replace('"KRW"', '"USD"') : raw });
   return { status: res.statusCode, body: res.body ? (JSON.parse(res.body) as any) : null };
 }
 
@@ -283,5 +285,56 @@ describe('그로블 결제 흐름', () => {
     expect(r.status).toBe(400);
     expect(r.body.error.message).toContain('그로블 판매자 화면');
     expect(await status(token, c.order.id)).toBe('paid');
+  });
+});
+
+describe('한 그로블 계정을 여러 서비스가 같이 쓸 때 (GROBLE_REF_PREFIX)', () => {
+  let shared: FastifyInstance;
+  beforeAll(async () => {
+    const config = loadConfig({
+      __SKIP_ENV_FILE: '1',
+      NODE_ENV: 'test',
+      PAYMENT_PROVIDER: 'groble',
+      GROBLE_WEBHOOK_SECRET: SECRET,
+      GROBLE_PRODUCT_LINKS: LINKS,
+      GROBLE_REF_PREFIX: 'saju',
+      ANTHROPIC_API_KEY: '',
+      SIGNUP_BONUS_CREDITS: '0',
+    });
+    const created = createDb(':memory:');
+    runMigrations(created.db);
+    seedProducts(created.db);
+    shared = await buildApp({ config, db: created.db, logger: false });
+    target = shared;
+  });
+  afterAll(async () => {
+    target = undefined;
+    await shared.close();
+  });
+
+  it('결제 링크의 ref 는 `saju-<주문 ID>`, 그 알림으로 지급된다', async () => {
+    const { token } = await member();
+    const c = await order(token, 'chat_pack_10');
+    expect(c.checkout.redirectUrl).toBe(`https://groble.im/payment/chat10?ref=saju-${c.order.id}`);
+    expect((await send(completed(`saju-${c.order.id}`))).status).toBe(200);
+    expect(await status(token, c.order.id)).toBe('paid');
+    expect(await credits(token)).toBe(10);
+  });
+
+  it('다른 서비스(다른 접두어·접두어 없음)의 결제 알림은 우리 주문 ID 와 같아도 건너뛴다', async () => {
+    const { token } = await member();
+    const c = await order(token, 'chat_pack_10');
+    expect((await send(completed(`other-${c.order.id}`))).status).toBe(200);
+    expect((await send(completed(c.order.id))).status).toBe(200);
+    expect(await status(token, c.order.id)).toBe('pending');
+    expect(await credits(token)).toBe(0);
+  });
+
+  it('우리 주문이 아닌 환불 알림은 아무것도 바꾸지 않고 200', async () => {
+    expect((await send(refunded('mu-other-service'))).status).toBe(200);
+  });
+
+  it('접두어 형식이 틀리면 기동하지 않는다', () => {
+    expect(() => loadConfig({ __SKIP_ENV_FILE: '1', NODE_ENV: 'test', GROBLE_REF_PREFIX: 'saju-app' })).toThrow(/GROBLE_REF_PREFIX/);
   });
 });

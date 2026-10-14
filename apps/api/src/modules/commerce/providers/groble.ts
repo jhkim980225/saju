@@ -9,6 +9,9 @@
  * - 주문 연결: 결제 링크에 ?ref=<우리 주문 ID> 를 붙이면 payment.completed 의 data.object.sellerReference 로 돌아온다.
  *   payment.refunded 에는 sellerReference 가 없어서 merchantUid(완료 때 providerPaymentKey 로 저장)로 주문을 찾는다.
  *
+ * - 여러 서비스가 한 그로블 계정을 같이 쓰면(GROBLE_REF_PREFIX) ref 를 `<접두어>-<주문 ID>` 로 보내고,
+ *   다른 접두어의 결제 완료 알림은 foreign 으로 건너뛴다. 환불 알림은 merchantUid 로 우리 주문이 없으면 그냥 넘어간다.
+ *
  * 웹훅 서명: HEX(HMAC-SHA256(secret, "{X-Groble-Timestamp}.{raw body}")) 를 X-Groble-Signature 와 비교한다.
  * 시크릿 재발급 뒤 24시간은 X-Groble-Signature-Previous(이전 시크릿 서명)도 함께 오므로 둘 중 하나만 맞으면 된다
  * → 서버의 GROBLE_WEBHOOK_SECRET 을 새 값으로 바꾸기 전·후 모두 검증된다. timestamp 는 ±5분.
@@ -108,6 +111,12 @@ function redact(body: Record<string, unknown>): Record<string, unknown> {
 
 export function createGrobleGateway(config: AppConfig): PaymentGateway {
   const links = parseGrobleProductLinks(config.GROBLE_PRODUCT_LINKS);
+  const prefix = config.GROBLE_REF_PREFIX ? `${config.GROBLE_REF_PREFIX}-` : '';
+  /** 웹훅 sellerReference → 우리 주문 ID. 접두어를 쓰는데 다른 접두어(또는 없음)면 다른 서비스의 결제 */
+  const toOrderId = (ref: string | null): { orderId: string | null; foreign: boolean } => {
+    if (!prefix) return { orderId: ref, foreign: false };
+    return ref?.startsWith(prefix) ? { orderId: ref.slice(prefix.length), foreign: false } : { orderId: null, foreign: true };
+  };
   return {
     id: 'groble',
     envKeys: GROBLE_ENV_KEYS,
@@ -123,9 +132,10 @@ export function createGrobleGateway(config: AppConfig): PaymentGateway {
     checkoutUrl(productId, orderId) {
       const link = links.get(productId);
       if (!link) return null;
-      if (!GROBLE_REF_PATTERN.test(orderId)) throw new Error(`그로블 ref 로 쓸 수 없는 주문 ID 예요: ${orderId}`);
+      const ref = `${prefix}${orderId}`;
+      if (!GROBLE_REF_PATTERN.test(ref)) throw new Error(`그로블 ref 로 쓸 수 없는 주문 ID 예요: ${ref}`);
       const u = new URL(link.url);
-      u.searchParams.set('ref', orderId);
+      u.searchParams.set('ref', ref);
       return u.toString();
     },
     productRef: (productId) => links.get(productId)?.contentId ?? null,
@@ -142,16 +152,19 @@ export function createGrobleGateway(config: AppConfig): PaymentGateway {
       const merchantUid = str(obj.merchantUid);
       const productRef = isObject(obj.content) ? str(obj.content.id) : null;
       const base = { id, type, paymentKey: merchantUid, productRef, raw: redact(body) };
+      const { orderId, foreign } = toOrderId(str(obj.sellerReference));
       if (type === 'payment.completed') {
         const pricing = isObject(obj.pricing) ? obj.pricing : {};
-        return { ...base, orderId: str(obj.sellerReference), status: 'paid', amount: num(pricing.finalAmount) };
+        if (foreign) return { ...base, orderId: null, status: 'other', amount: null, foreign };
+        return { ...base, orderId, status: 'paid', amount: num(pricing.finalAmount) };
       }
       if (type === 'payment.refunded') {
+        // ref 가 오지 않는 알림 — merchantUid 로 찾고, 우리 주문이 없으면(다른 서비스) 아무것도 하지 않는다
         const refund = isObject(obj.refund) ? obj.refund : {};
         return { ...base, orderId: null, status: 'refunded', amount: num(refund.amount), partial: refund.partialRefund === true };
       }
       // 취소 요청(payment.cancel_requested)·정기결제 이벤트 등 — 판매자가 그로블에서 처리할 일이라 기록만 한다
-      return { ...base, orderId: str(obj.sellerReference), status: 'other', amount: null };
+      return { ...base, orderId, status: 'other', amount: null, foreign };
     },
   };
 }

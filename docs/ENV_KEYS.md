@@ -24,6 +24,7 @@
 |---|---|---|---|---|
 | `GROBLE_WEBHOOK_SECRET` | api | 그로블 웹훅 서명 검증 — 결제 완료·환불을 이걸로만 확정 | [그로블](https://www.groble.im) > 내 스토어 > 연동 > 웹훅 등록 시 발급(한 번만 보여 줌) | `/orders` 501 |
 | `GROBLE_PRODUCT_LINKS` | api | 우리 상품 ID → 그로블 결제창 링크(`상품ID=링크`, 콤마 구분). 결제창 가격 = `catalog.ts` 판매가 | 그로블 > 결제창 만들기 > 링크 복사 (`docs/PAYMENTS.md` §3.5) | `/orders` 501, 연결 안 된 상품만 501 |
+| `GROBLE_REF_PREFIX` | api | (선택) 한 그로블 계정을 다른 서비스와 같이 쓸 때 이 서비스의 ref 접두어 — 예 `saju` → ref `saju-<주문 ID>`, 다른 접두어 알림은 건너뜀 | 직접 정함(영숫자 1~16자, 서비스마다 다르게) | 접두어 없이 모든 알림을 이 서비스 것으로 봄 |
 | `TOSS_CLIENT_KEY` | api(+web `VITE_TOSS_CLIENT_KEY`) | 결제창 호출(공개 키 `gck_`/`ck_`) | [토스페이먼츠 개발자센터](https://developers.tosspayments.com) > API 키 | `/orders` 501 |
 | `TOSS_SECRET_KEY` | api | 결제 승인·취소(`gsk_`/`sk_`) | 위와 동일 | 승인 501 |
 | `TOSS_WEBHOOK_SECRET` | api | (예비) 토스 결제 웹훅은 서명이 없어 재조회로 검증 | — | 무관 |
