@@ -443,6 +443,11 @@ export const TAROT_TOPICS = {
   money: { label: '돈', title: '돈의 흐름, 어떻게 챙길까요?', spread: 'three' },
   relation: { label: '관계', title: '사람 사이, 어떻게 풀어 볼까요?', spread: 'three' },
   self: { label: '나', title: '요즘 내 마음은 어디에 있을까요?', spread: 'three' },
+  // ── 2차: 펼침 방식이 곧 주제 (타로 홈의 '펼침 방식으로 고르기') ──
+  yesno: { label: '예·아니오', title: '할까, 말까 고민될 때', spread: 'yesno' },
+  choice: { label: '양자택일', title: '둘 중 무엇을 고를까요?', spread: 'choice' },
+  compat: { label: '궁합', title: '두 사람, 어떻게 어울릴까요?', spread: 'compat' },
+  celtic: { label: '켈틱 크로스', title: '한 가지 고민을 깊고 넓게', spread: 'celtic' },
 } as const;
 export type TarotTopic = keyof typeof TAROT_TOPICS;
 export const TAROT_TOPIC_KEYS = Object.keys(TAROT_TOPICS) as TarotTopic[];
@@ -499,20 +504,86 @@ export const TAROT_SPREADS = {
       { key: 'need', label: '나에게 필요한 것', hint: '다시 다가가든 놓아주든, 먼저 챙길 것' },
     ],
   },
+  // ── 2차 펼침 방식 (docs/research/06-tarot-ux-copy.md §8.2·§8.4) ──
+  /** 예·아니오 — 무료(하루 TAROT_YESNO_DAILY_FREE 회). 기울기는 카드·방향별 표(content yesNo)로 정한다 */
+  yesno: {
+    name: '예·아니오 한 장',
+    cards: 1,
+    freeCards: 1,
+    productId: null,
+    positions: [{ key: 'lean', label: '기울기', hint: '지금 흐름이 향하는 쪽' }],
+  },
+  /** 양자택일 — 선택지 A·B 를 나란히 비교한다. 어느 한쪽을 정답으로 표시하지 않는다 */
+  choice: {
+    name: '양자택일 3장',
+    cards: 3,
+    freeCards: 1,
+    productId: 'tarot_choice_3',
+    positions: [
+      { key: 'now', label: '지금의 나', hint: '고민하는 나의 상태' },
+      { key: 'optionA', label: 'A를 고르면', hint: 'A 쪽의 흐름' },
+      { key: 'optionB', label: 'B를 고르면', hint: 'B 쪽의 흐름' },
+    ],
+  },
+  /** 궁합 타로 — 저장된 두 사람의 원국으로 사주 근거를 함께 읽는다 */
+  compat: {
+    name: '궁합 타로 5장',
+    cards: 5,
+    freeCards: 1,
+    productId: 'tarot_compat_5',
+    positions: [
+      { key: 'me', label: '나의 마음', hint: '이 관계에서 내가 느끼는 것' },
+      { key: 'partner', label: '상대의 마음', hint: '상대가 이 관계에서 느끼는 것' },
+      { key: 'bond', label: '서로 끌리는 점', hint: '두 사람을 이어 주는 것' },
+      { key: 'friction', label: '조율할 점', hint: '부딪히기 쉬운 지점' },
+      { key: 'together', label: '함께 가꿀 것', hint: '관계를 위해 둘이 해 볼 수 있는 일' },
+    ],
+  },
+  /** 켈틱 크로스 — 고전 10자리. 2번(가로막는 것)은 1번 위에 90° 돌려 놓는다 */
+  celtic: {
+    name: '켈틱 크로스 10장',
+    cards: 10,
+    freeCards: 0,
+    productId: 'tarot_celtic_10',
+    positions: [
+      { key: 'present', label: '지금 상황', hint: '고민의 중심' },
+      { key: 'cross', label: '가로막는 것', hint: '중심을 가로지르는 힘' },
+      { key: 'root', label: '바탕', hint: '상황의 뿌리' },
+      { key: 'past', label: '지나가는 것', hint: '가까운 과거' },
+      { key: 'goal', label: '바라는 것', hint: '의식하고 있는 목표' },
+      { key: 'near', label: '다가오는 것', hint: '가까운 앞날의 흐름' },
+      { key: 'attitude', label: '나의 태도', hint: '내가 상황을 대하는 방식' },
+      { key: 'surroundings', label: '주변', hint: '주변 사람과 환경' },
+      { key: 'hopes', label: '바람과 걱정', hint: '마음속 기대와 두려움' },
+      { key: 'outcome', label: '흐름의 방향', hint: '이대로 갈 때 이어지기 쉬운 결과' },
+    ],
+  },
 } as const satisfies Record<string, { name: string; cards: number; freeCards: number; productId: string | null; positions: readonly TarotPositionDef[] }>;
 export type TarotSpread = keyof typeof TAROT_SPREADS;
 /** 사용자가 직접 뽑는 펼침 방식 (오늘의 카드 제외) */
-export const TAROT_DRAW_SPREADS = ['three', 'feelings5', 'reunion5'] as const;
+export const TAROT_DRAW_SPREADS = ['three', 'feelings5', 'reunion5', 'yesno', 'choice', 'compat', 'celtic'] as const;
 export type TarotDrawSpread = (typeof TAROT_DRAW_SPREADS)[number];
+/** 펼침 방식이 곧 주제인 2차 스프레드 — 타로 홈에서 주제 타일과 따로 보여 준다 */
+export const TAROT_SPREAD_TOPICS = ['yesno', 'choice', 'compat', 'celtic'] as const satisfies readonly TarotTopic[];
 export const TAROT_DECK_SIZE = 78;
 export const TAROT_QUESTION_MAX = 80;
+/** 양자택일 선택지 글자 수 */
+export const TAROT_OPTION_MAX = 20;
+/** 예·아니오 무료 횟수 (KST 하루 기준, 같은 질문 다시 열기는 횟수에 넣지 않는다) */
+export const TAROT_YESNO_DAILY_FREE = 1;
 
 const tarotQuestion = z.string().trim().max(TAROT_QUESTION_MAX).optional();
+const tarotOption = z.string().trim().min(1).max(TAROT_OPTION_MAX).optional();
 
 export const tarotShuffleSchema = z.object({
   spread: z.enum(TAROT_DRAW_SPREADS),
   topic: z.enum(TAROT_TOPIC_KEYS as [TarotTopic, ...TarotTopic[]]),
   question: tarotQuestion,
+  /** 양자택일 선택지 A·B (choice 에서 필수) */
+  optionA: tarotOption,
+  optionB: tarotOption,
+  /** 궁합 타로에서 함께 볼 상대 프로필 (compat 에서 필수) */
+  partnerProfileId: z.string().optional(),
 });
 export type TarotShuffleDto = z.input<typeof tarotShuffleSchema>;
 
@@ -583,7 +654,16 @@ export interface TarotReadingDto {
   basis: string | null;
   generator: 'rule' | 'ai';
   disclaimer: string;
+  /** 예·아니오 — 카드·방향별 표로 정한 기울기 (다른 펼침 방식은 null) */
+  lean?: TarotYesNoLean | null;
+  /** 양자택일 선택지 */
+  options?: { a: string; b: string } | null;
+  /** 궁합 타로 — 함께 본 상대 이름 */
+  partnerName?: string | null;
 }
+
+/** 예·아니오 기울기 — maybe 는 '조건부(아직 열려 있음)' */
+export type TarotYesNoLean = 'yes' | 'no' | 'maybe';
 
 export interface TarotHistoryItemDto {
   id: string;

@@ -54,12 +54,39 @@
 | 메서드 | 경로 | 인증 | 설명 |
 |---|---|---|---|
 | GET | `/tarot/daily?profileId?` | ✓ | 오늘의 카드 — 같은 사람·같은 날(KST)은 같은 카드. 저장한 사주가 있으면 사주 결합 근거 포함, 전부 무료 |
-| POST | `/tarot/shuffle` | ✓ | `{ spread: three|feelings5|reunion5, topic, question? }` → `{ deckToken(30분), deckSize: 78, existingReadingId }`. 카드 순서는 보내지 않음. 오늘 같은 질문으로 뽑은 리딩이 있으면 `existingReadingId` |
-| POST | `/tarot/readings` | ✓ | `{ deckToken, picks: number[](0~77, 펼침 순서), spread, topic, question?, profileId? }` → 리딩. 같은 날 같은 질문·이미 쓴 토큰은 **409 (details.readingId)**, 장수·주제 불일치·만료 토큰은 400 |
+| POST | `/tarot/shuffle` | ✓ | `{ spread: three|feelings5|reunion5|yesno|choice|compat|celtic, topic, question?, optionA?, optionB?, partnerProfileId? }` → `{ deckToken(30분), deckSize: 78, existingReadingId }`. 카드 순서는 보내지 않음. 오늘 같은 질문으로 뽑은 리딩이 있으면 `existingReadingId` |
+| POST | `/tarot/readings` | ✓ | `{ deckToken, picks: number[](0~77, 펼침 순서), spread, topic, question?, profileId?, optionA?, optionB?, partnerProfileId? }` → 리딩. 같은 날 같은 질문·이미 쓴 토큰은 **409 (details.readingId)**, 장수·주제 불일치·만료 토큰은 400 |
 | GET | `/tarot/readings`, `/tarot/readings/:id` | ✓ | 기록 / 리딩 — 권한(`tarot:reading:<id>` 또는 플러스)이 없으면 자리별 풀이·이야기·행동·사주 근거는 첫 문단 미리보기(`locked`) |
 | DELETE | `/tarot/readings/:id` | ✓ | 기록 지우기 |
 
 - 결제: `POST /orders { productId: tarot_question_3 | tarot_love_5, readingId }` (IAP 는 `/payments/iap/verify` 에 `readingId`). 리딩과 상품의 펼침 방식이 맞아야 하며, 지급 권한은 `tarot:reading:<readingId>` + 질문권 1회.
+
+### 2차 펼침 방식 (예·아니오 · 양자택일 · 궁합 타로 · 켈틱 크로스)
+`/tarot/shuffle`·`/tarot/readings` 를 그대로 쓰고, `spread` 와 `topic` 을 같은 이름으로 보낸다(펼침 방식이 곧 주제).
+
+| spread / topic | 장수 · 자리 | 추가 입력 | 무료 범위 | 깊은 풀이 상품 |
+|---|---|---|---|---|
+| `yesno` | 1 · 기울기 | `question` 필수(화면에서) | 전부 무료, **KST 하루 1회**(`TAROT_YESNO_DAILY_FREE`) | 없음 |
+| `choice` | 3 · 지금의 나 / A를 고르면 / B를 고르면 | `optionA`·`optionB` 필수(각 1~20자, 서로 달라야 함) | 카드·총평 첫 문단·'지금의 나' 자리 | `tarot_choice_3` 990원 (질문권 1회) |
+| `compat` | 5 · 나의 마음 / 상대의 마음 / 서로 끌리는 점 / 조율할 점 / 함께 가꿀 것 | `partnerProfileId` 필수(내 프로필, 나와 다른 사람). `profileId`(나)가 없으면 대표 프로필 | 카드·총평 첫 문단·'나의 마음' 자리 | `tarot_compat_5` 2,900원 (질문권 1회) |
+| `celtic` | 10 · 지금 상황 / 가로막는 것 / 바탕 / 지나가는 것 / 바라는 것 / 다가오는 것 / 나의 태도 / 주변 / 바람과 걱정 / 흐름의 방향 | — | 카드·총평 첫 문단 (자리 풀이는 모두 깊은 풀이) | `tarot_celtic_10` 4,900원 (질문권 3회) |
+
+- 같은 질문 판정 키에 양자택일은 선택지 A·B, 궁합 타로는 상대 프로필까지 넣는다(같은 질문이라도 선택지·상대가 다르면 새로 뽑는다).
+- 예·아니오: 오늘 같은 질문이면 횟수와 상관없이 `existingReadingId` 로 안내하고, 새 질문인데 무료 횟수를 다 썼으면 셔플·뽑기 모두 **429 `RATE_LIMITED` (details: `{ readingId: 오늘 본 리딩, limit }`)**.
+- 응답(`TarotReadingDto`) 추가 필드: `lean`(예·아니오 기울기 `yes|maybe|no`, 그 외 null), `options`(`{ a, b }`), `partnerName`. 궁합 타로의 사주 근거는 두 사람의 일간·용신으로 읽는다(`basis`: `근거: 민수 일간 庚金·용신 木 · 지은 일간 戊土·용신 火 · 카드 원소 …`).
+- 양자택일은 어느 한쪽을 정답으로 표시하지 않는다 — 한 줄은 '지금의 나' 카드, 행동은 지금의 나·A·B 에서 하나씩, 사주 근거의 용신 비교도 '지금의 나' 카드로 한다.
+- AI 이야기 문단(`ANTHROPIC_MODEL_PREMIUM`)은 유료 펼침에서만 만든다. 예·아니오는 규칙 기반만.
+
+#### 예·아니오 기울기 표
+기울기는 카드와 방향만으로 정한다(사주·질문은 바꾸지 않는다). 원본은 카드 문안의 `yesNo` 값(`apps/api/src/modules/tarot/content/*`, `yesno.ts`)이고, `apps/api/test/tarot.test.ts` 가 이 표와 문안이 같은지 확인한다. maybe 는 화면에서 '조건부'로 보여 주고 카드의 조언을 조건으로 붙인다.
+
+| 기울기 | 정방향 (78장) | 역방향 (78장) |
+|---|---|---|
+| 예 `yes` | 아래 두 줄에 없는 51장 | 완드 5 · 컵 4 · 컵 7 · 소드 8 (4장 — 막힘이 풀리는 카드) |
+| 조건부 `maybe` | 여사제 · 은둔자 · 정의 · 매달린 사람 · 죽음 · 달 · 완드 5 · 완드 10 · 컵 4 · 컵 7 · 소드 2 · 소드 4 · 소드 페이지 · 펜타클 2 · 펜타클 4 · 펜타클 7 (16장) | 위·아래 줄에 없는 51장 |
+| 아니오 `no` | 악마 · 탑 · 컵 5 · 컵 8 · 소드 3 · 소드 5 · 소드 7 · 소드 8 · 소드 9 · 소드 10 · 펜타클 5 (11장) | 바보 · 마법사 · 여사제 · 황제 · 연인 · 전차 · 은둔자 · 운명의 수레바퀴 · 정의 · 매달린 사람 · 죽음 · 완드 7 · 완드 나이트 · 컵 에이스 · 소드 에이스 · 소드 페이지 · 소드 나이트 · 소드 퀸 · 소드 킹 · 펜타클 2 · 펜타클 7 · 펜타클 나이트 · 펜타클 킹 (23장) |
+
+역방향 35%(`deck.ts`)를 반영한 실제 비율은 대략 예 44% · 조건부 36% · 아니오 20%.
 
 ## 커머스
 | 메서드 | 경로 | 인증 | 설명 |

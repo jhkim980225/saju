@@ -61,7 +61,8 @@ export function StorePage() {
           </p>
         )}
         {GROUPS.map((g) => {
-          const items = (data ?? []).filter((p) => g.type.includes(p.type));
+          // 타로 깊은 풀이처럼 리딩 하나를 여는 상품은 그 결과 화면에서만 판다
+          const items = (data ?? []).filter((p) => g.type.includes(p.type) && !p.requiresReading);
           if (items.length === 0) return null;
           return (
             <section key={g.title}>

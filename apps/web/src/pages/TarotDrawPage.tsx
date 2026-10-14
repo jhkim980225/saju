@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import { Page } from '@/components/AppShell';
 import { FlipCard, TarotCardBack, orientationLabel } from '@/components/TarotCard';
+import { TarotSpreadSlots } from '@/components/TarotSpread';
 import { Button, Card, ErrorState, IconButton, PageHeader, cx } from '@/components/ui';
 import { SessionGateError, useSessionGate } from '@/hooks/useSessionGate';
 import { ApiError, api } from '@/lib/api';
@@ -12,7 +13,7 @@ import { track } from '@/lib/analytics';
 import { t } from '@/lib/copy';
 import { useSession } from '@/lib/session';
 import { storage } from '@/lib/storage';
-import { TAROT_DRAFT_KEY, type TarotDraft } from './TarotAskPage';
+import { TAROT_DRAFT_KEY, draftExtras, type TarotDraft } from '@/lib/tarot';
 
 type Step = 'shuffle' | 'pick' | 'reveal';
 const STEPS: { key: Step; label: string }[] = [
@@ -52,6 +53,8 @@ export function TarotDrawPage() {
   const [reading, setReading] = useState<TarotReadingDto | null>(null);
   const [flipped, setFlipped] = useState<boolean[]>([]);
   const [error, setError] = useState<string | null>(null);
+  /** 예·아니오 하루 무료 횟수를 다 쓴 경우 — 오늘 본 리딩 */
+  const [limitReadingId, setLimitReadingId] = useState<string | null>(null);
   const started = useRef(false);
 
   const shuffle = useCallback(async () => {
@@ -61,7 +64,7 @@ export function TarotDrawPage() {
     setPicks([]);
     const t0 = Date.now();
     try {
-      const d = await api.tarotShuffle({ spread: spreadKey, topic: draft.topic, question: draft.question || undefined });
+      const d = await api.tarotShuffle({ spread: spreadKey, topic: draft.topic, question: draft.question || undefined, ...draftExtras(draft) });
       // 섞는 연출(1.2초)은 서버에서 섞기가 끝난 뒤 남은 시간만큼만 보여 준다 — 모션 감소 시 생략
       const wait = reducedMotion() ? 0 : Math.max(0, 1200 - (Date.now() - t0));
       window.setTimeout(() => {
@@ -69,7 +72,9 @@ export function TarotDrawPage() {
         setShuffling(false);
       }, wait);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : t('tarot.error.draw.body'));
+      const limited = e instanceof ApiError && e.status === 429 ? (e.details as { readingId?: string } | undefined)?.readingId : undefined;
+      if (limited) setLimitReadingId(limited);
+      else setError(e instanceof ApiError ? e.message : t('tarot.error.draw.body'));
       setShuffling(false);
     }
   }, [draft, spreadKey]);
@@ -95,7 +100,7 @@ export function TarotDrawPage() {
     setDrawing(true);
     setError(null);
     try {
-      const r = await api.tarotDraw({ deckToken: deck.deckToken, picks, spread: spreadKey, topic: draft.topic, question: draft.question || undefined });
+      const r = await api.tarotDraw({ deckToken: deck.deckToken, picks, spread: spreadKey, topic: draft.topic, question: draft.question || undefined, profileId: draft.profileId, ...draftExtras(draft) });
       qc.setQueryData(['tarot', 'reading', r.id], r);
       void qc.invalidateQueries({ queryKey: ['tarot', 'history'] });
       track('tarot_drawn', { spread: spreadKey, topic: draft.topic });
@@ -103,7 +108,7 @@ export function TarotDrawPage() {
       setFlipped(r.cards.map(() => false));
       setStep('reveal');
     } catch (e) {
-      const readingId = e instanceof ApiError && e.status === 409 ? (e.details as { readingId?: string } | undefined)?.readingId : undefined;
+      const readingId = e instanceof ApiError && (e.status === 409 || e.status === 429) ? (e.details as { readingId?: string } | undefined)?.readingId : undefined;
       if (readingId) navigate(`/tarot/r/${readingId}`, { replace: true });
       else setError(e instanceof ApiError ? e.message : t('tarot.error.draw.body'));
     } finally {
@@ -154,8 +159,19 @@ export function TarotDrawPage() {
           </div>
         )}
 
+        {/* 예·아니오 하루 무료 횟수를 다 쓴 경우 — 오늘 본 카드로 안내 */}
+        {limitReadingId && (
+          <Card className="mt-8">
+            <p className="font-semibold">{t('tarot.error.yesnoLimit.title')}</p>
+            <p className="mt-1 text-sm leading-relaxed text-ink-2">{t('tarot.error.yesnoLimit.body')}</p>
+            <Link to={`/tarot/r/${limitReadingId}`} replace className="mt-3 inline-flex h-10 items-center rounded-full bg-action px-4 text-sm font-semibold text-on-action">
+              {t('tarot.error.yesnoLimit.cta')}
+            </Link>
+          </Card>
+        )}
+
         {/* 1. 섞기 */}
-        {step === 'shuffle' && !error && (
+        {step === 'shuffle' && !error && !limitReadingId && (
           <section className="mt-8 text-center" aria-live="polite">
             <h2 className="font-serif text-[22px] font-semibold">{shuffling ? t('tarot.shuffle.title') : t('tarot.shuffle.done')}</h2>
             <p className="mt-2 text-[15px] text-ink-2">{t('tarot.shuffle.hint')}</p>
@@ -189,7 +205,7 @@ export function TarotDrawPage() {
           <section className="mt-6">
             {step === 'pick' ? (
               <>
-                <h2 className="font-serif text-[22px] font-semibold">{t('tarot.pick.title', { count: need })}</h2>
+                <h2 className="font-serif text-[22px] font-semibold">{need === 1 ? t('tarot.pick.titleOne') : t('tarot.pick.title', { count: need })}</h2>
                 <p className="mt-1 text-[15px] text-ink-2" aria-live="polite">
                   {picks.length < need ? (
                     <>
@@ -206,35 +222,42 @@ export function TarotDrawPage() {
                 <p className="mt-1 text-[15px] text-ink-2">{t('tarot.paywall.sameCards')}</p>
               </>
             )}
-            <ol className={cx('mt-5 grid gap-2 sm:gap-3', need === 3 ? 'mx-auto max-w-md grid-cols-3' : 'grid-cols-5')}>
-              {spread.positions.map((p, i) => {
+            <TarotSpreadSlots
+              className="mt-5"
+              spread={spreadKey}
+              label={t('tarot.result.cardsTitle')}
+              renderCard={(i) => {
+                const p = spread.positions[i]!;
                 const card = reading?.cards[i] ?? null;
+                if (step === 'reveal' && card) {
+                  return (
+                    <button
+                      type="button"
+                      className="block w-full"
+                      onClick={() => setFlipped((f) => f.map((v, j) => (j === i ? true : v)))}
+                      aria-label={flipped[i] ? `${p.label}: ${card.nameKo} ${orientationLabel(card.orientation)}` : `${p.label} 카드 펼치기`}
+                    >
+                      <FlipCard card={card} flipped={Boolean(flipped[i])} />
+                    </button>
+                  );
+                }
+                if (i < picks.length) return <TarotCardBack />;
                 return (
-                  <li key={p.key} className="text-center">
-                    {step === 'reveal' && card ? (
-                      <button
-                        type="button"
-                        className="block w-full"
-                        onClick={() => setFlipped((f) => f.map((v, j) => (j === i ? true : v)))}
-                        aria-label={flipped[i] ? `${p.label}: ${card.nameKo} ${orientationLabel(card.orientation)}` : `${p.label} 카드 펼치기`}
-                      >
-                        <FlipCard card={card} flipped={Boolean(flipped[i])} />
-                      </button>
-                    ) : i < picks.length ? (
-                      <TarotCardBack />
-                    ) : (
-                      <div className={cx('aspect-[2/3] rounded-xl border-2 border-dashed', i === nextSlot && step === 'pick' ? 'border-ink' : 'border-line-strong')} aria-label={t('tarot.a11y.slotEmpty')} />
-                    )}
-                    <p className="mt-1.5 text-xs font-medium leading-tight text-ink-2">{p.label}</p>
-                    {step === 'reveal' && card && flipped[i] && (
-                      <p className="mt-0.5 text-xs text-ink-3">
-                        {card.nameKo} · {orientationLabel(card.orientation)}
-                      </p>
-                    )}
-                  </li>
+                  <div
+                    className={cx('aspect-[2/3] rounded-xl border-2 border-dashed bg-canvas', i === nextSlot && step === 'pick' ? 'border-ink' : 'border-line-strong')}
+                    aria-label={t('tarot.a11y.slotEmpty', { position: p.label })}
+                  />
                 );
-              })}
-            </ol>
+              }}
+              caption={(i) => {
+                const card = reading?.cards[i];
+                return step === 'reveal' && card && flipped[i] ? (
+                  <span className="mt-0.5 block text-xs text-ink-3">
+                    {card.nameKo} · {orientationLabel(card.orientation)}
+                  </span>
+                ) : null;
+              }}
+            />
           </section>
         )}
 
@@ -267,7 +290,7 @@ export function TarotDrawPage() {
       {/* 하단 버튼 */}
       <div className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-line bg-canvas lg:static lg:border-0 lg:bg-transparent">
         <div className="mx-auto max-w-xl space-y-1 px-5 py-3 lg:max-w-3xl lg:px-8 lg:pt-8">
-          {step === 'shuffle' && (
+          {step === 'shuffle' && !limitReadingId && (
             <>
               <Button block size="lg" disabled={shuffling || !deck || Boolean(deck.existingReadingId)} onClick={() => setStep('pick')}>
                 {t('tarot.shuffle.next')}

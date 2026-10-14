@@ -208,7 +208,7 @@ export const tarotReadings = sqliteTable(
     userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     /** 사주 결합 해석에 쓴 프로필 (삭제돼도 리딩은 남는다) */
     profileId: text('profile_id'),
-    /** daily | three | feelings5 | reunion5 */
+    /** daily | three | feelings5 | reunion5 | yesno | choice | compat | celtic */
     spread: text('spread').notNull(),
     topic: text('topic'),
     question: text('question'),
@@ -224,6 +224,10 @@ export const tarotReadings = sqliteTable(
     aiParagraphs: text('ai_paragraphs', { mode: 'json' }).$type<string[]>(),
     model: text('model'),
     createdAt: integer('created_at').notNull().default(sql`(unixepoch() * 1000)`),
+    /** 궁합 타로 — 함께 본 상대 프로필 (삭제돼도 리딩은 남는다) */
+    partnerProfileId: text('partner_profile_id'),
+    /** 양자택일 선택지 { a, b } */
+    options: text('options', { mode: 'json' }).$type<{ a: string; b: string }>(),
   },
   (t) => [
     index('tarot_readings_user_idx').on(t.userId, t.createdAt),
