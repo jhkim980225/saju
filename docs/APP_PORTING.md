@@ -13,7 +13,7 @@
 
 | 항목 | 결과 | 방법 |
 |---|---|---|
-| 네이티브 프로젝트 생성 | ✅ `android/`, `ios/` 생성 · 플러그인 11개 연결 | `npx cap add android` / `npx cap add ios` |
+| 네이티브 프로젝트 생성 | ✅ `android/`, `ios/` 생성 · 플러그인 11개 연결 (2026-10-15 보안 저장소 추가로 12개) | `npx cap add android` / `npx cap add ios` |
 | §4 네이티브 설정 적용 | ✅ AndroidManifest(App Links·커스텀 스킴·BILLING·AdMob 앱 ID·FCM 채널·알림 아이콘), Info.plist(AdMob 앱 ID·URL 스킴·SKAdNetwork·암호화 신고), AppDelegate(푸시 토큰 전달), PrivacyInfo.xcprivacy | AdMob 앱 ID 는 **Google 공식 테스트 ID** — 출시 전 실제 ID 로 교체 |
 | Android 디버그 APK 빌드 | ✅ `app-debug.apk` 11.5MB (JDK 21 + Android SDK 36, Gradle 8.14.3) | `cd apps/web/android && ./gradlew assembleDebug` |
 | APK 검사 | ✅ 패키지 `kr.dalbitsaju.app`, minSdk 24 / targetSdk 36, 권한(INTERNET·BILLING·POST_NOTIFICATIONS·AD_ID), 딥링크 intent-filter, 웹 자산 포함, 소스맵 제외 | `aapt dump badging / xmltree` |
@@ -22,6 +22,7 @@
 | 네이티브 플러그인 초기화 | ✅ FirebaseMessaging 리스너, NativePurchases(`autoFinishTransactions:false`), StatusBar, SplashScreen 호출 확인 | logcat `Capacitor/Plugin` |
 | 딥링크 | ✅ `kr.dalbitsaju.app://manse` → `/manse`, `kr.dalbitsaju.app://compatibility` → `/compatibility` | `adb shell am start -a VIEW -d …` |
 | 하드웨어 뒤로가기 | ✅ 바텀시트 닫힘 → 탭 기록 역순 이동(궁합→마이→오늘) → 홈에서 앱 최소화 | `adb shell input tap/keyevent 4` |
+| 세션 토큰 보안 저장소 (2026-10-15) | ✅ `assembleDebug` 성공(병합 Manifest 에 `fullBackupContent`·`dataExtractionRules`). **업데이트 이전**: 이전 버전 상태(Preferences 평문 `yd.session`)를 주입 → 첫 실행에 Keystore 암호문(`WSSecureStorageSharedPreferences.xml`, 평문 토큰 없음)으로 옮기고 Preferences 에서 삭제 → 콜드 재시작 후 마이 탭에 같은 회원 표시. **로그인 유지**: 새 설치 → 게스트 세션 생성 → 콜드 재시작 후 같은 사용자 ID, `/auth/guest` 재호출 없이 `GET /profiles` 200. iOS Keychain 은 미검증(macOS 필요) | Android 36 에뮬레이터, `run-as` 로 Preferences 주입, WebView CDP, 라이브 리로드(로컬 API) |
 | iOS 빌드 | ⏳ macOS + Xcode 필요(이 저장소 개발 PC 는 Windows) → **`.github/workflows/ci.yml` 의 `ios` 잡이 macOS 러너에서 서명 없이 시뮬레이터 빌드**(`xcodebuild -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO`). Windows 에서는 SPM 플러그인 심볼릭 링크 생성 권한이 없어(`EPERM symlink`) `CapApp-SPM/Package.swift` 가 갱신되지 않음 → **macOS 에서 `npm run build:app:ios` 실행 시 자동 생성** | — |
 | 실결제(IAP)·푸시 수신·소셜 로그인 | ⏳ 스토어 상품 등록·Firebase 프로젝트·각 콘솔 키 발급 후 실기기 확인 필요 (`docs/ENV_KEYS.md`) | — |
 
@@ -56,20 +57,20 @@ apps/web
 └─ src/native/
    ├─ index.ts                  initNative() + 팀장 연결용 export (플러그인 정적 import 없음 → 웹 번들 영향 최소)
    ├─ bootstrap.ts              (앱에서만 동적 import) 저장소 hydrate · 브리지 등록 · 뒤로가기 · 딥링크 · 스플래시
-   ├─ storage.ts                Preferences 기반 StorageAdapter (시작 시 메모리로 hydrate)
+   ├─ storage.ts                Preferences 기반 StorageAdapter (시작 시 메모리로 hydrate) · 세션 토큰은 Keychain/Keystore(§0.3)
    ├─ navigation.ts             뒤로가기 규칙 · 딥링크 → 경로 변환 · pushState+popstate 라우팅
    ├─ push.ts                   FCM 권한·토큰·서버 등록·알림 탭 라우팅
    ├─ purchases.ts              IAP 구매 → 영수증 · finishPurchase · 미완료 거래 복구
    ├─ ads.ts                    AdMob 보상형(하루 3회) · 배너
    ├─ env.ts                    앱 빌드 환경 값 (VITE_*)
-   └─ __tests__/native.test.ts  vitest + jsdom (플러그인은 vi.mock)
+   └─ __tests__/                native.test.ts · storage.test.ts — vitest + jsdom (플러그인은 vi.mock)
 ```
 
 시작 순서(`main.tsx`): `await initNative()` → `initTheme()` → `initAnalytics()` → React 렌더.
 웹에서는 `initNative()` 가 즉시 끝나고, 앱에서는 다음을 합니다.
 
-1. Preferences 의 모든 키를 메모리로 읽어 `setStorageAdapter()` 로 교체 → `reloadSessionFromStorage()` → 테마 상태 재적용
-   (처음 실행이면 웹뷰 localStorage 의 `yd.*` 값을 옮겨 옴. 이후 쓰기는 메모리 즉시 + Preferences 비동기)
+1. Preferences 의 모든 키 + 보안 저장소의 세션(`yd.session`)을 메모리로 읽어 `setStorageAdapter()` 로 교체 → `reloadSessionFromStorage()` → 테마 상태 재적용
+   (처음 실행이면 웹뷰 localStorage 의 `yd.*` 값을 옮겨 옴. 이후 쓰기는 메모리 즉시 + Preferences·보안 저장소 비동기. 이전 버전의 평문 세션 이전은 §0.3)
 2. `registerNative({ haptic, share, setStatusBar, openExternal, requestPush, purchase })`
 3. Android 뒤로가기(`backButton`), 딥링크(`appUrlOpen` + `getLaunchUrl`) 리스너
 4. FCM 토큰 갱신 리스너(서버 `/push/tokens` 등록), 알림 탭 → `data.link` 라우팅
@@ -83,6 +84,7 @@ apps/web
 | `@capacitor/core` `@capacitor/ios` `@capacitor/android` / `@capacitor/cli`(dev) | ^8.5.3 | 런타임·플랫폼·CLI |
 | `@capacitor/app` | ^8.1.2 | 뒤로가기, 딥링크, 최소화 |
 | `@capacitor/preferences` | ^8.0.1 | 키-값 저장(UserDefaults / SharedPreferences) |
+| `@aparajita/capacitor-secure-storage` | ^8.0.1 | 세션 토큰 보안 저장(iOS Keychain / Android Keystore AES-GCM) — §0.3 |
 | `@capacitor/status-bar` `@capacitor/splash-screen` `@capacitor/keyboard` | ^8.0.4 / ^8.0.2 / ^8.0.6 | 상태바·스플래시·키보드 |
 | `@capacitor/share` `@capacitor/haptics` `@capacitor/browser` | ^8.0.3 / ^8.0.2 / ^8.0.5 | 공유 시트·햅틱·인앱 브라우저 |
 | `@capacitor-firebase/messaging` | ^8.5.2 | FCM 푸시 (iOS 도 FCM 토큰) |
@@ -107,6 +109,28 @@ apps/web
 **광고: `@capacitor-community/admob`** — Capacitor 진영의 사실상 표준 AdMob 플러그인. Capacitor 8 대응(8.2.x), 보상형·배너·전면·앱 오프닝, SSV(서버 측 보상 검증) 파라미터, UMP 동의, iOS ATT 상태 조회를 모두 지원합니다. Google Mobile Ads SDK 를 플러그인이 고정 버전으로 포함합니다.
 
 **푸시: `@capacitor-firebase/messaging`** — `@capacitor/push-notifications` 는 iOS 에서 APNs 토큰을 돌려주지만 서버는 FCM HTTP v1 로 보내므로 FCM 토큰이 필요합니다(AUTH_PUSH §6-2). 이 패키지의 JS 진입점은 웹 구현용 `firebase/messaging` 을 동적 import 하므로 그대로 import 하면 Vite 가 `firebase` 패키지를 요구합니다. 앱에서는 네이티브 구현만 쓰므로 `push.ts` 에서 `registerPlugin('FirebaseMessaging')` 으로 프록시를 직접 만들고 타입만 패키지에서 가져옵니다.
+
+**보안 저장소: `@aparajita/capacitor-secure-storage`** (대안: `capacitor-secure-storage-plugin`, Capawesome Secure Preferences, Ionic Identity Vault) — 2026-10-15 `npm view`·저장소 확인
+
+| 기준 | @aparajita/capacitor-secure-storage ✅ | capacitor-secure-storage-plugin |
+|---|---|---|
+| Capacitor 8 | 8.0.0(2026-02) · 8.0.1(2026-09-23, Android `clear` 수정·빈 prefix 금지). `peerDependencies` 대신 `dependencies` 에 `@capacitor/core ^8.0.2` 등을 두지만 우리 8.5.3 으로 dedupe 됨(`npm ls` 확인) | 0.13.0(2026-01), peer `@capacitor/core >=8` |
+| iOS | Keychain(KeychainSwift), **접근성 지정 가능** → `afterFirstUnlockThisDeviceOnly`, iCloud 동기화 끔(기본). **SwiftPM `Package.swift` 제공** | Keychain 접근성 `afterFirstUnlock` 고정(백업으로 다른 기기 이전), 미유지 라이브러리 SwiftKeychainWrapper |
+| Android | 키별 Keystore AES-256-GCM 키 + 암호문은 SharedPreferences(`WSSecureStorageSharedPreferences`) | Keystore RSA/ECB/PKCS1 (deprecated `KeyPairGeneratorSpec` 경로 포함) |
+| 오류 구분 | 없는 키는 `null`, OS 오류는 `code: 'osError'` 로 reject → "값 없음"과 "저장소 고장"을 구분해 복구 가능 | 없는 키도 reject("does not exist") |
+| 유지 상태 | MIT, 활발(2026-09 커밋), 열린 이슈 2 | MIT, 열린 이슈 14 |
+
+Capawesome Secure Preferences 는 후원자 전용 레지스트리(npm 미공개), Identity Vault 는 유료라 제외했습니다. `@capacitor/preferences` 는 암호화하지 않습니다(UserDefaults / SharedPreferences 평문).
+
+### 0.3 세션 토큰 보안 저장 (`src/native/storage.ts`)
+
+- **대상**: `yd.session`(access·refresh 토큰 + 사용자 JSON) 한 키. `lib/storage`·`lib/session` 의 동기 API 와 웹 동작은 그대로이고, 앱 어댑터 안에서만 저장 위치가 바뀝니다.
+- **시작 시**: Preferences 전체 + 보안 저장소의 `yd.session` 을 함께 hydrate 합니다(읽기 1회 추가).
+- **기존 설치 이전**: Preferences 에 평문 세션이 있으면(또는 첫 실행이면 웹뷰 localStorage 의 `yd.session`) 그 값으로 바로 로그인 상태를 유지하고, 보안 저장소 기록이 **성공한 뒤에** Preferences·localStorage 사본을 지웁니다. 실패하면 사본을 남겨 다음 실행에 다시 옮깁니다 → 업데이트로 로그아웃되지 않습니다.
+- **이후 쓰기**: 세션은 보안 저장소에만 씁니다(Preferences 로 되돌아가지 않음). 값이 바뀌거나 로그아웃하면 아직 남은 평문 사본도 지웁니다 — 회전 전 refresh 토큰이 남아 다음 실행에 쓰이면 서버 재사용 탐지로 **전체 세션이 폐기**되기 때문입니다.
+- **오류**: 보안 저장소 읽기 오류(기기 복원 후 Keystore 키 유실, Keychain 오류 등)는 "세션 없음"으로 계속합니다(사용자는 다시 로그인). 그 항목은 다음 쓰기 때 지우고 새 키로 다시 만듭니다. 쓰기 오류는 경고만 남기고 그 실행 동안 메모리로 유지합니다. 어떤 경우에도 예외가 `initNative()` 밖으로 나가지 않습니다.
+- **재설치**: iOS Keychain 은 앱을 지워도 남습니다. Preferences 에 `yd.native.secureStore` 표시가 없으면(새 설치·이전 버전에서 업데이트) 보안 저장소에 남은 값을 버리고 표시를 먼저 기록합니다 → 재설치하면 로그아웃 상태로 시작(Android 와 동일).
+- **플러그인이 없는 바이너리**(`cap sync` 전 빌드·옛 APK 에 라이브 리로드): `window.Capacitor.PluginHeaders` 에 `SecureStorage` 가 없으면 예전처럼 Preferences 에 둡니다. `Capacitor.isPluginAvailable()` 은 JS 등록만으로 true 이고, 이 플러그인은 네이티브 없이 호출하면 자기 자신을 끝없이 다시 불러 웹뷰가 멈추므로 쓰지 않습니다.
 
 ---
 
@@ -237,8 +261,9 @@ npm run cap:doctor     # 버전·환경 점검
    <key>CFBundleDevelopmentRegion</key><string>ko</string>
    <key>ITSAppUsesNonExemptEncryption</key><false/>
    ```
-5. **Privacy Manifest**(`PrivacyInfo.xcprivacy`): Preferences 가 UserDefaults 를 쓰므로 Required Reason API `NSPrivacyAccessedAPICategoryUserDefaults` → 사유 `CA92.1` 을 선언합니다. 수집 데이터(이메일, 생년월일시, 구매 내역, 기기 ID)도 App Store Connect 의 "앱 개인정보" 라벨과 일치시킵니다.
-6. (선택) **iOS 스와이프 뒤로가기**: 웹뷰 기본값은 꺼져 있습니다. 켜려면 `MainViewController: CAPBridgeViewController` 를 만들어 `capacitorDidLoad()` 에서 `webView?.allowsBackForwardNavigationGestures = true` 로 설정하고 Main.storyboard 의 클래스로 지정합니다. 바텀시트가 열린 상태에서는 스와이프가 페이지를 넘기므로 QA 로 확인하세요.
+5. **Keychain(세션 토큰)**: 추가 Capability·entitlement 불필요(기본 액세스 그룹). 항목 접근성은 코드에서 `afterFirstUnlockThisDeviceOnly` 로 지정 — 재부팅 후 첫 잠금 해제 전에는 읽을 수 없고(Background Modes 로 그 사이 깨어나면 세션 없음으로 시작), 백업으로 다른 기기에 옮겨지지 않습니다(새 기기에서는 다시 로그인). SwiftPM 의존성(`keychain-swift`)은 macOS 에서 `npm run build:app:ios` 가 `CapApp-SPM/Package.swift` 에 추가합니다.
+6. **Privacy Manifest**(`PrivacyInfo.xcprivacy`): Preferences 가 UserDefaults 를 쓰므로 Required Reason API `NSPrivacyAccessedAPICategoryUserDefaults` → 사유 `CA92.1` 을 선언합니다. 수집 데이터(이메일, 생년월일시, 구매 내역, 기기 ID)도 App Store Connect 의 "앱 개인정보" 라벨과 일치시킵니다.
+7. (선택) **iOS 스와이프 뒤로가기**: 웹뷰 기본값은 꺼져 있습니다. 켜려면 `MainViewController: CAPBridgeViewController` 를 만들어 `capacitorDidLoad()` 에서 `webView?.allowsBackForwardNavigationGestures = true` 로 설정하고 Main.storyboard 의 클래스로 지정합니다. 바텀시트가 열린 상태에서는 스와이프가 페이지를 넘기므로 QA 로 확인하세요.
 
 ### 4.2 Android (`npm run cap:open:android`)
 
@@ -278,7 +303,8 @@ npm run cap:doctor     # 버전·환경 점검
    `<manifest>` 바로 아래: `<uses-permission android:name="com.android.vending.BILLING" />`(Billing 라이브러리가 병합하지만 명시 권장). `POST_NOTIFICATIONS`(Android 13+)는 FCM SDK 가 병합하고, 권한 요청은 `requestPush()` 가 합니다.
 4. **`res/values/strings.xml`**: `<string name="admob_app_id">ca-app-pub-XXXXXXXXXXXXXXXX~NNNNNNNNNN</string>`
 5. **서명**: 업로드 키 생성 → Play App Signing 사용. assetlinks.json 에 **업로드 키와 Play 앱 서명 키의 SHA-256 둘 다** 넣습니다(§5).
-6. Android 15+ 는 edge-to-edge 가 강제됩니다. `capacitor.config.ts` 는 `StatusBar.overlaysWebView: true` + `SystemBars.insetsHandling: 'css'` 로 웹뷰를 상태바 아래까지 깔고, 웹 CSS 의 `env(safe-area-inset-*)`(`.safe-top`, `.safe-bottom`)로 여백을 줍니다. 상태바 글자색은 테마 변경 시 `native.setStatusBar` 가 맞춥니다.
+6. **백업 규칙(세션 토큰)**: `android:allowBackup="true"` 는 유지하되(기기 ID·테마 등 Preferences 복원) `android:fullBackupContent="@xml/backup_rules"`(Android 11 이하)·`android:dataExtractionRules="@xml/data_extraction_rules"`(12+)로 `WSSecureStorageSharedPreferences.xml` 을 클라우드 백업·기기 이전에서 제외합니다. Keystore 키는 백업되지 않아 암호문만 복원되면 쓸모없는 낡은 값이기 때문입니다(복원돼도 플러그인은 `null` 을 돌려주고 앱은 로그아웃 상태로 시작). 두 XML 은 함께 고치세요.
+7. Android 15+ 는 edge-to-edge 가 강제됩니다. `capacitor.config.ts` 는 `StatusBar.overlaysWebView: true` + `SystemBars.insetsHandling: 'css'` 로 웹뷰를 상태바 아래까지 깔고, 웹 CSS 의 `env(safe-area-inset-*)`(`.safe-top`, `.safe-bottom`)로 여백을 줍니다. 상태바 글자색은 테마 변경 시 `native.setStatusBar` 가 맞춥니다.
 
 ---
 
@@ -544,7 +570,7 @@ rm -rf .assets
 | 푸시(오늘의 운세·리포트 완성), 알림 탭 딥링크 | ✅ 이번 작업(src/native/push.ts) |
 | 시스템 공유 시트, 햅틱, 하드웨어 뒤로가기, 시트 닫기, 상태바·키보드 테마 동기화 | ✅ |
 | 유니버설 링크/App Links, 인앱결제(StoreKit 2), 보상형 광고 | ✅ |
-| 앱 저장소(Preferences)에 세션·마지막 결과 보관 → 재방문 즉시 표시 | ✅ |
+| 앱 저장소(Preferences, 세션 토큰은 Keychain/Keystore)에 세션·마지막 결과 보관 → 재방문 즉시 표시 | ✅ |
 | **오프라인 만세력**: `@saju/core` 가 클라이언트에서 결정론적으로 계산 → 네트워크 없이 명식 표 | 🔶 오프라인 화면/캐시 정책 정리 필요 |
 | **홈 화면 위젯 '오늘의 한 줄'** (iOS WidgetKit / Android Glance) | ⬜ 2차 — 네이티브 코드 필요, 심사 설득력 가장 큼 |
 | **로컬 알림**(매일 아침 운세 리마인더, 오프라인 동작) — `@capacitor/local-notifications` | ⬜ 2차 |
@@ -593,10 +619,13 @@ rm -rf .assets
 - [ ] Capabilities: Push, Background Modes, In-App Purchase, Associated Domains(, Sign in with Apple)
 - [ ] `apple-app-site-association`, `assetlinks.json`(업로드 키 + 앱 서명 키 SHA-256) 게시, 링크 검증
 - [ ] Privacy Manifest(UserDefaults CA92.1), 앱 개인정보 라벨 / 데이터 보안 양식
+- [ ] Android 백업 규칙(`backup_rules.xml`·`data_extraction_rules.xml`)이 Manifest 에 연결됨
 - [ ] Android 알림 아이콘 `ic_stat_yd`, 채널 `yd_default` meta-data
 
 **기능 QA (실기기)**
-- [ ] 첫 실행 → 게스트 세션 → 앱 재시작 후 세션 유지(Preferences)
+- [ ] 첫 실행 → 게스트 세션 → 앱 재시작 후 세션 유지(Keychain/Keystore)
+- [ ] 이전 버전(Preferences 세션) 설치 위에 업데이트 → 로그인 유지, Preferences 에서 `yd.session` 삭제 확인
+- [ ] 앱 삭제 → 재설치 → 로그아웃 상태로 시작(iOS Keychain 잔여 세션 무시)
 - [ ] 라이트/다크 전환 시 상태바 글자색, 키보드 올라올 때 하단 CTA 위치
 - [ ] Android 뒤로가기: 시트 닫힘 → 이전 화면 → 홈(`/today`)에서 앱 최소화
 - [ ] 딥링크: 유니버설 링크·커스텀 스킴·콜드 스타트·푸시 탭

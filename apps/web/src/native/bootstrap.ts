@@ -20,7 +20,10 @@ import { createPreferencesAdapter } from './storage';
 
 const noop = () => undefined;
 
-/** Preferences → 메모리 hydrate → lib/storage 어댑터 교체 → 모듈 로드 시점에 읽어 둔 상태(세션·테마) 다시 읽기 */
+/**
+ * Preferences + 보안 저장소(세션 토큰) → 메모리 hydrate → lib/storage 어댑터 교체 → 모듈 로드 시점에 읽어 둔 상태(세션·테마) 다시 읽기.
+ * 보안 저장소 오류는 어댑터 안에서 "세션 없음"으로 처리되어 여기까지 올라오지 않는다.
+ */
 export async function hydrateStorage(): Promise<void> {
   let legacy: Storage | null = null;
   try {

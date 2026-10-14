@@ -21,6 +21,12 @@ QA팀(보안·로직 리뷰어)이 인메모리 API 재현으로 확인한 15개
 | 14 | Low | 운세 `date` 에 존재하지 않는 날짜 허용 | 1900~2100 실제 날짜만 허용(400) | ✅ |
 | 15 | Low | 게스트 데이터: 기존 계정 로그인 시 유실 / 공용 기기 | 로그인·소셜 로그인 시 게스트 프로필·리포트·상담을 계정으로 병합 후 게스트 정리(같은 기기의 다음 게스트는 새 계정). 공용 기기에서 **가입 전** 게스트 데이터는 기기에 남는 특성은 게스트 모드의 한계로 문서화 | ✅ / 한계 고지 |
 
+## 후속 조치 — 앱의 토큰 저장 위치 (2026-10-15)
+- 앱(Capacitor): 세션(access·refresh 토큰 + 사용자)을 평문 Preferences(UserDefaults / SharedPreferences) 대신 **iOS Keychain**(`afterFirstUnlockThisDeviceOnly`, iCloud 동기화 없음) / **Android Keystore** AES-GCM 키로 암호화한 저장소에 둔다(`@aparajita/capacitor-secure-storage`).
+- 기존 설치의 평문 세션(Preferences, 첫 실행의 웹뷰 localStorage)은 보안 저장소 기록 성공 후 삭제 — 업데이트로 로그아웃되지 않음. 값이 바뀌거나 로그아웃하면 남은 평문 사본도 삭제(회전 전 refresh 토큰 재사용 → 전체 세션 폐기 방지).
+- 보안 저장소 오류(기기 복원 후 Keystore 키 유실 등)는 세션 없음으로 처리해 재로그인으로 복구, 앱은 중단되지 않음. 암호문 파일은 Android 클라우드 백업·기기 이전에서 제외, 재설치 시 iOS Keychain 잔여 세션은 버림.
+- 웹은 변경 없음(localStorage). 상세: [APP_PORTING.md §0.3](./APP_PORTING.md), 테스트: `apps/web/src/native/__tests__/storage.test.ts`
+
 ## 리뷰에서 문제없음으로 확인된 항목
 - `next` 파라미터 오픈 리다이렉트 — 라우터가 외부 URL 로 이동하지 않음
 - XSS — `dangerouslySetInnerHTML` 미사용
