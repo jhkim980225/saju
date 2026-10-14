@@ -24,8 +24,9 @@
 |---|---|---|---|---|
 | `result_bottom` | 무료 결과 본문 하단, 유료 상품 추천(전체 풀이 열기) **아래** | `ReadingView.tsx` (잠긴 섹션이 있고 프리미엄이 아닐 때) | AdSense 반응형 디스플레이 / 애드핏 320×100 | AdSense 250px, 애드핏 100px |
 | `home_infeed` | 오늘 탭, 운세 카드들 아래·공유 버튼 위 | `TodayPage.tsx` | AdSense 반응형 디스플레이 / 애드핏 320×100 | 같음 |
+| `web_content_mid` | SEO 콘텐츠 본문 중간 1개·하단 1개 — 꿈해몽 사전 첫 화면(`/dream`)·키워드 페이지(`/dream/:slug`). **AI 꿈풀이(`/dream/ask`)에는 넣지 않음** | `DreamPages.tsx` | AdSense 반응형(인아티클 단위 권장) / 애드핏 320×100 | 같음 |
 
-2차 후보(리서치 §5.7): SEO 콘텐츠 본문 중간·하단(`web_content_mid`), AdSense Offerwall(`web_offerwall_detail`, 하루 1~2회). 추가할 때는 `AdPlacement` 타입과 env 키를 함께 늘립니다.
+2차 후보(리서치 §5.7): ~~SEO 콘텐츠 본문 중간·하단(`web_content_mid`)~~ (2026-10-15 꿈해몽으로 도입, 키 `VITE_ADSENSE_SLOT_CONTENT_MID`·`VITE_ADFIT_UNIT_CONTENT_MID`), AdSense Offerwall(`web_offerwall_detail`, 하루 1~2회). 추가할 때는 `AdPlacement` 타입과 env 키를 함께 늘립니다.
 
 ### 1.2 금지 위치 (공통)
 

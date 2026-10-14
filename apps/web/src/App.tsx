@@ -39,6 +39,9 @@ const TarotDrawPage = lazyPage(() => import('./pages/TarotDrawPage'), 'TarotDraw
 const TarotResultPage = lazyPage(() => import('./pages/TarotResultPage'), 'TarotResultPage');
 const TarotDailyPage = lazyPage(() => import('./pages/TarotResultPage'), 'TarotDailyPage');
 const TarotHistoryPage = lazyPage(() => import('./pages/TarotHistoryPage'), 'TarotHistoryPage');
+const DreamHomePage = lazyPage(() => import('./pages/DreamPages'), 'DreamHomePage');
+const DreamAskPage = lazyPage(() => import('./pages/DreamPages'), 'DreamAskPage');
+const DreamEntryPage = lazyPage(() => import('./pages/DreamPages'), 'DreamEntryPage');
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -111,6 +114,9 @@ export const routes = [
       { path: '/tarot/daily', element: <TarotDailyPage /> },
       { path: '/tarot/r/:id', element: <TarotResultPage /> },
       { path: '/tarot/history', element: <TarotHistoryPage /> },
+      { path: '/dream', element: <DreamHomePage /> },
+      { path: '/dream/ask', element: <DreamAskPage /> },
+      { path: '/dream/:slug', element: <DreamEntryPage /> },
       {
         element: <TabLayout />,
         children: [

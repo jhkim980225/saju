@@ -61,6 +61,13 @@
 
 - 결제: `POST /orders { productId: tarot_question_3 | tarot_love_5, readingId }` (IAP 는 `/payments/iap/verify` 에 `readingId`). 리딩과 상품의 펼침 방식이 맞아야 하며, 지급 권한은 `tarot:reading:<readingId>` + 질문권 1회.
 
+## 꿈해몽
+| 메서드 | 경로 | 인증 | 설명 |
+|---|---|---|---|
+| POST | `/dream/interpret` | ✓ | AI 꿈풀이 `{ text(5~500자), profileId?, withoutSaju? }` → `DreamInterpretationDto { symbols, headline, paragraphs, generator: ai|rule, creditsCharged, creditsLeft, profileName, crisis, notice, disclaimer }`. 꿈 이야기에서 사전 상징을 찾아(규칙 기반 근거) AI(`ANTHROPIC_MODEL`)가 풀이. **AI 연동 시 질문권 1회**(AI 상담과 같은 `AI_CHAT_CREDIT_COST`, 부족하면 402 INSUFFICIENT_CREDITS), AI 실패 시 무상 환급 + 기본 풀이. **AI 미설정이면 사전 해석을 엮은 기본 풀이, 차감 없음.** 사주는 지정 프로필 → 대표 프로필 순(AI 풀이에만 사용), 남의 프로필은 400. 꿈 이야기는 저장하지 않음 |
+
+- 사전(300여 항목·검색·분류)은 API 가 아니라 `@saju/shared/dream`(`packages/shared/src/dream/`)을 웹이 직접 번들한다 — 웹 `/dream`, `/dream/:slug`(별칭 주소는 대표 키워드로 이동), `/dream/ask`. 계약 타입도 같은 곳에 있다.
+
 ## 커머스
 | 메서드 | 경로 | 인증 | 설명 |
 |---|---|---|---|

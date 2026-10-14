@@ -1,6 +1,7 @@
 /**
  * 광고 슬롯 (웹 전용) — 마케팅팀 정책(docs/ADS_ANALYTICS.md):
  *  - 노출 위치: 무료 결과 하단(result_bottom), 홈/오늘 인피드(home_infeed) 두 곳뿐.
+ *    + SEO 콘텐츠 본문 중간·하단(web_content_mid) — 꿈해몽 사전 등 무료 콘텐츠 페이지.
  *    입력·결제·유료 리포트·AI 상담 화면에는 절대 넣지 않는다.
  *  - 프리미엄 사용자(user.isPremium)에게는 노출하지 않는다.
  *  - 앱(Capacitor)에서는 렌더링하지 않는다 — AdMob 배너/보상형은 앱팀이 native 계층에서 처리.
@@ -15,7 +16,7 @@ import { loadScript } from '@/lib/analytics';
 import { isNativeApp } from '@/lib/platform';
 import { useSession } from '@/lib/session';
 
-export type AdPlacement = 'result_bottom' | 'home_infeed';
+export type AdPlacement = 'result_bottom' | 'home_infeed' | 'web_content_mid';
 
 const ADSENSE_SRC = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
 const ADFIT_SRC = 'https://t1.daumcdn.net/kas/static/ba.min.js';
@@ -26,12 +27,12 @@ const env = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 
 function adsenseUnit(placement: AdPlacement): { client: string; slot: string } | null {
   const client = env(import.meta.env.VITE_ADSENSE_CLIENT_ID);
-  const slot = env(placement === 'result_bottom' ? import.meta.env.VITE_ADSENSE_SLOT_RESULT_BOTTOM : import.meta.env.VITE_ADSENSE_SLOT_HOME_INFEED);
+  const slot = env(placement === 'result_bottom' ? import.meta.env.VITE_ADSENSE_SLOT_RESULT_BOTTOM : placement === 'web_content_mid' ? import.meta.env.VITE_ADSENSE_SLOT_CONTENT_MID : import.meta.env.VITE_ADSENSE_SLOT_HOME_INFEED);
   return client && slot ? { client, slot } : null;
 }
 
 function adfitUnit(placement: AdPlacement): string | null {
-  return env(placement === 'result_bottom' ? import.meta.env.VITE_ADFIT_UNIT_RESULT_BOTTOM : import.meta.env.VITE_ADFIT_UNIT_HOME_INFEED) || null;
+  return env(placement === 'result_bottom' ? import.meta.env.VITE_ADFIT_UNIT_RESULT_BOTTOM : placement === 'web_content_mid' ? import.meta.env.VITE_ADFIT_UNIT_CONTENT_MID : import.meta.env.VITE_ADFIT_UNIT_HOME_INFEED) || null;
 }
 
 export function AdSlot({ placement }: { placement: AdPlacement }) {

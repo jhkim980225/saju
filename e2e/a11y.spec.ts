@@ -107,11 +107,11 @@ test('탭 화면: 오늘·내 사주·궁합·물어보기·마이·신년운세
     await checkScreen(page, screen);
   }
 
-  // 주요 메뉴: 모바일은 하단 탭 5개, 데스크톱은 상단 내비(만세력·이용권 추가). 모두 이름이 있고 현재 탭 표시
+  // 주요 메뉴: 모바일은 하단 탭 5개, 데스크톱은 상단 내비(만세력·꿈해몽·이용권 추가). 모두 이름이 있고 현재 탭 표시
   await page.goto('/today');
   const nav = page.getByRole('navigation', { name: '주요 메뉴' });
   const desktop = test.info().project.name.startsWith('desktop');
-  await expect(nav.getByRole('link')).toHaveText(desktop ? ['오늘', '내 사주', '궁합', '물어보기', '타로', '만세력', '이용권', '마이'] : ['오늘', '내 사주', '궁합', '물어보기', '마이']);
+  await expect(nav.getByRole('link')).toHaveText(desktop ? ['오늘', '내 사주', '궁합', '물어보기', '타로', '만세력', '꿈해몽', '이용권', '마이'] : ['오늘', '내 사주', '궁합', '물어보기', '마이']);
   await expect(nav.getByRole('link', { name: '오늘' })).toHaveAttribute('aria-current', 'page');
 });
 

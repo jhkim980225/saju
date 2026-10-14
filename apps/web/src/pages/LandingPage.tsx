@@ -138,6 +138,9 @@ export function LandingPage() {
             <Link to="/manse" className="underline">
               만세력
             </Link>
+            <Link to="/dream" className="underline">
+              꿈해몽
+            </Link>
           </p>
         </footer>
       </Page>
