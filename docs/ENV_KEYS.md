@@ -42,9 +42,9 @@
 | 키 | 위치 | 용도 | 발급처 | 없으면 |
 |---|---|---|---|---|
 | `ANTHROPIC_API_KEY` | api | 유료 리포트 문장 고도화, AI 상담 | [Claude Console](https://console.anthropic.com) > API Keys | 리포트는 **규칙 기반 풀이**, 상담은 **기본 답변(질문권 차감 없음)** |
-| `ANTHROPIC_MODEL` | api | 상담(채팅), 유료 리포트 다듬기 | 기본 `claude-haiku-5-5`(가장 저렴). 리포트는 규칙 기반 초안을 다듬는 일이라 Sonnet 과 차이가 거의 없었음(2026-10-13 비교) | 기본값 |
+| `ANTHROPIC_MODEL` | api | 상담(채팅), 유료 리포트 다듬기, AI 꿈풀이 | 기본 `claude-haiku-5-5`(가장 저렴). 리포트는 규칙 기반 초안을 다듬는 일이라 Sonnet 과 차이가 거의 없었음(2026-10-13 비교) | 기본값 |
 | `ANTHROPIC_MODEL_PREMIUM` | api | 타로 '이어지는 이야기' | 기본 `claude-sonnet-5-5`. 카드끼리 엮어 읽는 품질이 Haiku 보다 나았음 | 기본값 |
-| `AI_CHAT_CREDIT_COST` | api | 상담 1회당 차감 질문권 | — | 1 |
+| `AI_CHAT_CREDIT_COST` | api | 상담·AI 꿈풀이 1회당 차감 질문권 | — | 1 |
 
 ## 4. 소셜 로그인
 
@@ -72,6 +72,7 @@
 | `ADS_ENABLED`, `ADS_PROVIDER` | api | 서버 주도 광고 노출 on/off, `adsense`/`adfit`/`admob`/`none` | — |
 | `VITE_ADSENSE_CLIENT_ID`, `VITE_ADSENSE_SLOT_RESULT_BOTTOM`, `VITE_ADSENSE_SLOT_HOME_INFEED` | web | 웹 배너 | Google AdSense |
 | `VITE_ADFIT_UNIT_RESULT_BOTTOM`, `VITE_ADFIT_UNIT_HOME_INFEED` | web | 웹 배너(카카오) | 카카오 애드핏 |
+| `VITE_ADSENSE_SLOT_CONTENT_MID`, `VITE_ADFIT_UNIT_CONTENT_MID` | web | SEO 콘텐츠(꿈해몽 등) 본문 중간·하단 `web_content_mid` | Google AdSense / 카카오 애드핏 |
 | `VITE_ADMOB_UNIT_REWARDED_CHAT_IOS/_ANDROID`, `VITE_ADMOB_UNIT_BANNER_RESULT_IOS/_ANDROID` | web(`.env.app`, 앱 빌드) | 앱 보상형·배너 광고 단위(비우면 Google 테스트 단위) + AdMob **앱 ID** 는 Info.plist / AndroidManifest 에 (`docs/APP_PORTING.md`) | Google AdMob |
 | `VITE_PUBLIC_WEB_URL`, `VITE_DEEPLINK_HOSTS`, `VITE_APP_URL_SCHEME` | web(`.env.app`) | 앱 소셜 로그인 콜백·딥링크 기준 웹 도메인 | — |
 | `ADMOB_REWARDED_AD_UNITS` | api | **우리 앱의** 보상형 광고 단위 ID 허용 목록(콤마 구분). 운영에서 비어 있으면 SSV 지급 거부(타 앱 광고 단위로 보상 탈취 방지) | AdMob 콘솔 > 광고 단위 |

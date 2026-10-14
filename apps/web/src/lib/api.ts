@@ -38,6 +38,7 @@ import type {
   YearlyFortuneDto,
   BirthInputDto,
 } from '@saju/shared';
+import type { DreamInterpretDto, DreamInterpretationDto } from '@saju/shared/dream';
 import { API_BASE } from './config';
 import { reloadSessionFromStorage, useSession } from './session';
 
@@ -171,6 +172,9 @@ export const api = {
   tarotReading: (id: string) => get<TarotReadingDto>(`/tarot/readings/${id}`, 'required'),
   tarotHistory: () => get<TarotHistoryItemDto[]>('/tarot/readings', 'required'),
   tarotDelete: (id: string) => request<void>('DELETE', `/tarot/readings/${id}`, { auth: 'required' }),
+
+  // 꿈해몽 — 사전은 @saju/shared/dream 을 화면에서 직접 쓰고, AI 꿈풀이만 서버에 묻는다
+  dreamInterpret: (dto: DreamInterpretDto) => post<DreamInterpretationDto>('/dream/interpret', dto, 'required'),
 
   // 커머스
   products: () => get<ProductDto[]>('/products'),

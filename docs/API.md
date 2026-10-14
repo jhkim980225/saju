@@ -88,6 +88,12 @@
 | 아니오 `no` | 악마 · 탑 · 컵 5 · 컵 8 · 소드 3 · 소드 5 · 소드 7 · 소드 8 · 소드 9 · 소드 10 · 펜타클 5 (11장) | 바보 · 마법사 · 여사제 · 황제 · 연인 · 전차 · 은둔자 · 운명의 수레바퀴 · 정의 · 매달린 사람 · 죽음 · 완드 7 · 완드 나이트 · 컵 에이스 · 소드 에이스 · 소드 페이지 · 소드 나이트 · 소드 퀸 · 소드 킹 · 펜타클 2 · 펜타클 7 · 펜타클 나이트 · 펜타클 킹 (23장) |
 
 역방향 35%(`deck.ts`)를 반영한 실제 비율은 대략 예 44% · 조건부 36% · 아니오 20%.
+## 꿈해몽
+| 메서드 | 경로 | 인증 | 설명 |
+|---|---|---|---|
+| POST | `/dream/interpret` | ✓ | AI 꿈풀이 `{ text(5~500자), profileId?, withoutSaju? }` → `DreamInterpretationDto { symbols, headline, paragraphs, generator: ai|rule, creditsCharged, creditsLeft, profileName, crisis, notice, disclaimer }`. 꿈 이야기에서 사전 상징을 찾아(규칙 기반 근거) AI(`ANTHROPIC_MODEL`)가 풀이. **AI 연동 시 질문권 1회**(AI 상담과 같은 `AI_CHAT_CREDIT_COST`, 부족하면 402 INSUFFICIENT_CREDITS), AI 실패 시 무상 환급 + 기본 풀이. **AI 미설정이면 사전 해석을 엮은 기본 풀이, 차감 없음.** 사주는 지정 프로필 → 대표 프로필 순(AI 풀이에만 사용), 남의 프로필은 400. 꿈 이야기는 저장하지 않음 |
+
+- 사전(300여 항목·검색·분류)은 API 가 아니라 `@saju/shared/dream`(`packages/shared/src/dream/`)을 웹이 직접 번들한다 — 웹 `/dream`, `/dream/:slug`(별칭 주소는 대표 키워드로 이동), `/dream/ask`. 계약 타입도 같은 곳에 있다.
 
 ## 커머스
 | 메서드 | 경로 | 인증 | 설명 |

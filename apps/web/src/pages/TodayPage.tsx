@@ -9,6 +9,7 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { ShareSheet } from '@/components/ShareSheet';
 import { TodayTarotCard } from '@/components/TodayTarotCard';
 import { TojeongEntryCard } from '@/components/TojeongEntryCard';
+import { DreamEntryCard } from '@/components/DreamEntryCard';
 import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, ScoreBar, Spinner, cx } from '@/components/ui';
 import { useProfiles } from '@/hooks/queries';
 import { SessionGateError, useSessionGate } from '@/hooks/useSessionGate';
@@ -161,6 +162,7 @@ export function TodayPage() {
 
               <TodayTarotCard />
               <TojeongEntryCard className="mt-4" />
+              <DreamEntryCard />
             </div>
 
             <div className="lg:pt-4">
