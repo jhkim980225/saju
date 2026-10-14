@@ -14,7 +14,7 @@ const TABS = [
 ];
 
 /** 데스크톱(lg↑) 상단 내비 — 모바일의 하단 탭을 대신한다 */
-const DESKTOP_LINKS = [...TABS.slice(0, 4).map(({ to, label }) => ({ to, label })), { to: '/tarot', label: t('tarot.meta.navLabel') }, { to: '/manse', label: '만세력' }, { to: '/dream', label: '꿈해몽' }];
+const DESKTOP_LINKS = [...TABS.slice(0, 4).map(({ to, label }) => ({ to, label })), { to: '/tarot', label: t('tarot.meta.navLabel') }, { to: '/manse', label: '만세력' }, { to: '/dream', label: '꿈해몽' }, { to: '/zodiac', label: '띠·별자리' }];
 
 const desktopLink = ({ isActive }: { isActive: boolean }) =>
   cx('inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-[15px] font-medium transition-colors', isActive ? 'bg-subtle text-ink' : 'text-ink-2 hover:text-ink');

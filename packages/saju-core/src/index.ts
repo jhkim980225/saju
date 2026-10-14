@@ -12,3 +12,5 @@ export * from './luck.js';
 export * from './fortune.js';
 export * from './compatibility.js';
 export * from './tojeong.js';
+export * from './astro.js';
+export * from './zodiac.js';

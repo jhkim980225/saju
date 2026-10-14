@@ -148,6 +148,8 @@ export function MyPage() {
               ['/store', '이용권 · 리포트 구매'],
               ['/manse', '만세력'],
               ['/dream', '꿈해몽'],
+              ['/zodiac', '띠별 운세'],
+              ['/horoscope', '별자리 운세'],
             ].map(([to, label]) => (
               <Link key={to} to={to!} className="flex items-center justify-between px-5 py-4">
                 {label}

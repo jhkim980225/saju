@@ -43,6 +43,10 @@ const TojeongPage = lazyPage(() => import('./pages/TojeongPage'), 'TojeongPage')
 const DreamHomePage = lazyPage(() => import('./pages/DreamPages'), 'DreamHomePage');
 const DreamAskPage = lazyPage(() => import('./pages/DreamPages'), 'DreamAskPage');
 const DreamEntryPage = lazyPage(() => import('./pages/DreamPages'), 'DreamEntryPage');
+const ZodiacHubPage = lazyPage(() => import('./pages/ZodiacPage'), 'ZodiacHubPage');
+const ZodiacDetailPage = lazyPage(() => import('./pages/ZodiacPage'), 'ZodiacDetailPage');
+const HoroscopeHubPage = lazyPage(() => import('./pages/HoroscopePage'), 'HoroscopeHubPage');
+const HoroscopeDetailPage = lazyPage(() => import('./pages/HoroscopePage'), 'HoroscopeDetailPage');
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -128,6 +132,11 @@ export const routes = [
           { path: '/ask', element: <AskPage /> },
           { path: '/tarot', element: <TarotHomePage /> },
           { path: '/my', element: <MyPage /> },
+          // 띠별·별자리 운세 — 공개 SEO 페이지(하단 탭을 함께 보여 다른 메뉴로 이어지게)
+          { path: '/zodiac', element: <ZodiacHubPage /> },
+          { path: '/zodiac/:animal/:period?', element: <ZodiacDetailPage /> },
+          { path: '/horoscope', element: <HoroscopeHubPage /> },
+          { path: '/horoscope/:sign/:period?', element: <HoroscopeDetailPage /> },
         ],
       },
       { path: '*', element: <NotFoundPage /> },

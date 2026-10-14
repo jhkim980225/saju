@@ -796,3 +796,5 @@ export interface TojeongDto {
   shareText: string;
   disclaimer: string;
 }
+// 띠별·별자리 운세 (무료 SEO 콘텐츠)
+export * from './zodiac.js';

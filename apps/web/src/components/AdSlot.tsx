@@ -1,7 +1,7 @@
 /**
  * 광고 슬롯 (웹 전용) — 마케팅팀 정책(docs/ADS_ANALYTICS.md):
  *  - 노출 위치: 무료 결과 하단(result_bottom), 홈/오늘 인피드(home_infeed) 두 곳뿐.
- *    + SEO 콘텐츠 본문 중간·하단(web_content_mid) — 꿈해몽 사전 등 무료 콘텐츠 페이지.
+ *    + SEO 콘텐츠 본문 중간·하단(web_content_mid) — 꿈해몽 사전·띠별·별자리 운세 등 무료 콘텐츠 페이지.
  *    입력·결제·유료 리포트·AI 상담 화면에는 절대 넣지 않는다.
  *  - 프리미엄 사용자(user.isPremium)에게는 노출하지 않는다.
  *  - 앱(Capacitor)에서는 렌더링하지 않는다 — AdMob 배너/보상형은 앱팀이 native 계층에서 처리.

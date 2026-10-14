@@ -88,12 +88,27 @@
 | 아니오 `no` | 악마 · 탑 · 컵 5 · 컵 8 · 소드 3 · 소드 5 · 소드 7 · 소드 8 · 소드 9 · 소드 10 · 펜타클 5 (11장) | 바보 · 마법사 · 여사제 · 황제 · 연인 · 전차 · 은둔자 · 운명의 수레바퀴 · 정의 · 매달린 사람 · 죽음 · 완드 7 · 완드 나이트 · 컵 에이스 · 소드 에이스 · 소드 페이지 · 소드 나이트 · 소드 퀸 · 소드 킹 · 펜타클 2 · 펜타클 7 · 펜타클 나이트 · 펜타클 킹 (23장) |
 
 역방향 35%(`deck.ts`)를 반영한 실제 비율은 대략 예 44% · 조건부 36% · 아니오 20%.
+
 ## 꿈해몽
 | 메서드 | 경로 | 인증 | 설명 |
 |---|---|---|---|
 | POST | `/dream/interpret` | ✓ | AI 꿈풀이 `{ text(5~500자), profileId?, withoutSaju? }` → `DreamInterpretationDto { symbols, headline, paragraphs, generator: ai|rule, creditsCharged, creditsLeft, profileName, crisis, notice, disclaimer }`. 꿈 이야기에서 사전 상징을 찾아(규칙 기반 근거) AI(`ANTHROPIC_MODEL`)가 풀이. **AI 연동 시 질문권 1회**(AI 상담과 같은 `AI_CHAT_CREDIT_COST`, 부족하면 402 INSUFFICIENT_CREDITS), AI 실패 시 무상 환급 + 기본 풀이. **AI 미설정이면 사전 해석을 엮은 기본 풀이, 차감 없음.** 사주는 지정 프로필 → 대표 프로필 순(AI 풀이에만 사용), 남의 프로필은 400. 꿈 이야기는 저장하지 않음 |
 
 - 사전(300여 항목·검색·분류)은 API 가 아니라 `@saju/shared/dream`(`packages/shared/src/dream/`)을 웹이 직접 번들한다 — 웹 `/dream`, `/dream/:slug`(별칭 주소는 대표 키워드로 이동), `/dream/ask`. 계약 타입도 같은 곳에 있다.
+
+## 띠별 · 별자리 운세 (무료 공개 콘텐츠)
+| 메서드 | 경로 | 인증 | 설명 |
+|---|---|---|---|
+| GET | `/zodiac?period&date` | - | 12띠 한 줄 요약 `ZodiacOverviewDto` (띠·흐름·제목·근거 한 줄, 이번 주는 좋은 날·살필 날 요일) |
+| GET | `/zodiac/:animal?period&date` | - | 띠 하나 `ZodiacFortuneDto` — `animal`: `rat ox tiger rabbit dragon snake horse sheep monkey rooster dog pig` |
+| GET | `/horoscope?period&date` | - | 12별자리 한 줄 요약 `HoroscopeOverviewDto` |
+| GET | `/horoscope/:sign?period&date` | - | 별자리 하나 `HoroscopeDto` — `sign`: `aries taurus gemini cancer leo virgo libra scorpio sagittarius capricorn aquarius pisces` |
+
+- `period`: `today`(기본) · `tomorrow` · `week`(그 날이 속한 월~일) · `month` · `year`. `date`: `YYYY-MM-DD`(KST, 기본 오늘, 1900~2100). 잘못된 값은 400, 없는 띠·별자리는 404.
+- 개인 정보를 받지 않고 같은 입력이면 같은 응답이라 `Cache-Control: public, max-age=600`.
+- 띠: `pillar`(오늘·내일 일진 / 이번 달 월건 / 올해 세운, 이번 주는 `null`), `reasons`(관계와 오행 작용 근거), `keyDays`(이번 주 좋은 날·살필 날), `lucky`, `years`(7~90세 년생별 한 줄 + 근거), `range`(이번 달은 절기 달, 올해는 입춘~입춘), `basisNote`(입춘 기준 안내).
+- 별자리: `sky`(달·태양·목성·토성이 지나는 별자리, 내 별자리에서 몇 번째 자리·각, 근거 문장), `keyDays`(이번 주), `range`(이번 달은 태양이 지금 별자리에 머무는 기간, 올해는 그 해 1~12월), `basisNote`(계산 방법·오차).
+- 계산 방법: [`SAJU_ENGINE.md`](SAJU_ENGINE.md) §7. 생일 → 별자리는 `@saju/shared` 의 `starSignOfBirthday(month, day)` (날짜표, 경계일 `isCusp`).
 
 ## 커머스
 | 메서드 | 경로 | 인증 | 설명 |
