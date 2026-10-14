@@ -1,0 +1,572 @@
+{
+  "tarot": {
+    "meta": {
+      "title": "여덟자 타로 — 생각을 비추는 카드 한 장",
+      "description": "질문을 고르고 카드를 뽑아 보세요. 카드의 전통적인 뜻을 바탕으로, 지금의 마음을 차분히 읽어 드려요.",
+      "navLabel": "타로",
+      "askSegment": "타로로 묻기"
+    },
+    "home": {
+      "eyebrow": "카드로 생각 정리하기",
+      "title": "답을 정해 주는 카드 말고,\n생각을 비춰 주는 카드",
+      "subtitle": "질문을 하나 고르고 카드를 뽑아 보세요. 지금 마음이 어디에 머물러 있는지 함께 읽어 드려요.",
+      "dailyCard": {
+        "label": "오늘의 카드",
+        "title": "오늘을 비춰 볼 한 장",
+        "desc": "하루에 한 장, 오늘 마음에 두면 좋은 메시지를 뽑아요.",
+        "cta": "오늘의 카드 뽑기",
+        "drawnLabel": "{{month}}월 {{day}}일의 카드",
+        "viewCta": "다시 읽기",
+        "oncePerDay": "오늘의 카드는 하루에 한 장이에요. 다시 열어도 같은 카드가 보여요.",
+        "tomorrow": "내일 아침, 새 카드를 뽑을 수 있어요.",
+        "pushOptIn": "아침마다 오늘의 카드를 알려 드릴까요?"
+      },
+      "topicsTitle": "무엇이 궁금해요?",
+      "topicsSubtitle": "고민에 맞는 펼침 방식을 골라 드려요.",
+      "spreadsTitle": "펼침 방식으로 고르기",
+      "historyLink": "지난 기록",
+      "aboutLink": "여덟자 타로는 이렇게 읽어요",
+      "howItWorks": {
+        "title": "이렇게 진행돼요",
+        "step1": "궁금한 것 고르기",
+        "step2": "카드 섞고 고르기",
+        "step3": "한 장씩 펼쳐 읽기"
+      },
+      "freeNote": "카드의 뜻과 기본 풀이는 무료예요."
+    },
+    "topics": {
+      "today": {
+        "label": "오늘",
+        "title": "오늘 하루, 무엇을 챙길까요?",
+        "desc": "오늘 마음에 둘 메시지를 한 장으로 받아요."
+      },
+      "love": {
+        "label": "연애",
+        "title": "우리 관계, 지금 어디쯤일까요?",
+        "desc": "두 사람의 마음과 관계의 흐름을 나란히 살펴봐요."
+      },
+      "feelings": {
+        "label": "속마음",
+        "title": "그 사람은 어떤 마음일까요?",
+        "desc": "상대의 마음을 단정하기보다, 관계에서 보이는 신호를 읽어 봐요."
+      },
+      "reunion": {
+        "label": "재회",
+        "title": "지난 관계, 다시 생각나요",
+        "desc": "지난 관계를 돌아보고, 지금 나에게 필요한 것을 살펴봐요."
+      },
+      "career": {
+        "label": "일·진로",
+        "title": "이 길로 가도 괜찮을까요?",
+        "desc": "지금 일의 흐름과 걸림돌, 도움이 되는 태도를 살펴봐요."
+      },
+      "money": {
+        "label": "돈",
+        "title": "돈의 흐름, 어떻게 챙길까요?",
+        "desc": "들어오고 나가는 흐름을 보고, 지킬 것을 정리해요."
+      },
+      "yesno": {
+        "label": "예·아니오",
+        "title": "할까, 말까 고민될 때",
+        "desc": "카드가 어느 쪽으로 기울어 있는지 살펴봐요."
+      },
+      "choice": {
+        "label": "양자택일",
+        "title": "둘 중 무엇을 고를까요?",
+        "desc": "두 선택지의 흐름을 나란히 놓고 비교해요."
+      }
+    },
+    "spreads": {
+      "cardCount": "{{count}}장",
+      "change": "펼침 방식 바꾸기",
+      "sheetTitle": "펼침 방식 고르기",
+      "recommended": "이 질문에 잘 맞아요",
+      "one": {
+        "name": "한 장",
+        "desc": "지금 가장 필요한 메시지 하나를 받아요.",
+        "positions": {
+          "0": { "label": "메시지", "hint": "지금 마음에 두면 좋은 한 가지" }
+        }
+      },
+      "three": {
+        "name": "과거·현재·미래",
+        "desc": "흐름이 어디서 와서 어디로 향하는지 읽어요.",
+        "positions": {
+          "0": { "label": "과거", "hint": "지금의 상황을 만든 흐름" },
+          "1": { "label": "현재", "hint": "지금 가장 크게 작용하는 것" },
+          "2": { "label": "앞으로", "hint": "이대로 갈 때 이어지기 쉬운 방향" }
+        }
+      },
+      "advice": {
+        "name": "상황·걸림돌·조언",
+        "desc": "막힌 곳을 짚고, 풀어 갈 태도를 찾아요.",
+        "positions": {
+          "0": { "label": "지금 상황", "hint": "있는 그대로의 현재" },
+          "1": { "label": "걸림돌", "hint": "흐름을 더디게 만드는 것" },
+          "2": { "label": "조언", "hint": "도움이 되는 태도와 행동" }
+        }
+      },
+      "relationship": {
+        "name": "두 사람",
+        "desc": "나와 상대, 그리고 둘 사이를 함께 봐요.",
+        "positions": {
+          "0": { "label": "나의 마음", "hint": "이 관계에서 내가 느끼는 것" },
+          "1": { "label": "상대의 모습", "hint": "관계에서 상대가 보여 주는 태도" },
+          "2": { "label": "지금 관계", "hint": "두 사람 사이에 흐르는 기운" },
+          "3": { "label": "도움이 되는 것", "hint": "관계를 위해 해 볼 수 있는 일" }
+        }
+      },
+      "feelings": {
+        "name": "속마음",
+        "desc": "상대가 관계를 어떻게 바라보는지 신호를 읽어요.",
+        "positions": {
+          "0": { "label": "겉으로 보이는 마음", "hint": "말과 행동으로 드러나는 것" },
+          "1": { "label": "안에 있는 마음", "hint": "쉽게 드러내지 않는 생각" },
+          "2": { "label": "관계에서 바라는 것", "hint": "상대가 기대하거나 망설이는 것" }
+        }
+      },
+      "reunion": {
+        "name": "지난 관계 돌아보기",
+        "desc": "헤어진 이유와 지금의 마음, 나에게 필요한 것을 살펴요.",
+        "positions": {
+          "0": { "label": "멀어진 이유", "hint": "관계가 어긋난 흐름" },
+          "1": { "label": "지금 나의 마음", "hint": "아직 남아 있는 감정" },
+          "2": { "label": "상대 쪽 흐름", "hint": "상대에게서 보이는 신호" },
+          "3": { "label": "나에게 필요한 것", "hint": "다시 다가가든 놓아주든, 먼저 챙길 것" }
+        }
+      },
+      "choice": {
+        "name": "양자택일",
+        "desc": "두 선택지의 흐름을 나란히 비교해요.",
+        "optionA": "선택지 A",
+        "optionB": "선택지 B",
+        "optionPlaceholderA": "예) 지금 회사에 남기",
+        "optionPlaceholderB": "예) 새 회사로 옮기기",
+        "positions": {
+          "0": { "label": "지금의 나", "hint": "고민하는 나의 상태" },
+          "1": { "label": "A를 고르면", "hint": "{{optionA}} 쪽의 흐름" },
+          "2": { "label": "B를 고르면", "hint": "{{optionB}} 쪽의 흐름" }
+        }
+      },
+      "yesno": {
+        "name": "예·아니오",
+        "desc": "한 장으로 흐름이 기운 쪽을 살펴요.",
+        "positions": {
+          "0": { "label": "기울기", "hint": "지금 흐름이 향하는 쪽" }
+        }
+      },
+      "celtic": {
+        "name": "켈틱 크로스",
+        "desc": "열 장으로 한 가지 고민을 깊고 넓게 펼쳐 봐요.",
+        "comingSoon": "곧 열려요",
+        "positions": {
+          "0": { "label": "지금 상황", "hint": "고민의 중심" },
+          "1": { "label": "가로막는 것", "hint": "중심을 가로지르는 힘" },
+          "2": { "label": "바탕", "hint": "상황의 뿌리" },
+          "3": { "label": "지나가는 것", "hint": "가까운 과거" },
+          "4": { "label": "바라는 것", "hint": "의식하고 있는 목표" },
+          "5": { "label": "다가오는 것", "hint": "가까운 앞날의 흐름" },
+          "6": { "label": "나의 태도", "hint": "내가 상황을 대하는 방식" },
+          "7": { "label": "주변", "hint": "주변 사람과 환경" },
+          "8": { "label": "바람과 걱정", "hint": "마음속 기대와 두려움" },
+          "9": { "label": "흐름의 방향", "hint": "이대로 갈 때 이어지기 쉬운 결과" }
+        }
+      }
+    },
+    "question": {
+      "title": "무엇이 궁금한지 적어 볼까요?",
+      "subtitle": "구체적으로 적을수록 풀이가 또렷해져요. 적지 않아도 괜찮아요.",
+      "label": "나의 질문",
+      "optional": "선택",
+      "placeholder": "예) 이번 주에 먼저 연락해 봐도 될까요?",
+      "counter": "{{count}}/{{max}}",
+      "examplesTitle": "이런 질문도 좋아요",
+      "examples": {
+        "today": {
+          "0": "오늘 가장 신경 쓰면 좋은 건 뭘까요?",
+          "1": "오늘 만나는 사람들과 어떻게 지내면 좋을까요?"
+        },
+        "love": {
+          "0": "요즘 우리 관계는 어떤 흐름일까요?",
+          "1": "이 사람과 더 가까워지려면 무엇이 필요할까요?",
+          "2": "새로운 인연을 만나려면 무엇을 바꾸면 좋을까요?"
+        },
+        "feelings": {
+          "0": "그 사람은 우리 관계를 어떻게 생각할까요?",
+          "1": "요즘 연락이 뜸한 이유가 있을까요?"
+        },
+        "reunion": {
+          "0": "지난 관계에서 내가 놓친 건 뭘까요?",
+          "1": "다시 연락해 보기 전에 무엇을 생각해 보면 좋을까요?"
+        },
+        "career": {
+          "0": "지금 회사에서 더 해 볼 만한 일이 있을까요?",
+          "1": "이직을 준비한다면 무엇부터 챙기면 좋을까요?",
+          "2": "이 프로젝트를 잘 끝내려면 무엇이 필요할까요?"
+        },
+        "money": {
+          "0": "요즘 돈이 새는 곳은 어디일까요?",
+          "1": "올해 돈 관리에서 지킬 한 가지는 뭘까요?"
+        },
+        "yesno": {
+          "0": "이번 주말에 먼저 연락해 봐도 될까요?",
+          "1": "이 모임에 나가 보는 게 좋을까요?"
+        },
+        "choice": {
+          "0": "A와 B 중 지금 나에게 맞는 쪽은 어디일까요?"
+        }
+      },
+      "tips": {
+        "title": "질문을 고르는 작은 요령",
+        "open": "'될까요?'보다 '어떻게 하면 좋을까요?'가 더 많은 걸 보여 줘요.",
+        "self": "다른 사람의 마음보다 나의 선택에 초점을 맞춰 보세요.",
+        "time": "기간을 정하면 읽기 쉬워요. 예) 이번 달, 올해 안"
+      },
+      "privacyNote": "질문은 풀이를 만드는 데만 쓰고, 공유할 때는 기본으로 빠져요.",
+      "spreadLabel": "펼침 방식",
+      "reversedToggle": "역방향 카드도 함께 읽기",
+      "reversedHelp": "카드가 거꾸로 나오면, 그 기운이 안으로 향하거나 아직 무르익는 중이라는 뜻으로 읽어요.",
+      "submit": "카드 섞기",
+      "skip": "질문 없이 뽑을게요",
+      "errors": {
+        "tooLong": "질문은 {{max}}자까지 적을 수 있어요.",
+        "optionRequired": "두 선택지를 모두 적어 주세요.",
+        "optionTooLong": "선택지는 {{max}}자까지 적을 수 있어요."
+      },
+      "sensitive": {
+        "expert": "건강·법률·투자에 관한 질문이라면, 카드는 생각을 정리하는 데만 써 주세요. 결정은 꼭 전문가와 함께해요.",
+        "thirdParty": "다른 사람의 마음은 카드로 확정할 수 없어요. 관계를 돌아보는 참고로 읽어 주세요.",
+        "crisis": "혼자 감당하기 어려운 마음이라면 지금 전문 상담을 받아 보세요. 자살예방상담전화 109는 24시간 열려 있어요."
+      }
+    },
+    "shuffle": {
+      "title": "카드를 섞고 있어요",
+      "hint": "궁금한 것을 마음속으로 한 번 떠올려 보세요.",
+      "button": "카드 섞기",
+      "again": "한 번 더 섞기",
+      "done": "다 섞었어요",
+      "next": "카드 고르기",
+      "randomNote": "카드는 매번 무작위로 섞여요.",
+      "reducedMotion": "카드를 섞었어요."
+    },
+    "pick": {
+      "title": "카드 {{count}}장을 골라 주세요",
+      "titleOne": "카드 한 장을 골라 주세요",
+      "subtitle": "끌리는 카드를 천천히 골라 보세요.",
+      "positionPrompt": "'{{position}}' 자리를 떠올리며 골라 보세요.",
+      "progress": "{{picked}}/{{count}}",
+      "remaining": "{{remaining}}장 더 골라 주세요",
+      "allPicked": "{{count}}장을 모두 골랐어요",
+      "scrollHint": "옆으로 넘기며 고를 수 있어요",
+      "autoPick": "알아서 골라 주세요",
+      "undo": "마지막 카드 되돌리기",
+      "reset": "처음부터 다시 고르기",
+      "submit": "카드 펼치기"
+    },
+    "reveal": {
+      "tapToFlip": "카드를 눌러 한 장씩 펼쳐 보세요",
+      "flipAll": "한 번에 펼치기",
+      "upright": "정방향",
+      "reversed": "역방향",
+      "toResult": "풀이 읽기",
+      "preparing": "카드를 이어서 읽고 있어요"
+    },
+    "loading": {
+      "step1": "펼친 카드를 자리마다 놓고 있어요",
+      "step2": "카드의 전통적인 뜻을 살피고 있어요",
+      "step3": "질문에 맞춰 이야기를 잇고 있어요",
+      "slow": "조금만 더 기다려 주세요. 꼼꼼히 읽는 중이에요."
+    },
+    "result": {
+      "title": "{{topic}} 타로",
+      "dailyTitle": "오늘의 카드",
+      "questionLabel": "나의 질문",
+      "noQuestion": "질문 없이 뽑은 카드",
+      "drawnAt": "{{date}}에 뽑았어요",
+      "headlineLabel": "카드가 건네는 한 줄",
+      "cardsTitle": "펼친 카드",
+      "positionLabel": "{{position}} 자리",
+      "keywordsLabel": "키워드",
+      "meaningTitle": "카드의 뜻",
+      "imageryLabel": "전통 카드 속 그림",
+      "imageryNote": "여덟자 카드는 상징만 남긴 먹선 카드예요. 1909년 카드에 그려진 장면을 글로 함께 적어 두었어요.",
+      "inPositionTitle": "이 자리에서 읽으면",
+      "reversedNote": "역방향은 나쁜 뜻이 아니에요. 그 기운이 안으로 향하거나, 아직 무르익는 중이라는 신호로 읽어요.",
+      "heavyCards": {
+        "death": "'죽음' 카드는 끝과 시작을 뜻해요. 실제 죽음이나 사고를 말하는 카드가 아니에요.",
+        "tower": "'탑' 카드는 낡은 틀이 바뀌는 순간을 뜻해요. 흔들린 뒤에 더 단단한 바탕이 생기기도 해요.",
+        "devil": "'악마' 카드는 나를 묶어 두는 습관이나 집착을 비춰요. 알아차리는 것만으로도 풀리기 시작해요.",
+        "tenOfSwords": "'소드 10'은 힘든 일이 바닥을 지나고 있다는 신호예요. 이제 일어설 차례라는 뜻도 함께 담겨 있어요."
+      },
+      "synthesisLabel": "총평",
+      "synthesisTitle": "카드를 이어서 읽으면",
+      "synthesisTitleOne": "이 카드가 지금 말하는 것",
+      "adviceTitle": "이렇게 해 보세요",
+      "nextQuestionTitle": "다음에 물어보면 좋은 질문",
+      "whyTitle": "이렇게 읽은 이유",
+      "whyBody": "{{position}} 자리의 '{{card}}' 카드({{orientation}})는 보통 '{{keyword}}'의 뜻으로 읽어요.",
+      "aiBadge": "AI가 쓴 풀이",
+      "basisNote": "카드의 기본 뜻은 1909년 A. E. 웨이트와 패멀라 콜먼 스미스가 만든 덱의 전통 해석을 따르고, 질문과 자리에 맞춰 이어서 풀어요.",
+      "yesno": {
+        "scaleLabel": "카드의 기울기",
+        "yes": "'예' 쪽으로 기울어 있어요",
+        "no": "'아니오' 쪽으로 기울어 있어요",
+        "maybe": "아직 어느 쪽으로도 열려 있어요",
+        "scaleYes": "예 쪽",
+        "scaleMaybe": "열려 있음",
+        "scaleNo": "아니오 쪽",
+        "note": "타로는 정답보다 방향을 보여 줘요. 마지막 선택은 {{name}}님의 몫이에요."
+      },
+      "choice": {
+        "compareTitle": "두 갈래 나란히 보기",
+        "optionLabel": "{{option}} 쪽"
+      },
+      "journal": {
+        "title": "내 생각 적어 두기",
+        "placeholder": "카드를 보고 떠오른 생각을 적어 두세요. 나만 볼 수 있어요.",
+        "save": "메모 저장",
+        "saved": "메모를 저장했어요",
+        "edit": "메모 고치기"
+      },
+      "actions": {
+        "save": "기록에 저장",
+        "saved": "기록에 저장했어요",
+        "share": "공유",
+        "askAnother": "다른 질문하기",
+        "backToTarot": "타로 처음으로"
+      },
+      "sameQuestionNote": "같은 질문은 하루쯤 지나서 다시 물어보면 더 또렷하게 읽혀요.",
+      "crossSaju": {
+        "title": "사주로 한 번 더 살펴볼까요?",
+        "body": "타로가 지금의 마음을 비춘다면, 사주는 타고난 흐름을 보여 줘요.",
+        "cta": "내 사주 보기",
+        "ctaToday": "오늘의 운세 보기"
+      },
+      "saveLoginPrompt": "로그인하면 기록을 다른 기기에서도 볼 수 있어요."
+    },
+    "paywall": {
+      "lockTitle": "여기서부터는 깊은 풀이예요",
+      "lockBody": "지금 뽑은 카드 {{count}}장을 질문에 맞춰 이어 읽고, 자리마다 구체적인 조언을 담았어요.",
+      "tocTitle": "이어서 읽을 수 있는 내용",
+      "toc": {
+        "flow": "카드끼리 이어지는 이야기",
+        "position": "자리마다 질문에 맞춘 풀이",
+        "advice": "지금 해 볼 수 있는 행동 세 가지",
+        "signal": "흐름이 바뀌는 신호",
+        "nextQuestion": "다음에 물어보면 좋은 질문"
+      },
+      "freeIncludedTitle": "무료로 볼 수 있는 것",
+      "freeIncluded": "카드의 뜻 · 카드가 건네는 한 줄 · 총평 첫 문단",
+      "sameCards": "카드는 다시 뽑지 않아요. 지금 펼친 카드 그대로 이어서 읽어요.",
+      "cta": "깊은 풀이 열기 · {{price}}",
+      "ctaCredit": "질문권 1회로 열기",
+      "ctaNoPrice": "깊은 풀이 열기",
+      "creditBalance": "남은 질문권 {{count}}회",
+      "noCredit": "질문권이 없어요. 충전하면 바로 이어서 읽을 수 있어요.",
+      "dismiss": "기본 풀이만 볼게요",
+      "previewKept": "열지 않아도 카드의 뜻과 기본 풀이는 그대로 볼 수 있어요.",
+      "sheetTitle": "{{topic}} 타로 깊은 풀이",
+      "benefitContinue": "읽던 곳에서 바로 이어서 읽어요",
+      "benefitRevisit": "기록에서 언제든 다시 볼 수 있어요",
+      "benefitDepth": "카드끼리의 관계와 행동 제안까지 담았어요",
+      "aiNotice": "깊은 풀이는 생성형 AI가 카드의 전통 해석과 질문을 바탕으로 써요.",
+      "unlocked": "깊은 풀이를 열었어요. 이어서 읽어 보세요."
+    },
+    "share": {
+      "sheetTitle": "카드 공유하기",
+      "includeName": "이름 넣기",
+      "includeQuestion": "질문 넣기",
+      "privacyNote": "질문과 메모는 기본으로 공유되지 않아요.",
+      "imageSaved": "카드 이미지를 저장했어요",
+      "card": {
+        "dailyLabel": "{{name}}님의 오늘의 카드",
+        "spreadLabel": "{{topic}} 타로",
+        "footer": "여덟자 타로 · 생각을 비추는 한 장"
+      },
+      "kakaoDaily": {
+        "title": "오늘의 카드: {{card}}",
+        "description": "{{headline}} — 여덟자에서 나도 한 장 뽑아 보세요.",
+        "buttonPrimary": "나도 뽑아 보기"
+      },
+      "kakaoSpread": {
+        "title": "{{topic}} 타로, 이렇게 나왔어요",
+        "description": "{{cards}} · 카드가 건네는 한 줄을 확인해 보세요.",
+        "buttonPrimary": "타로 보기"
+      }
+    },
+    "history": {
+      "title": "타로 기록",
+      "subtitle": "지난 질문과 카드를 다시 볼 수 있어요.",
+      "filters": {
+        "all": "전체",
+        "daily": "오늘의 카드",
+        "spread": "질문 타로",
+        "deep": "깊은 풀이"
+      },
+      "item": {
+        "cardCount": "카드 {{count}}장",
+        "noQuestion": "질문 없이 뽑음",
+        "hasMemo": "메모",
+        "deep": "깊은 풀이"
+      },
+      "monthTitle": "{{month}}월의 오늘의 카드",
+      "frequentCard": "'{{card}}' 카드가 이번 달에 가장 자주 나왔어요.",
+      "guestNote": "로그인하지 않으면 기록은 이 기기에만 남아요.",
+      "loginCta": "로그인하고 기록 지키기",
+      "delete": "기록 지우기",
+      "deleteConfirm": {
+        "title": "이 기록을 지울까요?",
+        "body": "지운 기록은 되돌릴 수 없어요. 깊은 풀이 결제 내역은 결제 내역에 그대로 남아요.",
+        "confirm": "지우기"
+      },
+      "deleted": "기록을 지웠어요"
+    },
+    "about": {
+      "title": "여덟자 타로는 이렇게 읽어요",
+      "deck": "78장 덱을 써요. 카드의 기본 뜻은 1909년 A. E. 웨이트와 패멀라 콜먼 스미스가 만든 덱의 전통 해석을 따라요.",
+      "art": "카드 그림은 여덟자가 직접 그린 먹선 카드예요. 전통 카드에 그려진 장면은 글로 함께 적어 두었어요.",
+      "artClassic": "고전 그림은 패멀라 콜먼 스미스의 1909년 원화(퍼블릭 도메인)예요.",
+      "notAffiliated": "여덟자 타로는 특정 타로 카드 출판사와 제휴하지 않았어요.",
+      "review": "카드의 뜻은 겁을 주거나 미래를 단정하는 표현을 쓰지 않는다는 원칙으로 썼어요.",
+      "random": "카드는 기기에서 무작위로 섞고 뽑아요. 결과를 고르거나 바꾸지 않아요.",
+      "orientation": "역방향을 켜 두면, 거꾸로 나온 카드는 기운이 안으로 향하는 뜻으로 읽어요.",
+      "ai": "깊은 풀이 가운데 AI가 쓴 부분에는 'AI가 쓴 풀이' 표시를 붙여요.",
+      "purpose": "타로는 미래를 정해 주지 않아요. 생각을 정리하고 마음을 들여다보는 도구로 써 주세요."
+    },
+    "settings": {
+      "title": "타로 설정",
+      "reversedDefault": "역방향 카드 기본으로 켜기",
+      "motion": "카드 움직임 줄이기",
+      "motionHelp": "기기의 '동작 줄이기' 설정을 따르고, 여기서도 바꿀 수 있어요.",
+      "haptics": "카드를 고를 때 진동",
+      "classicArt": "고전 그림으로 보기",
+      "classicArtHelp": "카드 앞면을 1909년 원화로 바꿔 보여 드려요."
+    },
+    "disclaimer": {
+      "short": "타로는 지금의 마음을 비춰 보고 생각을 정리하기 위한 참고 정보예요.",
+      "standard": "타로는 미래를 정해 주지 않아요. 재미와 자기 성찰을 위한 참고로 즐겨 주시고, 중요한 결정은 스스로의 판단과 전문가의 조언을 함께 고려해 주세요.",
+      "full": "여덟자의 타로 콘텐츠는 엔터테인먼트와 자기 성찰을 위한 참고 정보로 제공되며, 미래를 예측하거나 보장하지 않습니다. 건강·법률·재무·투자·진로 등 중요한 결정은 반드시 해당 분야 전문가와 상의해 주세요. 카드는 무작위로 뽑히며, 풀이의 일부는 AI가 작성해 사실과 다르거나 부정확한 내용이 포함될 수 있습니다.",
+      "ai": "AI가 카드의 전통적인 뜻과 질문을 바탕으로 쓴 풀이예요. 같은 카드라도 표현은 조금씩 달라질 수 있어요.",
+      "rule": "카드의 뜻은 전통 해석을 정리한 것이고, 풀이 문장은 정해진 규칙으로 엮었어요.",
+      "random": "카드는 매번 무작위로 섞이고 뽑혀요.",
+      "expert": "건강·투자·법률에 관한 결정은 카드가 대신할 수 없어요. 꼭 전문가와 상의해 주세요.",
+      "thirdParty": "다른 사람의 마음은 카드로 확정할 수 없어요. 풀이는 관계를 돌아보는 참고로만 봐 주세요."
+    },
+    "empty": {
+      "history": {
+        "title": "아직 뽑은 카드가 없어요",
+        "body": "오늘의 카드 한 장으로 가볍게 시작해 볼까요?",
+        "cta": "오늘의 카드 뽑기"
+      },
+      "historyFiltered": {
+        "title": "이 조건에 맞는 기록이 없어요",
+        "body": "다른 필터를 골라 보세요."
+      },
+      "journal": {
+        "title": "아직 적어 둔 메모가 없어요",
+        "body": "카드를 보고 떠오른 생각을 짧게 적어 두면, 나중에 다시 읽을 때 도움이 돼요."
+      }
+    },
+    "error": {
+      "draw": {
+        "title": "카드를 뽑지 못했어요",
+        "body": "연결이 잠시 불안정했어요. 다시 시도해 주세요.",
+        "cta": "다시 뽑기"
+      },
+      "reading": {
+        "title": "풀이를 불러오지 못했어요",
+        "body": "뽑은 카드는 그대로 남아 있어요. 잠시 후 다시 시도해 주세요.",
+        "cta": "다시 불러오기"
+      },
+      "aiFailed": {
+        "title": "깊은 풀이를 마저 쓰지 못했어요",
+        "body": "다시 시도하면 멈춘 곳부터 이어서 써 드릴게요. 질문권은 풀이가 끝났을 때만 차감돼요.",
+        "cta": "이어서 받기"
+      },
+      "offline": {
+        "title": "인터넷 연결이 불안정해요",
+        "body": "뽑은 카드는 이 기기에 저장해 두었어요. 연결되면 풀이를 이어서 불러올게요."
+      },
+      "dailyLimit": {
+        "title": "오늘의 무료 질문 타로를 모두 봤어요",
+        "body": "내일 다시 무료로 볼 수 있어요. 오늘의 카드와 지난 기록은 언제든 볼 수 있어요."
+      },
+      "notFound": {
+        "title": "기록을 찾을 수 없어요",
+        "body": "지워졌거나 다른 계정에 저장된 기록이에요.",
+        "cta": "타로 처음으로"
+      }
+    },
+    "a11y": {
+      "deck": "섞인 카드 더미, {{count}}장",
+      "shuffling": "카드를 섞는 중이에요",
+      "shuffled": "카드를 다 섞었어요. 이제 {{count}}장을 고를 수 있어요.",
+      "ribbon": "고를 수 있는 카드 {{count}}장",
+      "ribbonHint": "왼쪽·오른쪽 화살표로 카드를 옮겨 다니고, Enter나 스페이스로 골라요.",
+      "cardBack": "{{index}}번째 카드, 뒷면",
+      "cardPick": "{{index}}번째 카드 고르기",
+      "picked": "{{position}} 자리에 카드를 놓았어요. {{remaining}}장 남았어요.",
+      "pickedAll": "{{count}}장을 모두 골랐어요. 카드 펼치기 버튼으로 이동할 수 있어요.",
+      "slotEmpty": "{{position}} 자리, 비어 있어요",
+      "slotFaceDown": "{{position}} 자리, 아직 펼치지 않은 카드. 눌러서 펼치기",
+      "cardFace": "{{numeral}} {{name}}, {{orientation}}",
+      "revealed": "{{position}} 자리: {{card}}, {{orientation}}",
+      "lockedSection": "잠긴 내용이에요. 깊은 풀이를 열면 읽을 수 있어요.",
+      "cardImage": "{{name}} 카드 그림"
+    },
+    "cards": {
+      "nameFormat": "{{suit}} {{rank}}",
+      "orientation": {
+        "upright": "정방향",
+        "reversed": "역방향"
+      },
+      "major": {
+        "0": { "name": "바보", "en": "The Fool", "numeral": "0" },
+        "1": { "name": "마법사", "en": "The Magician", "numeral": "I" },
+        "2": { "name": "여사제", "en": "The High Priestess", "numeral": "II" },
+        "3": { "name": "여황제", "en": "The Empress", "numeral": "III" },
+        "4": { "name": "황제", "en": "The Emperor", "numeral": "IV" },
+        "5": { "name": "교황", "en": "The Hierophant", "numeral": "V" },
+        "6": { "name": "연인", "en": "The Lovers", "numeral": "VI" },
+        "7": { "name": "전차", "en": "The Chariot", "numeral": "VII" },
+        "8": { "name": "힘", "en": "Strength", "numeral": "VIII" },
+        "9": { "name": "은둔자", "en": "The Hermit", "numeral": "IX" },
+        "10": { "name": "운명의 수레바퀴", "en": "Wheel of Fortune", "numeral": "X" },
+        "11": { "name": "정의", "en": "Justice", "numeral": "XI" },
+        "12": { "name": "매달린 사람", "en": "The Hanged Man", "numeral": "XII" },
+        "13": { "name": "죽음", "en": "Death", "numeral": "XIII" },
+        "14": { "name": "절제", "en": "Temperance", "numeral": "XIV" },
+        "15": { "name": "악마", "en": "The Devil", "numeral": "XV" },
+        "16": { "name": "탑", "en": "The Tower", "numeral": "XVI" },
+        "17": { "name": "별", "en": "The Star", "numeral": "XVII" },
+        "18": { "name": "달", "en": "The Moon", "numeral": "XVIII" },
+        "19": { "name": "태양", "en": "The Sun", "numeral": "XIX" },
+        "20": { "name": "심판", "en": "Judgement", "numeral": "XX" },
+        "21": { "name": "세계", "en": "The World", "numeral": "XXI" }
+      },
+      "suits": {
+        "wands": { "name": "완드", "en": "Wands", "theme": "열정과 실행" },
+        "cups": { "name": "컵", "en": "Cups", "theme": "감정과 관계" },
+        "swords": { "name": "소드", "en": "Swords", "theme": "생각과 결단" },
+        "pentacles": { "name": "펜타클", "en": "Pentacles", "theme": "돈과 몸, 현실의 일" }
+      },
+      "ranks": {
+        "1": { "name": "에이스", "en": "Ace" },
+        "2": { "name": "2", "en": "Two" },
+        "3": { "name": "3", "en": "Three" },
+        "4": { "name": "4", "en": "Four" },
+        "5": { "name": "5", "en": "Five" },
+        "6": { "name": "6", "en": "Six" },
+        "7": { "name": "7", "en": "Seven" },
+        "8": { "name": "8", "en": "Eight" },
+        "9": { "name": "9", "en": "Nine" },
+        "10": { "name": "10", "en": "Ten" },
+        "11": { "name": "페이지", "en": "Page", "gloss": "배우는 사람" },
+        "12": { "name": "나이트", "en": "Knight", "gloss": "움직이는 사람" },
+        "13": { "name": "퀸", "en": "Queen", "gloss": "품는 사람" },
+        "14": { "name": "킹", "en": "King", "gloss": "이끄는 사람" }
+      },
+      "enFormat": "{{rank}} of {{suit}}"
+    }
+  }
+}

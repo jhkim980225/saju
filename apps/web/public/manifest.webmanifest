@@ -1,0 +1,10 @@
+{
+  "name": "달빛사주 — 사주풀이 · 오늘의 운세",
+  "short_name": "달빛사주",
+  "start_url": "/today",
+  "display": "standalone",
+  "background_color": "#F7F3EC",
+  "theme_color": "#F7F3EC",
+  "lang": "ko",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

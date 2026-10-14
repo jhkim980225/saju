@@ -1,0 +1,595 @@
+{
+  "brand": {
+    "name": "여덟자",
+    "nameHanja": "八字",
+    "nameRoman": "Yeodeolja",
+    "slogan": "정확하게 세우고, 쉽게 읽어 드려요",
+    "tagline": "여덟 글자로 읽는 나라는 사람",
+    "campaignLine": "맞히는 사주 말고, 읽히는 사주",
+    "metaTitle": "여덟자 — 만세력 기반 사주풀이 · 오늘의 운세",
+    "metaDescription": "태어난 날과 시간으로 세운 사주팔자를 어려운 말 없이 풀어 드려요. 보정 내역까지 투명한 만세력과 매일 오늘의 운세.",
+    "ogTitle": "여덟 글자로 읽는 나라는 사람 | 여덟자",
+    "ogDescription": "내 사주팔자, 어려운 말 없이 차근차근. 오늘의 운세는 매일 무료로."
+  },
+  "common": {
+    "confirm": "확인",
+    "cancel": "취소",
+    "close": "닫기",
+    "back": "뒤로",
+    "next": "다음",
+    "done": "완료",
+    "retry": "다시 시도",
+    "save": "저장",
+    "edit": "수정",
+    "delete": "삭제",
+    "share": "공유",
+    "more": "더 보기",
+    "less": "접기",
+    "skip": "건너뛰기",
+    "later": "나중에",
+    "learnMore": "자세히 보기",
+    "loading": "불러오는 중이에요",
+    "copyLink": "링크 복사",
+    "linkCopied": "링크를 복사했어요",
+    "me": "나",
+    "honorific": "{{name}}님",
+    "optional": "선택",
+    "required": "필수"
+  },
+  "tabs": {
+    "today": "오늘",
+    "mySaju": "내 사주",
+    "compatibility": "궁합",
+    "ask": "물어보기",
+    "my": "마이"
+  },
+  "landing": {
+    "heroEyebrow": "만세력 기반 · 쉬운 풀이",
+    "heroTitle": "여덟 글자로 읽는\n나라는 사람",
+    "heroSubtitle": "태어난 날과 시간으로 세운 사주팔자를, 어려운 말 없이 차근차근 풀어 드려요.",
+    "heroCta": "내 사주 보기",
+    "heroCtaCaption": "1분이면 충분해요",
+    "secondaryCta": "오늘의 운세만 볼게요",
+    "valueProps": {
+      "transparent": {
+        "title": "계산은 정확하게, 근거는 투명하게",
+        "body": "태어난 지역과 서머타임까지 반영하고, 어떻게 보정했는지 그대로 보여 드려요."
+      },
+      "readable": {
+        "title": "어려운 말 대신 쉬운 문장으로",
+        "body": "비견, 식신 같은 용어는 뜻을 함께 풀어 드려요. 처음 봐도 끝까지 읽혀요."
+      },
+      "timeUnknown": {
+        "title": "태어난 시간을 몰라도 괜찮아요",
+        "body": "시간을 모르면 여섯 글자로 먼저 풀이하고, 나중에 알게 되면 바로 고칠 수 있어요."
+      }
+    },
+    "sectionsPreviewTitle": "이렇게 풀어 드려요",
+    "faqTitle": "자주 묻는 질문",
+    "faq": {
+      "timeUnknown": {
+        "q": "태어난 시간을 모르면 볼 수 없나요?",
+        "a": "볼 수 있어요. 시간을 뺀 연·월·일 여섯 글자로 풀이하고, 시간에 따라 달라지는 부분은 따로 알려 드려요."
+      },
+      "lunar": {
+        "q": "음력 생일만 알아요.",
+        "a": "음력으로 입력하면 양력으로 바꿔 계산해요. 윤달 생일이라면 '윤달이에요'를 체크해 주세요."
+      },
+      "accuracy": {
+        "q": "풀이는 얼마나 정확한가요?",
+        "a": "여덟 글자 계산은 만세력 기준으로 정확하게 하지만, 풀이는 해석이에요. 재미와 자기 이해를 위한 참고로 봐 주세요."
+      },
+      "privacy": {
+        "q": "입력한 정보는 어떻게 쓰이나요?",
+        "a": "생년월일시는 사주 계산과 풀이에만 써요. 저장할지는 직접 고를 수 있어요."
+      }
+    }
+  },
+  "form": {
+    "title": "사주 정보 입력",
+    "subtitle": "정확할수록 풀이도 선명해져요.",
+    "progress": "필수 {{current}}/{{total}}",
+    "name": {
+      "label": "이름 또는 닉네임",
+      "placeholder": "예) 서윤",
+      "helper": "풀이에서 부를 이름이에요. 실명이 아니어도 괜찮아요."
+    },
+    "calendar": {
+      "label": "생년월일",
+      "solar": "양력",
+      "lunar": "음력",
+      "leapMonth": "윤달이에요",
+      "leapMonthHelper": "음력 생일이 윤달이라면 체크해 주세요."
+    },
+    "birthDate": {
+      "placeholder": "예) 19950314",
+      "helper": "숫자 8자리로 입력해 주세요.",
+      "pickerButton": "달력에서 고르기",
+      "formatted": "{{year}}년 {{month}}월 {{day}}일"
+    },
+    "birthTime": {
+      "label": "태어난 시간",
+      "placeholder": "예) 14:30",
+      "helper": "24시간제로 입력해 주세요. 오후 2시 30분은 14:30이에요.",
+      "pickRange": "시간대로 고르기",
+      "unknown": "시간을 몰라요",
+      "unknownHelper": "괜찮아요. 시주를 뺀 여섯 글자로 풀이하고, 시간을 알게 되면 바로 고칠 수 있어요.",
+      "rangeSheetTitle": "태어난 시간대를 골라 주세요",
+      "rangeSheetHelper": "정확한 시각을 몰라도 시간대만 알면 시주를 세울 수 있어요.",
+      "branches": {
+        "ja": "子 자시 · 23:30~01:29",
+        "chuk": "丑 축시 · 01:30~03:29",
+        "in": "寅 인시 · 03:30~05:29",
+        "myo": "卯 묘시 · 05:30~07:29",
+        "jin": "辰 진시 · 07:30~09:29",
+        "sa": "巳 사시 · 09:30~11:29",
+        "o": "午 오시 · 11:30~13:29",
+        "mi": "未 미시 · 13:30~15:29",
+        "sin": "申 신시 · 15:30~17:29",
+        "yu": "酉 유시 · 17:30~19:29",
+        "sul": "戌 술시 · 19:30~21:29",
+        "hae": "亥 해시 · 21:30~23:29"
+      }
+    },
+    "gender": {
+      "label": "성별",
+      "female": "여성",
+      "male": "남성",
+      "helper": "대운이 흐르는 방향을 계산하는 데 필요해요."
+    },
+    "birthPlace": {
+      "label": "태어난 곳",
+      "placeholder": "도시 이름을 검색하세요",
+      "defaultValue": "서울특별시",
+      "helper": "태어난 지역의 경도에 맞춰 시간을 보정해요. 잘 모르면 그대로 두셔도 돼요.",
+      "abroad": "해외에서 태어났어요",
+      "searchEmpty": "찾는 지역이 없어요. 가까운 도시를 골라 주세요."
+    },
+    "advanced": {
+      "toggle": "고급 설정",
+      "longitude": "경도 보정",
+      "longitudeHelper": "태어난 곳의 실제 태양 시각에 맞춰 시간을 조정해요.",
+      "dst": "서머타임 보정",
+      "dstHelper": "서머타임 기간에 태어났다면 1시간을 되돌려 계산해요.",
+      "yajasi": "야자시 적용",
+      "yajasiHelper": "밤 11시~자정 사이에 태어났을 때 날짜를 나누는 방식이에요. 잘 모르면 기본값을 권해요."
+    },
+    "remember": "다음에도 이 정보로 볼게요",
+    "submit": "다음",
+    "errors": {
+      "generic": "입력한 내용을 다시 확인해 주세요.",
+      "birthDateRequired": "생년월일을 입력해 주세요.",
+      "birthDateFormat": "숫자 8자리로 입력해 주세요. 예) 19950314",
+      "birthDateInvalid": "없는 날짜예요. 다시 확인해 주세요.",
+      "birthDateFuture": "미래의 날짜는 입력할 수 없어요.",
+      "birthDateOutOfRange": "{{minYear}}년부터 {{maxYear}}년 사이 출생만 볼 수 있어요.",
+      "lunarDayInvalid": "음력 {{year}}년 {{month}}월에는 {{day}}일이 없어요.",
+      "leapMonthInvalid": "음력 {{year}}년에는 {{month}}월 윤달이 없어요.",
+      "birthTimeRequired": "태어난 시간을 입력하거나 '시간을 몰라요'를 골라 주세요.",
+      "birthTimeFormat": "시간은 00:00부터 23:59 사이로 입력해 주세요.",
+      "genderRequired": "성별을 골라 주세요.",
+      "placeNotFound": "찾는 지역이 없어요. 가까운 도시를 골라 주세요.",
+      "nameTooLong": "이름은 {{max}}자까지 쓸 수 있어요."
+    }
+  },
+  "confirm": {
+    "title": "이 정보로 풀어 볼까요?",
+    "solarLine": "양력 {{date}}",
+    "lunarLine": "음력 {{date}}",
+    "leapSuffix": "(윤달)",
+    "detailLine": "{{time}} · {{place}} · {{gender}}",
+    "timeUnknownLine": "태어난 시간 모름 · {{place}} · {{gender}}",
+    "correction": "시간 보정 {{minutes}}분 ({{reason}})",
+    "correctionReasonLongitude": "지역 경도",
+    "correctionReasonDst": "서머타임",
+    "edit": "수정하기",
+    "submit": "사주 풀이 보기"
+  },
+  "loading": {
+    "step1": "만세력을 펼치고 있어요",
+    "step2": "태어난 순간을 여덟 글자로 옮기고 있어요",
+    "step3": "다섯 가지 기운의 균형을 살피고 있어요",
+    "step4": "10년마다 바뀌는 큰 흐름을 잇고 있어요",
+    "step5": "{{name}}님만의 이야기로 정리하고 있어요",
+    "slow": "조금만 더 기다려 주세요. 꼼꼼히 읽는 중이에요.",
+    "verySlow": "평소보다 오래 걸리고 있어요.",
+    "notifyMe": "다 되면 알림으로 받을게요",
+    "a11y": "사주를 계산하고 풀이를 쓰고 있어요"
+  },
+  "result": {
+    "title": "{{name}}님의 사주",
+    "iljuLabel": "{{ilju}}일주 · {{alias}}",
+    "inputSummary": "{{calendar}} {{date}} {{time}} · {{place}}",
+    "correctionBadge": "보정 {{minutes}}분",
+    "editInput": "입력 정보 수정",
+    "aiBadge": "AI가 쓴 풀이",
+    "summaryLabel": "세 줄 요약",
+    "keywordsLabel": "나의 키워드",
+    "tryThisLabel": "이렇게 해 보세요",
+    "pillarTable": {
+      "hour": "시",
+      "day": "일",
+      "month": "월",
+      "year": "년",
+      "me": "나",
+      "heavenlyStem": "천간",
+      "earthlyBranch": "지지",
+      "tenGods": "십성",
+      "unknownHour": "?",
+      "unknownHourHint": "태어난 시간을 알면 더 정확해져요",
+      "addTime": "시간 입력하기",
+      "expertShow": "전문가 보기",
+      "expertHide": "간단히 보기"
+    },
+    "ohaengChart": {
+      "title": "오행 분포",
+      "infoTitle": "오행은 이렇게 판단해요",
+      "count": "{{count}}개",
+      "status": {
+        "excess": "과다",
+        "developed": "발달",
+        "balanced": "적정",
+        "weak": "부족",
+        "none": "없음"
+      },
+      "tipForMissing": "부족한 기운 채우는 법"
+    },
+    "sections": {
+      "overview": {
+        "label": "총평",
+        "title": "한눈에 보는 나",
+        "description": "여덟 글자가 그리는 전체 그림"
+      },
+      "personality": {
+        "label": "성격",
+        "title": "타고난 결",
+        "description": "생각하고 움직이는 나만의 방식"
+      },
+      "wealth": {
+        "label": "재물운",
+        "title": "돈이 흐르는 길",
+        "description": "돈을 벌고, 모으고, 쓰는 나의 방식"
+      },
+      "love": {
+        "label": "연애운",
+        "title": "마음이 닿는 방식",
+        "description": "사랑할 때의 나와 잘 맞는 사람"
+      },
+      "career": {
+        "label": "직업운",
+        "title": "일에서 빛나는 자리",
+        "description": "강점이 살아나는 일과 일하는 방식"
+      },
+      "health": {
+        "label": "건강운",
+        "title": "몸이 보내는 신호",
+        "description": "균형을 위해 챙기면 좋은 생활 습관"
+      },
+      "daeun": {
+        "label": "대운 흐름",
+        "title": "10년마다 바뀌는 큰 물결",
+        "description": "지금 지나는 대운과 다음 흐름"
+      },
+      "thisYear": {
+        "label": "올해의 운세",
+        "title": "{{year}}년, 나의 계절",
+        "description": "올해의 흐름과 달마다 챙길 것"
+      }
+    },
+    "daeunTimeline": {
+      "current": "지금 대운",
+      "remaining": "{{years}}년 남음",
+      "age": "{{age}}세",
+      "next": "다음 대운"
+    },
+    "actions": {
+      "share": "결과 공유",
+      "save": "보관함에 저장",
+      "saved": "보관함에 저장했어요",
+      "askAboutThis": "이 결과로 물어보기",
+      "seeToday": "오늘의 운세 보기",
+      "seeCompatibility": "궁합도 볼래요"
+    }
+  },
+  "paywall": {
+    "lockTitle": "여기서부터는 깊은 풀이예요",
+    "lockBody": "{{section}}의 나머지 내용과 시기별 조언을 이어서 읽을 수 있어요.",
+    "tocTitle": "이어서 읽을 수 있는 내용",
+    "cta": "전체 풀이 열기 · {{price}}",
+    "ctaNoPrice": "전체 풀이 열기",
+    "dismiss": "무료 풀이만 볼게요",
+    "sheetTitle": "{{name}}님의 전체 풀이",
+    "sheetSubtitle": "8개 영역 · 대운 흐름 · 올해 달별 흐름",
+    "benefitContinue": "지금 읽던 곳에서 바로 이어서 읽어요",
+    "benefitRevisit": "보관함에서 언제든 다시 볼 수 있어요",
+    "benefitDepth": "영역마다 시기와 구체적인 조언까지 담았어요",
+    "priceLabel": "결제 금액",
+    "payButton": "{{price}} 결제하기",
+    "terms": "결제하면 이용약관과 환불 정책에 동의하는 것으로 봐요.",
+    "restore": "구매 내역 복원",
+    "previewKept": "결제하지 않아도 지금까지 읽은 무료 풀이는 그대로 볼 수 있어요."
+  },
+  "payment": {
+    "processingTitle": "결제를 확인하고 있어요",
+    "processingBody": "창을 닫지 말고 잠시만 기다려 주세요.",
+    "successTitle": "결제가 완료됐어요",
+    "successBody": "이제 {{name}}님의 전체 풀이를 끝까지 읽을 수 있어요.",
+    "successCta": "이어서 읽기",
+    "receiptNote": "결제 내역은 마이 > 결제 내역에서 확인할 수 있어요.",
+    "failTitle": "결제가 완료되지 않았어요",
+    "failBody": "결제가 승인되지 않았어요. 잠시 후 다시 시도하거나 다른 결제 수단을 골라 주세요.",
+    "failRetry": "다시 결제하기",
+    "failChangeMethod": "다른 결제 수단 고르기",
+    "failDuplicateNote": "결제가 두 번 된 것 같다면, 다시 결제하기 전에 결제 내역을 먼저 확인해 주세요.",
+    "failHelp": "문제가 계속되면 고객센터로 알려 주세요.",
+    "cancelTitle": "결제를 취소했어요",
+    "cancelBody": "무료 풀이는 그대로 볼 수 있고, 전체 풀이는 언제든 다시 열 수 있어요.",
+    "timeoutTitle": "결제 확인이 늦어지고 있어요",
+    "timeoutBody": "결제가 끝났다면 잠시 후 자동으로 반영돼요. 반영되지 않으면 '구매 내역 복원'을 눌러 주세요."
+  },
+  "today": {
+    "dateTitle": "{{month}}월 {{day}}일 {{weekday}}",
+    "dayPillar": "{{ganji}}일",
+    "headlineLabel": "오늘의 한 줄",
+    "actions": {
+      "boost": "힘 실을 일",
+      "keep": "챙길 일",
+      "watch": "살필 일",
+      "pause": "미룰 일"
+    },
+    "weekFlowTitle": "이번 주 흐름",
+    "whyCardTitle": "오늘 나와 만나는 기운",
+    "whyCardBody": "오늘의 기운 {{dayGanji}} · 나의 일간 {{dayMaster}}",
+    "monthCta": "이번 달 흐름 보기",
+    "profileSwitch": "다른 사람 보기",
+    "noProfileTitle": "오늘의 운세를 보려면 사주가 필요해요",
+    "noProfileBody": "생년월일만 입력하면 매일 아침 나에게 맞춘 한 줄을 받아요.",
+    "noProfileCta": "내 사주 입력하기"
+  },
+  "compatibility": {
+    "title": "궁합",
+    "pickTitle": "누구와의 궁합이 궁금하세요?",
+    "pickPerson": "사람 고르기",
+    "relationLabel": "어떤 사이인가요?",
+    "relations": {
+      "lover": "연인",
+      "crush": "썸",
+      "friend": "친구",
+      "family": "가족",
+      "coworker": "동료"
+    },
+    "sections": {
+      "match": "잘 맞는 점",
+      "clash": "부딪히는 점",
+      "together": "함께 지내는 법"
+    },
+    "cta": "궁합 보기"
+  },
+  "ask": {
+    "title": "물어보기",
+    "aiNotice": "AI가 사주 계산 결과를 바탕으로 답해요. 답변은 참고용이에요.",
+    "contextCard": "{{name}}님의 명식을 기준으로 답해요",
+    "suggestionsTitle": "이런 걸 물어볼 수 있어요",
+    "suggestions": {
+      "career": "이직해도 괜찮은 시기일까?",
+      "money": "올해 돈 관리에서 조심할 점은?",
+      "workStyle": "나랑 잘 맞는 일하는 방식은?",
+      "relationship": "요즘 관계가 자꾸 꼬이는 이유가 있을까?"
+    },
+    "placeholder": "어떤 고민이든 편하게 적어 주세요",
+    "send": "보내기",
+    "typing": "생각을 정리하고 있어요",
+    "answerSummary": "세 줄 요약",
+    "answerMore": "더 자세히",
+    "followUpTitle": "이어서 물어보기",
+    "limitReached": "오늘 물어볼 수 있는 횟수를 다 썼어요. 내일 다시 이어서 이야기해요.",
+    "crisisNote": "혼자 감당하기 어려운 마음이라면 지금 전문 상담을 받아 보세요. 자살예방상담전화 109는 24시간 열려 있어요."
+  },
+  "my": {
+    "savedProfiles": "저장한 사주",
+    "addProfile": "사주 추가하기",
+    "payments": "결제 내역",
+    "notifications": "알림 설정",
+    "dailyPushTime": "오늘의 운세 알림 시간",
+    "theme": {
+      "label": "화면 테마",
+      "system": "시스템 설정",
+      "light": "라이트",
+      "dark": "다크"
+    },
+    "fontSize": "글자 크기",
+    "about": "서비스 안내",
+    "terms": "이용약관",
+    "privacy": "개인정보처리방침",
+    "disclaimer": "면책 고지",
+    "logout": "로그아웃",
+    "deleteAccount": "탈퇴하기",
+    "deleteConfirmTitle": "탈퇴할까요?",
+    "deleteConfirmBody": "탈퇴하면 저장한 사주와 풀이 기록이 삭제되고 되돌릴 수 없어요."
+  },
+  "empty": {
+    "savedProfiles": {
+      "title": "아직 저장한 사주가 없어요",
+      "body": "가족이나 친구의 사주를 저장해 두면 궁합도 바로 볼 수 있어요.",
+      "cta": "사주 추가하기"
+    },
+    "history": {
+      "title": "아직 읽은 풀이가 없어요",
+      "body": "내 사주부터 차근차근 읽어 볼까요?",
+      "cta": "내 사주 보기"
+    },
+    "compatibility": {
+      "title": "궁합을 볼 사람이 없어요",
+      "body": "사람을 추가하면 두 사람의 결이 어떻게 만나는지 보여 드려요.",
+      "cta": "사람 추가하기"
+    },
+    "ask": {
+      "title": "무엇이든 물어보세요",
+      "body": "{{name}}님의 사주를 기준으로 답해 드려요. 아래 질문으로 시작해 봐도 좋아요."
+    },
+    "notifications": {
+      "title": "새 소식이 없어요",
+      "body": "오늘의 운세 알림을 켜 두면 아침마다 한 줄을 보내 드려요.",
+      "cta": "알림 켜기"
+    },
+    "payments": {
+      "title": "결제 내역이 없어요",
+      "body": "전체 풀이를 열면 여기에서 내역을 확인할 수 있어요."
+    },
+    "search": {
+      "title": "'{{query}}'에 맞는 결과가 없어요",
+      "body": "다른 낱말로 검색해 보세요."
+    }
+  },
+  "error": {
+    "network": {
+      "title": "인터넷 연결이 불안정해요",
+      "body": "연결을 확인한 뒤 다시 시도해 주세요."
+    },
+    "server": {
+      "title": "잠시 문제가 생겼어요",
+      "body": "빠르게 고치고 있어요. 잠시 후 다시 시도해 주세요."
+    },
+    "timeout": {
+      "title": "응답이 늦어지고 있어요",
+      "body": "조금 뒤에 다시 시도해 주세요."
+    },
+    "notFound": {
+      "title": "페이지를 찾을 수 없어요",
+      "body": "주소가 바뀌었거나 사라진 페이지예요.",
+      "cta": "처음으로"
+    },
+    "calcUnsupported": {
+      "title": "이 날짜는 아직 계산할 수 없어요",
+      "body": "{{minYear}}년부터 {{maxYear}}년 사이 출생만 지원해요."
+    },
+    "aiFailed": {
+      "title": "풀이를 마저 쓰지 못했어요",
+      "body": "다시 시도하면 멈춘 곳부터 이어서 써 드릴게요.",
+      "cta": "이어서 받기"
+    },
+    "inAppBrowser": {
+      "title": "기본 브라우저에서 열어 주세요",
+      "body": "카카오톡이나 인스타그램 안에서는 결제와 로그인이 잘 안 될 수 있어요.",
+      "cta": "링크 복사하기",
+      "secondary": "이대로 계속하기"
+    },
+    "sessionExpired": {
+      "title": "다시 로그인해 주세요",
+      "body": "안전을 위해 로그인이 만료됐어요. 읽던 내용은 그대로 남아 있어요.",
+      "cta": "로그인"
+    }
+  },
+  "push": {
+    "permission": {
+      "title": "아침마다 오늘의 한 줄을 보내 드릴까요?",
+      "body": "하루 한 번, 정한 시간에만 보내요. 언제든 끌 수 있어요.",
+      "allow": "알림 받기",
+      "later": "나중에"
+    },
+    "daily1": {
+      "title": "오늘의 한 줄이 도착했어요",
+      "body": "{{name}}님, {{headline}}"
+    },
+    "daily2": {
+      "title": "{{name}}님의 오늘",
+      "body": "오늘의 키워드는 '{{keyword}}'. 무엇에 힘을 실으면 좋을지 정리해 뒀어요."
+    },
+    "daily3": {
+      "title": "오늘은 {{dayElement}}의 기운이 흐르는 날",
+      "body": "이 기운이 {{name}}님의 하루에 어떤 결을 더하는지 확인해 보세요."
+    },
+    "daily4": {
+      "title": "쉬어 가도 괜찮은 날이에요",
+      "body": "무리하지 않는 것도 운을 아끼는 방법이에요. 오늘의 운세 보러 가기"
+    },
+    "daily5": {
+      "title": "이번 주 흐름이 바뀌어요",
+      "body": "{{name}}님, 주 후반으로 갈수록 가벼워지는 흐름이에요. 일정을 미리 살펴보세요."
+    },
+    "fallback": {
+      "title": "오늘의 운세가 준비됐어요",
+      "body": "오늘 하루를 여는 한 줄, 지금 확인해 보세요."
+    }
+  },
+  "share": {
+    "sheetTitle": "결과 공유하기",
+    "kakao": "카카오톡",
+    "saveImage": "이미지 저장",
+    "copyLink": "링크 복사",
+    "moreOptions": "더보기",
+    "includeName": "이름 넣기",
+    "privacyNote": "생년월일과 태어난 시간은 공유되지 않아요.",
+    "imageSaved": "이미지를 저장했어요",
+    "card": {
+      "keywordsLabel": "나의 키워드",
+      "footer": "여덟 글자로 읽는 나라는 사람"
+    },
+    "kakaoResult": {
+      "title": "{{name}}님은 {{ilju}}일주, '{{alias}}'",
+      "description": "여덟 글자로 읽은 나의 결. 당신의 일주도 확인해 보세요.",
+      "buttonPrimary": "내 사주 보기",
+      "buttonSecondary": "결과 보기"
+    },
+    "kakaoCompatibility": {
+      "title": "우리 둘의 결, 이렇게 만나요",
+      "description": "{{nameA}} × {{nameB}} 궁합 풀이. 너와 나의 여덟 글자를 확인해 보세요.",
+      "buttonPrimary": "궁합 보기"
+    },
+    "kakaoToday": {
+      "title": "{{name}}님의 오늘: {{headline}}",
+      "description": "매일 아침 한 줄, 여덟자 오늘의 운세",
+      "buttonPrimary": "오늘의 운세"
+    }
+  },
+  "disclaimer": {
+    "short": "사주 풀이는 재미와 자기 이해를 위한 참고 정보예요.",
+    "standard": "사주 풀이는 재미와 자기 이해를 위한 참고 정보예요. 중요한 결정은 스스로의 판단과 전문가의 조언을 함께 고려해 주세요.",
+    "full": "여덟자의 사주·운세 콘텐츠는 엔터테인먼트와 자기 성찰을 위한 참고 정보로 제공되며, 과학적으로 검증된 예측이 아닙니다. 건강·법률·재무·투자·진로 등 중요한 결정은 반드시 해당 분야 전문가와 상의해 주세요. 풀이의 일부는 AI가 작성하며, 사실과 다르거나 부정확한 내용이 포함될 수 있습니다.",
+    "health": "건강운은 의학적 진단이 아니에요. 몸에 이상이 느껴지면 의료 전문가와 상담해 주세요.",
+    "finance": "재물운은 투자 조언이 아니에요. 투자 결정은 본인의 판단과 전문가의 조언에 따라 주세요.",
+    "ai": "AI가 사주 계산 결과를 바탕으로 쓴 풀이예요. 같은 사주라도 표현은 조금씩 달라질 수 있어요.",
+    "footer": "본 서비스는 엔터테인먼트 목적의 참고 정보를 제공합니다."
+  },
+  "ohaeng": {
+    "wood": {
+      "name": "목",
+      "hanja": "木",
+      "label": "나무",
+      "short": "자라고 뻗어 가는 기운"
+    },
+    "fire": {
+      "name": "화",
+      "hanja": "火",
+      "label": "불",
+      "short": "밝게 드러나고 퍼지는 기운"
+    },
+    "earth": {
+      "name": "토",
+      "hanja": "土",
+      "label": "흙",
+      "short": "품고 잇고 버티는 기운"
+    },
+    "metal": {
+      "name": "금",
+      "hanja": "金",
+      "label": "쇠",
+      "short": "가르고 다듬고 맺는 기운"
+    },
+    "water": {
+      "name": "수",
+      "hanja": "水",
+      "label": "물",
+      "short": "스며들고 흐르며 생각하는 기운"
+    },
+    "yang": "양(+)",
+    "yin": "음(−)"
+  },
+  "a11y": {
+    "pillarCell": "{{position}} {{kind}} {{hangul}}, 한자 {{hanja}}, {{element}} {{polarity}}",
+    "ohaengBar": "{{element}} {{count}}개, {{status}}",
+    "lockedSection": "잠긴 내용이에요. 전체 풀이를 열면 읽을 수 있어요.",
+    "closeSheet": "시트 닫기",
+    "openGlossary": "{{term}} 뜻 보기"
+  }
+}

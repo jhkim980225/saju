@@ -1,0 +1,35 @@
+{
+  "name": "@saju/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "사주 서비스 백엔드 API (Fastify + Drizzle)",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/server.ts",
+    "start": "node dist/server.js",
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:seed": "tsx src/db/seed-cli.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
+    "@fastify/cors": "^11.0.0",
+    "@fastify/helmet": "^13.0.0",
+    "@fastify/rate-limit": "^11.0.0",
+    "@saju/core": "0.1.0",
+    "@saju/shared": "0.1.0",
+    "better-sqlite3": "^13.0.3",
+    "drizzle-orm": "^0.45.4",
+    "fastify": "^5.12.5",
+    "jose": "^6.0.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "drizzle-kit": "^0.31.11",
+    "tsup": "^8.5.0"
+  }
+}

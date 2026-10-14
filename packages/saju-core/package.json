@@ -1,0 +1,21 @@
+{
+  "name": "@saju/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "사주팔자 계산 엔진 (만세력·절기·오행·십신·12운성·신살·합충·대운·세운·궁합·일운) — 프레임워크 무관 순수 TS",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "korean-lunar-calendar": "^0.4.0",
+    "lunar-javascript": "^1.7.7"
+  }
+}

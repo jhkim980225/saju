@@ -1,0 +1,347 @@
+@import 'tailwindcss';
+
+/* 제목·강조 명조 — 네이버 마루 부리(OFL 1.1). 한자는 들어 있지 않아 Noto Serif KR 로 이어진다 */
+@font-face {
+  font-family: 'MaruBuri';
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/maruburi/MaruBuri-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'MaruBuri';
+  font-weight: 500 600;
+  font-display: swap;
+  src: url('/fonts/maruburi/MaruBuri-SemiBold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'MaruBuri';
+  font-weight: 700 900;
+  font-display: swap;
+  src: url('/fonts/maruburi/MaruBuri-Bold.woff2') format('woff2');
+}
+
+/*
+ * 달빛사주 디자인 토큰 — "먹과 여백"
+ * 크롬(UI)은 무채색, 유채색은 오행 데이터에만 쓴다. (docs/research/02-ui-ux-analysis.md §7.3~7.6)
+ */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+:root {
+  --canvas: #f7f3ec;
+  --surface: #fffdf9;
+  --subtle: #efe9df;
+  --border: #e3dbcd;
+  --border-strong: #cfc4b2;
+  --focus: #1f1d1a;
+  --text-1: #1f1d1a;
+  --text-2: #57514a;
+  --text-3: #6f675d;
+  --action: #1f1d1a;
+  --on-action: #f7f3ec;
+  --action-2: #efe9df;
+  --gold: #7e5f26;
+  --seal: #a63a2b;
+  --success: #2f6b4a;
+  --danger: #b3261e;
+  --info: #3a4f7a;
+  --scrim: rgba(31, 29, 26, 0.48);
+
+  --wood: #2e7d67;
+  --wood-soft: #e2f1eb;
+  --wood-ink: #1d5444;
+  --fire: #c94a33;
+  --fire-soft: #fbe6e0;
+  --fire-ink: #8e2e1f;
+  --earth: #a87521;
+  --earth-soft: #f6edd7;
+  --earth-ink: #6e4e14;
+  --metal: #737982;
+  --metal-soft: #ecedef;
+  --metal-ink: #41464d;
+  --water: #2d3b5c;
+  --water-soft: #e2e6f0;
+  --water-ink: #1e2840;
+
+  --font-scale: 1;
+  /* 데스크톱 상단 내비 높이 — 모바일은 0 */
+  --nav-h: 0px;
+  color-scheme: light;
+}
+
+@media (width >= 64rem) {
+  :root {
+    --nav-h: 4rem;
+  }
+}
+
+[data-theme='dark'] {
+  --canvas: #14130f;
+  --surface: #1e1c18;
+  --subtle: #28251f;
+  --border: #37332c;
+  --border-strong: #4a453c;
+  --focus: #eee8dd;
+  --text-1: #eee8dd;
+  --text-2: #bdb5a8;
+  --text-3: #958c7f;
+  --action: #eee8dd;
+  --on-action: #14130f;
+  --action-2: #28251f;
+  --gold: #d4b26e;
+  --seal: #e07a63;
+  --success: #7cc39a;
+  --danger: #f2877e;
+  --info: #9db3e0;
+  --scrim: rgba(0, 0, 0, 0.6);
+
+  --wood: #5bb89a;
+  --wood-soft: #1c2f28;
+  --wood-ink: #a9e0cc;
+  --fire: #ee7a62;
+  --fire-soft: #3a201a;
+  --fire-ink: #f8c2b5;
+  --earth: #ddb060;
+  --earth-soft: #352a15;
+  --earth-ink: #f1d9a6;
+  --metal: #aeb4bd;
+  --metal-soft: #2a2c30;
+  --metal-ink: #dde0e4;
+  --water: #7f98cf;
+  --water-soft: #1c2335;
+  --water-ink: #c5d2ee;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-subtle: var(--subtle);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-ink: var(--text-1);
+  --color-ink-2: var(--text-2);
+  --color-ink-3: var(--text-3);
+  --color-action: var(--action);
+  --color-on-action: var(--on-action);
+  --color-action-2: var(--action-2);
+  --color-gold: var(--gold);
+  --color-seal: var(--seal);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-wood: var(--wood);
+  --color-wood-soft: var(--wood-soft);
+  --color-wood-ink: var(--wood-ink);
+  --color-fire: var(--fire);
+  --color-fire-soft: var(--fire-soft);
+  --color-fire-ink: var(--fire-ink);
+  --color-earth: var(--earth);
+  --color-earth-soft: var(--earth-soft);
+  --color-earth-ink: var(--earth-ink);
+  --color-metal: var(--metal);
+  --color-metal-soft: var(--metal-soft);
+  --color-metal-ink: var(--metal-ink);
+  --color-water: var(--water);
+  --color-water-soft: var(--water-soft);
+  --color-water-ink: var(--water-ink);
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  --font-serif: 'MaruBuri', 'Noto Serif KR', 'Nanum Myeongjo', serif;
+  --ease-ink: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+html {
+  font-size: calc(16px * var(--font-scale));
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--text-1);
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.02em;
+}
+
+.font-serif {
+  letter-spacing: 0;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 풀이 본문 — 행간 1.65, keep-all */
+.prose-reading p {
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: var(--text-1);
+  margin: 0 0 0.9rem;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* 화면 최소 높이 — 데스크톱 상단 내비만큼 뺀다 */
+@utility min-h-page {
+  min-height: calc(100dvh - var(--nav-h));
+}
+
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* 잠금 섹션 — 실제 문단 끝에서 페이드 (가짜 블러 텍스트 금지) */
+.fade-out-bottom {
+  -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 40%, transparent 100%);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+/* 먹 번짐 로딩 */
+@keyframes ink-spread {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.15;
+  }
+  60% {
+    opacity: 0.35;
+  }
+  100% {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+}
+@keyframes dot-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-ink {
+  animation: ink-spread 2.4s var(--ease-ink) infinite;
+}
+.animate-dot {
+  animation: dot-in 320ms var(--ease-ink) both;
+}
+.animate-sheet {
+  animation: sheet-up 320ms var(--ease-ink) both;
+}
+.animate-fade {
+  animation: fade-in 200ms var(--ease-ink) both;
+}
+
+/* 타로 카드 뒤집기 (뒤 → 앞) */
+.flip {
+  perspective: 1200px;
+}
+.flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 600ms var(--ease-ink);
+}
+.flip-inner[data-flipped='true'] {
+  transform: rotateY(180deg);
+}
+.flip-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.flip-front {
+  transform: rotateY(180deg);
+}
+/* 카드 섞기 — 더미가 좌우로 갈라졌다 모이는 연출 (실제 섞기는 서버에서 끝난 뒤) */
+@keyframes tarot-shuffle {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0);
+  }
+  30% {
+    transform: translateX(var(--shuffle-x, 40px)) rotate(var(--shuffle-r, 6deg));
+  }
+  60% {
+    transform: translateX(calc(var(--shuffle-x, 40px) * -0.4)) rotate(calc(var(--shuffle-r, 6deg) * -0.5));
+  }
+}
+.animate-shuffle {
+  animation: tarot-shuffle 1200ms var(--ease-ink) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flip-inner {
+    transition: none;
+  }
+  .flip-inner[data-flipped='true'] .flip-back {
+    opacity: 0;
+  }
+  .animate-shuffle {
+    animation: none;
+  }
+  .animate-ink,
+  .animate-sheet,
+  .animate-dot {
+    animation: fade-in 200ms linear both;
+  }
+}
+
+/* 보고서 인쇄(PDF로 저장) — A4, 흰 바탕, 색 유지 */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 14mm 16mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

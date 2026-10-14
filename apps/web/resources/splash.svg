@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2732" height="2732" viewBox="0 0 2732 2732">
+  <!--
+    달빛사주 스플래시 원본 (2732×2732, @capacitor/assets 권장 크기)
+    기기 비율에 맞춰 가운데 기준으로 잘리므로 낙관은 중앙 480px 안에만 둔다.
+    라이트: 한지 #F7F3EC 바탕 / 다크(splash-dark): 바탕을 먹밤 #14130F 로 바꿔 쓴다 — docs/APP_PORTING.md
+    낙관 도형은 resources/icon.svg 의 #seal 과 같다(수정 시 함께 고칠 것).
+  -->
+  <rect id="bg" width="2732" height="2732" fill="#F7F3EC"/>
+  <g transform="translate(1366 1366) scale(0.8) translate(-512 -512)">
+    <rect x="212" y="212" width="600" height="600" rx="56" fill="#A63A2B"/>
+    <rect x="254" y="254" width="516" height="516" rx="26" fill="none" stroke="#F7F3EC" stroke-width="12"/>
+    <!-- 초승달(음각): 큰 원에서 오른쪽 위로 비켜 난 원을 뺀 모양. Seal.tsx 의 CRESCENT_PATH 와 같은 도형(32 단위 → 낙관 600px) -->
+    <path fill="#F7F3EC" transform="translate(212 212) scale(20.69) translate(-1.5 -1.5)" d="M14.84 8.08 A8.4 8.4 0 1 0 23.93 19.17 A7.2 7.2 0 0 1 14.84 8.08 Z"/>
+  </g>
+</svg>

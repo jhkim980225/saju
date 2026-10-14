@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">달빛사주</string>
+    <string name="title_activity_main">달빛사주</string>
+    <string name="package_name">kr.dalbitsaju.app</string>
+    <string name="custom_url_scheme">kr.dalbitsaju.app</string>
+    <!-- AdMob 앱 ID — Google 공식 테스트 ID. 출시 전 AdMob 콘솔의 실제 앱 ID 로 교체 -->
+    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
+</resources>

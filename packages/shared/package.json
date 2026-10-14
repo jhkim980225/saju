@@ -1,0 +1,20 @@
+{
+  "name": "@saju/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "프론트·백엔드·앱 공용 API 계약 (zod 스키마 + DTO 타입)",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@saju/core": "0.1.0",
+    "zod": "^4.1.0"
+  }
+}

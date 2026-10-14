@@ -1,0 +1,84 @@
+# 달빛사주 CI — 테스트(단위·통합·E2E) / Android APK / iOS 시뮬레이터 빌드
+# iOS 는 macOS + Xcode 가 필요하므로 GitHub macOS 러너에서 빌드한다(서명 없이 시뮬레이터용).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: 타입검사 · 단위/통합 · E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # better-sqlite3 네이티브 모듈을 러너 환경에 맞게 빌드
+      - run: npm rebuild better-sqlite3
+      - run: npm run typecheck
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  android:
+    name: Android 디버그 APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+      - run: npm run build:app:android -w @saju/web
+      - name: assembleDebug
+        working-directory: apps/web/android
+        run: ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: apps/web/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+
+  ios:
+    name: iOS 시뮬레이터 빌드
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # macOS 에서는 SPM 플러그인 심볼릭 링크·Package.swift 가 정상 생성된다(Windows 는 EPERM)
+      - run: npm run build:app:ios -w @saju/web
+      - name: xcodebuild (서명 없이 시뮬레이터)
+        working-directory: apps/web/ios/App
+        run: |
+          xcodebuild -project App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | tail -50

@@ -1,0 +1,23 @@
+node_modules/
+dist/
+coverage/
+*.log
+.env
+.env.local
+.env.*.local
+apps/api/data/*.db
+apps/api/data/*.db-*
+playwright-report/
+test-results/
+.DS_Store
+
+# 앱 서명 키·비밀 설정 (네이티브 폴더는 커밋하되 비밀 파일은 제외)
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+apps/web/android/app/google-services.json
+apps/web/ios/App/App/GoogleService-Info.plist
+
+# 로컬 작업용 스크립트·QA 재현 스크립트
+.tmp/

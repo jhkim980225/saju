@@ -1,0 +1,42 @@
+{
+  "name": "saju-platform",
+  "private": true,
+  "version": "0.1.0",
+  "description": "사주 서비스 모노레포 — saju-core(계산 엔진) / shared(API 계약) / api(백엔드) / web(프론트, Capacitor 앱 포팅)",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:api": "npm run dev -w @saju/api",
+    "dev:web": "npm run dev -w @saju/web",
+    "build": "npm run build -w @saju/api && npm run build -w @saju/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "playwright test",
+    "db:migrate": "npm run db:migrate -w @saju/api",
+    "db:seed": "npm run db:seed -w @saju/api",
+    "start": "npm run start -w @saju/api"
+  },
+  "devDependencies": {
+    "@playwright/test": "~1.64.0",
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.11"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "esbuild@0.18.20": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.27.7": true,
+    "better-sqlite3": false
+  },
+  "overrides": {
+    "vite": "^7.3.7"
+  }
+}

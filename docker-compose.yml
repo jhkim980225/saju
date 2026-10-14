@@ -1,0 +1,21 @@
+# 로컬/스테이징 통합 실행: docker compose up --build  → http://localhost:8080
+services:
+  api:
+    build: { context: ., dockerfile: deploy/api.Dockerfile }
+    # 운영 env 파일 경로 (기본 apps/api/.env). 예: API_ENV_FILE=deploy/api.prod.env docker compose up
+    env_file: ${API_ENV_FILE:-apps/api/.env}
+    environment:
+      NODE_ENV: production
+      TRUST_PROXY_HOPS: "1"
+      DATABASE_PATH: /data/saju.db
+      PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-http://localhost:8080}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,capacitor://localhost,https://localhost}
+    volumes: [api-data:/data]
+    restart: unless-stopped
+  web:
+    build: { context: ., dockerfile: deploy/web.Dockerfile }
+    ports: ["8080:80"]
+    depends_on: [api]
+    restart: unless-stopped
+volumes:
+  api-data:
