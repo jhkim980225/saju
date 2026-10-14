@@ -11,7 +11,7 @@ import type { AppConfig } from './config/env.js';
 import type { Db } from './db/client.js';
 import { AppError, unauthorized } from './lib/errors.js';
 import { verifyAccessToken } from './lib/tokens.js';
-import { createServices, type Services } from './services.js';
+import { createServices, type ServiceDeps, type Services } from './services.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { profileRoutes } from './modules/profiles/routes.js';
 import { sajuRoutes } from './modules/saju/routes.js';
@@ -53,14 +53,14 @@ export function requireUser(req: FastifyRequest): AuthUser {
   return req.user;
 }
 
-export async function buildApp(opts: { config: AppConfig; db: Db; logger?: boolean }): Promise<FastifyInstance> {
+export async function buildApp(opts: { config: AppConfig; db: Db; logger?: boolean; deps?: ServiceDeps }): Promise<FastifyInstance> {
   const app = Fastify({
     logger: opts.logger ?? !opts.config.isTest,
     // 프록시 홉 수만큼만 X-Forwarded-For 를 신뢰 (0 이면 신뢰 안 함)
     trustProxy: (_address: string, hop: number) => hop < opts.config.TRUST_PROXY_HOPS,
     bodyLimit: 1024 * 1024,
   });
-  const services = createServices(opts.config, opts.db);
+  const services = createServices(opts.config, opts.db, opts.deps);
   app.decorate('ctx', { config: opts.config, db: opts.db, services });
   app.decorateRequest('user', null);
 

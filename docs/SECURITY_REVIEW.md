@@ -29,7 +29,21 @@ QA팀(보안·로직 리뷰어)이 인메모리 API 재현으로 확인한 15개
 - 토스 웹훅 위조 — 결제 재조회로 검증
 - 사주 엔진 경계 입력 85,246건 퍼징 — 500 으로 새는 예외 0건
 
+## 인앱결제 서명 검증·스토어 환불 알림 (2026-10-15, 결제)
+회귀 테스트: `apps/api/test/store-notifications.test.ts`, `apps/api/test/payments.providers.test.ts`(Apple).
+
+| 위협 | 조치 | 상태 |
+|---|---|---|
+| Apple JWS 를 서명 검증 없이 디코드 — 위조 알림·변조 응답으로 지급/회수 조작 | `appleJws.ts`: x5c 3장, 중간 인증서를 **내장 Apple Root CA - G3**(SHA-256 지문 고정, 로드 시 대조)로 검증 — x5c 의 루트는 믿지 않음, 중간·루트 CA 여부, 리프가 CA 아님, 세 인증서 유효기간, Apple 표식 OID(중간 `1.2.840.113635.100.6.2.1`, 리프 `…6.11.1`), 리프 키 ES256 서명. App Store Server API 응답·알림·알림 안의 거래/갱신 정보 모두 적용 | ✅ |
+| 다른 앱·다른 환경의 진짜 Apple 서명 데이터 재사용 | bundleId 대조, 거래 environment 가 응답 엔드포인트·알림 환경과 같은지, `APPLE_IAP_ENVIRONMENTS` 밖의 알림은 무시 | ✅ |
+| 스토어에서 환불받고 리포트·질문권 계속 사용 | App Store Server Notifications V2(`REFUND`/`REVOKE`)와 Google RTDN(`voidedPurchaseNotification`)으로 관리자 환불과 같은 `revokeOrder` 실행 | ✅ |
+| 알림 재전송·중복으로 이중 회수 | 알림 ID(notificationUUID / Pub/Sub messageId) 멱등 + `revokeOrder`를 `paid` 조건부 UPDATE 로 변경(관리자 환불·웹훅과 경쟁해도 1회) | ✅ |
+| 앱 검증 전에 환불 → 나중에 검증해 지급받기 | 무효화된 거래 ID 를 표시해 두고 `/payments/iap/verify`에서 402 `REVOKED` | ✅ |
+| Pub/Sub 푸시 엔드포인트 위조 호출 | OIDC 토큰을 Google 공개키로 검증 + iss·aud(`GOOGLE_PLAY_RTDN_AUDIENCE`) + **서비스 계정 이메일**(`GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT`, email_verified) 대조 — 누구나 임의 audience 의 Google ID 토큰을 만들 수 있어 이메일 대조가 핵심. `packageName` 대조 | ✅ |
+| 거부 사유 노출로 검증 우회 탐색 | 응답은 고정 문장, 사유는 서버 로그(`스토어 알림 거부`)에만 | ✅ |
+| Apple 인증서 폐기(OCSP) 미확인 | 체인·OID·유효기간·서명만 확인. Apple 리프 키 유출 시 폐기 반영이 늦을 수 있음 | 수용(문서화) |
+
 ## 남은 권장 사항 (출시 후 개선)
-- 스토어 환불 알림(App Store Server Notifications V2 / Google RTDN) 수신 → 지급 회수
+- Apple 인증서 OCSP 폐기 확인, Google Voided Purchases API 정기 대조(Pub/Sub 보관 기간을 넘는 장애 대비)
 - Google Play 구매의 서버 측 acknowledge
 - 다중 API 인스턴스 운영 시: 리포트 생성 중복 방지를 DB 유니크 키로, 푸시 스케줄러는 1대만

@@ -50,6 +50,39 @@ export interface IapVerifier {
   verify(input: { productId: string; receipt: string }): Promise<IapVerification>;
 }
 
+/**
+ * 스토어 서버 알림(App Store Server Notifications V2 / Google Play RTDN)을 서비스가 처리할 형태로 정규화한 것.
+ * 출처 검증(Apple 서명 체인 / Pub/Sub OIDC 토큰)을 통과한 내용만 담는다.
+ */
+export interface StoreNotification {
+  /** 중복 처리 방지 키 — Apple notificationUUID / Pub/Sub messageId */
+  id: string;
+  /** 알림 유형(기록용). 예: REFUND, REFUND_REVERSED, CONSUMPTION_REQUEST, VOIDED_PURCHASE, TEST */
+  type: string;
+  /**
+   * 서비스가 할 일
+   * - revoke: 지급분 회수(관리자 환불과 같은 revokeOrder). 주문 상태는 revokeStatus
+   * - restore: 환불 철회 — 회수했던 권한·질문권을 되돌린다
+   * - none: 기록만
+   */
+  action: 'revoke' | 'restore' | 'none';
+  revokeStatus?: 'refunded' | 'canceled';
+  /** 우리 주문의 providerPaymentKey 후보 (Apple transactionId / Google orderId · 테스트 구매 해시) */
+  transactionIds: string[];
+  /** 주문 failureReason 에 남길 사유 */
+  reason: string;
+  /** webhook_events 기록용 */
+  raw: unknown;
+}
+
+export interface StoreNotificationSource {
+  platform: 'ios' | 'android';
+  envKeys: string[];
+  isConfigured(): boolean;
+  /** 출처 검증 후 정규화. 검증 실패는 AppError(400 위조·형식 오류 / 401 인증 실패)로 던지고, 사유는 error.cause 에 둔다 */
+  parse(input: { headers: Record<string, string | string[] | undefined>; body: unknown }): Promise<StoreNotification>;
+}
+
 export class GatewayError extends Error {
   constructor(
     message: string,
