@@ -13,11 +13,20 @@ const TABS = [
   { to: '/my', label: t('tabs.my'), icon: CircleUserRound },
 ];
 
-/** 데스크톱(lg↑) 상단 내비 — 모바일의 하단 탭을 대신한다 */
-const DESKTOP_LINKS = [...TABS.slice(0, 4).map(({ to, label }) => ({ to, label })), { to: '/tarot', label: t('tarot.meta.navLabel') }, { to: '/manse', label: '만세력' }, { to: '/dream', label: '꿈해몽' }, { to: '/zodiac', label: '띠·별자리' }];
+/**
+ * 데스크톱(lg↑) 상단 내비 — 모바일의 하단 탭을 대신한다.
+ * wide 링크는 폭이 넉넉한 xl(1280px↑)에서만 보인다 — 1024px 에서 열 개가 다 들어가지 않는다(오늘 탭 카드·마이 메뉴로도 갈 수 있음).
+ */
+const DESKTOP_LINKS: { to: string; label: string; wide?: boolean }[] = [
+  ...TABS.slice(0, 4).map(({ to, label }) => ({ to, label })),
+  { to: '/tarot', label: t('tarot.meta.navLabel') },
+  { to: '/manse', label: '만세력' },
+  { to: '/dream', label: '꿈해몽', wide: true },
+  { to: '/zodiac', label: '띠·별자리', wide: true },
+];
 
 const desktopLink = ({ isActive }: { isActive: boolean }) =>
-  cx('inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-[15px] font-medium transition-colors', isActive ? 'bg-subtle text-ink' : 'text-ink-2 hover:text-ink');
+  cx('inline-flex h-10 items-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[15px] font-medium transition-colors', isActive ? 'bg-subtle text-ink' : 'text-ink-2 hover:text-ink');
 
 export function DesktopNav() {
   const user = useSession((s) => s.user);
@@ -29,8 +38,8 @@ export function DesktopNav() {
         </Link>
         <nav className="flex flex-1 items-center justify-between" aria-label="주요 메뉴">
           <ul className="flex items-center gap-1">
-            {DESKTOP_LINKS.map(({ to, label }) => (
-              <li key={to}>
+            {DESKTOP_LINKS.map(({ to, label, wide }) => (
+              <li key={to} className={wide ? 'hidden xl:block' : undefined}>
                 <NavLink to={to} className={desktopLink}>
                   {label}
                 </NavLink>
