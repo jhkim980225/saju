@@ -441,12 +441,18 @@ else window.location.assign(url);
 | `bundle_newyear_2027` | 2027 신년 패키지 | 16,900 | `kr.dalbitsaju.bundle.newyear2027` | `bundle_newyear_2027` | 소모성 |
 | `chat_pack_10` | AI 상담 질문권 10회 | 3,900 | `kr.dalbitsaju.chat.10` | `chat_pack_10` | 소모성 |
 | `chat_pack_30` | AI 상담 질문권 30회 | 9,900 | `kr.dalbitsaju.chat.30` | `chat_pack_30` | 소모성 |
+| `tarot_question_3` | 질문 타로 3장 깊은 풀이 (리딩 1건, 질문권 1회) | 990 | `kr.dalbitsaju.tarot.question3` | `tarot_question_3` | 소모성 |
+| `tarot_love_5` | 연애 속마음·재회 타로 5장 (리딩 1건, 질문권 1회) | 2,900 | `kr.dalbitsaju.tarot.love5` | `tarot_love_5` | 소모성 |
+| `tarot_choice_3` | 양자택일 타로 3장 깊은 풀이 (리딩 1건, 질문권 1회) | 990 | `kr.dalbitsaju.tarot.choice3` | `tarot_choice_3` | 소모성 |
+| `tarot_compat_5` | 궁합 타로 5장 깊은 풀이 (리딩 1건, 질문권 1회) | 2,900 | `kr.dalbitsaju.tarot.compat5` | `tarot_compat_5` | 소모성 |
+| `tarot_celtic_10` | 켈틱 크로스 10장 깊은 풀이 (리딩 1건, 질문권 3회) | 4,900 | `kr.dalbitsaju.tarot.celtic10` | `tarot_celtic_10` | 소모성 |
 | `report_love` 외 2차 상품 | (comingSoon) | — | 미정 | 미정 | — |
 | `sub_plus_monthly` / `sub_plus_yearly` | 플러스 구독 (2차) | 6,900 / 59,000 | 미정 | 미정 | 자동 갱신 구독, 그룹 `plus` |
 
 - App Store 상품 ID 는 **삭제해도 재사용할 수 없습니다.** 등록 전에 catalog 의 ID 를 확정하세요(번들 ID 와 접두사가 달라도 문제없음).
 - 스토어 가격은 각 스토어의 원화 가격 포인트에서 고릅니다. 3,900·5,900원 포인트가 있는지 확인하고, 없으면 catalog 가격을 맞춥니다(research/03 §5.2).
 - 앱에 스토어 ID 가 없는 상품은 `startCheckout` 이 "앱에서 아직 구매할 수 없어요" 오류를 냅니다. 앱에서는 이런 상품을 **목록에서 숨기는 것**을 권장합니다.
+- 타로 상품(`tarot_*`)은 리딩 1건을 여는 상품이라 상점 목록에는 나오지 않고 타로 결과 화면의 결제 시트에서만 팝니다(`readingId` 필수). 4,900원 가격 포인트도 확인하세요.
 
 ### 7.2 App Store Connect
 

@@ -10,13 +10,17 @@ import { SessionGateError, useSessionGate } from '@/hooks/useSessionGate';
 import { api } from '@/lib/api';
 import { t } from '@/lib/copy';
 import { isMember, useSession } from '@/lib/session';
+import { isPaidSpread } from '@/lib/tarot';
 import { tarotHistoryKey } from './TarotHomePage';
+
+/** 깊은 풀이를 연 리딩 — 무료 펼침(오늘의 카드·예·아니오)은 잠금이 없어도 깊은 풀이가 아니다 */
+const isDeep = (h: TarotHistoryItemDto) => isPaidSpread(h.spread) && !h.locked;
 
 const FILTERS = {
   all: () => true,
   daily: (h: TarotHistoryItemDto) => h.spread === 'daily',
   spread: (h: TarotHistoryItemDto) => h.spread !== 'daily',
-  deep: (h: TarotHistoryItemDto) => h.spread !== 'daily' && !h.locked,
+  deep: isDeep,
 } as const;
 type Filter = keyof typeof FILTERS;
 
@@ -91,7 +95,7 @@ export function TarotHistoryPage() {
                   <span className="mt-0.5 block truncate text-[15px]">{h.spread === 'daily' ? h.cards[0]!.nameKo : (h.question ?? t('tarot.history.item.noQuestion'))}</span>
                   <span className="mt-1 flex gap-1.5">
                     <span className="text-xs text-ink-3">{t('tarot.history.item.cardCount', { count: h.cards.length })}</span>
-                    {h.spread !== 'daily' && !h.locked && <Badge tone="gold">{t('tarot.history.item.deep')}</Badge>}
+                    {isDeep(h) && <Badge tone="gold">{t('tarot.history.item.deep')}</Badge>}
                   </span>
                 </span>
                 <ChevronRight className="size-5 shrink-0 text-ink-3" aria-hidden />

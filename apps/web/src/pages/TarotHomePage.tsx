@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { TAROT_SPREADS, TAROT_TOPIC_KEYS, TAROT_TOPICS } from '@saju/shared';
+import { TAROT_SPREADS, TAROT_SPREAD_TOPICS, TAROT_TOPIC_KEYS, TAROT_TOPICS, TAROT_YESNO_DAILY_FREE, type TarotTopic } from '@saju/shared';
 import { ChevronRight, History } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -8,13 +8,50 @@ import { Page } from '@/components/AppShell';
 import { BottomSheet } from '@/components/BottomSheet';
 import { TarotCardBack, TarotCardFace } from '@/components/TarotCard';
 import { Button, Card, IconButton, PageHeader } from '@/components/ui';
+import { useProducts } from '@/hooks/queries';
 import { SessionGateError, useSessionGate } from '@/hooks/useSessionGate';
 import { api } from '@/lib/api';
 import { t } from '@/lib/copy';
-import { todayKst } from '@/lib/format';
+import { todayKst, won } from '@/lib/format';
 import { useSession } from '@/lib/session';
 
 export const tarotHistoryKey = (uid?: string | null) => ['tarot', 'history', uid ?? 'anon'] as const;
+
+const isSpreadTopic = (k: TarotTopic) => (TAROT_SPREAD_TOPICS as readonly TarotTopic[]).includes(k);
+
+/** 펼침 방식으로 고르기 — 예·아니오(무료) · 양자택일 · 궁합 타로 · 켈틱 크로스 */
+function SpreadList({ yesnoToday }: { yesnoToday?: string }) {
+  const { data: products } = useProducts();
+  return (
+    <section className="mt-10">
+      <h2 className="text-lg font-semibold">{t('tarot.home.spreadsTitle')}</h2>
+      <p className="mt-1 text-sm text-ink-3">{t('tarot.home.spreadsSubtitle')}</p>
+      <ul className="mt-4 divide-y divide-line rounded-2xl border border-line bg-surface">
+        {TAROT_SPREAD_TOPICS.map((k) => {
+          const spread = TAROT_SPREADS[TAROT_TOPICS[k].spread];
+          const product = spread.productId ? products?.find((p) => p.id === spread.productId) : undefined;
+          const price = spread.productId ? (product ? t('tarot.home.deepPrice', { price: won(product.price) }) : '') : t('tarot.home.freeDaily');
+          const done = k === 'yesno' && yesnoToday;
+          return (
+            <li key={k}>
+              <Link to={done ? `/tarot/r/${yesnoToday}` : `/tarot/ask?topic=${k}`} className="flex items-center gap-3 px-4 py-4">
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-baseline gap-2">
+                    <span className="font-semibold">{t(`tarot.spreads.${k}.name`)}</span>
+                    <span className="tabular text-xs text-ink-3">{t('tarot.spreads.cardCount', { count: spread.cards })}</span>
+                  </span>
+                  <span className="mt-0.5 block text-sm leading-snug text-ink-2">{done ? t('tarot.home.yesnoDone') : t(`tarot.topics.${k}.title`)}</span>
+                  {price && <span className="mt-1 block text-xs text-ink-3">{price}</span>}
+                </span>
+                <ChevronRight className="size-5 shrink-0 text-ink-3" aria-hidden />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
 
 /** 타로 홈 — 오늘의 카드 · 주제 고르기 · 최근 기록 */
 export function TarotHomePage() {
@@ -26,6 +63,9 @@ export function TarotHomePage() {
   const history = useQuery({ queryKey: tarotHistoryKey(user?.id), queryFn: api.tarotHistory, enabled: Boolean(token) });
   const today = todayKst().iso;
   const daily = history.data?.find((h) => h.spread === 'daily' && h.date === today);
+  // 예·아니오 무료 횟수를 오늘 다 썼으면 새로 묻는 대신 오늘 본 카드로
+  const yesnoUsed = (history.data ?? []).filter((h) => h.spread === 'yesno' && h.date === today);
+  const yesnoToday = yesnoUsed.length >= TAROT_YESNO_DAILY_FREE ? yesnoUsed[0]!.id : undefined;
   const recent = (history.data ?? []).filter((h) => h.spread !== 'daily').slice(0, 3);
 
   return (
@@ -82,7 +122,7 @@ export function TarotHomePage() {
               <h2 className="text-lg font-semibold">{t('tarot.home.topicsTitle')}</h2>
               <p className="mt-1 text-sm text-ink-3">{t('tarot.home.topicsSubtitle')}</p>
               <ul className="mt-4 grid grid-cols-2 gap-2 lg:gap-3">
-                {TAROT_TOPIC_KEYS.map((k) => {
+                {TAROT_TOPIC_KEYS.filter((k) => !isSpreadTopic(k)).map((k) => {
                   const spread = TAROT_SPREADS[TAROT_TOPICS[k].spread];
                   return (
                     <li key={k}>
@@ -99,6 +139,8 @@ export function TarotHomePage() {
               </ul>
               <p className="mt-3 text-xs text-ink-3">{t('tarot.home.freeNote')}</p>
             </section>
+
+            <SpreadList yesnoToday={yesnoToday} />
 
             {recent.length > 0 && (
               <section className="mt-10">

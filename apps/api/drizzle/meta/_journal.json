@@ -22,6 +22,13 @@
       "when": 1791786528504,
       "tag": "0002_tarot_readings",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791992707805,
+      "tag": "0003_tarot_spreads",
+      "breakpoints": true
     }
   ]
 }

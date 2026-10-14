@@ -5,6 +5,7 @@ import { t } from '@/lib/copy';
 import { won } from '@/lib/format';
 import { AdSlot } from './AdSlot';
 import { TarotCardFace, orientationLabel } from './TarotCard';
+import { TarotChoiceCompare, TarotSpreadSlots, TarotYesNoScale } from './TarotSpread';
 import { Badge, Button, Card, cx } from './ui';
 
 /** 무거운 카드 — 블록 위에 안내 상자 (공포 조장 금지의 화면 버전) */
@@ -79,7 +80,9 @@ export function TarotReadingView({ reading, onUnlock }: { reading: TarotReadingD
   const price = product?.purchasable ? won(product.price) : undefined;
   const sec = (key: string) => reading.sections.find((s) => s.key === key);
   const daily = reading.spread === 'daily';
+  const yesno = reading.spread === 'yesno';
   const single = reading.cards.length === 1;
+  const lean = reading.lean ?? reading.cards[0]?.yesNo ?? 'maybe';
   const story = sec('story');
   const actions = sec('actions');
   const saju = sec('saju');
@@ -96,24 +99,51 @@ export function TarotReadingView({ reading, onUnlock }: { reading: TarotReadingD
             <p className="mt-1 font-serif text-lg leading-snug">{reading.question ? `“${reading.question}”` : t('tarot.result.noQuestion')}</p>
           </div>
         )}
+        {reading.options && (
+          <ul className="mt-3 space-y-1 text-[15px]" aria-label={t('tarot.spreads.choice.optionsTitle')}>
+            <li>
+              <span className="mr-2 font-semibold text-ink-3">A</span>
+              {reading.options.a}
+            </li>
+            <li>
+              <span className="mr-2 font-semibold text-ink-3">B</span>
+              {reading.options.b}
+            </li>
+          </ul>
+        )}
+        {reading.spread === 'compat' && reading.profileName && reading.partnerName && (
+          <p className="mt-3 font-serif text-lg">
+            {reading.profileName} <span className="text-ink-3">×</span> {reading.partnerName}
+          </p>
+        )}
         <p className="mt-2 text-sm text-ink-3">
           {reading.spreadName} · {dateLabel(reading.date)}
         </p>
-        <ol className={cx('mt-4 grid gap-2', single ? 'mx-auto max-w-[220px] grid-cols-1' : reading.cards.length === 3 ? 'grid-cols-3' : 'grid-cols-5')} aria-label={t('tarot.result.cardsTitle')}>
-          {reading.cards.map((c, i) => (
-            <li key={c.id}>
-              <a href={single ? undefined : `#card-${i}`} className="block">
+        {single ? (
+          <ol className="mx-auto mt-4 grid max-w-[220px] grid-cols-1 gap-2" aria-label={t('tarot.result.cardsTitle')}>
+            {reading.cards.map((c) => (
+              <li key={c.id}>
                 <TarotCardFace card={c} eager />
-              </a>
-              <p className="mt-1.5 text-center text-xs leading-tight text-ink-2">{c.position.label}</p>
-              {single && (
+                <p className="mt-1.5 text-center text-xs leading-tight text-ink-2">{c.position.label}</p>
                 <p className="mt-1 text-center font-serif text-lg">
                   {c.nameKo} <span className="text-sm text-ink-3">· {orientationLabel(c.orientation)}</span>
                 </p>
-              )}
-            </li>
-          ))}
-        </ol>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <TarotSpreadSlots
+            className="mt-4"
+            spread={reading.spread}
+            label={t('tarot.result.cardsTitle')}
+            renderCard={(i) => (
+              <a href={`#card-${i}`} className="block">
+                <TarotCardFace card={reading.cards[i]!} eager />
+              </a>
+            )}
+            caption={reading.spread === 'celtic' ? (i) => <span className="text-ink-3"> · {reading.cards[i]!.nameKo}</span> : undefined}
+          />
+        )}
       </aside>
 
       <div>
@@ -128,7 +158,25 @@ export function TarotReadingView({ reading, onUnlock }: { reading: TarotReadingD
           {hasReversed && <p className="mt-4 text-sm leading-relaxed text-ink-3">{t('tarot.result.reversedNote')}</p>}
         </section>
 
-        {daily ? (
+        {yesno ? (
+          <>
+            {/* 예·아니오 — 기울기 막대 + 경향 문장 (전부 무료) */}
+            <section className="mt-6 border-t border-line pt-1">
+              <TarotYesNoScale lean={lean} />
+              {sec('lean') && (
+                <div className="prose-reading mt-3">
+                  {sec('lean')!.paragraphs.map((p, i) => (
+                    <p key={i}>{p}</p>
+                  ))}
+                </div>
+              )}
+              <p className="mt-3 text-sm leading-relaxed text-ink-3">
+                {reading.profileName ? t('tarot.result.yesno.note', { name: reading.profileName }) : t('tarot.result.yesno.noteNoName')}
+              </p>
+            </section>
+            <CardBlock id="card-0" card={reading.cards[0]!} section={sec('card')} />
+          </>
+        ) : daily ? (
           <>
             {sec('today') && (
               <section className="mt-6 border-t border-line pt-6">
@@ -154,6 +202,8 @@ export function TarotReadingView({ reading, onUnlock }: { reading: TarotReadingD
                 </div>
               </section>
             )}
+
+            {reading.options && <TarotChoiceCompare cards={reading.cards} options={reading.options} />}
 
             {reading.locked && (
               <Card className="mt-4 border-gold/40">
@@ -234,7 +284,7 @@ export function TarotReadingView({ reading, onUnlock }: { reading: TarotReadingD
           </section>
         )}
 
-        {(reading.locked || daily) && (
+        {(reading.locked || !reading.productId) && (
           <div className="mt-6">
             <AdSlot placement="result_bottom" />
           </div>
@@ -243,7 +293,7 @@ export function TarotReadingView({ reading, onUnlock }: { reading: TarotReadingD
         <div className="mt-8 space-y-1.5 border-t border-line pt-4 text-xs leading-relaxed text-ink-3">
           <p>{t('tarot.result.basisNote')}</p>
           {topic === 'money' && <p>{t('tarot.disclaimer.expert')}</p>}
-          {(topic === 'feelings' || topic === 'reunion') && <p>{t('tarot.disclaimer.thirdParty')}</p>}
+          {(topic === 'feelings' || topic === 'reunion' || topic === 'compat') && <p>{t('tarot.disclaimer.thirdParty')}</p>}
           <p>{reading.disclaimer}</p>
           {reading.generator === 'ai' && <p>{t('tarot.disclaimer.ai')}</p>}
         </div>

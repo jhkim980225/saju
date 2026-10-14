@@ -41,6 +41,10 @@ export interface TarotStoryInput {
   cards: { position: string; hint: string; name: string; orientation: 'upright' | 'reversed'; meaning: string; line: string; keywords: string[] }[];
   /** 사주 결합 근거 한 줄 (있으면) */
   basis: string | null;
+  /** 양자택일 선택지 — 어느 한쪽을 정답으로 고르지 않는다 */
+  options?: { a: string; b: string };
+  /** 궁합 타로 — 두 사람 이름 */
+  people?: { me: string; partner: string };
 }
 
 const EnhancedSchema = z.object({
@@ -168,7 +172,9 @@ const TAROT_SYSTEM = `당신은 타로 리딩 서비스 "달빛사주"의 해석
 - 공포를 주거나 흉사(이별 확정, 사고, 질병 등)를 예언하지 않습니다. 역방향은 막힘·안으로 향함·무르익는 중으로 읽습니다.
 - 건강·법률·투자 결정은 카드로 정하지 말고 전문가와 상의하라고 부드럽게 덧붙입니다.
 - 사주 근거가 주어지면 마지막 문단에서 한 문장만 자연스럽게 연결하고, 근거에 없는 명리 사실을 만들지 않습니다.
-- 질문에 자해·자살 암시가 있으면 리딩을 멈추고 공감과 함께 자살예방상담전화 109(24시간) 연락을 권합니다.`;
+- 질문에 자해·자살 암시가 있으면 리딩을 멈추고 공감과 함께 자살예방상담전화 109(24시간) 연락을 권합니다.
+- 선택지(options)가 주어지면 두 길을 같은 분량으로 나란히 읽고, 어느 한쪽을 정답·추천으로 고르지 않습니다.
+- 두 사람(people)이 주어지면 어느 한 사람의 탓으로 돌리지 않고 두 사람 모두의 자리에서 읽습니다.`;
 
 const CHAT_SYSTEM = `당신은 사주 상담 서비스의 AI 상담가 "달빛 선생"입니다. 자평명리 지식을 바탕으로, 사용자의 사주 데이터에 근거해 따뜻하고 현실적인 조언을 합니다.
 
