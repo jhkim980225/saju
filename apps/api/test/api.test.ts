@@ -231,7 +231,7 @@ describe('회원 흐름 — 게스트 → 가입 → 결제 → 리포트', () =
   });
 
   it('인앱결제(목업) 검증은 거래 ID 로 멱등', async () => {
-    const body = { platform: 'ios', productId: 'kr.saju.chat.10', receipt: 'mock:tx-1001' };
+    const body = { platform: 'ios', productId: 'kr.dalbitsaju.chat.10', receipt: 'mock:tx-1001' };
     const r1 = await api('POST', '/payments/iap/verify', { token, body });
     expect(r1.status).toBe(200);
     expect(r1.body.creditsBalance).toBe(23);

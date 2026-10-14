@@ -391,13 +391,13 @@ else window.location.assign(url);
 
 | 서버 ID | 이름 | 가격(원) | App Store 상품 ID | Play 상품 ID | 유형 |
 |---|---|---:|---|---|---|
-| `report_saju_mini` | 첫 사주 미니 리포트 (계정당 1회) | 990 | `kr.saju.report.mini` | `report_saju_mini` | 소모성 |
-| `report_saju_lifetime` | 평생 사주 정밀 리포트 | 9,900 | `kr.saju.report.lifetime` | `report_saju_lifetime` | 소모성 |
-| `report_newyear_2027` | 2027 丁未년 신년운세 | 5,900 | `kr.saju.report.newyear2027` | `report_newyear_2027` | 소모성 |
-| `report_compat` | 사주 궁합 리포트 | 5,900 | `kr.saju.report.compat` | `report_compat` | 소모성 |
-| `bundle_newyear_2027` | 2027 신년 패키지 | 16,900 | `kr.saju.bundle.newyear2027` | `bundle_newyear_2027` | 소모성 |
-| `chat_pack_10` | AI 상담 질문권 10회 | 3,900 | `kr.saju.chat.10` | `chat_pack_10` | 소모성 |
-| `chat_pack_30` | AI 상담 질문권 30회 | 9,900 | `kr.saju.chat.30` | `chat_pack_30` | 소모성 |
+| `report_saju_mini` | 첫 사주 미니 리포트 (계정당 1회) | 990 | `kr.dalbitsaju.report.mini` | `report_saju_mini` | 소모성 |
+| `report_saju_lifetime` | 평생 사주 정밀 리포트 | 9,900 | `kr.dalbitsaju.report.lifetime` | `report_saju_lifetime` | 소모성 |
+| `report_newyear_2027` | 2027 丁未년 신년운세 | 5,900 | `kr.dalbitsaju.report.newyear2027` | `report_newyear_2027` | 소모성 |
+| `report_compat` | 사주 궁합 리포트 | 5,900 | `kr.dalbitsaju.report.compat` | `report_compat` | 소모성 |
+| `bundle_newyear_2027` | 2027 신년 패키지 | 16,900 | `kr.dalbitsaju.bundle.newyear2027` | `bundle_newyear_2027` | 소모성 |
+| `chat_pack_10` | AI 상담 질문권 10회 | 3,900 | `kr.dalbitsaju.chat.10` | `chat_pack_10` | 소모성 |
+| `chat_pack_30` | AI 상담 질문권 30회 | 9,900 | `kr.dalbitsaju.chat.30` | `chat_pack_30` | 소모성 |
 | `report_love` 외 2차 상품 | (comingSoon) | — | 미정 | 미정 | — |
 | `sub_plus_monthly` / `sub_plus_yearly` | 플러스 구독 (2차) | 6,900 / 59,000 | 미정 | 미정 | 자동 갱신 구독, 그룹 `plus` |
 

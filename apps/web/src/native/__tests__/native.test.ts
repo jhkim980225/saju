@@ -402,15 +402,15 @@ describe('인앱결제', () => {
 
   it('iOS: transactionId 를 영수증으로 쓰고 finishTransaction 으로 마무리, 취소는 null', async () => {
     setPlatform('ios');
-    h.fn.purchaseProduct.mockResolvedValueOnce({ transactionId: '2000001', productIdentifier: 'kr.saju.chat.10' });
+    h.fn.purchaseProduct.mockResolvedValueOnce({ transactionId: '2000001', productIdentifier: 'kr.dalbitsaju.chat.10' });
     const native = await boot();
     const { native: bridge } = await import('../../lib/platform');
-    expect(await bridge.purchase!('kr.saju.chat.10')).toEqual({ receipt: '2000001' });
+    expect(await bridge.purchase!('kr.dalbitsaju.chat.10')).toEqual({ receipt: '2000001' });
     await native.finishPurchase('2000001');
     expect(h.fn.finishTransaction).toHaveBeenCalledWith({ transactionId: '2000001' });
 
     h.fn.purchaseProduct.mockRejectedValueOnce(Object.assign(new Error('User cancelled'), { code: '' }));
-    expect(await bridge.purchase!('kr.saju.chat.10')).toBeNull();
+    expect(await bridge.purchase!('kr.dalbitsaju.chat.10')).toBeNull();
   });
 
   it('미완료 거래를 서버 검증 후 마무리한다', async () => {

@@ -68,4 +68,4 @@
 - [ ] iOS 빌드·서명 (Mac 의 Xcode 또는 GitHub Actions `ios` 잡) — [`APP_PORTING.md`](./APP_PORTING.md)
 - [ ] AdMob 실제 앱 ID·광고 단위로 교체 (현재 Google 테스트 ID)
 - [ ] 키 발급 후 실연동 확인: 카드 인증까지 실결제 1건, 소셜 로그인 4종, 푸시 수신, 보상형 광고 SSV 콜백
-- [ ] 타로: 스토어 소모성 상품 등록(`kr.saju.tarot.question3`·`kr.saju.tarot.love5`), KIPRIS 상표 확인('Rider-Waite' 미사용 유지), AI 생성 이미지·풀이 고지 문구 법무 확인
+- [ ] 타로: 스토어 소모성 상품 등록(`kr.dalbitsaju.tarot.question3`·`kr.dalbitsaju.tarot.love5`), KIPRIS 상표 확인('Rider-Waite' 미사용 유지), AI 생성 이미지·풀이 고지 문구 법무 확인

@@ -41,7 +41,7 @@ export const CATALOG: CatalogItem[] = [
     grants: ['report:mini'],
     perUserLimit: 1,
     badge: '첫 구매 특가',
-    iosProductId: 'kr.saju.report.mini',
+    iosProductId: 'kr.dalbitsaju.report.mini',
     androidProductId: 'report_saju_mini',
   },
   {
@@ -54,7 +54,7 @@ export const CATALOG: CatalogItem[] = [
     credits: 3,
     grants: ['report:lifetime'],
     badge: '가장 인기',
-    iosProductId: 'kr.saju.report.lifetime',
+    iosProductId: 'kr.dalbitsaju.report.lifetime',
     androidProductId: 'report_saju_lifetime',
   },
   {
@@ -67,7 +67,7 @@ export const CATALOG: CatalogItem[] = [
     grants: ['report:yearly:2027'],
     saleEndsAt: '2026-12-31T14:59:59.000Z',
     badge: '얼리버드',
-    iosProductId: 'kr.saju.report.newyear2027',
+    iosProductId: 'kr.dalbitsaju.report.newyear2027',
     androidProductId: 'report_newyear_2027',
   },
   {
@@ -77,7 +77,7 @@ export const CATALOG: CatalogItem[] = [
     type: 'one_time',
     price: 5900,
     grants: ['report:compatibility'],
-    iosProductId: 'kr.saju.report.compat',
+    iosProductId: 'kr.dalbitsaju.report.compat',
     androidProductId: 'report_compat',
   },
   {
@@ -90,7 +90,7 @@ export const CATALOG: CatalogItem[] = [
     credits: 10,
     grants: ['report:lifetime', 'report:yearly:2027', 'ticket:compatibility'],
     badge: '29% 할인',
-    iosProductId: 'kr.saju.bundle.newyear2027',
+    iosProductId: 'kr.dalbitsaju.bundle.newyear2027',
     androidProductId: 'bundle_newyear_2027',
   },
   {
@@ -100,7 +100,7 @@ export const CATALOG: CatalogItem[] = [
     type: 'credit_pack',
     price: 3900,
     credits: 10,
-    iosProductId: 'kr.saju.chat.10',
+    iosProductId: 'kr.dalbitsaju.chat.10',
     androidProductId: 'chat_pack_10',
   },
   {
@@ -112,7 +112,7 @@ export const CATALOG: CatalogItem[] = [
     listPrice: 11700,
     credits: 30,
     badge: 'BEST',
-    iosProductId: 'kr.saju.chat.30',
+    iosProductId: 'kr.dalbitsaju.chat.30',
     androidProductId: 'chat_pack_30',
   },
   // ── 타로 (docs/research/05-tarot-market.md §7.4) — 리딩 1건을 여는 소모성 상품 ──
@@ -124,7 +124,7 @@ export const CATALOG: CatalogItem[] = [
     price: 990,
     credits: 1,
     grants: ['tarot:reading'],
-    iosProductId: 'kr.saju.tarot.question3',
+    iosProductId: 'kr.dalbitsaju.tarot.question3',
     androidProductId: 'tarot_question_3',
   },
   {
@@ -135,7 +135,7 @@ export const CATALOG: CatalogItem[] = [
     price: 2900,
     credits: 1,
     grants: ['tarot:reading'],
-    iosProductId: 'kr.saju.tarot.love5',
+    iosProductId: 'kr.dalbitsaju.tarot.love5',
     androidProductId: 'tarot_love_5',
   },
   // ── 2차 출시 ───────────────────────────────────────────
