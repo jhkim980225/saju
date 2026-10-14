@@ -144,22 +144,24 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
     tx.insert(entitlements).values({ id: newId(), userId, key, orderId, expiresAt }).onConflictDoNothing().run();
   };
 
+  /** grants 템플릿 → 이 주문의 실제 권한 키 (지급·환불 철회 공용) */
+  const entitlementKeys = (product: Product, order: Order): string[] => {
+    const meta = (order.metadata ?? {}) as { profileId?: string; partnerProfileId?: string; readingId?: string };
+    return product.grants.map((g) => {
+      if (g === 'ticket:compatibility') return `ticket:compatibility:${order.id}`;
+      if (g === 'report:compatibility') return meta.profileId && meta.partnerProfileId ? compatKey(meta.profileId, meta.partnerProfileId) : `ticket:compatibility:${order.id}`;
+      if (g.startsWith('report:yearly:')) return `report:yearly:${meta.profileId}:${g.split(':')[2]}`;
+      if (g === 'tarot:reading') return `tarot:reading:${meta.readingId}`;
+      return `${g}:${meta.profileId}`;
+    });
+  };
+
   /** 상품 지급 — 질문권 / 권한 / 구독 기간 */
   const fulfill = (tx: Tx, order: Order, channel: Channel) => {
     const product = tx.select().from(products).where(eq(products.id, order.productId)).get();
     if (!product) throw notFound('상품을 찾을 수 없어요.');
-    const meta = (order.metadata ?? {}) as { profileId?: string; partnerProfileId?: string; readingId?: string };
-    const granted: string[] = [];
-    for (const g of product.grants) {
-      let key: string;
-      if (g === 'ticket:compatibility') key = `ticket:compatibility:${order.id}`;
-      else if (g === 'report:compatibility') key = meta.profileId && meta.partnerProfileId ? compatKey(meta.profileId, meta.partnerProfileId) : `ticket:compatibility:${order.id}`;
-      else if (g.startsWith('report:yearly:')) key = `report:yearly:${meta.profileId}:${g.split(':')[2]}`;
-      else if (g === 'tarot:reading') key = `tarot:reading:${meta.readingId}`;
-      else key = `${g}:${meta.profileId}`;
-      grantEntitlement(tx, order.userId, key, order.id);
-      granted.push(key);
-    }
+    const granted = entitlementKeys(product, order);
+    for (const key of granted) grantEntitlement(tx, order.userId, key, order.id);
     let premiumUntil: number | null = null;
     if (product.type === 'subscription' && product.periodDays) {
       const u = tx.select({ premiumUntil: users.premiumUntil }).from(users).where(eq(users.id, order.userId)).get()!;
@@ -172,9 +174,17 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
     return { credits: product.credits, entitlements: granted, premiumUntil: premiumUntil ? new Date(premiumUntil).toISOString() : null };
   };
 
-  /** 지급분 회수 — 권한 삭제 + 유상 질문권 차감(남은 만큼) */
-  const revokeOrder = (tx: Tx, order: Order, status: 'refunded' | 'canceled', reason: string) => {
-    tx.update(orders).set({ status, canceledAt: Date.now(), failureReason: reason, updatedAt: Date.now() }).where(eq(orders.id, order.id)).run();
+  /**
+   * 지급분 회수 — 권한 삭제 + 유상 질문권 차감(남은 만큼).
+   * paid 주문일 때만 조건부로 바꾼다 → 관리자 환불·결제사 웹훅·스토어 알림이 겹쳐도 회수는 1회. 회수했으면 true
+   */
+  const revokeOrder = (tx: Tx, order: Order, status: 'refunded' | 'canceled', reason: string): boolean => {
+    const r = tx
+      .update(orders)
+      .set({ status, canceledAt: Date.now(), failureReason: reason, updatedAt: Date.now() })
+      .where(and(eq(orders.id, order.id), eq(orders.status, 'paid')))
+      .run();
+    if (r.changes !== 1) return false;
     tx.delete(entitlements).where(eq(entitlements.orderId, order.id)).run();
     const product = tx.select().from(products).where(eq(products.id, order.productId)).get();
     if (product && product.credits > 0) {
@@ -182,6 +192,35 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
       const revoke = Math.min(product.credits, u.paidCredits);
       if (revoke > 0) addCredits(tx, order.userId, -revoke, { reason: 'refund', source: 'paid', channel: 'system', memo: `${product.name} ${status === 'refunded' ? '환불' : '결제 취소'}`, refType: 'order', refId: order.id });
     }
+    return true;
+  };
+
+  /**
+   * 환불 철회(App Store REFUND_REVERSED) — refunded 주문을 paid 로 되돌리고 권한·질문권을 다시 지급한다.
+   * 질문권은 이 주문 원장(refType=order)의 순합계가 상품 질문권 수가 될 만큼만 채운다
+   * (환불 때 이미 써 버려 회수하지 못한 몫은 다시 주지 않는다). 복구했으면 true
+   */
+  const restoreOrder = (tx: Tx, order: Order): boolean => {
+    const r = tx
+      .update(orders)
+      .set({ status: 'paid', canceledAt: null, failureReason: null, updatedAt: Date.now() })
+      .where(and(eq(orders.id, order.id), eq(orders.status, 'refunded')))
+      .run();
+    if (r.changes !== 1) return false;
+    const product = tx.select().from(products).where(eq(products.id, order.productId)).get();
+    if (!product) return true;
+    for (const key of entitlementKeys(product, order)) grantEntitlement(tx, order.userId, key, order.id);
+    if (product.credits > 0) {
+      const net =
+        tx
+          .select({ n: sql<number>`coalesce(sum(${creditLedger.delta}), 0)` })
+          .from(creditLedger)
+          .where(and(eq(creditLedger.refType, 'order'), eq(creditLedger.refId, order.id)))
+          .get()?.n ?? 0;
+      const give = product.credits - net;
+      if (give > 0) addCredits(tx, order.userId, give, { reason: 'purchase', source: 'paid', channel: 'system', memo: `${product.name} 환불 철회`, refType: 'order', refId: order.id });
+    }
+    return true;
   };
 
   type Granted = ReturnType<typeof fulfill>;
@@ -213,6 +252,19 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
   const EMPTY_GRANT = { credits: 0, entitlements: [] as string[], premiumUntil: null };
 
   const balance = (userId: string) => db.select({ credits: users.credits }).from(users).where(eq(users.id, userId)).get()?.credits ?? 0;
+
+  // ── 웹훅·스토어 알림 이벤트 기록 (webhook_events, 멱등) ─────────────
+  /** 처리 완료된 이벤트면 true. 처음 보는 이벤트는 기록해 둔다 — 처리 중 오류로 끝나면 재전송 때 다시 처리 */
+  const alreadyProcessed = (key: string, provider: string, type: string, payload: unknown): boolean => {
+    const seen = db.select({ processedAt: webhookEvents.processedAt }).from(webhookEvents).where(eq(webhookEvents.id, key)).get();
+    if (seen?.processedAt) return true;
+    if (!seen) db.insert(webhookEvents).values({ id: key, provider, eventType: type, payload: (payload ?? {}) as object }).onConflictDoNothing().run();
+    return false;
+  };
+  const markProcessed = (key: string) => db.update(webhookEvents).set({ processedAt: Date.now() }).where(eq(webhookEvents.id, key)).run();
+  /** 스토어가 무효화(환불·취소)한 거래 표시 — 앱이 검증하기 전에 환불된 구매를 나중에 지급하지 않도록 */
+  const voidedKey = (provider: string, transactionId: string) => `${provider}:voided:${transactionId}`;
+  const isVoided = (provider: string, transactionId: string) => Boolean(db.select({ id: webhookEvents.id }).from(webhookEvents).where(eq(webhookEvents.id, voidedKey(provider, transactionId))).get());
 
   return {
     getProduct,
@@ -359,6 +411,7 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
         if (existing.userId !== userId) throw conflict('다른 계정에서 이미 사용된 구매예요.');
         return { order: orderDto(existing), granted: { credits: 0, entitlements: [], premiumUntil: null }, creditsBalance: balance(userId) };
       }
+      if (isVoided(provider, v.transactionId)) throw new AppError(402, ERROR_CODES.PAYMENT_FAILED, '환불되었거나 취소된 구매예요.', { code: 'REVOKED' });
       const id = newOrderId();
       try {
         db.insert(orders)
@@ -387,10 +440,7 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
       const event = await gateway.parseWebhook({ headers, rawBody });
       if (!event) throw badRequest('웹훅 검증에 실패했어요.');
       const eventKey = `${providerId}:${event.id}`;
-      const seen = db.select({ processedAt: webhookEvents.processedAt }).from(webhookEvents).where(eq(webhookEvents.id, eventKey)).get();
-      // 처리 완료된 이벤트만 중복으로 본다 — 처리 중 오류로 끝난 이벤트는 결제사 재전송 때 다시 처리
-      if (seen?.processedAt) return { duplicate: true };
-      if (!seen) db.insert(webhookEvents).values({ id: eventKey, provider: providerId, eventType: event.type, payload: event.raw as object }).onConflictDoNothing().run();
+      if (alreadyProcessed(eventKey, providerId, event.type, event.raw)) return { duplicate: true };
       const found = event.orderId ? db.select().from(orders).where(eq(orders.id, event.orderId)).get() : undefined;
       // 다른 결제사로 생성된 주문은 이 웹훅으로 상태를 바꿀 수 없다(목업·타 PG 웹훅 위조 방지)
       const order = found && found.provider === providerId ? found : undefined;
@@ -405,7 +455,7 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
             .set({ status: 'failed', failureReason: `WEBHOOK_AMOUNT_MISMATCH: ${event.amount ?? 'unknown'} != ${order.amount}`, updatedAt: Date.now() })
             .where(eq(orders.id, order.id))
             .run();
-          db.update(webhookEvents).set({ processedAt: Date.now() }).where(eq(webhookEvents.id, eventKey)).run();
+          markProcessed(eventKey);
           return { duplicate: false };
         }
         const settled = settle(order, { paymentKey: event.paymentKey, method: null, paidAt: Date.now() }, 'web');
@@ -413,8 +463,41 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
           await gateway.cancel({ paymentKey: event.paymentKey, reason: '계정당 구매 한도 초과' }).catch(() => undefined);
         }
       }
-      db.update(webhookEvents).set({ processedAt: Date.now() }).where(eq(webhookEvents.id, eventKey)).run();
+      markProcessed(eventKey);
       return { duplicate: false };
+    },
+
+    /**
+     * 스토어 서버 알림(App Store Server Notifications V2 / Google Play RTDN) — 스토어 환불·취소를 지급분에 반영.
+     * 회수는 관리자 환불과 같은 revokeOrder 를 쓰고(스토어가 이미 환불했으므로 결제사 취소 호출은 없음), 알림 ID 로 멱등.
+     * 외부 호출 없이 DB 만 다루므로 바로 응답한다. 모르는 유형·우리 주문이 없는 알림은 기록만 하고 성공 응답.
+     */
+    async handleStoreNotification(platform: 'ios' | 'android', headers: Record<string, string | string[] | undefined>, body: unknown) {
+      const source = gateways.notifications[platform];
+      if (!source.isConfigured()) throw notConfigured(platform === 'ios' ? 'App Store 서버 알림' : 'Google Play 실시간 개발자 알림', source.envKeys);
+      const n = await source.parse({ headers, body });
+      const provider = platform === 'ios' ? 'iap_apple' : 'iap_google';
+      const eventKey = `${provider}:${n.id}`;
+      if (alreadyProcessed(eventKey, provider, n.type, n.raw)) return { duplicate: true, type: n.type, applied: false };
+
+      let applied = false;
+      if (n.action !== 'none' && n.transactionIds.length > 0) {
+        const order = db.select().from(orders).where(and(eq(orders.provider, provider), inArray(orders.providerPaymentKey, n.transactionIds))).get();
+        db.transaction((tx) => {
+          if (n.action === 'revoke') {
+            if (order) applied = revokeOrder(tx, order, n.revokeStatus ?? 'refunded', n.reason);
+            // 앱이 아직 검증(/payments/iap/verify)하지 않은 구매도 있다 — 나중에 검증 요청이 와도 지급하지 않도록 표시
+            for (const txId of n.transactionIds) {
+              tx.insert(webhookEvents).values({ id: voidedKey(provider, txId), provider, eventType: 'VOIDED', payload: { notification: n.id, reason: n.reason }, processedAt: Date.now() }).onConflictDoNothing().run();
+            }
+          } else {
+            if (order) applied = restoreOrder(tx, order);
+            for (const txId of n.transactionIds) tx.delete(webhookEvents).where(eq(webhookEvents.id, voidedKey(provider, txId))).run();
+          }
+        });
+      }
+      markProcessed(eventKey);
+      return { duplicate: false, type: n.type, applied };
     },
 
     /** 환불 — 결제사 취소 후 지급분 회수 (관리자/CS 용) */
@@ -422,6 +505,7 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
       const order = db.select().from(orders).where(eq(orders.id, orderId)).get();
       if (!order) throw notFound('주문을 찾을 수 없어요.');
       if (order.status !== 'paid') throw conflict('결제 완료된 주문만 환불할 수 있어요.');
+      // 스토어 환불은 스토어 서버 알림(handleStoreNotification)으로 같은 revokeOrder 가 적용된다
       if (order.provider.startsWith('iap_')) throw badRequest('인앱결제는 스토어(App Store/Google Play)에서 환불이 진행돼요.');
       const gateway = gateways.byId[order.provider as keyof Gateways['byId']];
       // 질문권 팩은 미사용 유상 질문권 비율만큼만 부분 환불 (PAYMENTS.md 환불 정책)

@@ -7,7 +7,7 @@ import { createAiService } from './modules/ai/service.js';
 import { createAuthService } from './modules/auth/service.js';
 import { createOAuthService } from './modules/auth/oauth.js';
 import { createChatService } from './modules/chat/service.js';
-import { createGateways } from './modules/commerce/providers/index.js';
+import { createGateways, type GatewayDeps } from './modules/commerce/providers/index.js';
 import { createCommerceService } from './modules/commerce/service.js';
 import { createProfileService } from './modules/profiles/service.js';
 import { createPushService } from './modules/push/service.js';
@@ -16,12 +16,17 @@ import { createRewardsService } from './modules/rewards/service.js';
 import { createTarotService } from './modules/tarot/service.js';
 import { createUserService } from './modules/users/service.js';
 
-export function createServices(config: AppConfig, db: Db) {
+/** 테스트용 외부 의존성 주입 (생략 시 실제 값) */
+export interface ServiceDeps {
+  gateways?: GatewayDeps;
+}
+
+export function createServices(config: AppConfig, db: Db, deps: ServiceDeps = {}) {
   const users = createUserService(config, db);
   const auth = createAuthService(config, db, users);
   const oauth = createOAuthService(config);
   const profiles = createProfileService(db);
-  const gateways = createGateways(config);
+  const gateways = createGateways(config, deps.gateways);
   const commerce = createCommerceService(config, db, gateways);
   const ai = createAiService(config);
   const reports = createReportService(db, profiles, commerce, ai);

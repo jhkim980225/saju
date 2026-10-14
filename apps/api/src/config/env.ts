@@ -59,8 +59,24 @@ const schema = z.object({
   APPLE_IAP_KEY_ID: opt,
   APPLE_IAP_PRIVATE_KEY: opt,
   APPLE_BUNDLE_ID: opt,
+  /**
+   * 받아들일 App Store 거래 환경(콤마 구분). 운영 서버도 App Review 가 샌드박스로 결제하므로 둘 다 두는 것이 기본.
+   * 스테이징처럼 운영 거래·알림을 받으면 안 되는 서버는 Sandbox 만.
+   */
+  APPLE_IAP_ENVIRONMENTS: opt.transform((v, ctx) => {
+    const list = [...new Set((v ?? 'Production,Sandbox').split(',').map((s) => s.trim()).filter(Boolean))];
+    if (list.length === 0 || list.some((e) => e !== 'Production' && e !== 'Sandbox')) {
+      ctx.addIssue({ code: 'custom', message: 'Production, Sandbox 중 하나 이상을 콤마로 구분해 적어 주세요.' });
+      return z.NEVER;
+    }
+    return list as ('Production' | 'Sandbox')[];
+  }),
   GOOGLE_PLAY_PACKAGE_NAME: opt,
   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: opt,
+  /** RTDN Pub/Sub 푸시 구독의 OIDC 토큰 audience (구독 설정의 "대상"과 같아야 함) */
+  GOOGLE_PLAY_RTDN_AUDIENCE: opt,
+  /** RTDN Pub/Sub 푸시 구독에 지정한 서비스 계정 이메일 — 토큰의 email 클레임과 대조 */
+  GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT: opt,
 
   // 소셜 로그인
   KAKAO_REST_API_KEY: opt,
@@ -102,6 +118,8 @@ export type AppConfig = z.infer<typeof schema> & {
     portone: boolean;
     appleIap: boolean;
     googleIap: boolean;
+    /** Google Play 실시간 개발자 알림(RTDN) 수신 — googleIap + RTDN 푸시 인증 설정 */
+    googleRtdn: boolean;
     kakao: boolean;
     naver: boolean;
     google: boolean;
@@ -133,6 +151,7 @@ export function loadConfig(overrides: Record<string, string | undefined> = {}): 
   if (isProd && c.PAYMENT_PROVIDER === 'mock') {
     throw new Error('운영 환경에서는 PAYMENT_PROVIDER=mock 을 사용할 수 없습니다.');
   }
+  const googleIap = Boolean(c.GOOGLE_PLAY_PACKAGE_NAME && c.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON);
   return {
     ...c,
     corsOrigins: c.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean),
@@ -143,7 +162,8 @@ export function loadConfig(overrides: Record<string, string | undefined> = {}): 
       toss: Boolean(c.TOSS_CLIENT_KEY && c.TOSS_SECRET_KEY),
       portone: Boolean(c.PORTONE_STORE_ID && c.PORTONE_CHANNEL_KEY && c.PORTONE_API_SECRET),
       appleIap: Boolean(c.APPLE_IAP_ISSUER_ID && c.APPLE_IAP_KEY_ID && c.APPLE_IAP_PRIVATE_KEY && c.APPLE_BUNDLE_ID),
-      googleIap: Boolean(c.GOOGLE_PLAY_PACKAGE_NAME && c.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON),
+      googleIap,
+      googleRtdn: googleIap && Boolean(c.GOOGLE_PLAY_RTDN_AUDIENCE && c.GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT),
       kakao: Boolean(c.KAKAO_REST_API_KEY),
       naver: Boolean(c.NAVER_CLIENT_ID && c.NAVER_CLIENT_SECRET),
       google: Boolean(c.GOOGLE_CLIENT_ID && c.GOOGLE_CLIENT_SECRET),

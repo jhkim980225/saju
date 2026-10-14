@@ -2,7 +2,7 @@
  * 결제 어댑터(토스 / 포트원 / Apple / Google) 단위 테스트 — 외부 호출은 모두 globalThis.fetch 모킹.
  */
 import { createHmac, generateKeyPairSync, randomBytes } from 'node:crypto';
-import { SignJWT, decodeProtectedHeader, importPKCS8, importSPKI, jwtVerify } from 'jose';
+import { decodeProtectedHeader, importSPKI, jwtVerify } from 'jose';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { loadConfig } from '../src/config/env.js';
 import { AppError } from '../src/lib/errors.js';
@@ -10,6 +10,7 @@ import { createAppleIapVerifier, createGoogleIapVerifier, GOOGLE_TOKEN_URL } fro
 import { createPortOneGateway } from '../src/modules/commerce/providers/portone.js';
 import { createTossGateway } from '../src/modules/commerce/providers/toss.js';
 import { GatewayError } from '../src/modules/commerce/providers/types.js';
+import { createAppleTestChain } from './helpers/appleChain.js';
 
 const cfg = (env: Record<string, string> = {}) => loadConfig({ __SKIP_ENV_FILE: '1', NODE_ENV: 'test', ...env });
 
@@ -334,28 +335,29 @@ describe('Apple App Store Server API', () => {
     publicKeyEncoding: { type: 'spki', format: 'pem' },
   });
   const BUNDLE = 'kr.example.saju';
-  const appleConfig = () =>
-    cfg({
-      APPLE_IAP_ISSUER_ID: '57246542-96fe-1a63-e053-0824d011072a',
-      APPLE_IAP_KEY_ID: 'ABC123DEFG',
-      // env 에는 줄바꿈이 \n 으로 이스케이프되어 들어오는 경우가 많다
-      APPLE_IAP_PRIVATE_KEY: ec.privateKey.replace(/\n/g, '\\n'),
-      APPLE_BUNDLE_ID: BUNDLE,
-    });
-  /** Apple 이 서명한 것처럼 만든 JWSTransaction (테스트 키로 서명) */
-  const signedTx = async (claims: Record<string, unknown> = {}) =>
-    new SignJWT({
-      transactionId: '2000000123456789',
-      originalTransactionId: '2000000123456789',
-      bundleId: BUNDLE,
-      productId: `${BUNDLE}.chat_pack_10`,
-      purchaseDate: 1760230800000,
-      type: 'Consumable',
-      environment: 'Production',
-      ...claims,
-    })
-      .setProtectedHeader({ alg: 'ES256', x5c: ['MIIB-test'] })
-      .sign(await importPKCS8(ec.privateKey, 'ES256'));
+  const appleEnv = () => ({
+    APPLE_IAP_ISSUER_ID: '57246542-96fe-1a63-e053-0824d011072a',
+    APPLE_IAP_KEY_ID: 'ABC123DEFG',
+    // env 에는 줄바꿈이 \n 으로 이스케이프되어 들어오는 경우가 많다
+    APPLE_IAP_PRIVATE_KEY: ec.privateKey.replace(/\n/g, '\\n'),
+    APPLE_BUNDLE_ID: BUNDLE,
+  });
+  const appleConfig = () => cfg(appleEnv());
+  /** 가짜 Apple 인증서 체인 — 검증기에는 이 체인의 루트를 신뢰 루트로 주입한다 */
+  const chain = createAppleTestChain();
+  const appleVerifier = (config = appleConfig()) => createAppleIapVerifier(config, { rootCertificates: [chain.root] });
+  const txClaims = (claims: Record<string, unknown> = {}) => ({
+    transactionId: '2000000123456789',
+    originalTransactionId: '2000000123456789',
+    bundleId: BUNDLE,
+    productId: `${BUNDLE}.chat_pack_10`,
+    purchaseDate: 1760230800000,
+    type: 'Consumable',
+    environment: 'Production',
+    ...claims,
+  });
+  /** Apple 이 서명한 것처럼 만든 JWSTransaction (가짜 체인의 리프 키로 서명, x5c 포함) */
+  const signedTx = async (claims: Record<string, unknown> = {}) => chain.sign(txClaims(claims));
 
   it('키가 없으면 NOT_CONFIGURED', async () => {
     const v = createAppleIapVerifier(cfg({ APPLE_IAP_ISSUER_ID: '', APPLE_IAP_KEY_ID: '', APPLE_IAP_PRIVATE_KEY: '', APPLE_BUNDLE_ID: '' }));
@@ -365,7 +367,7 @@ describe('Apple App Store Server API', () => {
 
   it('검증 성공 — ES256 인증 JWT(kid/iss/aud/bid/exp) 서명, signedTransactionInfo 디코드', async () => {
     fetchMock.mockResolvedValueOnce(json({ signedTransactionInfo: await signedTx() }));
-    const r = await createAppleIapVerifier(appleConfig()).verify({ productId: `${BUNDLE}.chat_pack_10`, receipt: '2000000123456789' });
+    const r = await appleVerifier().verify({ productId: `${BUNDLE}.chat_pack_10`, receipt: '2000000123456789' });
 
     expect(call(0).url).toBe('https://api.storekit.itunes.apple.com/inApps/v1/transactions/2000000123456789');
     const jwt = call(0).headers.Authorization!.replace(/^Bearer /, '');
@@ -381,20 +383,20 @@ describe('Apple App Store Server API', () => {
   it('운영에서 404 면 샌드박스로 재시도', async () => {
     fetchMock.mockResolvedValueOnce(json({ errorCode: 4040010, errorMessage: 'Transaction id not found.' }, 404));
     fetchMock.mockResolvedValueOnce(json({ signedTransactionInfo: await signedTx({ environment: 'Sandbox' }) }));
-    const r = await createAppleIapVerifier(appleConfig()).verify({ productId: `${BUNDLE}.chat_pack_10`, receipt: '2000000123456789' });
+    const r = await appleVerifier().verify({ productId: `${BUNDLE}.chat_pack_10`, receipt: '2000000123456789' });
     expect(call(1).url).toBe('https://api.storekit-sandbox.itunes.apple.com/inApps/v1/transactions/2000000123456789');
     expect(r.raw).toMatchObject({ environment: 'Sandbox' });
   });
 
   it('양쪽 모두 404 면 TRANSACTION_NOT_FOUND', async () => {
     fetchMock.mockImplementation(async () => json({ errorCode: 4040010, errorMessage: 'Transaction id not found.' }, 404));
-    const e = (await caught(createAppleIapVerifier(appleConfig()).verify({ productId: 'p', receipt: '1' }))) as GatewayError;
+    const e = (await caught(appleVerifier().verify({ productId: 'p', receipt: '1' }))) as GatewayError;
     expect(e.code).toBe('TRANSACTION_NOT_FOUND');
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('bundleId 불일치 → BUNDLE_MISMATCH, productId 불일치 → PRODUCT_MISMATCH, 환불됨 → REVOKED', async () => {
-    const v = createAppleIapVerifier(appleConfig());
+    const v = appleVerifier();
     fetchMock.mockResolvedValueOnce(json({ signedTransactionInfo: await signedTx({ bundleId: 'com.attacker.app' }) }));
     expect(((await caught(v.verify({ productId: `${BUNDLE}.chat_pack_10`, receipt: '2000000123456789' }))) as GatewayError).code).toBe('BUNDLE_MISMATCH');
 
@@ -408,19 +410,53 @@ describe('Apple App Store Server API', () => {
   it('receipt 로 signedTransaction(JWS) 을 보내도 transactionId 를 꺼내 서버 API 로 재검증', async () => {
     const clientJws = await signedTx({ transactionId: '2000000999' });
     fetchMock.mockResolvedValueOnce(json({ signedTransactionInfo: await signedTx({ transactionId: '2000000999' }) }));
-    const r = await createAppleIapVerifier(appleConfig()).verify({ productId: `${BUNDLE}.chat_pack_10`, receipt: clientJws });
+    const r = await appleVerifier().verify({ productId: `${BUNDLE}.chat_pack_10`, receipt: clientJws });
     expect(call(0).url).toBe('https://api.storekit.itunes.apple.com/inApps/v1/transactions/2000000999');
     expect(r.transactionId).toBe('2000000999');
   });
 
   it('형식이 맞지 않는 영수증은 호출 없이 INVALID_RECEIPT', async () => {
-    const e = (await caught(createAppleIapVerifier(appleConfig()).verify({ productId: 'p', receipt: '../../etc/passwd' }))) as GatewayError;
+    const e = (await caught(appleVerifier().verify({ productId: 'p', receipt: '../../etc/passwd' }))) as GatewayError;
     expect(e.code).toBe('INVALID_RECEIPT');
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('응답 JWS 의 서명 체인이 신뢰 루트로 이어지지 않으면 INVALID_SIGNATURE (TLS 응답이라도 신뢰하지 않음)', async () => {
+    const forged = await createAppleTestChain().sign(txClaims());
+    fetchMock.mockResolvedValueOnce(json({ signedTransactionInfo: forged }));
+    const e = (await caught(appleVerifier().verify({ productId: `${BUNDLE}.chat_pack_10`, receipt: '2000000123456789' }))) as GatewayError;
+    expect(e.code).toBe('INVALID_SIGNATURE');
+    // 기본(내장 Apple Root CA - G3) 루트로도 가짜 체인은 통과하지 못한다
+    fetchMock.mockResolvedValueOnce(json({ signedTransactionInfo: await signedTx() }));
+    expect(((await caught(createAppleIapVerifier(appleConfig()).verify({ productId: `${BUNDLE}.chat_pack_10`, receipt: '2000000123456789' }))) as GatewayError).code).toBe('INVALID_SIGNATURE');
+  });
+
+  it('운영 API 가 돌려준 거래의 environment 가 Sandbox 면 ENVIRONMENT_MISMATCH', async () => {
+    fetchMock.mockResolvedValueOnce(json({ signedTransactionInfo: await signedTx({ environment: 'Sandbox' }) }));
+    const e = (await caught(appleVerifier().verify({ productId: `${BUNDLE}.chat_pack_10`, receipt: '2000000123456789' }))) as GatewayError;
+    expect(e.code).toBe('ENVIRONMENT_MISMATCH');
+  });
+
+  it('APPLE_IAP_ENVIRONMENTS=Sandbox(스테이징)면 샌드박스만 조회하고, 운영 전용이면 404 후 재시도하지 않는다', async () => {
+    fetchMock.mockResolvedValueOnce(json({ signedTransactionInfo: await signedTx({ environment: 'Sandbox' }) }));
+    const staging = appleVerifier(cfg({ ...appleEnv(), APPLE_IAP_ENVIRONMENTS: 'Sandbox' }));
+    await expect(staging.verify({ productId: `${BUNDLE}.chat_pack_10`, receipt: '2000000123456789' })).resolves.toMatchObject({ raw: { environment: 'Sandbox' } });
+    expect(call(0).url).toBe('https://api.storekit-sandbox.itunes.apple.com/inApps/v1/transactions/2000000123456789');
+
+    fetchMock.mockReset();
+    fetchMock.mockImplementation(async () => json({ errorCode: 4040010, errorMessage: 'Transaction id not found.' }, 404));
+    const prodOnly = appleVerifier(cfg({ ...appleEnv(), APPLE_IAP_ENVIRONMENTS: 'Production' }));
+    expect(((await caught(prodOnly.verify({ productId: 'p', receipt: '1' }))) as GatewayError).code).toBe('TRANSACTION_NOT_FOUND');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('APPLE_IAP_ENVIRONMENTS 에 모르는 값이 있으면 기동 시 설정 오류', () => {
+    expect(() => cfg({ APPLE_IAP_ENVIRONMENTS: 'Production,Xcode' })).toThrow(/APPLE_IAP_ENVIRONMENTS/);
+    expect(cfg({ APPLE_IAP_ENVIRONMENTS: '' }).APPLE_IAP_ENVIRONMENTS).toEqual(['Production', 'Sandbox']);
+  });
+
   it('인증 JWT 는 재사용(캐시)한다', async () => {
-    const v = createAppleIapVerifier(appleConfig());
+    const v = appleVerifier();
     fetchMock.mockResolvedValueOnce(json({ signedTransactionInfo: await signedTx() }));
     fetchMock.mockResolvedValueOnce(json({ signedTransactionInfo: await signedTx() }));
     await v.verify({ productId: `${BUNDLE}.chat_pack_10`, receipt: '2000000123456789' });

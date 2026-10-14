@@ -410,7 +410,7 @@ else window.location.assign(url);
 1. **계약/세금/은행**(유료 앱 계약) 완료, **Small Business Program** 신청(수수료 15%).
 2. 앱 → **수익화 → 앱 내 구입**: 위 표대로 "소모품(Consumable)" 생성, 가격·한국어 표시명·설명·심사용 스크린샷 입력.
 3. **사용자 및 액세스 → 통합 → App Store Connect API → 앱 내 구입** 키 생성 → 서버 `APPLE_IAP_ISSUER_ID`, `APPLE_IAP_KEY_ID`, `APPLE_IAP_PRIVATE_KEY`, `APPLE_BUNDLE_ID=kr.dalbitsaju.app`.
-4. (권장) **App Store Server Notifications V2** URL 을 서버에 연결해 환불을 반영(서버 엔드포인트는 결제팀 TODO).
+4. (필수) **App Store Server Notifications V2** URL 등록 — 프로덕션·샌드박스 모두 `{API}/api/v1/payments/iap/notifications/apple`, 버전 2. 스토어 환불 시 지급분이 회수됩니다(`docs/PAYMENTS.md` 3.3, 5.1).
 5. 테스트: Xcode StoreKit Configuration 파일(로컬) → 샌드박스 테스터 계정. 앱 심사는 샌드박스로 운영 서버를 호출하므로 서버의 "운영 → 샌드박스 재시도"가 필요합니다(이미 구현).
 6. 첫 IAP 는 **앱 버전과 함께 심사 제출**해야 합니다(버전 페이지의 "앱 내 구입" 섹션에 추가).
 
@@ -420,7 +420,7 @@ else window.location.assign(url);
 2. `com.android.vending.BILLING` 이 포함된 빌드를 **내부 테스트 트랙에 먼저 업로드**해야 상품을 만들 수 있습니다.
 3. **수익 창출 → 제품 → 일회성 제품(인앱 상품)**: 위 표의 Play 상품 ID 로 생성·활성화. (소모 여부는 스토어가 아니라 앱이 `consumePurchase` 로 결정)
 4. **설정 → API 액세스**: 서비스 계정 연결, 권한 "재무 데이터 보기, 주문 및 구독 관리" → 키 JSON 을 `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`, `GOOGLE_PLAY_PACKAGE_NAME=kr.dalbitsaju.app`.
-5. (권장) **실시간 개발자 알림(RTDN)** Pub/Sub 토픽 → `GOOGLE_PLAY_RTDN_TOPIC`(환불·취소 반영, 결제팀 TODO).
+5. (필수) **실시간 개발자 알림(RTDN)** — Pub/Sub 토픽 + 인증을 켠 푸시 구독(`{API}/api/v1/payments/iap/notifications/google`) → 서버 `GOOGLE_PLAY_RTDN_AUDIENCE`, `GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT`. 환불·지불 거절 시 지급분이 회수됩니다(`docs/PAYMENTS.md` 3.4, 5.1).
 6. **라이선스 테스터** 등록(테스트 카드로 결제, orderId 없음 → 서버가 토큰 해시로 대체).
 
 ### 7.4 앱 쪽 흐름과 연결 지점

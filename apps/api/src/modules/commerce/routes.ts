@@ -3,7 +3,7 @@ import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { iapVerifySchema, orderCreateSchema, paymentConfirmSchema } from '@saju/shared';
 import { requireUser } from '../../app.js';
-import { forbidden } from '../../lib/errors.js';
+import { AppError, forbidden } from '../../lib/errors.js';
 import { parse } from '../../lib/validate.js';
 
 export const commerceRoutes: FastifyPluginAsync = async (app) => {
@@ -53,6 +53,24 @@ export const commerceRoutes: FastifyPluginAsync = async (app) => {
     const body = parse(iapVerifySchema, req.body);
     return commerce.verifyIap(requireUser(req).id, body);
   });
+
+  /**
+   * 스토어 서버 알림 — App Store Server Notifications V2 / Google Play RTDN(Pub/Sub 푸시).
+   * 사용자 토큰이 아니라 알림 자체(Apple 서명 체인 / Pub/Sub OIDC 토큰)로 인증한다. 콘솔 등록 URL: docs/PAYMENTS.md 5장
+   */
+  const storeNotification = (platform: 'ios' | 'android') => async (req: FastifyRequest) => {
+    try {
+      const result = await commerce.handleStoreNotification(platform, req.headers, req.body);
+      req.log.info({ platform, ...result }, '스토어 알림 처리');
+      return { ok: true, ...result };
+    } catch (e) {
+      // 거부 사유(서명·인증 실패 원인)는 응답에 넣지 않고 서버 로그에만 남긴다
+      if (e instanceof AppError && e.statusCode < 500 && e.cause) req.log.warn({ platform, reason: e.cause }, '스토어 알림 거부');
+      throw e;
+    }
+  };
+  app.post('/payments/iap/notifications/apple', storeNotification('ios'));
+  app.post('/payments/iap/notifications/google', storeNotification('android'));
 
   /** 결제사 웹훅 — 서명 검증을 위해 원문(raw body)을 그대로 받는다 */
   await app.register(async (wh) => {

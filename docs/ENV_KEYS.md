@@ -28,8 +28,10 @@
 | `PORTONE_STORE_ID` / `PORTONE_CHANNEL_KEY` | api | 포트원 결제창 파라미터 | [포트원 콘솔](https://admin.portone.io) > 결제 연동 | 501 |
 | `PORTONE_API_SECRET` | api | 결제 조회·취소 | 포트원 콘솔 > V2 API Secret | 501 |
 | `PORTONE_WEBHOOK_SECRET` | api | 웹훅 서명 검증(`whsec_`) | 포트원 콘솔 > 웹훅 | 웹훅 무시 |
-| `APPLE_IAP_ISSUER_ID` / `APPLE_IAP_KEY_ID` / `APPLE_IAP_PRIVATE_KEY` / `APPLE_BUNDLE_ID` | api | iOS 인앱결제 검증(App Store Server API) | App Store Connect > 사용자 및 액세스 > 통합 > 인앱 구매 키 | iOS 결제 501 |
+| `APPLE_IAP_ISSUER_ID` / `APPLE_IAP_KEY_ID` / `APPLE_IAP_PRIVATE_KEY` / `APPLE_BUNDLE_ID` | api | iOS 인앱결제 검증(App Store Server API) + App Store Server Notifications V2 수신(환불 회수) | App Store Connect > 사용자 및 액세스 > 통합 > 인앱 구매 키 | iOS 결제·Apple 알림 501 |
+| `APPLE_IAP_ENVIRONMENTS` | api | 받아들일 App Store 거래·알림 환경(`Production,Sandbox`) | — (스테이징 서버는 `Sandbox`) | `Production,Sandbox` |
 | `GOOGLE_PLAY_PACKAGE_NAME` / `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | api | Android 인앱결제 검증(Play Developer API) | Google Cloud 서비스 계정 + Play Console API 액세스 권한 | Android 결제 501 |
+| `GOOGLE_PLAY_RTDN_AUDIENCE` / `GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT` | api | Google Play 실시간 개발자 알림(RTDN) Pub/Sub 푸시 인증 — OIDC 토큰의 audience·서비스 계정 이메일 대조 | Google Cloud > Pub/Sub > 푸시 구독의 인증 설정 (`docs/PAYMENTS.md` 3.4) | RTDN 501 (Google 환불이 자동 회수되지 않음) |
 
 자세한 흐름·심사 체크리스트: [`docs/PAYMENTS.md`](./PAYMENTS.md)
 
