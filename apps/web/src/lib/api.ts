@@ -188,6 +188,7 @@ export const api = {
   products: () => get<ProductDto[]>('/products'),
   wallet: () => get<WalletDto>('/wallet', 'required'),
   orders: () => get<OrderDto[]>('/orders', 'required'),
+  order: (id: string) => get<OrderDto>(`/orders/${encodeURIComponent(id)}`, 'required'),
   createOrder: (dto: OrderCreateDto) => post<CheckoutDto>('/orders', dto, 'required'),
   confirmPayment: (dto: PaymentConfirmDto) => post<PaymentResultDto>('/payments/confirm', dto, 'required'),
   failPayment: (orderId: string, code?: string, message?: string) => post<OrderDto>('/payments/fail', { orderId, code, message }, 'required'),

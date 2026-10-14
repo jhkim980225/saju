@@ -3,8 +3,10 @@
  *  - mock   : 개발용. 결제창 없이 successUrl 로 바로 이동
  *  - toss   : 토스페이먼츠 결제위젯/결제창 (VITE_TOSS_CLIENT_KEY 또는 서버 config.tossClientKey)
  *  - portone: 포트원 V2 브라우저 SDK
+ *  - groble : 그로블 결제창 링크로 이동(?ref=주문 ID). 승인 API 가 없어 결제는 서버가 웹훅으로 확정하고,
+ *             돌아온 /payments/success 페이지는 주문 상태를 조회하며 기다린다
  *  - 앱(IAP): native.purchase → 서버 영수증 검증
- * 결제 승인은 항상 /payments/success 페이지에서 서버 confirm API 로 처리한다.
+ * 결제 승인은 /payments/success 페이지에서 서버 confirm API 로 처리한다(그로블 제외).
  */
 import type { CheckoutDto, PaymentResultDto, ProductDto } from '@saju/shared';
 import { api } from '../api';
@@ -75,6 +77,11 @@ export async function startCheckout(input: { product: ProductDto; profileId?: st
       return 'redirected';
     case 'portone':
       await openPortOne(c);
+      return 'redirected';
+    case 'groble':
+      if (!c.redirectUrl) throw new Error('이 상품의 결제창이 아직 준비되지 않았어요.');
+      // 같은 탭으로 이동 — 결제 후 그로블 결제창 설정의 '이동 페이지'(/payments/success?provider=groble)로 돌아온다
+      window.location.assign(c.redirectUrl);
       return 'redirected';
     default:
       throw new Error('지원하지 않는 결제 수단이에요.');

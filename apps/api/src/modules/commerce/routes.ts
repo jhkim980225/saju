@@ -72,11 +72,14 @@ export const commerceRoutes: FastifyPluginAsync = async (app) => {
   app.post('/payments/iap/notifications/apple', storeNotification('ios'));
   app.post('/payments/iap/notifications/google', storeNotification('android'));
 
-  /** 결제사 웹훅 — 서명 검증을 위해 원문(raw body)을 그대로 받는다 */
+  /**
+   * 결제사 웹훅 — 서명 검증을 위해 원문(raw body)을 그대로 받는다.
+   * 그로블: 검증 실패는 400(재전송 안 함), 처리 중 오류는 5xx(재전송). 410 은 그로블이 엔드포인트를 꺼 버리므로 쓰지 않는다.
+   */
   await app.register(async (wh) => {
     wh.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => done(null, body));
     wh.post('/payments/webhooks/:provider', async (req) => {
-      const { provider } = parse(z.object({ provider: z.enum(['toss', 'portone', 'mock']) }), req.params);
+      const { provider } = parse(z.object({ provider: z.enum(['toss', 'portone', 'groble', 'mock']) }), req.params);
       const raw = typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {});
       const result = await commerce.handleWebhook(provider, req.headers, raw);
       return { ok: true, ...result };

@@ -119,7 +119,7 @@
 | POST | `/payments/confirm` | ✓ | `{ provider, orderId, amount, paymentKey? }` 서버 승인 + 금액 검증 + 지급 (멱등) |
 | POST | `/payments/fail` | ✓ | 결제창 취소/실패 기록 |
 | POST | `/payments/iap/verify` | ✓(회원) | `{ platform, productId, receipt, profileId? }` 인앱결제 검증·지급 (거래 ID 멱등) |
-| POST | `/payments/webhooks/:provider` | - | toss·portone·mock 웹훅 (원문 서명 검증, 이벤트 멱등) |
+| POST | `/payments/webhooks/:provider` | - | groble·toss·portone·mock 웹훅 (원문 서명 검증, 이벤트 멱등). groble: `X-Groble-Signature`(HMAC-SHA256 `"{timestamp}.{body}"`)·±5분, `payment.completed` → ref(주문 ID)·결제창·금액 대조 후 지급, `payment.refunded`(전액) → merchantUid 로 찾아 회수, 그 밖은 기록. 서명 실패 400 |
 | POST | `/payments/iap/notifications/apple` | - (Apple 서명) | App Store Server Notifications V2 `{ signedPayload }` — x5c 체인을 Apple Root CA - G3 까지 검증, `REFUND`·`REVOKE` → 지급분 회수, `REFUND_REVERSED` → 복구, 그 밖은 기록. notificationUUID 멱등. 위조 400, 키 없으면 501 |
 | POST | `/payments/iap/notifications/google` | - (Pub/Sub OIDC) | Google Play RTDN Pub/Sub 푸시 — `Authorization: Bearer` OIDC 토큰 검증(audience·서비스 계정), `voidedPurchaseNotification` → 지급분 회수, 그 밖은 기록. messageId 멱등. 인증 실패 401, 키 없으면 501 |
 | GET | `/wallet` | ✓ | 질문권(유상/무상)·원장·보유 권한 |

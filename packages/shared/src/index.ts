@@ -361,7 +361,7 @@ export interface ProductDto {
   androidProductId: string | null;
 }
 
-export const PAYMENT_PROVIDERS = ['mock', 'toss', 'portone', 'iap_apple', 'iap_google'] as const;
+export const PAYMENT_PROVIDERS = ['mock', 'toss', 'portone', 'groble', 'iap_apple', 'iap_google'] as const;
 export type PaymentProvider = (typeof PAYMENT_PROVIDERS)[number];
 
 export const orderCreateSchema = z.object({
@@ -407,6 +407,8 @@ export interface CheckoutDto {
     /** PortOne */
     storeId?: string;
     channelKey?: string;
+    /** 그로블 — 이 주문의 결제 링크(?ref=주문 ID). 이동하면 결제는 웹훅으로 확정된다 */
+    redirectUrl?: string;
   };
 }
 

@@ -326,6 +326,8 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
 
       const gateway = gateways.active;
       if (!gateway.isConfigured()) throw notConfigured('결제', gateway.envKeys);
+      // 링크형 결제사(그로블)는 상품마다 결제창이 따로 있어야 한다 — 연결 안 된 상품은 주문을 만들기 전에 막는다
+      if (gateway.checkoutUrl && !gateway.productRef?.(product.id)) throw notConfigured(`${product.name} 결제창`, gateway.envKeys);
 
       const order: typeof orders.$inferInsert = {
         id: newOrderId(),
@@ -355,6 +357,7 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
           failUrl: `${web}/payments/fail`,
           customerEmail: user.email ?? undefined,
           customerName: user.nickname,
+          redirectUrl: gateway.checkoutUrl?.(product.id, saved.id) ?? undefined,
         },
       };
     },
@@ -475,26 +478,55 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
       if (!event) throw badRequest('웹훅 검증에 실패했어요.');
       const eventKey = `${providerId}:${event.id}`;
       if (alreadyProcessed(eventKey, providerId, event.type, event.raw)) return { duplicate: true };
-      const found = event.orderId ? db.select().from(orders).where(eq(orders.id, event.orderId)).get() : undefined;
+      const found = event.orderId
+        ? db.select().from(orders).where(eq(orders.id, event.orderId)).get()
+        : event.paymentKey
+          ? // 우리 주문 ID 없이 결제사 결제 키만 오는 알림(그로블 payment.refunded) — 완료 때 저장한 키로 찾는다
+            db.select().from(orders).where(and(eq(orders.provider, providerId), eq(orders.providerPaymentKey, event.paymentKey))).get()
+          : undefined;
       // 다른 결제사로 생성된 주문은 이 웹훅으로 상태를 바꿀 수 없다(목업·타 PG 웹훅 위조 방지)
       const order = found && found.provider === providerId ? found : undefined;
-      if (order && event.status === 'canceled' && order.status === 'paid') {
-        // 결제사 관리자 화면 등에서 취소된 경우에도 지급분을 회수한다
-        db.transaction((tx) => revokeOrder(tx, order, 'canceled', `웹훅(${event.type})`));
+      if (!order && event.status !== 'other') {
+        // ref 없이 결제 링크로 바로 산 경우 등 — 운영자가 결제사 화면에서 확인해 처리한다
+        console.warn(`[commerce] 주문을 찾지 못한 결제 웹훅 (${providerId} ${event.type} order=${event.orderId ?? '-'} key=${event.paymentKey ?? '-'})`);
+      }
+      if (order && (event.status === 'canceled' || event.status === 'refunded') && order.status === 'paid') {
+        if (event.partial) {
+          // 부분 환불(질문권 팩 미사용분 등) — 얼마나 회수할지는 운영자가 정한다. 기록만 남긴다
+          console.warn(`[commerce] 부분 환불 웹훅 — 자동 회수하지 않음 (${providerId} order=${order.id} amount=${event.amount ?? '-'})`);
+        } else {
+          // 결제사 관리자 화면 등에서 취소·환불된 경우에도 지급분을 회수한다
+          db.transaction((tx) => revokeOrder(tx, order, event.status === 'refunded' ? 'refunded' : 'canceled', `웹훅(${event.type})`));
+        }
       } else if (order && event.status === 'paid' && (order.status === 'pending' || order.status === 'failed')) {
-        // 승인 응답 유실 등으로 지급되지 않은 결제를 복구 — 결제사가 확인한 금액이 주문 금액과 같을 때만
-        if (event.amount !== order.amount) {
-          if (event.paymentKey) await gateway.cancel({ paymentKey: event.paymentKey, reason: '결제 금액 불일치' }).catch(() => undefined);
+        // 승인 응답 유실 등으로 지급되지 않은 결제를 복구(그로블은 이것이 유일한 확정 경로)
+        // — 결제사가 확인한 금액과 상품(결제창)이 주문과 같을 때만
+        const expectedRef = gateway.productRef?.(order.productId);
+        const mismatch =
+          event.amount !== order.amount
+            ? `WEBHOOK_AMOUNT_MISMATCH: ${event.amount ?? 'unknown'} != ${order.amount}`
+            : expectedRef !== undefined && event.productRef !== expectedRef
+              ? `WEBHOOK_PRODUCT_MISMATCH: ${event.productRef ?? 'unknown'} != ${expectedRef ?? 'unlinked'}`
+              : null;
+        if (mismatch) {
+          if (event.paymentKey) await gateway.cancel({ paymentKey: event.paymentKey, reason: '결제 금액·상품 불일치' }).catch(() => undefined);
+          // 결제사 결제 키를 남겨 둔다 — 자동 취소가 안 되는 결제사(그로블)는 운영자가 이 키로 찾아 환불한다
           db.update(orders)
-            .set({ status: 'failed', failureReason: `WEBHOOK_AMOUNT_MISMATCH: ${event.amount ?? 'unknown'} != ${order.amount}`, updatedAt: Date.now() })
+            .set({ status: 'failed', failureReason: mismatch, providerPaymentKey: event.paymentKey ?? order.providerPaymentKey, updatedAt: Date.now() })
             .where(eq(orders.id, order.id))
             .run();
+          console.warn(`[commerce] 결제 웹훅 불일치로 지급하지 않음 (${providerId} order=${order.id} ${mismatch})`);
           markProcessed(eventKey);
           return { duplicate: false };
         }
         const settled = settle(order, { paymentKey: event.paymentKey, method: null, paidAt: Date.now() }, 'web');
-        if (!settled.ok && settled.reason === 'PER_USER_LIMIT' && event.paymentKey) {
-          await gateway.cancel({ paymentKey: event.paymentKey, reason: '계정당 구매 한도 초과' }).catch(() => undefined);
+        if (!settled.ok && settled.reason === 'PER_USER_LIMIT') {
+          if (event.paymentKey) await gateway.cancel({ paymentKey: event.paymentKey, reason: '계정당 구매 한도 초과' }).catch(() => undefined);
+          // 자동 취소가 안 되는 결제사(그로블)도 있으니 결제 키와 사유를 남겨 운영자가 환불할 수 있게 한다
+          db.update(orders)
+            .set({ status: 'failed', failureReason: 'PER_USER_LIMIT', providerPaymentKey: event.paymentKey ?? order.providerPaymentKey, updatedAt: Date.now() })
+            .where(and(eq(orders.id, order.id), inArray(orders.status, ['pending', 'failed'])))
+            .run();
         }
       }
       markProcessed(eventKey);
@@ -541,6 +573,8 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
       if (order.status !== 'paid') throw conflict('결제 완료된 주문만 환불할 수 있어요.');
       // 스토어 환불은 스토어 서버 알림(handleStoreNotification)으로 같은 revokeOrder 가 적용된다
       if (order.provider.startsWith('iap_')) throw badRequest('인앱결제는 스토어(App Store/Google Play)에서 환불이 진행돼요.');
+      // 그로블은 환불 API 가 없다 — 판매자 화면에서 환불하면 payment.refunded 웹훅으로 같은 revokeOrder 가 적용된다
+      if (order.provider === 'groble') throw badRequest('그로블 결제는 그로블 판매자 화면에서 환불해 주세요. 환불되면 지급분이 자동으로 회수돼요.');
       const gateway = gateways.byId[order.provider as keyof Gateways['byId']];
       // 질문권 팩은 미사용 유상 질문권 비율만큼만 부분 환불 (PAYMENTS.md 환불 정책)
       const product = db.select().from(products).where(eq(products.id, order.productId)).get();

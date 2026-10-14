@@ -1,15 +1,16 @@
 # 결제 연동 가이드 (PAYMENTS)
 
 - 작성: 결제팀
-- 기준일: 2026-10-15 (스토어 서버 알림·Apple 서명 체인 검증 추가)
+- 기준일: 2026-10-15 (스토어 서버 알림·Apple 서명 체인 검증 추가, **웹 결제는 그로블로 결정** — §1.0·§3.5)
 - 관련 문서: [`research/03-pricing-payments-ads.md`](research/03-pricing-payments-ads.md) (마케팅팀 가격·결제 리서치)
 - 원칙: **키가 없으면 해당 결제 기능은 `NOT_CONFIGURED`(HTTP 501)로 응답**합니다. 키만 넣으면 실제 결제사와 연동됩니다.
 
 | 구분 | 코드 |
 |---|---|
 | 게이트웨이 인터페이스 | `apps/api/src/modules/commerce/providers/types.ts` |
-| 토스페이먼츠 (웹 1순위) | `apps/api/src/modules/commerce/providers/toss.ts` |
-| 포트원 V2 (웹 2순위) | `apps/api/src/modules/commerce/providers/portone.ts` |
+| **그로블 (웹, 사용 중)** | `apps/api/src/modules/commerce/providers/groble.ts` · 테스트 `apps/api/test/groble.test.ts` |
+| 토스페이먼츠 (대안) | `apps/api/src/modules/commerce/providers/toss.ts` |
+| 포트원 V2 (대안) | `apps/api/src/modules/commerce/providers/portone.ts` |
 | Apple / Google 인앱결제 검증 | `apps/api/src/modules/commerce/providers/iap.ts` |
 | Apple JWS 서명 검증 (x5c → Apple Root CA - G3) | `apps/api/src/modules/commerce/providers/appleJws.ts` |
 | 스토어 서버 알림 (App Store Server Notifications V2 / Google RTDN) | `apps/api/src/modules/commerce/providers/storeNotifications.ts` |
@@ -22,7 +23,38 @@
 
 ## 1. 결제 흐름
 
-### 1.1 웹 — 토스페이먼츠 결제창 v2 (`PAYMENT_PROVIDER=toss`)
+### 1.0 웹 — 그로블 결제창 (`PAYMENT_PROVIDER=groble`)
+
+2026-10-15 사용자 결정으로 웹 결제는 [그로블](https://www.groble.im)을 씁니다. 사업자 등록 없이 판매할 수 있는 링크형 디지털 콘텐츠 결제이고, PG 와 달리 **승인·취소·조회 API 가 없습니다.** 결제 확정은 서명된 웹훅으로만 합니다. 앱은 지금처럼 인앱결제(§1.3)를 씁니다 — 디지털 콘텐츠는 스토어 정책상 외부 결제를 쓸 수 없습니다.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant W as 웹 프론트
+    participant A as API 서버
+    participant G as 그로블
+
+    W->>A: POST /api/v1/orders { productId, profileId }
+    A-->>W: checkout { redirectUrl: https://groble.im/payment/<결제창>?ref=<주문 ID> }
+    W->>G: 같은 탭으로 이동 (주문 ID 는 pendingCheckout 에 저장)
+    G-->>G: 구매자 결제 (카드·간편결제)
+    G->>A: POST /api/v1/payments/webhooks/groble — payment.completed (X-Groble-Signature)
+    A->>A: 서명·시각(±5분) 검증 → sellerReference=주문 ID, content.id=연결한 결제창, pricing.finalAmount=주문 금액 확인
+    A->>A: 주문 paid + 지급, merchantUid 를 providerPaymentKey 로 저장
+    G-->>W: 결제창의 '이동 페이지' /payments/success?provider=groble
+    W->>A: GET /api/v1/orders/:id (2초 간격, 최대 90초)
+    A-->>W: status: paid → 완료 화면
+```
+
+- **상품 연결:** 그로블은 결제창마다 가격이 고정이라, 우리 상품마다 결제창을 하나씩 만들고 `GROBLE_PRODUCT_LINKS` 에 `상품ID=결제 링크` 로 적습니다. 연결 안 된 상품은 주문을 만들지 않고 501 을 돌려줍니다.
+- **가격 동기화:** 웹훅의 `pricing.finalAmount` 가 우리 주문 금액과 다르면 지급하지 않습니다(주문 `failed`, 사유 `WEBHOOK_AMOUNT_MISMATCH`). 그로블에서 쿠폰·할인을 켜거나, 신년운세 프로모션 종료(`saleEndsAt`)처럼 우리 가격이 바뀔 때 그로블 가격을 같은 날 바꾸지 않으면 이렇게 됩니다. 자동 취소 API 가 없으니 이때는 운영자가 그로블에서 환불합니다(주문에 `merchantUid` 가 남아 있음).
+- **결제창 대조:** 다른 결제창으로 결제한 알림에 이 주문의 ref 를 붙여도 `content.id` 가 다르면 지급하지 않습니다(`WEBHOOK_PRODUCT_MISMATCH`). 웹훅의 `content.id` 가 결제 링크의 ID 와 다르면, 첫 테스트 결제의 실패 사유에 찍힌 값을 `상품ID=링크|콘텐츠ID` 로 적습니다.
+- **환불:** 그로블 판매자 화면에서 환불하면 `payment.refunded` 웹훅이 와서 지급분을 회수합니다(이 알림에는 ref 가 없어 `merchantUid` 로 주문을 찾음). 관리자 환불 API(`/admin/orders/:id/refund`)는 그로블 주문에 400 으로 안내만 합니다. **부분 환불**(`refund.partialRefund`)은 자동 회수하지 않고 로그만 남깁니다 — 질문권 팩 미사용분 환불처럼 얼마를 회수할지는 운영자가 정합니다.
+- **기록만 하는 알림:** `payment.cancel_requested`(구매자 취소 요청, 판매자가 그로블에서 승인·반려), 정기결제 이벤트. ref 없이 링크로 바로 산 결제·모르는 주문도 200 으로 받고 로그만 남깁니다(재전송 방지).
+- **개인정보:** `webhook_events` 에는 구매자 이름·이메일·전화·설문 답·카드번호를 지운 사본만 남깁니다.
+- **응답 코드:** 서명 실패 400(그로블이 재전송하지 않음), 처리 오류 5xx(최대 7회 재전송, 약 44시간). `410` 은 그로블이 엔드포인트를 꺼 버리므로 쓰지 않습니다.
+
+### 1.1 웹 — 토스페이먼츠 결제창 v2 (`PAYMENT_PROVIDER=toss`, 대안)
 
 ```mermaid
 sequenceDiagram
@@ -258,11 +290,30 @@ sequenceDiagram
 
 ---
 
+### 3.5 그로블 (웹 결제, 사용 중)
+
+사업자 등록이 없어도 판매할 수 있습니다(그로블 공지 기준). 수수료는 그로블 공식 페이지에 숫자가 없고, 외부 가이드는 일반결제 4.4%(VAT 별도)로 정리합니다 — 가입할 때 약관에서 확인합니다.
+
+- [ ] 그로블 가입 → **판매자 정보 인증**(정산 받으려면 필요)
+- [ ] 우리 상품마다 **결제창** 만들기(내 스토어 → 결제창). 가격은 `catalog.ts` 판매가와 똑같이, **쿠폰·할인은 쓰지 않음**(금액이 다르면 지급하지 않음)
+  - 결제창 설정 3단계: **진입 페이지**와 **이동 페이지** 모두 `{웹 도메인}/payments/success?provider=groble` (돌아온 화면이 주문 상태를 조회하며 기다림)
+  - 각 결제창 링크를 `GROBLE_PRODUCT_LINKS` 에 `상품ID=링크` 로 적기. 타로·택일 같은 결과 열람 상품도 각각 하나씩
+- [ ] 내 스토어 → **연동** → 웹훅: URL `https://{API 도메인}/api/v1/payments/webhooks/groble`, 이벤트 `payment.completed`·`payment.refunded`·`payment.cancel_requested` 선택 → 발급된 시크릿을 `GROBLE_WEBHOOK_SECRET` 에(한 번만 보여 줌)
+- [ ] 연동 화면의 **테스트 발송** → 서버가 200(ref 없는 테스트는 기록만)
+- [ ] **실결제 1건**(가장 싼 상품) → 웹 화면이 완료로 바뀌는지, 주문에 `merchantUid` 가 저장됐는지 확인 → 그로블에서 환불 → 주문 `refunded`·권한 회수 확인
+  - 이때 주문이 `failed` 이고 사유가 `WEBHOOK_PRODUCT_MISMATCH: <값> != <링크 ID>` 면, 웹훅의 `content.id` 가 링크 ID 와 다른 것 → `상품ID=링크|<값>` 으로 고침
+- [ ] 우리 가격이 바뀌는 날(신년운세 프로모션 `saleEndsAt` 등)에 그로블 결제창 가격도 함께 바꾸기
+- [ ] 환불 규정: 그로블은 구매 후 7일 안에 구매자가 취소를 요청하고 판매자가 승인·반려합니다. 우리 환불 정책(§7)과 같은 기준으로 처리합니다
+
+---
+
 ## 4. 환경 변수
 
 | 변수 | 용도 | 공개/비밀 | 발급처 | 형식·메모 |
 |---|---|---|---|---|
-| `PAYMENT_PROVIDER` | 웹 결제 게이트웨이 선택 | 서버 설정 | — | `mock`(기본) / `toss` / `portone`. 운영에서 `mock`은 기동 실패 |
+| `PAYMENT_PROVIDER` | 웹 결제 게이트웨이 선택 | 서버 설정 | — | `mock`(기본) / `groble`(사용 중) / `toss` / `portone`. 운영에서 `mock`은 기동 실패 |
+| `GROBLE_WEBHOOK_SECRET` | 그로블 웹훅 서명 검증(HMAC-SHA256) | **비밀** | 그로블 → 내 스토어 → **연동** → 웹훅 등록 시 발급(**한 번만 보여 줌**) | 재발급 뒤 24시간은 이전 서명도 함께 와서 교체 중에도 끊기지 않음 |
+| `GROBLE_PRODUCT_LINKS` | 우리 상품 ID → 그로블 결제창 링크 | 서버 설정 | 그로블 → 결제창 만들기 → 링크 복사 | `상품ID=https://groble.im/payment/<ID>` 를 콤마로. 웹훅 `content.id` 가 다르면 링크 뒤에 `\|콘텐츠ID` |
 | `TOSS_CLIENT_KEY` | 결제창 초기화(주문 생성 응답으로 프론트에 전달) | 공개 | 토스페이먼츠 개발자센터 → API 키 → **API 개별 연동 키** | `test_ck_…` / `live_ck_…` (위젯 방식이면 `gck`) |
 | `TOSS_SECRET_KEY` | 승인·취소·조회 | **비밀** | 같은 곳 | `test_sk_…` / `live_sk_…` (클라이언트 키와 같은 쌍) |
 | `VITE_TOSS_CLIENT_KEY` | (웹, 선택) 서버가 clientKey를 주지 않을 때 쓰는 대체값 | 공개 | 위와 같음 | `apps/web/.env` |
@@ -283,6 +334,7 @@ sequenceDiagram
 
 기능이 켜지는 조건(`config.features.*`):
 
+- `groble`: WEBHOOK_SECRET과 PRODUCT_LINKS가 모두 있을 때(링크 형식이 틀리면 기동 실패)
 - `toss`: CLIENT_KEY와 SECRET_KEY가 모두 있을 때
 - `portone`: STORE_ID, CHANNEL_KEY, API_SECRET이 모두 있을 때
 - `appleIap`: 4개 키가 모두 있을 때. **App Store Server Notifications V2 수신도 이 조건**을 따릅니다(알림 처리 자체는 bundleId 와 내장 루트 인증서만 씀).

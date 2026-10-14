@@ -1,6 +1,7 @@
 import type { X509Certificate } from 'node:crypto';
 import type { JWTVerifyGetKey } from 'jose';
 import type { AppConfig } from '../../../config/env.js';
+import { createGrobleGateway } from './groble.js';
 import { createAppleIapVerifier, createGoogleIapVerifier } from './iap.js';
 import { createMockGateway, createMockIapVerifier } from './mock.js';
 import { createPortOneGateway } from './portone.js';
@@ -28,7 +29,7 @@ export interface GatewayDeps {
 }
 
 export function createGateways(config: AppConfig, deps: GatewayDeps = {}): Gateways {
-  const byId = { mock: createMockGateway(), toss: createTossGateway(config), portone: createPortOneGateway(config) };
+  const byId = { mock: createMockGateway(), toss: createTossGateway(config), portone: createPortOneGateway(config), groble: createGrobleGateway(config) };
   const mockIap = config.PAYMENT_PROVIDER === 'mock' && !config.isProd;
   const apple = { rootCertificates: deps.appleRootCertificates };
   return {

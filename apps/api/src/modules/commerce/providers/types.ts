@@ -1,6 +1,6 @@
 /**
- * 결제 게이트웨이 추상화 — 토스페이먼츠 / 포트원 / 목업을 동일 인터페이스로 다룬다.
- * 승인(confirm)과 금액 검증은 반드시 서버에서 수행한다.
+ * 결제 게이트웨이 추상화 — 토스페이먼츠 / 포트원 / 그로블 / 목업을 동일 인터페이스로 다룬다.
+ * 승인(confirm)과 금액 검증은 반드시 서버에서 수행한다(그로블은 승인 API 가 없어 서명된 웹훅에서 검증한다).
  */
 export interface ConfirmResult {
   /** 결제사 결제 키 (토스 paymentKey / 포트원 paymentId) */
@@ -18,14 +18,19 @@ export interface WebhookEvent {
   type: string;
   orderId: string | null;
   paymentKey: string | null;
-  status: 'paid' | 'canceled' | 'failed' | 'other';
+  /** refunded: 결제사(그로블)가 환불 완료를 알림 — 지급분 회수, 주문 refunded */
+  status: 'paid' | 'canceled' | 'refunded' | 'failed' | 'other';
   /** 결제사에서 재조회로 확인한 결제 총액(원). 확인 불가면 null — paid 복구 시 주문 금액과 대조한다 */
   amount: number | null;
+  /** 결제사 쪽 상품 식별자(그로블 결제창 ID) — 있으면 주문 상품과 맞는지 대조한다 */
+  productRef?: string | null;
+  /** 부분 환불이면 true — 자동 회수하지 않고 기록만 한다(운영자가 판단) */
+  partial?: boolean;
   raw: unknown;
 }
 
 export interface PaymentGateway {
-  id: 'mock' | 'toss' | 'portone';
+  id: 'mock' | 'toss' | 'portone' | 'groble';
   /** 필요한 env 키 (미설정 시 안내용) */
   envKeys: string[];
   isConfigured(): boolean;
@@ -33,6 +38,13 @@ export interface PaymentGateway {
   cancel(input: { paymentKey: string; reason: string; amount?: number }): Promise<void>;
   /** 웹훅 서명/출처 검증 후 이벤트로 변환. 검증 실패 시 null */
   parseWebhook(input: { headers: Record<string, string | string[] | undefined>; rawBody: string }): Promise<WebhookEvent | null>;
+  /**
+   * 결제창을 링크로 여는 결제사(그로블) — 이 상품·주문의 결제 링크. 상품이 연결돼 있지 않으면 null.
+   * 이런 결제사는 승인 API 가 없어 웹훅으로만 결제가 확정된다(confirm 미지원).
+   */
+  checkoutUrl?(productId: string, orderId: string): string | null;
+  /** 우리 상품 ID → 결제사 상품 식별자(웹훅 productRef 와 대조) */
+  productRef?(productId: string): string | null;
 }
 
 export interface IapVerification {

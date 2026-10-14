@@ -47,7 +47,15 @@ const schema = z.object({
   AI_CHAT_CREDIT_COST: z.coerce.number().int().default(1),
 
   // 결제
-  PAYMENT_PROVIDER: z.enum(['mock', 'toss', 'portone']).default('mock'),
+  PAYMENT_PROVIDER: z.enum(['mock', 'toss', 'portone', 'groble']).default('mock'),
+  /** 그로블 웹훅 시크릿(내 스토어 → 연동에서 첫 등록 때 한 번만 보여 줌). 재발급 뒤 24시간은 이전 서명 헤더로도 맞춰 본다 */
+  GROBLE_WEBHOOK_SECRET: opt,
+  /**
+   * 우리 상품 ID → 그로블 결제창 링크(또는 결제창 ID). 콤마 구분 `상품ID=링크`.
+   * 예: report_saju_lifetime=https://groble.im/payment/abc123,chat_pack_10=def456
+   * 그로블은 가격을 결제창마다 정하므로 catalog.ts 의 판매가와 같게 맞춰 둔다(다르면 지급하지 않음).
+   */
+  GROBLE_PRODUCT_LINKS: opt,
   TOSS_CLIENT_KEY: opt,
   TOSS_SECRET_KEY: opt,
   TOSS_WEBHOOK_SECRET: opt,
@@ -116,6 +124,8 @@ export type AppConfig = z.infer<typeof schema> & {
     ai: boolean;
     toss: boolean;
     portone: boolean;
+    /** 그로블 — 웹훅 시크릿 + 상품별 결제창 링크 */
+    groble: boolean;
     appleIap: boolean;
     googleIap: boolean;
     /** Google Play 실시간 개발자 알림(RTDN) 수신 — googleIap + RTDN 푸시 인증 설정 */
@@ -161,6 +171,7 @@ export function loadConfig(overrides: Record<string, string | undefined> = {}): 
       ai: Boolean(c.ANTHROPIC_API_KEY),
       toss: Boolean(c.TOSS_CLIENT_KEY && c.TOSS_SECRET_KEY),
       portone: Boolean(c.PORTONE_STORE_ID && c.PORTONE_CHANNEL_KEY && c.PORTONE_API_SECRET),
+      groble: Boolean(c.GROBLE_WEBHOOK_SECRET && c.GROBLE_PRODUCT_LINKS),
       appleIap: Boolean(c.APPLE_IAP_ISSUER_ID && c.APPLE_IAP_KEY_ID && c.APPLE_IAP_PRIVATE_KEY && c.APPLE_BUNDLE_ID),
       googleIap,
       googleRtdn: googleIap && Boolean(c.GOOGLE_PLAY_RTDN_AUDIENCE && c.GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT),

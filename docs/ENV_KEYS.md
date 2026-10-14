@@ -15,13 +15,15 @@
 | `JWT_REFRESH_SECRET` | api | 리프레시 토큰 | 위와 동일(다른 값) | 위와 동일 |
 | `PUBLIC_WEB_URL` | api | 결제·소셜로그인 리다이렉트 기준 주소 | 운영 웹 도메인 (https) | `http://localhost:5173` |
 | `CORS_ORIGINS` | api | 허용 오리진 | 웹 도메인 + `capacitor://localhost,https://localhost` | 로컬 기본값 |
-| `PAYMENT_PROVIDER` | api | 결제사 선택 | `toss` 또는 `portone` | `mock` — **운영에서는 기동 실패** |
+| `PAYMENT_PROVIDER` | api | 결제사 선택 | **`groble`**(2026-10-15 결정). 대안 `toss`·`portone` | `mock` — **운영에서는 기동 실패** |
 | `VITE_API_BASE_URL` | web | API 주소 | 운영 API 절대 주소 (앱 빌드는 필수) | 같은 출처 `/api/v1` |
 
-## 2. 결제 (마케팅팀 권장: 웹 1순위 토스페이먼츠, 2순위 포트원 V2 — `docs/research/03-pricing-payments-ads.md`)
+## 2. 결제 (웹은 그로블 — 2026-10-15 사용자 결정. 토스·포트원 연동은 대안으로 남겨 둠)
 
 | 키 | 위치 | 용도 | 발급처 | 없으면 |
 |---|---|---|---|---|
+| `GROBLE_WEBHOOK_SECRET` | api | 그로블 웹훅 서명 검증 — 결제 완료·환불을 이걸로만 확정 | [그로블](https://www.groble.im) > 내 스토어 > 연동 > 웹훅 등록 시 발급(한 번만 보여 줌) | `/orders` 501 |
+| `GROBLE_PRODUCT_LINKS` | api | 우리 상품 ID → 그로블 결제창 링크(`상품ID=링크`, 콤마 구분). 결제창 가격 = `catalog.ts` 판매가 | 그로블 > 결제창 만들기 > 링크 복사 (`docs/PAYMENTS.md` §3.5) | `/orders` 501, 연결 안 된 상품만 501 |
 | `TOSS_CLIENT_KEY` | api(+web `VITE_TOSS_CLIENT_KEY`) | 결제창 호출(공개 키 `gck_`/`ck_`) | [토스페이먼츠 개발자센터](https://developers.tosspayments.com) > API 키 | `/orders` 501 |
 | `TOSS_SECRET_KEY` | api | 결제 승인·취소(`gsk_`/`sk_`) | 위와 동일 | 승인 501 |
 | `TOSS_WEBHOOK_SECRET` | api | (예비) 토스 결제 웹훅은 서명이 없어 재조회로 검증 | — | 무관 |
