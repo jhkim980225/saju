@@ -1,6 +1,6 @@
 /**
  * 키-값 저장소 어댑터. 웹은 localStorage, 앱(Capacitor)은 platform 계층에서
- * setStorageAdapter() 로 Preferences 기반 어댑터를 주입한다.
+ * setStorageAdapter() 로 Preferences 기반 어댑터를 주입한다(세션 토큰은 Keychain/Keystore — native/storage.ts).
  * 동기 API 를 유지하기 위해 앱 어댑터는 시작 시 메모리로 미리 불러온다(hydrate).
  */
 export interface StorageAdapter {

@@ -2,6 +2,7 @@
  * 네이티브 계층 테스트 — Capacitor 플러그인은 전부 vi.mock 으로 대체하고,
  * window.Capacitor 를 심어 isNativeApp() 이 true 가 되게 한다.
  */
+import type { UserDto } from '@saju/shared';
 import { act, render } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,6 +13,7 @@ type AnyFn = (...args: any[]) => any;
 
 const h = vi.hoisted(() => {
   const prefs = new Map<string, string>();
+  const secure = new Map<string, string>();
   const appListeners: Record<string, Listener> = {};
   const fcmListeners: Record<string, Listener> = {};
   const adListeners = new Map<string, Set<Listener>>();
@@ -19,6 +21,7 @@ const h = vi.hoisted(() => {
   const mk = () => vi.fn<AnyFn>();
   return {
     prefs,
+    secure,
     appListeners,
     fcmListeners,
     adListeners,
@@ -49,6 +52,17 @@ vi.mock('@capacitor/preferences', () => ({
     get: async ({ key }: { key: string }) => ({ value: h.prefs.get(key) ?? null }),
     set: async ({ key, value }: { key: string; value: string }) => void h.prefs.set(key, value),
     remove: async ({ key }: { key: string }) => void h.prefs.delete(key),
+  },
+}));
+
+// Keychain/Keystore 보안 저장소 — 세션 토큰은 여기로 옮겨진다 (자세한 경우는 storage.test.ts)
+vi.mock('@aparajita/capacitor-secure-storage', () => ({
+  KeychainAccess: { afterFirstUnlockThisDeviceOnly: 3 },
+  SecureStorage: {
+    setDefaultKeychainAccess: async () => undefined,
+    getItem: async (key: string) => h.secure.get(key) ?? null,
+    setItem: async (key: string, value: string) => void h.secure.set(key, value),
+    removeItem: async (key: string) => void h.secure.delete(key),
   },
 }));
 
@@ -119,7 +133,8 @@ vi.mock('@capacitor-community/admob', () => ({
 vi.mock('../../lib/api', () => ({ api: { registerPush: h.fn.registerPush } }));
 
 function setPlatform(platform: 'ios' | 'android' | null) {
-  if (platform) window.Capacitor = { isNativePlatform: () => true, getPlatform: () => platform };
+  // PluginHeaders = 네이티브 바이너리에 들어 있는 플러그인 목록 (보안 저장소 사용 여부 판단)
+  if (platform) window.Capacitor = Object.assign({ isNativePlatform: () => true, getPlatform: () => platform }, { PluginHeaders: [{ name: 'SecureStorage', methods: [] }] });
   else delete window.Capacitor;
 }
 
@@ -148,6 +163,7 @@ function listen(type: string, cb: (e: Event) => void) {
 beforeEach(() => {
   vi.resetModules();
   h.prefs.clear();
+  h.secure.clear();
   h.adListeners.clear();
   for (const k of Object.keys(h.appListeners)) delete h.appListeners[k];
   for (const k of Object.keys(h.fcmListeners)) delete h.fcmListeners[k];
@@ -195,6 +211,36 @@ describe('Preferences 저장소 hydrate', () => {
     expect(storage.get('yd.theme')).toBe('dark');
     expect(useSession.getState()).toMatchObject({ accessToken: 'a1', refreshToken: 'r1', user: { id: 'u1' } });
     expect(useTheme.getState().mode).toBe('dark');
+    // 업데이트 직후: 세션은 로그아웃 없이 보안 저장소로 옮겨지고 Preferences 평문은 지워진다
+    await vi.waitFor(() => {
+      expect(JSON.parse(h.secure.get('yd.session')!)).toMatchObject({ refreshToken: 'r1' });
+      expect(h.prefs.has('yd.session')).toBe(false);
+    });
+    expect(h.prefs.get('yd.theme')).toBe('dark');
+  });
+
+  it('로그인·로그아웃 시 세션은 보안 저장소에만 기록된다', async () => {
+    await boot();
+    const { useSession } = await import('../../lib/session');
+    const user: UserDto = {
+      id: 'u2',
+      email: null,
+      nickname: '달빛',
+      provider: 'kakao',
+      role: 'user',
+      credits: 0,
+      marketingConsent: false,
+      isPremium: false,
+      premiumUntil: null,
+      createdAt: '2026-10-15T00:00:00.000Z',
+    };
+    useSession.getState().setTokens({ accessToken: 'a2', refreshToken: 'r2', expiresIn: 900, user });
+    await vi.waitFor(() => expect(JSON.parse(h.secure.get('yd.session')!)).toMatchObject({ accessToken: 'a2', refreshToken: 'r2' }));
+    expect(h.prefs.has('yd.session')).toBe(false);
+    expect(window.localStorage.getItem('yd.session')).toBeNull();
+
+    useSession.getState().clear();
+    await vi.waitFor(() => expect(h.secure.has('yd.session')).toBe(false));
   });
 
   it('쓰기는 메모리에 즉시 반영되고 Preferences 에는 비동기로 기록된다', async () => {

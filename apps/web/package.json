@@ -19,6 +19,7 @@
     "build:app:ios": "tsc -p tsconfig.json --noEmit && vite build --mode app && cap sync ios"
   },
   "dependencies": {
+    "@aparajita/capacitor-secure-storage": "^8.0.1",
     "@capacitor-community/admob": "^8.2.1",
     "@capacitor-firebase/messaging": "^8.5.2",
     "@capacitor/android": "^8.5.3",

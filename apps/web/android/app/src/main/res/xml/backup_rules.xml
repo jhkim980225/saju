@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  자동 백업 규칙 (Android 11 이하, android:fullBackupContent).
+  세션 토큰은 @aparajita/capacitor-secure-storage 가 Android Keystore 키로 암호화해 이 SharedPreferences 에 둔다.
+  Keystore 키는 백업·기기 이전되지 않으므로 암호문만 복원되면 쓸모없는 낡은 값이 된다 → 백업에서 제외.
+  나머지(Preferences = CapacitorStorage: 기기 ID·테마 등)는 그대로 백업한다.
+  Android 12 이상은 data_extraction_rules.xml 이 적용된다 — 두 파일을 함께 고칠 것.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="WSSecureStorageSharedPreferences.xml" />
+</full-backup-content>
