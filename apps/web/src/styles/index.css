@@ -61,6 +61,13 @@
   --water: #2d3b5c;
   --water-soft: #e2e6f0;
   --water-ink: #1e2840;
+  /* 오행 도넛 차트 전용 — 원형으로 맞닿는 이웃(목화·화토·토금·금수·수목)이 색각 이상에서도 구분되게 조정한 단계.
+     금(白)은 전통대로 무채색에 가깝게 두고, 범례의 글자·수치로 함께 구분한다 */
+  --chart-wood: #50a075;
+  --chart-fire: #b5072c;
+  --chart-earth: #bd8a26;
+  --chart-metal: #6d7b85;
+  --chart-water: #1852a3;
 
   --font-scale: 1;
   /* 데스크톱 상단 내비 높이 — 모바일은 0 */
@@ -109,6 +116,11 @@
   --water: #7f98cf;
   --water-soft: #1c2335;
   --water-ink: #c5d2ee;
+  --chart-wood: #57a662;
+  --chart-fire: #b03f42;
+  --chart-earth: #bd8602;
+  --chart-metal: #7a93a7;
+  --chart-water: #415fa7;
   color-scheme: dark;
 }
 
