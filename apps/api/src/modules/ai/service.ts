@@ -10,7 +10,7 @@ import { z } from 'zod';
 import type { SajuChart } from '@saju/core';
 import type { ReadingSection } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
-import { introducesJargon } from '../interpretation/plainGuard.js';
+import { introducesFigurative, introducesJargon } from '../interpretation/plainGuard.js';
 
 export interface ChatTurn {
   role: 'user' | 'assistant';
@@ -82,8 +82,10 @@ const REPORT_SYSTEM = `이 작업은 사주 리포트의 문장 다듬기예요.
 - 초안의 쉬운 이름('불 기운', '나무 기운', '배우는 힘', '10년마다 바뀌는 흐름')은 그대로 써요. 목·화·토·금·수, 木·火 같은 말로 바꾸지 않아요.
 - 문단 끝 괄호 속 꼬리표(예: "(천을귀인)")는 고치지 말고 그대로 둬요.
 - 읽는 사람을 '당신', '그대', '귀하'로 부르지 않아요. 초안이 "서윤님"처럼 이름으로 부르면 그 이름을 그대로 쓰고, 이름이 없으면 주어를 빼요. 이름을 새로 지어내거나 바꾸지 않아요.
-- 결론부터, 한 문장에 한 가지만, 해요체로 써요. 습니다체를 섞지 않아요. 비유는 문단마다 하나까지만, 비유 위에 비유를 쌓지 않아요.
-- 같은 문장이나 같은 비유를 섹션 안팎에서 되풀이하지 않아요.
+- 결론부터, 한 문장에 한 가지만, 해요체로 써요. 습니다체를 섞지 않아요.
+- 차분하게 설명하는 말투로 써요. "~편이에요", "~기 쉬워요", "~면 좋아요"처럼 경향으로 말하고, 이유와 생활 속 모습, 어떻게 하면 좋은지를 차례로 써요.
+- 비유·관용구·속담을 쓰지 않고 뜻을 바로 말해요. "순풍에 돛 단 듯", "씨앗", "꽃을 피우다", "날개를 달다", "빛을 보다", "술술 풀리다", "큰 나무 같은 사람" 같은 말은 쓰지 않아요. "오늘의 주인공은 나", "스스로에게 칭찬 한마디" 같은 응원 문구와 감탄도 쓰지 않아요.
+- 같은 문장을 섹션 안팎에서 되풀이하지 않아요.
 - 생활 속 장면으로 말해요("회의에서 먼저 말을 꺼내는 편", "약속은 낮 시간에").
 
 형식 규칙:
@@ -183,8 +185,9 @@ async function polishSections(
   const byKey = new Map(results.flatMap((r) => r ?? []).map((s) => [s.key, s]));
   const sections = draft.map((s) => {
     const e = byKey.get(s.key);
-    // 다듬다가 초안에 없던 사주 용어·한자·"당신"을 들였으면 그 섹션은 쉬운 말 초안을 쓴다
-    if (!e || e.paragraphs.length === 0 || introducesJargon(s, { summary: e.summary || s.summary, paragraphs: e.paragraphs })) return s;
+    // 다듬다가 초안에 없던 사주 용어·한자·"당신"이나 비유·관용구를 들였으면 그 섹션은 쉬운 말 초안을 쓴다
+    const polished = { summary: e?.summary || s.summary, paragraphs: e?.paragraphs ?? [] };
+    if (!e || e.paragraphs.length === 0 || introducesJargon(s, polished) || introducesFigurative(s, polished)) return s;
     return { ...s, summary: e.summary || s.summary, paragraphs: e.paragraphs };
   });
   return { sections, chunks: chunks.length, polishedChunks: results.filter((r) => r && r.length > 0).length };
@@ -197,12 +200,14 @@ const StorySchema = z.object({ paragraphs: z.array(z.string()) });
  * 읽는 사람은 사주를 한 번도 본 적 없는 사람이다. (리포트 다듬기 REPORT_SYSTEM 에는 넣지 않는다)
  */
 export const PLAIN_VOICE = `말투 — 사주를 한 번도 본 적 없는 사람이 읽는다고 생각하고 씁니다.
-- 옆에서 사람이 말하듯 따뜻하고 쉬운 해요체로 씁니다. 결론을 먼저 말하고, 한 문장에는 한 가지만 담습니다. 습니다체와 섞지 않습니다.
+- 옆에서 차분하게 설명해 주는 사람처럼 쉬운 해요체로 씁니다. 결론을 먼저 말하고, 한 문장에는 한 가지만 담습니다. 습니다체와 섞지 않습니다.
+- "~편이에요", "~기 쉬워요", "~면 좋아요"처럼 경향으로 말하고, 이유와 어떻게 하면 좋은지를 함께 말합니다.
 - "당신"이라고 부르지 않습니다. 이름을 알면 "서윤님"처럼 이름으로 부르고, 이름을 모르거나 이름이 "나"·"본인"이면 주어를 빼고 씁니다.
 - 사주 용어를 그대로 쓰지 않습니다: 일간, 일지, 일주, 용신, 희신, 기신, 십신(비견·겁재·식신·상관·편재·정재·편관·정관·편인·정인), 천간, 지지, 간지, 대운, 세운, 신강, 신약, 12운성, 신살, 합·충·형·원진, 공망 같은 말이에요. 꼭 필요하면 같은 문장 안에서 뜻을 먼저 풀고 용어는 괄호로 한 번만 붙입니다. 예: "10년마다 바뀌는 큰 흐름(대운)".
 - 다섯 가지 기운은 나무·불·흙·쇠·물로 부르고, 한자(甲·子·木·火 같은 글자)는 쓰지 않습니다.
 - 주어진 자료에 용어나 한자가 있어도 그대로 옮기지 말고 뜻만 쉬운 말로 전합니다.
-- "회의에서 먼저 말을 꺼내는 편", "약속은 낮 시간에"처럼 바로 떠오르는 생활 속 장면으로 말합니다. 비유는 문단마다 하나까지만 씁니다.
+- "회의에서 먼저 말을 꺼내는 편", "약속은 낮 시간에"처럼 바로 떠오르는 생활 속 장면으로 말합니다.
+- 비유·관용구·속담("순풍에 돛 단 듯", "씨앗", "꽃을 피우다", "날개를 달다", "큰 나무 같은 사람")과 감탄·응원 문구는 쓰지 않고, 뜻을 바로 말합니다.
 - 겁주지 않습니다. 조심할 점은 "이렇게 하면 괜찮아요"와 함께 말합니다.
 
 예시(나쁨 → 좋음)

@@ -26,6 +26,31 @@ export function plainProblems(text: string): string[] {
   return [...out];
 }
 
+/**
+ * 비유·관용구·감성 문구 — 차분하게 설명하는 말투를 깨는 표현(docs/PLAIN_KOREAN.md '말투').
+ * 대표적인 것만 담았다. 목록에 없는 상투어는 사람 눈 검사로 고친다.
+ * 사람을 자연물에 빗대는 말("큰 나무 같은", "태양처럼")도 여기서 잡는다.
+ */
+export const FIGURATIVE = [
+  '순풍', '돛', '톱니바퀴', '씨앗', '첫 단추', '돌다리', '비 온 뒤', '땅이 굳', '문을 두드', '문이 열리', '주인공', '빛을 (보|발하|봐)', '빛나', '빛이 나',
+  '꽃[을이]? ?피', '꽃길', '활짝', '날개', '술술', '물 만난', '단비', '등불', '나침반', '디딤돌', '징검다리', '마중물', '보물', '무지개', '먹구름', '폭풍',
+  '햇살', '봄바람', '물 흐르듯', '불꽃', '불씨', '열매', '결실', '새싹', '싹이 트', '기지개', '충전', '스포트라이트', '미소가 미소', '행운의 여신', '운이 내 편',
+  '마법', '기적', '하늘이 돕', '탄탄대로', '승승장구', '일사천리', '금상첨화', '전화위복', '호사다마', '새옹지마', '고진감래', '대기만성', '청신호', '빨간불', '물꼬',
+  '뿌리(내|를 내)', '(나무|태양|촛불|불꽃|바위|보석|바다|이슬|호수|강물|등불|들판|대지|칼|도끼|화초|넝쿨|용광로|모닥불|등대)( ?같은|처럼)', '같은 사람(이에요|예요)',
+] as const;
+const FIGURATIVE_RE = new RegExp(FIGURATIVE.join('|'), 'g');
+
+/** 글에 들어 있는 비유·관용구 — 중복 없이 */
+export function figurativeProblems(text: string): string[] {
+  return [...new Set([...text.matchAll(FIGURATIVE_RE)].map((m) => m[0]))];
+}
+
+/** AI 가 다듬은 섹션이 초안에 없던 비유·관용구를 새로 들였는가 */
+export function introducesFigurative(draft: Pick<ReadingSection, 'summary' | 'paragraphs'>, polished: Pick<ReadingSection, 'summary' | 'paragraphs'>): boolean {
+  const had = new Set([draft.summary, ...draft.paragraphs].flatMap(figurativeProblems));
+  return [polished.summary, ...polished.paragraphs].flatMap(figurativeProblems).some((p) => !had.has(p));
+}
+
 /** AI 가 다듬은 섹션이 초안에 없던 용어·한자를 새로 들였는가 */
 export function introducesJargon(draft: Pick<ReadingSection, 'summary' | 'paragraphs'>, polished: Pick<ReadingSection, 'summary' | 'paragraphs'>): boolean {
   const had = new Set([draft.summary, ...draft.paragraphs].flatMap(plainProblems));

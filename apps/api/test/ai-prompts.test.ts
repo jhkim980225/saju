@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { CHAT_SYSTEM, DREAM_SYSTEM, PLAIN_VOICE, TAROT_SYSTEM } from '../src/modules/ai/service.js';
+import { figurativeProblems } from '../src/modules/interpretation/plainGuard.js';
 
 const PROMPTS = { chat: CHAT_SYSTEM, dream: DREAM_SYSTEM, tarot: TAROT_SYSTEM };
 
@@ -18,6 +19,9 @@ describe('AI 프롬프트 — 쉬운 말 지시', () => {
     expect(PLAIN_VOICE).toContain('같은 문장 안에서 뜻을 먼저 풀고');
     expect(PLAIN_VOICE).toContain('나무·불·흙·쇠·물');
     expect(PLAIN_VOICE).toMatch(/한자.+쓰지 않습니다/);
+    // 차분하게 설명하는 말투 — 비유·관용구·응원 문구 금지(docs/PLAIN_KOREAN.md '말투')
+    expect(PLAIN_VOICE).toMatch(/비유·관용구·속담/);
+    expect(PLAIN_VOICE).toMatch(/~편이에요/);
     const bad = PLAIN_VOICE.match(/- 나쁨: /g) ?? [];
     const good = PLAIN_VOICE.match(/ {2}좋음: /g) ?? [];
     expect(bad.length).toBeGreaterThanOrEqual(2);
@@ -29,6 +33,7 @@ describe('AI 프롬프트 — 쉬운 말 지시', () => {
     const goods = [...PLAIN_VOICE.matchAll(/좋음: "([^"]+)"/g)].map((m) => m[1]!);
     expect(goods.length).toBeGreaterThanOrEqual(2);
     for (const g of goods) expect(g).not.toMatch(/[一-鿿]|당신|일간|용신|십신|대운|편관|상관|원소/);
+    for (const g of goods) expect(figurativeProblems(g), g).toEqual([]);
     // 이름으로 부르는 예가 들어 있다
     expect(goods.some((g) => g.includes('서윤님'))).toBe(true);
   });
