@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { ProductDto } from '@saju/shared';
 import { ArrowLeft, Lock } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router';
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
 import { Page } from '@/components/AppShell';
 import { KeyPointsCard } from '@/components/KeyPointsCard';
 import { OpenReportCard } from '@/components/OpenReportCard';
@@ -14,6 +14,20 @@ import { usePurchase } from '@/hooks/usePurchase';
 import { api } from '@/lib/api';
 import { t } from '@/lib/copy';
 import { targetFortuneYear, won } from '@/lib/format';
+import { useSession } from '@/lib/session';
+import { STORAGE_KEYS, storage } from '@/lib/storage';
+
+/** /yearly — 메뉴의 신년운세 버튼. 저장한 사주가 있으면 그 사주로, 없으면 사주부터 저장하고 돌아온다 */
+export function YearlyEntryPage() {
+  const token = useSession((s) => s.accessToken);
+  const profiles = useProfiles();
+  if (token && (profiles.isLoading || profiles.isFetching)) return <Spinner />;
+  const list = profiles.data ?? [];
+  const activeId = storage.get(STORAGE_KEYS.activeProfile);
+  const profile = list.find((p) => p.id === activeId) ?? list.find((p) => p.isPrimary) ?? list[0];
+  if (profile) return <Navigate to={`/yearly/${profile.id}`} replace />;
+  return <Navigate to="/profiles/new?save=1&relation=self&next=/yearly" replace />;
+}
 
 /** 신년운세 — 미구매 시 총운·첫 두 달 공개 */
 export function YearlyPage() {

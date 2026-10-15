@@ -13,16 +13,11 @@ const TABS = [
   { to: '/my', label: t('tabs.my'), icon: CircleUserRound },
 ];
 
-/**
- * 데스크톱(lg↑) 상단 내비 — 모바일의 하단 탭을 대신한다.
- * wide 링크는 폭이 넉넉한 xl(1280px↑)에서만 보인다 — 1024px 에서 열 개가 다 들어가지 않는다(오늘 탭 카드·마이 메뉴로도 갈 수 있음).
- */
-const DESKTOP_LINKS: { to: string; label: string; wide?: boolean }[] = [
+/** 데스크톱(lg↑) 상단 내비 — 모바일의 하단 탭을 대신한다. 나머지 운세는 '전체 운세' 한곳에 모은다 */
+const DESKTOP_LINKS: { to: string; label: string }[] = [
   ...TABS.slice(0, 4).map(({ to, label }) => ({ to, label })),
   { to: '/tarot', label: t('tarot.meta.navLabel') },
-  { to: '/manse', label: '만세력' },
-  { to: '/dream', label: '꿈해몽', wide: true },
-  { to: '/zodiac', label: '띠·별자리', wide: true },
+  { to: '/menu', label: '전체 운세' },
 ];
 
 const desktopLink = ({ isActive }: { isActive: boolean }) =>
@@ -38,8 +33,8 @@ export function DesktopNav() {
         </Link>
         <nav className="flex flex-1 items-center justify-between" aria-label="주요 메뉴">
           <ul className="flex items-center gap-1">
-            {DESKTOP_LINKS.map(({ to, label, wide }) => (
-              <li key={to} className={wide ? 'hidden xl:block' : undefined}>
+            {DESKTOP_LINKS.map(({ to, label }) => (
+              <li key={to}>
                 <NavLink to={to} className={desktopLink}>
                   {label}
                 </NavLink>
@@ -61,9 +56,14 @@ export function DesktopNav() {
           </ul>
         </nav>
         {!isMember(user) && (
-          <Link to="/login" className="inline-flex h-10 shrink-0 items-center rounded-full border border-line-strong px-4 text-sm font-semibold">
-            로그인
-          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link to="/login" className="inline-flex h-10 items-center rounded-full border border-line-strong px-4 text-sm font-semibold">
+              로그인
+            </Link>
+            <Link to="/signup" className="inline-flex h-10 items-center rounded-full bg-action px-4 text-sm font-semibold text-on-action">
+              회원가입
+            </Link>
+          </div>
         )}
       </div>
     </header>

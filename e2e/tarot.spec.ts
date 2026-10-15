@@ -75,7 +75,7 @@ test('같은 날 같은 질문은 다시 뽑지 않고, 처음 뽑은 결과로 
   await expect(page.getByText('나의 마음 자리').first()).toBeVisible();
 });
 
-test('오늘의 카드: 뒷면을 펼치면 하루 한 장으로 고정되고, 오늘 탭에도 같은 카드가 보인다', async ({ page, api }) => {
+test('오늘의 카드: 뒷면을 펼치면 하루 한 장으로 고정되고, 타로 홈·기록에도 같은 카드가 보인다', async ({ page, api }) => {
   const { tokens } = await signupViaApi(api);
   await injectSession(page, tokens);
 

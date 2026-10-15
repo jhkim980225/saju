@@ -84,7 +84,7 @@ test('저장한 사주: 오늘 탭 바로가기 → 프로필로 본 452괘 → 
   await injectSession(page, guest);
 
   await page.goto('/today');
-  await page.getByRole('link', { name: /2027 토정비결/ }).click();
+  await page.getByRole('link', { name: '토정비결', exact: true }).click();
   await expect(page).toHaveURL(/\/tojeong$/);
   await expect(page.getByRole('button', { name: '서윤', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByText('452괘', { exact: true })).toBeVisible();

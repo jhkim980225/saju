@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Page } from '@/components/AppShell';
+import { MoreMenu } from '@/components/MoreMenu';
 import { TaekilEntryCard } from '@/components/TaekilEntryCard';
 import { Button, Card, EmptyState, IconButton, PageHeader, Spinner, TextInput } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -22,6 +23,18 @@ function BackHeader({ title }: { title: string }) {
       title={title}
       width="medium"
     />
+  );
+}
+
+/** 전체 운세 — PC 상단 메뉴의 '전체 운세'. 첫 화면·오늘 탭 아래의 버튼 묶음과 같다 */
+export function MenuPage() {
+  return (
+    <div className="min-h-page pb-10">
+      <PageHeader title="전체 운세" width="medium" />
+      <Page width="medium">
+        <MoreMenu title="무엇을 볼까요?" className="mt-4" />
+      </Page>
+    </div>
   );
 }
 

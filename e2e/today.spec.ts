@@ -94,3 +94,19 @@ test.describe('해외(음수 UTC 오프셋) 시간대 사용자', () => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText(todayTitle());
   });
 });
+
+test('메뉴의 신년운세: 저장한 사주가 없으면 먼저 저장하고 바로 신년운세로, 있으면 곧장 간다', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('link', { name: /신년운세$/ }).click();
+  await expect(page).toHaveURL(/\/profiles\/new\?save=1&relation=self&next=\/yearly$/);
+  await expect(page.getByText(/사주를 저장하면 바로 \d{4} 신년운세를 보여 드려요/)).toBeVisible();
+  await fillBirthForm(page, { name: '서윤', date: '19950314', time: '14:30', gender: 'female' });
+  await page.getByRole('button', { name: '저장', exact: true }).click();
+  await expect(page).toHaveURL(/\/yearly\/[\w-]+$/);
+  await expect(page.getByRole('heading', { name: /\d{4} 신년운세/ })).toBeVisible();
+
+  // 이미 저장한 사주가 있으면 입력 없이 바로
+  await page.goto('/today');
+  await page.getByRole('link', { name: /신년운세$/ }).last().click();
+  await expect(page).toHaveURL(/\/yearly\/[\w-]+$/);
+});

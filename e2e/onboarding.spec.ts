@@ -1,25 +1,22 @@
 /**
- * 시나리오 1 — 비회원 핵심 흐름: 랜딩 → 입력(양력/시간/성별) → 확인(음력 변환·경도 보정) → 결과(8글자·잠금 섹션)
+ * 시나리오 1 — 비회원 핵심 흐름: 랜딩에서 바로 입력(양력/시간/성별) → 확인(음력 변환·경도 보정) → 결과(8글자·잠금 섹션)
  */
 import { expect, fillBirthForm, fullReadingButton, goToResult, lockedSections, pillarTile, test } from './support/fixtures';
 
-test('랜딩 → 입력 → 확인 → 결과: 甲辰 일주 8글자와 잠금 섹션', async ({ page }) => {
+test('랜딩(바로 입력) → 확인 → 결과: 甲辰 일주 8글자와 잠금 섹션', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('여덟 글자로 읽는');
-  await expect(page.getByText('예시 사주팔자')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('생년월일로 보는');
+  await expect(page.getByRole('heading', { name: '다른 운세 보기' })).toBeVisible();
 
-  // 랜딩 CTA → 입력
-  await page.getByRole('button', { name: '내 사주 보기' }).click();
-  await expect(page).toHaveURL(/\/input$/);
-  await expect(page.getByRole('heading', { name: '사주 정보 입력' })).toBeVisible();
-  await expect(page.getByText('필수 1/4')).toBeVisible(); // 출생지(서울)만 기본값
-  await expect(page.getByRole('button', { name: '다음', exact: true })).toBeDisabled();
+  // 첫 화면 폼 — 비어 있는 채로 누르면 필수 항목을 알려 준다
+  await page.getByRole('button', { name: '무료 사주 보기' }).click();
+  await expect(page.getByRole('alert').first()).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
 
   await fillBirthForm(page, { name: '서윤', calendar: 'solar', date: '19950314', time: '14:30', gender: 'female' });
   await expect(page.getByPlaceholder('예) 19950314')).toHaveValue('1995.03.14');
   await expect(page.getByPlaceholder('예) 14:30')).toHaveValue('14:30');
-  await expect(page.getByText('필수 4/4')).toBeVisible();
-  await page.getByRole('button', { name: '다음', exact: true }).click();
+  await page.getByRole('button', { name: '무료 사주 보기' }).click();
 
   // 확인 화면: 양력·음력 변환·보정 내역
   await expect(page).toHaveURL(/\/confirm$/);
@@ -56,6 +53,17 @@ test('랜딩 → 입력 → 확인 → 결과: 甲辰 일주 8글자와 잠금 �
   await expect(page.getByRole('heading', { name: '한눈에 보는 나' })).toBeVisible();
   expect(await lockedSections(page).count()).toBeGreaterThan(0);
   await expect(await fullReadingButton(page)).toBeVisible();
+});
+
+test('입력 화면: 필수 항목을 다 채워야 다음으로 간다', async ({ page }) => {
+  await page.goto('/input');
+  await expect(page.getByRole('heading', { name: '사주 정보 입력' })).toBeVisible();
+  await expect(page.getByText('필수 1/4')).toBeVisible(); // 출생지(서울)만 기본값
+  await expect(page.getByRole('button', { name: '다음', exact: true })).toBeDisabled();
+  await fillBirthForm(page, { name: '서윤', calendar: 'solar', date: '19950314', time: '14:30', gender: 'female' });
+  await expect(page.getByText('필수 4/4')).toBeVisible();
+  await page.getByRole('button', { name: '다음', exact: true }).click();
+  await expect(page).toHaveURL(/\/confirm$/);
 });
 
 test('결과에서 보관함에 저장 → 내 사주·마이에 저장된다', async ({ page }) => {

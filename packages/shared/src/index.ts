@@ -3,6 +3,7 @@
  * 요청 바디는 zod 스키마로 정의해 서버 검증과 클라이언트 폼 검증에 함께 사용한다.
  */
 import { z } from 'zod';
+import { PROFILE_RELATIONS, type ProfileRelation } from './profile';
 import type {
   CompatibilityResult,
   DaeunInfo,
@@ -61,8 +62,7 @@ export const birthInputSchema = z.object({
 });
 export type BirthInputDto = z.input<typeof birthInputSchema>;
 
-export const PROFILE_RELATIONS = ['self', 'partner', 'family', 'friend', 'colleague', 'other'] as const;
-export type ProfileRelation = (typeof PROFILE_RELATIONS)[number];
+export { PROFILE_RELATIONS, RELATION_LABEL, type ProfileRelation } from './profile';
 
 export const profileCreateSchema = z.object({
   name: z.string().trim().min(1, '이름을 입력해 주세요.').max(20, '이름은 20자 이내로 입력해 주세요.'),
@@ -769,7 +769,6 @@ export const pushRegisterSchema = z.object({
 
 export const ELEMENT_LABEL = { wood: '목', fire: '화', earth: '토', metal: '금', water: '수' } as const;
 export const FORTUNE_CATEGORY_LABEL = { total: '총운', wealth: '재물운', love: '애정운', career: '직장·사업운', health: '건강운', study: '학업운' } as const;
-export const RELATION_LABEL: Record<ProfileRelation, string> = { self: '나', partner: '연인·배우자', family: '가족', friend: '친구', colleague: '동료', other: '기타' };
 
 // ---------------------------------------------------------------------------
 // 토정비결 (무료 · 신년 시즌 콘텐츠)

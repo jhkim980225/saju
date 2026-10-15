@@ -12,7 +12,7 @@ test('존재하지 않는 경로는 404 화면을 보여 주고 처음으로 돌
 
   await page.getByRole('button', { name: '처음으로' }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole('button', { name: '내 사주 보기' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '무료 사주 보기' })).toBeVisible();
 });
 
 test('결과 화면에 입력 없이 들어오면 입력 화면으로 보낸다', async ({ page }) => {

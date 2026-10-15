@@ -7,11 +7,8 @@ import { AdSlot } from '@/components/AdSlot';
 import { Page } from '@/components/AppShell';
 import { BottomSheet } from '@/components/BottomSheet';
 import { ShareSheet } from '@/components/ShareSheet';
-import { TodayTarotCard } from '@/components/TodayTarotCard';
-import { TojeongEntryCard } from '@/components/TojeongEntryCard';
-import { DreamEntryCard } from '@/components/DreamEntryCard';
 import { KeyPointsCard } from '@/components/KeyPointsCard';
-import { TaekilEntryCard } from '@/components/TaekilEntryCard';
+import { MoreMenu } from '@/components/MoreMenu';
 import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, ScoreBar, Spinner, cx } from '@/components/ui';
 import { useProfiles } from '@/hooks/queries';
 import { SessionGateError, useSessionGate } from '@/hooks/useSessionGate';
@@ -162,21 +159,6 @@ export function TodayPage() {
                   ))}
                 </ul>
               </Card>
-
-              <TodayTarotCard />
-              <TojeongEntryCard className="mt-4" />
-              <DreamEntryCard />
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <Link to="/zodiac" className="rounded-2xl border border-line bg-surface px-4 py-3.5 transition-colors hover:border-line-strong">
-                  <span className="block text-xs text-ink-3">무료</span>
-                  <span className="mt-0.5 block font-semibold">띠별 운세</span>
-                </Link>
-                <Link to="/horoscope" className="rounded-2xl border border-line bg-surface px-4 py-3.5 transition-colors hover:border-line-strong">
-                  <span className="block text-xs text-ink-3">무료</span>
-                  <span className="mt-0.5 block font-semibold">별자리 운세</span>
-                </Link>
-              </div>
-              <TaekilEntryCard />
             </div>
 
             <div className="lg:pt-4">
@@ -244,6 +226,8 @@ export function TodayPage() {
             </div>
           </div>
         )}
+
+        <MoreMenu exclude="/today" className="mt-10" />
       </Page>
 
       {d && (

@@ -22,6 +22,7 @@ const CompatibilityPage = lazyPage(() => import('./pages/CompatibilityPage'), 'C
 const ConfirmPage = lazyPage(() => import('./pages/ConfirmPage'), 'ConfirmPage');
 const LegalPage = lazyPage(() => import('./pages/MiscPages'), 'LegalPage');
 const MansePage = lazyPage(() => import('./pages/MiscPages'), 'MansePage');
+const MenuPage = lazyPage(() => import('./pages/MiscPages'), 'MenuPage');
 const MyPage = lazyPage(() => import('./pages/MyPage'), 'MyPage');
 const MySajuPage = lazyPage(() => import('./pages/MySajuPage'), 'MySajuPage');
 const PaymentSuccessPage = lazyPage(() => import('./pages/PaymentResultPages'), 'PaymentSuccessPage');
@@ -33,6 +34,7 @@ const ResultPage = lazyPage(() => import('./pages/ResultPage'), 'ResultPage');
 const StorePage = lazyPage(() => import('./pages/StorePage'), 'StorePage');
 const TodayPage = lazyPage(() => import('./pages/TodayPage'), 'TodayPage');
 const YearlyPage = lazyPage(() => import('./pages/YearlyPage'), 'YearlyPage');
+const YearlyEntryPage = lazyPage(() => import('./pages/YearlyPage'), 'YearlyEntryPage');
 const TarotHomePage = lazyPage(() => import('./pages/TarotHomePage'), 'TarotHomePage');
 const TarotAskPage = lazyPage(() => import('./pages/TarotAskPage'), 'TarotAskPage');
 const TarotDrawPage = lazyPage(() => import('./pages/TarotDrawPage'), 'TarotDrawPage');
@@ -104,6 +106,7 @@ export const routes = [
       { path: '/profiles/new', element: <BirthFormPage /> },
       { path: '/profiles/:id/edit', element: <BirthFormPage /> },
       { path: '/saju/:profileId', element: <MySajuPage /> },
+      { path: '/yearly', element: <YearlyEntryPage /> },
       { path: '/yearly/:profileId', element: <YearlyPage /> },
       { path: '/my/payments', element: <PaymentsPage /> },
       { path: '/my/reports', element: <ReportsPage /> },
@@ -136,6 +139,7 @@ export const routes = [
           { path: '/ask', element: <AskPage /> },
           { path: '/tarot', element: <TarotHomePage /> },
           { path: '/my', element: <MyPage /> },
+          { path: '/menu', element: <MenuPage /> },
           // 띠별·별자리 운세 — 공개 SEO 페이지(하단 탭을 함께 보여 다른 메뉴로 이어지게)
           { path: '/zodiac', element: <ZodiacHubPage /> },
           { path: '/zodiac/:animal/:period?', element: <ZodiacDetailPage /> },
