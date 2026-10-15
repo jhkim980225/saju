@@ -198,6 +198,8 @@ export interface ReadingDto {
   headline: string;
   /** 일주 별칭(예: '바위 위의 소나무') */
   dayPillarTitle: string;
+  /** 결과 맨 위 '한눈에 보는 나' — 사주를 몰라도 10초 안에 알 수 있게 한 줄씩 */
+  keyPoints?: { label: string; text: string }[];
   sections: ReadingSection[];
   generator: 'rule' | 'ai';
   disclaimer: string;

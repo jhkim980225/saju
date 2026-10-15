@@ -35,7 +35,9 @@ describe('무료 풀이 — 사람이 말하듯 쉬운 말', () => {
         const secs = r.sections;
         const free = secs.filter((s) => FREE.includes(s.key));
         expect(free.map((s) => s.key)).toEqual(FREE);
-        const lines = [r.headline, ...secs.flatMap(visible)].map(stripTermTag);
+        expect(r.keyPoints?.map((k) => k.label)).toEqual(['성격', '잘하는 것', '조심할 것', '필요한 것', '행운 포인트']);
+        // 화면에서 총평 섹션은 '한눈에 보는 나' 카드가 대신한다 — 카드 문구도 같은 기준으로
+        const lines = [r.headline, ...r.keyPoints!.map((k) => k.text), ...secs.filter((s) => s.key !== 'overview').flatMap(visible)].map(stripTermTag);
         const where = `${birth.year}-${birth.month}-${birth.day} ${name || '(이름 없음)'}`;
         for (const line of lines) {
           expect(line, where).not.toMatch(/[一-鿿]{2,}/); // 한자 단어(괄호 속 한 글자 '火' 정도만 허용)

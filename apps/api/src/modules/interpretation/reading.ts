@@ -35,7 +35,7 @@ import {
   type DailyCategory,
   type ScoreBand,
 } from './content/index.js';
-import { ELEMENT_PLAIN, SHINSAL_ORDER, SHINSAL_PLAIN, STEM_PLAIN, STRENGTH_PLAIN, displayName, nameSubject, personalize, plainElementText } from './content/plain.js';
+import { ELEMENT_PLAIN, SHINSAL_ORDER, SHINSAL_PLAIN, STEM_PLAIN, STRENGTH_PLAIN, displayName, nameSubject, personalize } from './content/plain.js';
 
 /** 신년운세·"올해 운세" 대상 연도 — KST 기준 10월부터는 다음 해 (웹 lib/format.ts 와 같은 규칙) */
 export function targetFortuneYear(now = new Date()): number {
@@ -107,11 +107,8 @@ function overviewSection(chart: SajuChart, name: string | null): ReadingSection 
   const dm = dayMasterContent(chart);
   const yong = chart.yongsin.yongsin;
   const need = ELEMENT_PLAIN[yong];
-  // 오행이 많고 적은 이야기는 '오행 분석'에서 한 번만 — 여기서는 왜 그 기운이 필요한지만 짧게
-  const why =
-    chart.elements.count[yong] === 0
-      ? `사주에 ${need.name} 기운이 하나도 없어서, ${nameSubject(name, '에게')}가장 필요한 건 바로 ${need.name} 기운이에요.`
-      : `${nameSubject(name, '에게')}가장 필요한 기운은 ${need.name} 기운이에요.`;
+  // 뜻을 먼저, 용어는 뒤에 — '불 기운'이 뭔지 모르는 사람도 읽히게
+  const why = `${nameSubject(name, '에게')}가장 필요한 건 '${need.need}'${josa(need.need, '이에요', '예요').slice(need.need.length)}. 사주에서는 이걸 '${need.name} 기운'이라고 해요.`;
   return {
     key: 'overview',
     title: '총평',
@@ -148,13 +145,17 @@ function elementsSection(chart: SajuChart): ReadingSection {
   const many = manyElements(chart);
   const none = noneElements(chart);
   const dist = ELEMENT_KEYS.map((k) => `${ELEMENT_PLAIN[k].name} ${e.count[k]}개`).join(', ');
-  const paragraphs = [`사주 글자를 다섯 기운으로 나눠 보면 ${dist}예요.`];
-  for (const el of many) paragraphs.push(plainElementText(ELEMENT_CONTENT[el].excess));
-  for (const el of none) paragraphs.push(`${josa(ELEMENT_PLAIN[el].name, '은', '는')} 하나도 없어요. ${plainElementText(ELEMENT_CONTENT[el].lacking)}`);
+  // 개념부터 한 줄로, 그다음 많고 없는 것만 한 줄씩 — 비유를 겹겹이 쌓지 않는다
+  const paragraphs = [
+    '사주 여덟 글자는 나무·불·흙·쇠·물, 다섯 가지 성질로 나눌 수 있어요. 많은 기운은 성격으로 드러나고, 없는 기운은 채워 주면 좋은 부분이에요.',
+    `세어 보면 ${dist}예요.`,
+  ];
+  for (const el of many) paragraphs.push(`${ELEMENT_PLAIN[el].name} 기운이 많아요. ${ELEMENT_PLAIN[el].many}`);
+  for (const el of none) paragraphs.push(`${ELEMENT_PLAIN[el].name} 기운은 하나도 없어요. ${ELEMENT_PLAIN[el].none}`);
   if (many.length === 0 && none.length === 0) paragraphs.push('다섯 기운이 고르게 섞여 있어서, 상황에 맞춰 유연하게 움직이는 힘이 있어요.');
   return {
     key: 'elements',
-    title: '오행 분석',
+    title: '다섯 가지 기운',
     summary: none.length ? `${plainNames(none)} 기운을 채워 주면 좋아요` : many.length ? `${plainNames(many)} 기운이 강한 사주예요` : '다섯 기운이 고르게 섞여 있어요',
     paragraphs,
     basis: `오행 개수(천간·지지 글자 기준) ${ELEMENT_KEYS.map((k) => `${EL_NAME[k].slice(0, 1)}${e.count[k]}`).join(' ')} · 지장간까지 셈한 비중은 사주분석서에서 다뤄요`,
@@ -169,11 +170,14 @@ function yongsinSection(chart: SajuChart, name: string | null): ReadingSection {
   return {
     key: 'yongsin',
     title: '나에게 필요한 기운',
-    summary: `${el.name}(${el.hanja}) 기운이 가장 필요해요`,
+    summary: `${el.need}${josa(el.need, '이', '가').slice(el.need.length)} 가장 필요해요`,
     keywords: [`행운의 색 ${info.color}`, `행운의 방향 ${info.direction}`, `행운의 숫자 ${info.numbers.join('·')}`],
     paragraphs: [
-      `${nameSubject(name, '은')}${STRENGTH_PLAIN[chart.strength.level].reason}`,
-      `${el.name} 기운을 쉽게 말하면 '${el.need}'${josa(el.need, '이에요', '예요').slice(el.need.length)}. ${el.needMore}`,
+      // 뜻을 먼저, '불 기운' 같은 말은 뒤에
+      `${el.needMore} 사주에서는 이걸 '${el.name} 기운'이라고 해요.`,
+      chart.elements.count[y.yongsin] === 0
+        ? `${nameSubject(name, '의')}사주에는 이 ${el.name} 기운이 하나도 없어요. 그래서 일상에서 조금씩 채워 줄수록 일이 잘 풀려요.`
+        : `${nameSubject(name, '은')}${STRENGTH_PLAIN[chart.strength.level].reason}`,
       '일상에서는 이런 것부터 해 보세요.',
     ],
     tips: c.tips.slice(0, 4),
@@ -344,10 +348,19 @@ export function buildBasicReading(chart: SajuChart, opts: { access: ReadingAcces
   const mini = full || opts.access === 'mini';
   const PRODUCT = 'report_saju_lifetime';
   const MINI = 'report_saju_mini';
+  const sp = STEM_PLAIN[chart.dayMaster.index]!;
+  const lucky = ELEMENT_INFO[chart.yongsin.yongsin];
   return {
     chart,
-    headline: STEM_PLAIN[chart.dayMaster.index]!.headline,
+    headline: sp.headline,
     dayPillarTitle: dp.title,
+    keyPoints: [
+      { label: '성격', text: sp.trait },
+      { label: '잘하는 것', text: sp.strength },
+      { label: '조심할 것', text: sp.caution },
+      { label: '필요한 것', text: ELEMENT_PLAIN[chart.yongsin.yongsin].need },
+      { label: '행운 포인트', text: `색 ${lucky.color} · 방향 ${lucky.direction} · 숫자 ${lucky.numbers.join('·')}` },
+    ],
     sections: [
       overviewSection(chart, name),
       personalitySection(chart, name),

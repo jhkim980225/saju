@@ -222,7 +222,7 @@
       "expertHide": "간단히 보기"
     },
     "ohaengChart": {
-      "title": "오행 분포",
+      "title": "다섯 가지 기운",
       "infoTitle": "오행은 이렇게 판단해요",
       "count": "{{count}}개",
       "status": {

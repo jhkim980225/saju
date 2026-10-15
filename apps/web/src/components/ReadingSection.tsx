@@ -27,7 +27,7 @@ const TOC: Record<string, string[]> = {
 
 /** 카피 가이드에 없는 섹션의 짧은 라벨(섹션 바로가기 칩용) */
 const SHORT_LABEL: Record<string, string> = {
-  elements: '오행',
+  elements: '다섯 기운',
   yongsin: '필요한 기운',
   shinsal: '특별한 기운',
   tenGods: '움직이는 힘',

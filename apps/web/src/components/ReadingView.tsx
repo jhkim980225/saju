@@ -45,6 +45,8 @@ export function ReadingView({
   const { data: products } = useProducts();
   const productById = useMemo(() => new Map((products ?? []).map((p) => [p.id, p])), [products]);
   const anyLocked = reading.sections.some((s) => s.locked);
+  // 맨 위 '한눈에 보는 나' 카드가 총평을 대신한다(같은 말을 두 번 하지 않게)
+  const sections = reading.keyPoints?.length ? reading.sections.filter((s) => s.key !== 'overview') : reading.sections;
 
   useEffect(() => {
     track('reading_viewed', { locked: anyLocked });
@@ -96,6 +98,20 @@ export function ReadingView({
             {t('result.editInput')}
           </Link>
         )}
+        {reading.keyPoints && reading.keyPoints.length > 0 && (
+          // 사주를 몰라도 10초 안에 — 표·용어보다 먼저 결론을 보여 준다
+          <Card className="mt-5">
+            <h2 className="font-semibold">{t('result.sections.overview.title')}</h2>
+            <dl className="mt-3 space-y-2.5">
+              {reading.keyPoints.map((k) => (
+                <div key={k.label} className="grid grid-cols-[5.25rem_1fr] gap-3 text-[15px] leading-relaxed">
+                  <dt className="text-ink-3">{k.label}</dt>
+                  <dd className="text-ink">{k.text}</dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
+        )}
       </section>
 
       <aside className="lg:sticky lg:top-24 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:max-h-[calc(100dvh-7rem)] lg:self-start lg:overflow-y-auto lg:[scrollbar-width:thin]">
@@ -105,7 +121,7 @@ export function ReadingView({
         <nav className="mt-6 hidden lg:block" aria-label="섹션 바로가기">
           <p className="px-3 text-xs font-semibold text-ink-3">섹션 바로가기</p>
           <ul className="mt-2 space-y-0.5">
-            {reading.sections.map((s) => (
+            {sections.map((s) => (
               <li key={s.key}>
                 <a href={`#sec-${s.key}`} className={cx('flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-[15px] hover:bg-subtle', s.locked ? 'text-ink-3' : 'text-ink-2')}>
                   {navLabel(s)}
@@ -119,17 +135,15 @@ export function ReadingView({
 
       <div className="lg:col-start-2 lg:row-start-2">
         <Card className="mt-4 lg:mt-6">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4">
             <h2 className="font-semibold">{t('result.ohaengChart.title')}</h2>
-            <span className="text-xs text-ink-3">
-              필요한 기운 · {{ wood: '나무(木)', fire: '불(火)', earth: '흙(土)', metal: '쇠(金)', water: '물(水)' }[chart.yongsin.yongsin]}
-            </span>
+            <p className="mt-1 text-sm text-ink-3">여덟 글자를 나무·불·흙·쇠·물, 다섯 가지 성질로 나눠 본 거예요.</p>
           </div>
           <ElementBars chart={chart} />
         </Card>
 
         <nav className="no-scrollbar sticky top-[calc(56px+env(safe-area-inset-top))] z-20 -mx-5 mt-6 flex gap-2 overflow-x-auto bg-canvas/95 px-5 py-2 backdrop-blur lg:hidden" aria-label="섹션 바로가기">
-          {reading.sections.map((s) => (
+          {sections.map((s) => (
             <a key={s.key} href={`#sec-${s.key}`} className={cx('shrink-0 rounded-full border px-3 py-1.5 text-sm', s.locked ? 'border-line text-ink-3' : 'border-line-strong text-ink-2')}>
               {navLabel(s)}
             </a>
@@ -137,7 +151,7 @@ export function ReadingView({
         </nav>
 
         <div className="mt-2">
-          {reading.sections.map((s) => (
+          {sections.map((s) => (
             <div key={s.key}>
               <ReadingSectionCard section={s} onUnlock={openPaywall} price={s.locked ? priceOf(s) : undefined} />
               {s.key === 'daeun' && !s.locked && (
