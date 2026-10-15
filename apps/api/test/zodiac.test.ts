@@ -71,12 +71,14 @@ describe('띠별 운세 API', () => {
     expect(d.range).toMatchObject({ start: '2026-10-12', end: '2026-10-18' });
     expect(d.keyDays).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ date: '2026-10-13', marker: '庚申', kind: 'caution' }),
-        expect.objectContaining({ date: '2026-10-16', marker: '癸亥', kind: 'good' }),
+        // 날짜 표시는 그날 붙는 띠 동물로(庚申 → 원숭이, 癸亥 → 돼지) — 간지 한자를 쓰지 않는다
+        expect.objectContaining({ date: '2026-10-13', marker: '원숭이의 날', kind: 'caution' }),
+        expect.objectContaining({ date: '2026-10-16', marker: '돼지의 날', kind: 'good' }),
       ]),
     );
     for (const k of d.keyDays) expect(k.date >= d.range.start && k.date <= d.range.end).toBe(true);
-    expect(d.years[0].text).toMatch(/^이번 주에는 .요일\(..일\)이 가장 잘 맞아요\./);
+    expect(d.years[0].text).toMatch(/^이번 주에는 .요일이 가장 잘 맞아요\./);
+    expect(d.years[0].reason).toMatch(/요일\(..일\) 천간/);
   });
 
   it('이번 달은 절기 달(戊戌월), 올해는 입춘 기준 세운(丙午)', async () => {
@@ -109,14 +111,14 @@ describe('별자리 운세 API', () => {
   it('양자리 오늘 — 달 사수자리(아홉 번째 자리, 120°) → 좋음', async () => {
     const d = (await get(`/horoscope/aries?period=today&date=${DATE}`)).body;
     expect(d.sign).toMatchObject({ slug: 'aries', name: '양자리', element: 'fire', dates: '3월 21일 ~ 4월 19일' });
-    expect(d.sky[0]).toMatchObject({ body: 'moon', signName: '사수자리', house: 9, houseLabel: '아홉 번째 자리', aspect: '120°' });
+    expect(d.sky[0]).toMatchObject({ body: 'moon', signName: '사수자리', house: 9, houseLabel: '아홉 번째 자리', aspect: '잘 어울리는 자리' });
     expect(d.tone).toBe('good');
     expect(d.basisNote).toContain('간이 천문 계산');
   });
 
   it('처녀자리 오늘 — 달 사수자리는 90° → 살펴 가기', async () => {
     const d = (await get(`/horoscope/virgo?period=today&date=${DATE}`)).body;
-    expect(d.sky[0]).toMatchObject({ house: 4, aspect: '90°' });
+    expect(d.sky[0]).toMatchObject({ house: 4, aspect: '엇갈리는 자리' });
     expect(d.tone).toBe('caution');
   });
 
@@ -145,7 +147,7 @@ describe('별자리 운세 API', () => {
   it('12별자리 요약', async () => {
     const d = (await get(`/horoscope?date=${DATE}`)).body;
     expect(d.items).toHaveLength(12);
-    expect(d.items[0].reason).toBe('달 사수자리 · 아홉 번째 자리');
+    expect(d.items[0].reason).toBe("달이 사수자리를 지나요 — 나에게는 '먼 곳 · 공부 · 새로운 관점' 자리예요");
   });
 });
 

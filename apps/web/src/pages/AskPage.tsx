@@ -103,10 +103,10 @@ export function AskPage() {
             )}
             <div className="mt-3 rounded-2xl border border-line bg-surface p-4 text-sm">
               <p className="font-semibold">{t('ask.contextCard', { name: profile.name })}</p>
-              <p className="mt-1 font-serif text-ink-2">
-                {profile.dayPillar}일주 · {profile.zodiac}띠
+              <p className="mt-1 text-ink-2">
+                {profile.birth.calendar === 'lunar' ? '음력' : '양력'} {profile.birth.year}.{profile.birth.month}.{profile.birth.day}생 · {profile.zodiac}띠
               </p>
-              <p className="mt-2 text-xs text-ink-3">{aiEnabled ? t('ask.aiNotice') : 'AI 상담 연동 전이라, 사주 풀이 데이터를 바탕으로 기본 답변을 드려요. (질문권이 차감되지 않아요)'}</p>
+              <p className="mt-2 text-xs text-ink-3">{aiEnabled ? t('ask.aiNotice') : t('ask.ruleNotice')}</p>
             </div>
 
             {messages.length === 0 && !history.isLoading && (

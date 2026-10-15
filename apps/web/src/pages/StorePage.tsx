@@ -136,7 +136,7 @@ export function StorePage() {
                     {p.name}
                     {has && <span className="ml-2 text-sm text-ink-3">구매함</span>}
                   </span>
-                  {has ? <span className="text-sm font-semibold text-info">보고서 열기</span> : <span className="font-serif text-sm text-ink-3">{p.dayPillar}일주</span>}
+                  {has ? <span className="text-sm font-semibold text-info">보고서 열기</span> : <span className="text-sm text-ink-3">{p.birth.year}.{p.birth.month}.{p.birth.day}생 · {p.zodiac}띠</span>}
                 </button>
               </li>
             );

@@ -47,7 +47,6 @@ function DaySheet({ day, locked, onClose, onUnlock, price }: { day: TaekilDayDto
           <span className="flex items-center gap-2">
             {day.rank && <RankSeal rank={day.rank} />}
             {dateKo(day.date)}
-            <span className="font-serif text-ink-3">{day.ganzhi.hanja}일</span>
           </span>
         )
       }
@@ -57,8 +56,6 @@ function DaySheet({ day, locked, onClose, onUnlock, price }: { day: TaekilDayDto
           <div className="flex flex-wrap items-center gap-2 text-sm text-ink-2">
             <GradeBadge day={day} />
             {day.score !== null && <span className="tabular">{t('taekil.result.score', { score: day.score })}</span>}
-            {day.officer && <span>· {t('taekil.result.officer', { name: day.officer.name, hanja: day.officer.hanja })}</span>}
-            {day.tianShen && <span>· {day.tianShen.yellow ? '황도' : '흑도'}({day.tianShen.name})</span>}
             <span className="text-ink-3">· {lunarText(day)}</span>
           </div>
           {locked ? (
@@ -96,11 +93,10 @@ function DaySheet({ day, locked, onClose, onUnlock, price }: { day: TaekilDayDto
                   <section key={g.tone} className="mt-5">
                     <h3 className={cx('text-sm font-semibold', g.tone === 'good' ? 'text-success' : g.tone === 'bad' ? 'text-danger' : 'text-ink-3')}>{g.title}</h3>
                     <ul className="mt-2 space-y-3">
-                      {g.items.map((r) => (
-                        <li key={r.label} className="text-sm leading-relaxed">
+                      {g.items.map((r, i) => (
+                        <li key={`${r.label}-${i}`} className="text-sm leading-relaxed">
                           <p className="flex items-center gap-2 font-semibold">
                             {r.label}
-                            {r.weight !== 0 && <span className="tabular text-xs font-normal text-ink-3">{r.weight > 0 ? `+${r.weight}` : r.weight}</span>}
                             {r.excludes && <Badge>피하는 날</Badge>}
                           </p>
                           <p className="mt-0.5 text-ink-2">{r.text}</p>
@@ -109,6 +105,25 @@ function DaySheet({ day, locked, onClose, onUnlock, price }: { day: TaekilDayDto
                     </ul>
                   </section>
                 ))}
+              {/* 용어가 궁금한 사람만 — 본문은 쉬운 말로만 */}
+              {(day.basis || day.reasons?.some((r) => r.term)) && (
+                <details className="group mt-6 text-sm text-ink-3">
+                  <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-full border border-line px-3 py-1 hover:text-ink-2 [&::-webkit-details-marker]:hidden">
+                    {t('taekil.result.termsLabel')} <span className="transition-transform group-open:rotate-180" aria-hidden>▾</span>
+                  </summary>
+                  {day.basis && <p className="mt-2 leading-relaxed">{day.basis}</p>}
+                  <ul className="mt-2 space-y-1 leading-relaxed">
+                    {day.reasons
+                      ?.filter((r) => r.term)
+                      .map((r, i) => (
+                        <li key={`${r.term}-${i}`}>
+                          {r.label} — {r.term}
+                          {r.weight !== 0 && <span className="tabular"> ({r.weight > 0 ? `+${r.weight}` : r.weight}점)</span>}
+                        </li>
+                      ))}
+                  </ul>
+                </details>
+              )}
             </>
           )}
         </div>
@@ -133,7 +148,6 @@ function TopCards({ r, onOpen }: { r: TaekilResultDto; onOpen: (date: string) =>
               </span>
               <span className="mt-2 font-serif text-xl font-semibold">{dateKo(date)}</span>
               <span className="mt-1 flex flex-wrap items-center gap-2 text-sm text-ink-3">
-                <span className="font-serif">{d.ganzhi.hanja}일</span>
                 <span>{lunarText(d)}</span>
                 <GradeBadge day={d} />
               </span>
@@ -185,9 +199,7 @@ function DayList({ r, onOpen }: { r: TaekilResultDto; onOpen: (date: string) => 
             <button type="button" onClick={() => onOpen(d.date)} className="flex w-full items-start gap-3 px-4 py-3 text-left">
               <span className="w-28 shrink-0">
                 <span className="block font-semibold tabular">{dateKo(d.date)}</span>
-                <span className="block text-xs text-ink-3">
-                  <span className="font-serif">{d.ganzhi.hanja}</span> · {lunarText(d)}
-                </span>
+                <span className="block text-xs text-ink-3">{lunarText(d)}</span>
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2">
@@ -221,6 +233,14 @@ function SectionCard({ s, onUnlock, price }: { s: ReadingSection; onUnlock: () =
             <p key={i}>{p}</p>
           ))}
         </div>
+      )}
+      {!s.locked && s.basis && (
+        <details className="group mt-4 text-sm text-ink-3">
+          <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-full border border-line px-3 py-1 hover:text-ink-2 [&::-webkit-details-marker]:hidden">
+            {t('taekil.result.sectionBasisLabel')} <span className="transition-transform group-open:rotate-180" aria-hidden>▾</span>
+          </summary>
+          <p className="mt-2 leading-relaxed">{s.basis}</p>
+        </details>
       )}
       {s.locked && (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold/40 bg-surface p-4" aria-label={t('a11y.lockedSection')}>
@@ -289,12 +309,17 @@ export function TaekilResultPage() {
               <h1 className="mt-2 font-serif text-[26px] font-semibold leading-snug lg:text-[32px]">{r.headline}</h1>
               <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-ink-3">
                 <span>{r.mode === 'range' ? t('taekil.result.period', { from: dateShort(r.from), to: dateShort(r.to), count: r.days.length }) : t('taekil.result.periodDates', { count: r.days.length })}</span>
-                <span aria-hidden>·</span>
-                <span>
-                  {t('taekil.result.basisLabel')} <span className="font-serif">{r.basis}</span>
-                </span>
                 {r.generator === 'ai' && <Badge tone="gold">{t('result.aiBadge')}</Badge>}
               </div>
+              <p className="mt-2 text-sm leading-relaxed text-ink-2">
+                {r.partnerName ? t('taekil.result.basisIntroPair', { name: r.profileName, partner: r.partnerName }) : t('taekil.result.basisIntro', { name: r.profileName })}
+              </p>
+              <details className="group mt-2 text-sm text-ink-3">
+                <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-full border border-line px-3 py-1 hover:text-ink-2 [&::-webkit-details-marker]:hidden">
+                  {t('taekil.result.basisLabel')} <span className="transition-transform group-open:rotate-180" aria-hidden>▾</span>
+                </summary>
+                <p className="mt-2 font-serif leading-relaxed">{r.basis}</p>
+              </details>
             </section>
 
             <section className="mt-8" aria-labelledby="tk-top">

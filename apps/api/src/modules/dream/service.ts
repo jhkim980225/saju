@@ -42,10 +42,11 @@ function overallTone(matches: DreamMatch[]): DreamTone {
   return 'neutral';
 }
 
-const HEADLINE: Record<DreamTone, string> = {
-  good: '좋은 기운으로 풀이해 온 상징이 많은 꿈이에요',
-  bad: '마음을 한 번 살펴보라는 신호로 읽히는 꿈이에요',
-  neutral: '여러 상징이 섞여 지금의 마음을 비추는 꿈이에요',
+/** 머리말 — 상징이 하나뿐이면 '많은·여러' 같은 말을 쓰지 않는다 */
+const HEADLINE: Record<DreamTone, [one: string, many: string]> = {
+  good: ['좋은 기운으로 풀이해 온 꿈이에요', '좋은 기운으로 풀이해 온 상징이 많은 꿈이에요'],
+  bad: ['마음을 한 번 살펴보라는 신호로 읽히는 꿈이에요', '마음을 한 번 살펴보라는 신호로 읽히는 꿈이에요'],
+  neutral: ['지금의 마음을 비추는 꿈이에요', '여러 상징이 섞여 지금의 마음을 비추는 꿈이에요'],
 };
 
 const CLOSING: Record<DreamTone, string> = {
@@ -54,7 +55,16 @@ const CLOSING: Record<DreamTone, string> = {
   neutral: '꿈에서 깨어났을 때 가장 크게 남은 느낌을 한 줄로 적어 보세요. 지금 마음이 어디에 머물러 있는지 보이기 시작할 거예요.',
 };
 
-/** 규칙 기반 풀이 — 사전 문장만 엮는다(새 해석을 만들지 않음) */
+/** 0~9 를 읽을 때 받침이 있는가 — 영·일·이·삼·사·오·육·칠·팔·구 */
+const DIGIT_BATCHIM = [true, true, false, true, false, false, true, true, true, false];
+/** 이/가 — 마지막 글자가 숫자여도 읽는 소리로 고른다 */
+function subjectJosa(word: string): string {
+  const last = word.at(-1) ?? '';
+  const batchim = /\d/.test(last) ? DIGIT_BATCHIM[Number(last)]! : /[가-힣]/.test(last) && (last.charCodeAt(0) - 0xac00) % 28 !== 0;
+  return word + (batchim ? '이' : '가');
+}
+
+/** 규칙 기반 풀이 — 사전 문장만 엮는다(새 해석을 만들지 않음). 사전 항목처럼 'A — B'로 붙이지 않고 말하듯 잇는다 */
 export function composeRuleBased(matches: DreamMatch[], crisis: boolean): { headline: string; paragraphs: string[] } {
   const lead = crisis ? [CRISIS_LINE] : [];
   if (matches.length === 0) {
@@ -70,11 +80,12 @@ export function composeRuleBased(matches: DreamMatch[], crisis: boolean): { head
   const tone = overallTone(matches);
   const top = matches.slice(0, 3);
   return {
-    headline: HEADLINE[tone],
+    headline: HEADLINE[tone][matches.length > 1 ? 1 : 0],
     paragraphs: [
       ...lead,
-      `꿈 이야기에서 사전의 상징 ${matches.length}가지를 찾았어요. ${matches.map((m) => m.entry.keyword).join(', ')}.`,
-      ...top.map((m) => (m.variation ? `${m.variation.title} — ${m.variation.text}` : `${m.entry.keyword} — ${m.entry.meaning}`)),
+      `꿈 이야기에서 ${subjectJosa(matches.map((m) => m.entry.keyword).join(', '))} 눈에 띄어요. 옛날부터 전해 오는 풀이로 하나씩 읽어 볼게요.`,
+      // 상황이 맞는 항목은 '…꿈이라면, …', 아니면 사전 본문(주어가 이미 상징 이름으로 시작한다)
+      ...top.map((m) => (m.variation ? `${m.variation.title}이라면, ${m.variation.text}` : m.entry.meaning)),
       CLOSING[tone],
     ],
   };

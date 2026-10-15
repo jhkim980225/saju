@@ -83,7 +83,7 @@ describe('택일', () => {
     expect(b.sections.every((s: any) => s.locked === true && s.unlockProductId === 'report_taekil')).toBe(true);
     // 종합 분석만 첫 문단(등급 개수) 미리보기, 나머지는 문단 없음
     expect(b.sections[0].paragraphs).toHaveLength(1);
-    expect(b.sections[0].paragraphs[0]).toMatch(/대길 \d+일 · 길 \d+일/);
+    expect(b.sections[0].paragraphs[0]).toMatch(/아주 좋은 날 \d+일, 좋은 날 \d+일/);
     expect(b.sections.slice(1).every((s: any) => s.paragraphs.length === 0)).toBe(true);
   });
 

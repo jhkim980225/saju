@@ -35,13 +35,13 @@ test.describe('입력 검증', () => {
     await fillBirthForm(page, { name: '서윤', date: '19950314', time: null, gender: 'female' });
     await expect(page.getByRole('button', { name: '시간을 몰라요' })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByPlaceholder('예) 14:30')).toHaveCount(0);
-    await expect(page.getByText('괜찮아요. 시주를 뺀 여섯 글자로 풀이하고')).toBeVisible();
+    await expect(page.getByText('괜찮아요. 태어난 시간을 빼고 연·월·일 여섯 글자로 풀이해요')).toBeVisible();
     await expect(page.getByText('필수 4/4')).toBeVisible();
     await page.getByRole('button', { name: '다음', exact: true }).click();
 
     await expect(page).toHaveURL(/\/confirm$/);
     await expect(page.getByText('태어난 시간 모름 · 서울특별시 · 여성')).toBeVisible();
-    await expect(page.getByText(/시간 보정/)).toHaveCount(0);
+    await expect(page.getByText(/실제 해 시각/)).toHaveCount(0);
     await page.getByRole('button', { name: '사주 풀이 보기' }).click();
 
     await expect(page.getByText(/^갑진일주 · /)).toBeVisible({ timeout: 15_000 });
@@ -52,7 +52,7 @@ test.describe('입력 검증', () => {
     await expect(page.getByText('태어난 시간을 알면 더 정확해져요')).toBeVisible();
     await expect(page.getByRole('link', { name: '시간 입력하기' })).toBeVisible();
     await expect(page.getByText('양력 1995.03.14 시간 모름')).toBeVisible();
-    await expect(page.getByText(/^보정 -?\d+분$/)).toHaveCount(0);
+    await expect(page.getByText(/^실제 해 시각/)).toHaveCount(0);
   });
 
   test('음력 + 윤달: 양력으로 변환해 확인, 없는 윤달은 오류', async ({ page }) => {
@@ -97,11 +97,11 @@ test.describe('입력 검증', () => {
     await expect(page).toHaveURL(/\/confirm$/);
     await expect(page.getByText('14:30 · 뉴욕 (미국) · 여성')).toBeVisible();
     // 뉴욕(서경 74.0°, EST 기준 자오선 75°) → +4분
-    await expect(page.getByText('시간 보정 +4분 (지역 경도) → 14:34 기준')).toBeVisible();
+    await expect(page.getByText('태어난 시간을 실제 해 시각 14:34 기준으로 계산해요')).toBeVisible();
     await page.getByRole('button', { name: '사주 풀이 보기' }).click();
     await expect(page.getByText(/^갑진일주 · /)).toBeVisible({ timeout: 15_000 });
     await expect(pillarTile(page, '시', '지지', '미', '未')).toBeVisible();
-    await expect(page.getByText('보정 +4분', { exact: true })).toBeVisible();
+    await expect(page.getByText('실제 해 시각 14:34', { exact: true })).toBeVisible();
   });
 });
 

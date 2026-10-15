@@ -214,7 +214,7 @@ export function TarotReadingView({ reading, onUnlock }: { reading: TarotReadingD
                 <p className="mt-2 text-sm text-ink-2">{t('tarot.paywall.lockBody', { count: reading.cards.length })}</p>
                 <p className="mt-4 text-xs font-semibold text-ink-3">{t('tarot.paywall.tocTitle')}</p>
                 <ul className="mt-2 space-y-1.5 text-[15px]">
-                  {[t('tarot.paywall.toc.position'), t('tarot.paywall.toc.flow'), t('tarot.paywall.toc.advice'), ...(saju ? ['사주로 본 근거 (일간·용신과 카드 원소)'] : [])].map((x) => (
+                  {[t('tarot.paywall.toc.position'), t('tarot.paywall.toc.flow'), t('tarot.paywall.toc.advice'), ...(saju ? [t('tarot.paywall.toc.saju')] : [])].map((x) => (
                     <li key={x} className="flex items-start gap-2">
                       <Check className="mt-1 size-4 shrink-0 text-ink-3" aria-hidden />
                       {x}
@@ -274,13 +274,19 @@ export function TarotReadingView({ reading, onUnlock }: { reading: TarotReadingD
         {saju && (
           <section className="border-t border-line py-8">
             <h2 className="font-serif text-[22px] font-semibold">{saju.title}</h2>
-            <p className="mt-1 text-sm text-ink-3">
-              {reading.profileName ? `${reading.profileName}님 · ` : ''}
-              {saju.summary}
-            </p>
+            {saju.summary && <p className="mt-2 text-[17px] font-medium leading-relaxed text-ink-2">{saju.summary}</p>}
             <div className="mt-3">
               <Paragraphs section={saju} />
             </div>
+            {!saju.locked && saju.basis && (
+              // 일간·용신·원소 같은 용어는 궁금한 사람만 펼쳐 보게 — 본문은 쉬운 말로만
+              <details className="group mt-4 text-sm text-ink-3">
+                <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-full border border-line px-3 py-1 hover:text-ink-2 [&::-webkit-details-marker]:hidden">
+                  {t('tarot.result.sajuBasisLabel')} <span className="transition-transform group-open:rotate-180" aria-hidden>▾</span>
+                </summary>
+                <p className="mt-2 leading-relaxed">{saju.basis}</p>
+              </details>
+            )}
           </section>
         )}
 

@@ -142,7 +142,7 @@ export function TaekilPage() {
                   {list.map((p) => (
                     <Chip key={p.id} active={p.id === profile.id} onClick={() => setProfileId(p.id)}>
                       {p.name}
-                      <span className="ml-1 font-serif text-xs opacity-70">{p.dayPillar}</span>
+                      <span className="ml-1 text-xs opacity-70">{p.zodiac}띠</span>
                     </Chip>
                   ))}
                 </div>

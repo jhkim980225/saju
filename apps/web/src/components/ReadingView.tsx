@@ -89,7 +89,12 @@ export function ReadingView({
           <span>
             {chart.input.calendar === 'lunar' ? '음력' : '양력'} {chart.input.year}.{pad(chart.input.month)}.{pad(chart.input.day)} {timeText}
           </span>
-          {chart.hourKnown && corr !== 0 && <Badge>{t('result.correctionBadge', { minutes: corr > 0 ? `+${corr}` : corr })}</Badge>}
+          {chart.hourKnown && corr !== 0 && chart.correctedTime && (
+            // '보정 -32분' 대신 실제로 계산에 쓴 시각을 보여 준다 — 이유는 title 과 확인 화면에서
+            <span title={t('result.correctionBadgeHint', { minutes: corr > 0 ? `+${corr}` : corr })}>
+              <Badge>{t('result.correctionBadgePlain', { time: `${pad(chart.correctedTime.hour)}:${pad(chart.correctedTime.minute)}` })}</Badge>
+            </span>
+          )}
           {reading.generator === 'ai' && <Badge tone="gold">{t('result.aiBadge')}</Badge>}
           {isPremiumUser && <Badge tone="gold">전체 풀이</Badge>}
         </div>

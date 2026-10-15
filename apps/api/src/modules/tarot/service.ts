@@ -114,7 +114,7 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
   };
 
   /** AI 종합 문단 — 열람 권한이 있을 때 한 번만 만들고 저장 (무료 펼침은 규칙 기반만) */
-  const ensureAiStory = async (r: TarotReading, built: ReturnType<typeof buildTarotReading>, people: { me: TarotPerson; partner: TarotPerson } | null): Promise<string[] | null> => {
+  const ensureAiStory = async (r: TarotReading, built: ReturnType<typeof buildTarotReading>, people: { me: TarotPerson; partner: TarotPerson } | null, profileName: string | null): Promise<string[] | null> => {
     if (r.aiParagraphs?.length) return r.aiParagraphs;
     if (!ai.enabled || isFreeSpread(r.spread)) return null;
     const running = inflight.get(r.id);
@@ -126,6 +126,7 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
         question: r.question,
         cards: built.cards.map((c) => ({ position: c.position.label, hint: c.position.hint, name: c.nameKo, orientation: c.orientation, meaning: c.meaning, line: c.line, keywords: c.keywords })),
         basis: built.basis,
+        profileName,
         ...(r.options ? { options: r.options } : {}),
         ...(people ? { people: { me: people.me.name, partner: people.partner.name } } : {}),
       })
@@ -145,11 +146,11 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
     const owner = chartFor(userId, r.profileId);
     const partner = spread === 'compat' ? partnerFor(userId, r.partnerProfileId) : null;
     const people = owner && partner ? { me: owner, partner } : null;
-    const input = { id: r.id, spread, topic, drawn: r.cards, chart: owner?.chart ?? null, unlocked: isUnlocked, options: r.options ?? null, people };
+    const input = { id: r.id, spread, topic, drawn: r.cards, chart: owner?.chart ?? null, unlocked: isUnlocked, options: r.options ?? null, people, name: owner?.name ?? null };
     let built = buildTarotReading(input);
     let aiParagraphs: string[] | null = null;
     if (isUnlocked) {
-      aiParagraphs = await ensureAiStory(r, built, people);
+      aiParagraphs = await ensureAiStory(r, built, people, owner?.name ?? null);
       if (aiParagraphs) built = buildTarotReading({ ...input, aiParagraphs });
     }
     const def = TAROT_SPREADS[spread];

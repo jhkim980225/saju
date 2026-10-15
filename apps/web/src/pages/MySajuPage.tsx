@@ -64,7 +64,7 @@ export function MySajuPage() {
           <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pt-2 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0">
             {list.map((p) => (
               <Chip key={p.id} active={p.id === profile?.id} onClick={() => select(p.id)}>
-                {p.name} · {p.dayPillar}
+                {p.name} · {p.zodiac}띠
               </Chip>
             ))}
           </div>

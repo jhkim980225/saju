@@ -51,7 +51,8 @@ export const TAEKIL_MAX_DATE = '2050-12-31';
 // ---------------------------------------------------------------------------
 
 export type TaekilGrade = 'best' | 'good' | 'normal' | 'caution' | 'avoid';
-export const TAEKIL_GRADE_LABEL: Record<TaekilGrade, string> = { best: '대길', good: '길', normal: '보통', caution: '주의', avoid: '피함' };
+/** 화면에 보이는 등급 이름 — 생활어로(docs/PLAIN_KOREAN.md 규칙 11) */
+export const TAEKIL_GRADE_LABEL: Record<TaekilGrade, string> = { best: '아주 좋은 날', good: '좋은 날', normal: '평범한 날', caution: '조심할 날', avoid: '피할 날' };
 export const TAEKIL_GRADES: readonly TaekilGrade[] = ['best', 'good', 'normal', 'caution', 'avoid'];
 
 /** 기준점 50 에서 출발한 점수 → 등급. 탈락 사유가 있으면 점수와 무관하게 '피함' */

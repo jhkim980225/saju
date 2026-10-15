@@ -27,8 +27,8 @@ import {
 
 type Source = { kind: 'profile'; profile: ProfileDto } | { kind: 'birth'; birth: TojeongBirthDto; name?: string };
 
-const PAGE_TITLE = (year: number) => `${year} 토정비결 무료 — 144괘로 보는 한 해 | 달빛사주`;
-const PAGE_DESCRIPTION = (year: number) => `생년월일만 넣으면 ${year}년 토정비결 괘와 총평, 음력 열두 달 흐름을 무료로 볼 수 있어요. 괘를 뽑은 계산 근거까지 함께 보여 드려요.`;
+const PAGE_TITLE = (year: number) => `${year} 토정비결 무료 — 생년월일로 보는 한 해 운세 | 달빛사주`;
+const PAGE_DESCRIPTION = (year: number) => `생년월일만 넣으면 ${year}년 토정비결 총평과 음력 열두 달 흐름을 무료로 볼 수 있어요. 풀이 번호(괘)를 뽑은 계산 과정도 함께 보여 드려요.`;
 
 /** 검색 유입용 페이지라 탭 제목·설명을 이 화면 동안만 바꿔 둔다(나갈 때 원래대로) */
 function usePageMeta(title: string, description: string) {
@@ -143,11 +143,11 @@ export function TojeongPage() {
           />
         )}
 
-        {!showForm && q.isLoading && <Spinner label="괘를 뽑고 있어요" />}
+        {!showForm && q.isLoading && <Spinner label="올해 풀이를 찾고 있어요" />}
         {!showForm && q.error && !badInput && <ErrorState title={t('error.server.title')} onRetry={() => q.refetch()} />}
         {!showForm && badInput && (
           <div role="alert" className="flex flex-col items-center gap-3 px-6 py-14 text-center">
-            <p className="text-lg font-semibold">이 생년월일로는 괘를 뽑을 수 없어요</p>
+            <p className="text-lg font-semibold">이 생년월일로는 풀이를 볼 수 없어요</p>
             <p className="text-[15px] text-ink-2">{q.error?.message}</p>
             <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
               생년월일 다시 입력
@@ -172,10 +172,10 @@ function TojeongForm({ year, initial, onSubmit, onCancel }: { year: number; init
   return (
     <section className="animate-fade pt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-12">
       <div>
-        <p className="text-sm font-semibold text-ink-3">무료 · 144괘</p>
-        <h2 className="mt-2 font-serif text-[26px] font-semibold leading-snug lg:text-[34px]">{year}년, 나의 한 해를 괘 하나로 읽어요</h2>
+        <p className="text-sm font-semibold text-ink-3">무료 · 생년월일만 있으면 돼요</p>
+        <h2 className="mt-2 font-serif text-[26px] font-semibold leading-snug lg:text-[34px]">{year}년, 나의 한 해를 미리 읽어 봐요</h2>
         <p className="prose-reading mt-3 text-[16px] leading-relaxed text-ink-2">
-          토정비결은 음력 생년월일과 그해의 간지로 144괘 가운데 하나를 뽑아 한 해의 흐름과 열두 달을 살피는 세시 풍속이에요. 태어난 시간은 쓰지 않아요.
+          토정비결은 조선 시대부터 새해가 되면 한 해 운을 미리 살펴보던 풍속이에요. 생년월일로 144가지 풀이 가운데 하나를 골라, 한 해의 흐름과 열두 달을 읽어 드려요. 태어난 시간은 몰라도 돼요.
         </p>
         <form onSubmit={submit} noValidate className="mt-6 space-y-6 lg:max-w-md">
           <Field label={t('form.calendar.label')} required error={error} helper="양력으로 넣어도 음력으로 바꿔 계산해요." htmlFor="tojeong-date">
@@ -219,19 +219,28 @@ function TojeongForm({ year, initial, onSubmit, onCancel }: { year: number; init
         </form>
       </div>
       <Card className="mt-8 lg:mt-0">
-        <h3 className="font-semibold">괘는 이렇게 뽑아요</h3>
-        <ul className="mt-3 space-y-2 text-sm leading-relaxed text-ink-2">
-          <li>
-            <b className="text-ink">상괘</b> 그해 나이(세는나이)와 그해 간지의 수를 더해 8로 나눈 나머지
-          </li>
-          <li>
-            <b className="text-ink">중괘</b> 그해 생월의 날수(큰달 30·작은달 29)와 그달 간지의 수를 더해 6으로 나눈 나머지
-          </li>
-          <li>
-            <b className="text-ink">하괘</b> 생일과 그해 생일 간지의 수를 더해 3으로 나눈 나머지
-          </li>
-        </ul>
-        <p className="mt-3 text-xs text-ink-3">8 × 6 × 3 = 144괘. 결과 화면에서 내 괘의 계산 과정을 그대로 보여 드려요.</p>
+        <h3 className="font-semibold">풀이는 어떻게 정해지나요?</h3>
+        <p className="mt-2 text-sm leading-relaxed text-ink-2">
+          음력 생년월일과 그해 달력의 숫자를 더하고 나눠서 세 자리 번호를 만들어요. 번호마다 정해진 풀이가 있어서, 생년월일이 같으면 같은 풀이가 나와요. 이 번호를 &lsquo;괘&rsquo;라고 해요.
+        </p>
+        <details className="group mt-3 text-sm">
+          <summary className="flex cursor-pointer list-none items-center gap-1 font-medium text-ink-2">
+            계산 방법 자세히 보기 <span className="text-ink-3">(몰라도 괜찮아요)</span>
+            <ChevronDown className="size-4 shrink-0 text-ink-3 transition-transform group-open:rotate-180" aria-hidden />
+          </summary>
+          <ul className="mt-3 space-y-2 leading-relaxed text-ink-2">
+            <li>
+              <b className="text-ink">첫째 자리(상괘)</b> 그해 나이(세는나이)와 그해에 붙은 수를 더해 8로 나눈 나머지
+            </li>
+            <li>
+              <b className="text-ink">둘째 자리(중괘)</b> 그해 태어난 달의 날수(큰달 30·작은달 29)와 그달에 붙은 수를 더해 6으로 나눈 나머지
+            </li>
+            <li>
+              <b className="text-ink">셋째 자리(하괘)</b> 태어난 날과 그해 생일에 붙은 수를 더해 3으로 나눈 나머지
+            </li>
+          </ul>
+          <p className="mt-3 text-xs text-ink-3">8 × 6 × 3 = 144가지예요. 결과 화면에서 내 번호의 계산 과정을 그대로 보여 드려요.</p>
+        </details>
       </Card>
     </section>
   );
@@ -250,7 +259,7 @@ export function TojeongResult({ data: d, name, onEdit }: { data: TojeongDto; nam
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-ink-3">
               {name ? `${name}님의 ` : ''}
-              {d.year} {d.yearPillar.hangul}({d.yearPillar.hanja})년 토정비결
+              {d.year}년 토정비결
             </p>
             {onEdit && (
               <button type="button" onClick={onEdit} className="shrink-0 text-sm font-medium text-ink-2 underline underline-offset-4">
@@ -258,18 +267,21 @@ export function TojeongResult({ data: d, name, onEdit }: { data: TojeongDto; nam
               </button>
             )}
           </div>
-          <p className="mt-3 flex items-baseline gap-2">
-            <span className="tabular font-serif text-[44px] font-semibold leading-none lg:text-[56px]">{d.gwae.code}</span>
-            <span className="text-sm text-ink-3">괘</span>
-          </p>
-          <p className="mt-4 font-serif text-[22px] tracking-wide lg:text-[26px]">{d.gwae.verse}</p>
-          <p className="mt-1 text-sm text-ink-3">{d.gwae.reading}</p>
-          <h2 className="mt-5 font-serif text-[26px] font-semibold leading-snug lg:text-[32px]">{d.gwae.title}</h2>
+          {/* 뜻을 먼저 — 제목·한 줄 요약, 옛 글귀(한문)와 번호는 그 아래 참고로 */}
+          <h2 className="mt-3 font-serif text-[26px] font-semibold leading-snug lg:text-[32px]">{d.gwae.title}</h2>
           <p className="mt-2 text-[17px] leading-relaxed text-ink-2">{d.gwae.summary}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {d.gwae.keywords.map((k) => (
               <Badge key={k}>{k}</Badge>
             ))}
+          </div>
+          <div className="mt-5 rounded-2xl bg-subtle px-4 py-3">
+            <p className="text-xs font-semibold text-ink-3">이 풀이의 바탕이 된 옛 글귀</p>
+            <p className="mt-1.5 font-serif text-lg tracking-wide">{d.gwae.verse}</p>
+            <p className="mt-0.5 text-sm text-ink-3">{d.gwae.reading}</p>
+            <p className="mt-2 text-xs leading-relaxed text-ink-3">
+              <span className="tabular font-semibold text-ink-2">{d.gwae.code}괘</span> · 토정비결의 144가지 풀이 가운데, 생년월일로 정해진 번호예요.
+            </p>
           </div>
         </section>
 
@@ -328,16 +340,21 @@ export function TojeongResult({ data: d, name, onEdit }: { data: TojeongDto; nam
       <div className="lg:sticky lg:top-6 lg:pt-4">
         <details className="group mt-6 rounded-2xl border border-line bg-surface p-5 lg:mt-0">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold">
-            괘를 뽑은 방법
+            <span>
+              괘를 뽑은 방법 <span className="text-sm font-normal text-ink-3">· 궁금한 분만</span>
+            </span>
             <ChevronDown className="size-5 shrink-0 text-ink-3 transition-transform group-open:rotate-180" aria-hidden />
           </summary>
-          <p className="mt-3 text-sm text-ink-2">
+          <p className="mt-3 text-sm leading-relaxed text-ink-2">
+            생년월일과 {d.year}년 달력의 숫자로 세 자리 번호(괘)를 정했어요. 첫째 자리는 나이, 둘째 자리는 태어난 달, 셋째 자리는 태어난 날로 정해요.
+          </p>
+          <p className="mt-2 text-sm text-ink-2">
             {lunarLabel(d.basis.lunarBirth)} · {d.year}년 세는나이 {d.basis.age}세
           </p>
           <dl className="mt-3 space-y-2.5 text-sm">
             <div className="rounded-xl bg-subtle p-3">
               <dt className="font-semibold">
-                상괘 {d.gwae.upper} <span className="font-normal text-ink-3">· 나이 + 태세수</span>
+                첫째 자리 {d.gwae.upper} <span className="font-normal text-ink-3">· 나이 + 그해의 수(상괘·태세수)</span>
               </dt>
               <dd className="tabular mt-1 text-ink-2">
                 {d.basis.age} + {d.basis.upper.value}({d.basis.upper.ganzhi}) = {d.basis.upper.sum} → 8로 나눈 나머지 {d.gwae.upper}
@@ -345,7 +362,7 @@ export function TojeongResult({ data: d, name, onEdit }: { data: TojeongDto; nam
             </div>
             <div className="rounded-xl bg-subtle p-3">
               <dt className="font-semibold">
-                중괘 {d.gwae.middle} <span className="font-normal text-ink-3">· 생월 날수 + 월건수</span>
+                둘째 자리 {d.gwae.middle} <span className="font-normal text-ink-3">· 태어난 달의 날수 + 그달의 수(중괘·월건수)</span>
               </dt>
               <dd className="tabular mt-1 text-ink-2">
                 {d.basis.middle.monthDays} + {d.basis.middle.value}({d.basis.middle.ganzhi}월) = {d.basis.middle.sum} → 6으로 나눈 나머지 {d.gwae.middle}
@@ -353,14 +370,16 @@ export function TojeongResult({ data: d, name, onEdit }: { data: TojeongDto; nam
             </div>
             <div className="rounded-xl bg-subtle p-3">
               <dt className="font-semibold">
-                하괘 {d.gwae.lower} <span className="font-normal text-ink-3">· 생일 + 일진수</span>
+                셋째 자리 {d.gwae.lower} <span className="font-normal text-ink-3">· 태어난 날 + 그날의 수(하괘·일진수)</span>
               </dt>
               <dd className="tabular mt-1 text-ink-2">
                 {d.basis.lower.birthDay} + {d.basis.lower.value}({d.basis.lower.ganzhi}일) = {d.basis.lower.sum} → 3으로 나눈 나머지 {d.gwae.lower}
               </dd>
             </div>
           </dl>
-          <p className="mt-2 text-xs leading-relaxed text-ink-3">나머지가 0이면 나눈 수(8·6·3)로 봐요. 월건·일진은 {d.year}년 달력의 생월·생일 간지예요.</p>
+          <p className="mt-2 text-xs leading-relaxed text-ink-3">
+            나머지가 0이면 나눈 수(8·6·3)로 봐요. 괄호 속 한자는 옛 달력에서 {d.year}년({d.yearPillar.hangul}년)과 그해 생월·생일에 붙은 이름(간지)이에요.
+          </p>
           {d.basis.notes.map((n) => (
             <p key={n} className="mt-1 text-xs leading-relaxed text-ink-3">
               {n}
@@ -374,7 +393,7 @@ export function TojeongResult({ data: d, name, onEdit }: { data: TojeongDto; nam
             <div>
               <p className="font-serif text-lg font-semibold">{d.year} 신년운세</p>
               <p className="mt-1 text-sm leading-relaxed text-ink-2">
-                토정비결이 한 해의 큰 그림이라면, 신년운세는 내 사주팔자와 {d.yearPillar.hanja}년의 기운이 만나는 자리를 재물·애정·직장·건강과 열두 달로 풀어요. 총운과 첫 두 달은 무료로 볼 수 있어요.
+                토정비결이 한 해를 크게 훑어본다면, 신년운세는 태어난 시간까지 넣은 내 사주로 {d.year}년의 돈·연애·일·건강을 달마다 자세히 풀어요. 한 해 전체 흐름과 첫 두 달은 무료예요.
               </p>
             </div>
           </div>

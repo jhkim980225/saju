@@ -2,7 +2,7 @@
  * 띠별·별자리 운세 공용 조각 — 기간 탭, 본문, 근거, 이번 주 날짜, 내 운세 안내, 계산 방법.
  */
 import { FREE_FORTUNE_PERIODS, FREE_FORTUNE_PERIOD_LABEL, type FreeFortuneKeyDayDto, type FreeFortunePeriod, type FreeFortuneReasonDto, type FreeFortuneTone } from '@saju/shared';
-import { ChevronRight, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Badge, Card, cx } from './ui';
@@ -120,10 +120,18 @@ export function FortuneMain({ eyebrow, tone, toneLabel, headline, paragraphs, ti
   );
 }
 
-export function ReasonCard({ title = '왜 이런 풀이일까요?', reasons }: { title?: string; reasons: FreeFortuneReasonDto[] }) {
+/** 풀이 근거 — 용어(간지·합충)가 들어 있어 기본은 접어 두고, 궁금한 사람만 펼쳐 본다 */
+export function ReasonCard({ title = '왜 이런 풀이일까요?', intro, reasons }: { title?: string; intro?: string; reasons: FreeFortuneReasonDto[] }) {
   return (
-    <Card className="mt-6">
-      <h3 className="font-semibold">{title}</h3>
+    <details className="group mt-6 rounded-2xl border border-line bg-surface p-5">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+        <span>
+          <span className="font-semibold">{title}</span>
+          <span className="ml-1.5 text-sm text-ink-3">· 궁금한 분만</span>
+        </span>
+        <ChevronDown className="size-5 shrink-0 text-ink-3 transition-transform group-open:rotate-180" aria-hidden />
+      </summary>
+      {intro && <p className="mt-3 text-sm leading-relaxed text-ink-3">{intro}</p>}
       <ul className="mt-3 space-y-3">
         {reasons.map((r) => (
           <li key={r.title}>
@@ -132,15 +140,16 @@ export function ReasonCard({ title = '왜 이런 풀이일까요?', reasons }: {
           </li>
         ))}
       </ul>
-    </Card>
+    </details>
   );
 }
 
-export function KeyDays({ days }: { days: FreeFortuneKeyDayDto[] }) {
+export function KeyDays({ days, note }: { days: FreeFortuneKeyDayDto[]; note?: string }) {
   if (days.length === 0) return null;
   return (
     <Card className="mt-6">
       <h3 className="font-semibold">이번 주 눈여겨볼 날</h3>
+      {note && <p className="mt-1 text-sm leading-relaxed text-ink-3">{note}</p>}
       <ul className="mt-3 space-y-3">
         {days.map((k) => (
           <li key={k.date} className="flex gap-3">
@@ -149,7 +158,7 @@ export function KeyDays({ days }: { days: FreeFortuneKeyDayDto[] }) {
             </span>
             <div className="min-w-0">
               <p className="text-[15px] font-semibold">
-                {Number(k.date.slice(5, 7))}월 {Number(k.date.slice(8, 10))}일 {k.weekday} <span className="font-serif font-normal text-ink-3">{k.marker}</span>
+                {Number(k.date.slice(5, 7))}월 {Number(k.date.slice(8, 10))}일 {k.weekday} <span className="font-normal text-ink-3">· {k.marker}</span>
               </p>
               <p className="mt-0.5 text-sm leading-relaxed text-ink-2">{k.reason}</p>
             </div>

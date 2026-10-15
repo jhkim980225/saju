@@ -536,9 +536,9 @@ export function DreamAskPage() {
       <Page width="medium">
         {gate.failed && <SessionGateError onRetry={gate.retry} />}
         <h2 className="mt-4 font-serif text-[22px] font-semibold leading-snug lg:text-[26px]">어떤 꿈을 꾸셨나요?</h2>
-        <p className="mt-2 text-[15px] leading-relaxed text-ink-2">기억나는 장면과 그때의 느낌을 편하게 적어 주세요. 사전에서 상징을 찾아 근거로 삼아 풀어 드려요.</p>
+        <p className="mt-2 text-[15px] leading-relaxed text-ink-2">기억나는 장면과 그때의 느낌을 편하게 적어 주세요. 꿈에 나온 것들을 꿈해몽 사전에서 찾아, 전해 오는 풀이를 바탕으로 풀어 드려요.</p>
         <p className="mt-3 rounded-xl bg-subtle p-3 text-sm leading-relaxed text-ink-2">
-          {aiEnabled ? 'AI가 꿈 이야기와 사전의 전통 해석을 바탕으로 풀이를 써요. 한 번 풀 때마다 질문권 1회를 써요.' : 'AI 꿈풀이 연동 전이라, 사전의 전통 해석을 엮은 기본 풀이를 드려요. (질문권이 차감되지 않아요)'}
+          {aiEnabled ? 'AI가 꿈 이야기와 사전의 전통 해석을 바탕으로 풀이를 써요. 한 번 풀 때마다 질문권 1회를 써요.' : '지금은 AI 꿈풀이를 준비하고 있어서, 사전의 전통 해석을 엮은 기본 풀이를 드려요. 질문권은 쓰지 않아요.'}
         </p>
 
         <form
@@ -575,7 +575,7 @@ export function DreamAskPage() {
           {aiEnabled && list.length > 0 && (
             <fieldset className="mt-5">
               <legend className="text-[15px] font-semibold">사주와 함께 보기</legend>
-              <p className="mt-1 text-sm text-ink-3">고른 사주를 바탕으로 마지막에 한두 문장을 더해요.</p>
+              <p className="mt-1 text-sm text-ink-3">고른 사람의 타고난 성향에 맞춰, 풀이 끝에 한두 문장을 더해요.</p>
               <div className="no-scrollbar -mx-5 mt-2 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:flex-wrap lg:px-0">
                 {list.map((p) => (
                   <Chip key={p.id} active={selected?.id === p.id} onClick={() => setChoice(p.id)}>

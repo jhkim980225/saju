@@ -42,7 +42,7 @@ test('택일: 무료 미리보기 → 목업 결제 → 같은 결과의 상세�
   await page.getByRole('button', { name: /^1위 / }).click();
   const daySheet = page.getByRole('dialog');
   await expect(daySheet.getByText('이 날의 근거와 빠진 이유는 상세 풀이에서 볼 수 있어요.')).toBeVisible();
-  await expect(daySheet.getByText('좋은 점')).toHaveCount(0);
+  await expect(daySheet.getByRole('heading', { name: '좋은 점' })).toHaveCount(0);
   await daySheet.getByRole('button', { name: '상세 풀이 열기 · 990원' }).click();
 
   // 목업 결제
@@ -61,8 +61,12 @@ test('택일: 무료 미리보기 → 목업 결제 → 같은 결과의 상세�
 
   await page.getByRole('button', { name: /^1위 / }).click();
   const detail = page.getByRole('dialog');
-  await expect(detail.getByText('좋은 점')).toBeVisible();
-  await expect(detail.getByText('좋은 시간(황도시)')).toBeVisible();
+  await expect(detail.getByRole('heading', { name: '좋은 점' })).toBeVisible();
+  await expect(detail.getByText('시작하기 좋은 시간')).toBeVisible();
+  // 용어(건제12신·황도)는 접혀 있다가 펼치면 보인다
+  await expect(detail.getByText(/건제12신/).first()).toBeHidden();
+  await detail.locator('summary', { hasText: '옛 달력·사주 용어로 보면' }).click();
+  await expect(detail.getByText(/건제12신/).first()).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(detail).toBeHidden();
 

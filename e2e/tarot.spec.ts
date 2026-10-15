@@ -45,7 +45,11 @@ test('질문 타로 3장: 고른 자리의 카드로 결과가 나오고, 깊은
   await expect(page).toHaveURL(new RegExp(`/tarot/r/${readingId}$`));
   await expect(page.getByRole('button', { name: /깊은 풀이 열기/ })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '사주로 본 근거' })).toBeVisible();
-  await expect(page.getByText(/근거: 일간 .+ · 용신 .+ · 카드 원소/)).toBeVisible();
+  // 본문은 쉬운 말, 일간·용신 같은 용어는 '사주로 보면'을 펼쳐야 보인다
+  await expect(page.getByText(/카드예요$/).first()).toBeVisible();
+  await expect(page.getByText(/일간 .+ · 용신 .+ · 카드 원소/)).toBeHidden();
+  await page.locator('summary', { hasText: '사주로 보면' }).click();
+  await expect(page.getByText(/일간 .+ · 용신 .+ · 카드 원소/)).toBeVisible();
 
   const cardsAfter = await apiCall<{ cards: { id: string }[]; locked: boolean }>(api, 'GET', `/tarot/readings/${readingId}`, { token: tokens.accessToken });
   expect(cardsAfter.locked).toBe(false);

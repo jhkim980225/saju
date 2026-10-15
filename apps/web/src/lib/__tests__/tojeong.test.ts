@@ -46,7 +46,7 @@ const SAMPLE: TojeongDto = {
     label: `음력 ${i + 1}월`,
     period: '2.7 ~ 3.7',
     flow: (['rise', 'even', 'care'] as const)[i % 3]!,
-    flowLabel: ['힘이 붙는 달', '고른 달', '살피는 달'][i % 3]!,
+    flowLabel: ['힘이 붙는 달', '무난한 달', '살피는 달'][i % 3]!,
     text: `${i + 1}월의 흐름을 적은 문장이에요.`,
   })),
   basis: {
@@ -68,7 +68,11 @@ describe('토정비결 결과 화면', () => {
     const { container } = renderResult(SAMPLE);
     expect(screen.getByText('東風解凍 枯木逢春')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '얼음 풀린 가지에 봄이 와요' })).toBeInTheDocument();
-    expect(screen.getByText('민수님의 2027 정미(丁未)년 토정비결')).toBeInTheDocument();
+    expect(screen.getByText('민수님의 2027년 토정비결')).toBeInTheDocument();
+    // 뜻(제목)이 한문 옛 글귀보다 먼저 나온다
+    const title = screen.getByRole('heading', { name: '얼음 풀린 가지에 봄이 와요' });
+    expect(title.compareDocumentPosition(screen.getByText('東風解凍 枯木逢春')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText('163괘')).toBeInTheDocument();
     expect(screen.getByText('둘째 문단이에요.')).toBeInTheDocument();
     expect(container.querySelectorAll('[data-flow]')).toHaveLength(12);
     expect(container.querySelectorAll('[data-flow="care"]')).toHaveLength(4);

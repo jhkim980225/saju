@@ -18,7 +18,7 @@ import { usePageMeta } from '@/lib/pageMeta';
 import { NotFoundPage } from './NotFoundPage';
 
 const UPSELL = '별자리 운세는 같은 별자리라면 모두에게 같아요. 사주로 보면 태어난 시간까지 담은 나만의 하루 흐름을 볼 수 있어요.';
-const BASIS_SHORT = '오늘 달이 지나는 별자리가 내 별자리에서 몇 번째 자리인지로 풀었어요. 천체 위치는 간이 천문 계산으로 구해요.';
+const BASIS_SHORT = '하늘을 열두 칸으로 나눠 내 별자리를 첫째 칸으로 세고, 오늘 달이 몇 번째 칸을 지나는지로 풀었어요. 칸마다 맡은 주제(돈·연애·일 …)가 달라요.';
 const DISCLAIMER = '별자리 운세는 서양 점성술을 바탕으로 한 재미와 참고용 콘텐츠예요.';
 
 export function HoroscopeHubPage() {
@@ -84,7 +84,7 @@ export function HoroscopeHubPage() {
             <div className="hidden lg:block">
               <BirthdayFinder />
             </div>
-            <CrossLink to="/zodiac" title="띠별 운세" body="일진과 띠의 합·충으로 보는 열두 띠의 오늘" />
+            <CrossLink to="/zodiac" title="띠별 운세" body="태어난 해의 띠로 보는 열두 띠의 오늘" />
             <MethodNote basis={BASIS_SHORT} disclaimer={DISCLAIMER} />
           </aside>
         </div>
@@ -193,6 +193,7 @@ function HoroscopeDetail({ sign, period }: { sign: StarSign; period: FreeFortune
               <KeyDays days={d.keyDays} />
               <Card className="mt-6">
                 <h3 className="font-semibold">하늘의 근거</h3>
+                <p className="mt-1 text-sm leading-relaxed text-ink-3">내 별자리를 첫 번째 자리로 세어, 달·태양·행성이 지금 몇 번째 자리를 지나는지 적었어요. 자리마다 맡은 주제가 괄호 속에 있어요.</p>
                 <ul className="mt-3 space-y-3">
                   {d.sky.map((s, i) => (
                     <li key={`${s.body}-${s.signName}-${i}`}>
@@ -230,7 +231,7 @@ function HoroscopeDetail({ sign, period }: { sign: StarSign; period: FreeFortune
                 <PersonalUpsell body={UPSELL} hasProfile={Boolean(own.name)} />
               </div>
               <BirthdayFinder compact />
-              <CrossLink to="/zodiac" title="띠별 운세" body="일진과 띠의 합·충으로 보는 열두 띠의 흐름" />
+              <CrossLink to="/zodiac" title="띠별 운세" body="태어난 해의 띠로 보는 오늘·이번 주·올해" />
               <div className="mt-6">
                 <AdSlot placement="result_bottom" />
               </div>
