@@ -186,7 +186,7 @@ function yongsinSection(chart: SajuChart, name: string | null): ReadingSection {
     key: 'yongsin',
     title: '나에게 필요한 기운',
     summary: `${el.need}${josa(el.need, '이', '가').slice(el.need.length)} 가장 필요해요`,
-    keywords: [`행운의 색 ${info.color}`, `행운의 방향 ${info.direction}`, `행운의 숫자 ${info.numbers.join('·')}`],
+    keywords: [`행운의 색 ${LUCKY_COLOR_PLAIN[y.yongsin]}`, `행운의 방향 ${info.direction}`, `행운의 숫자 ${info.numbers.join('·')}`],
     paragraphs: [
       // 뜻을 먼저, '불 기운' 같은 말은 뒤에
       `${el.needMore} 사주에서는 이걸 '${el.name} 기운'이라고 해요.`,
@@ -447,7 +447,7 @@ export function buildBasicReading(chart: SajuChart, opts: { access: ReadingAcces
       { label: '잘하는 것', text: sp.strength },
       { label: '조심할 것', text: sp.caution },
       { label: '필요한 것', text: ELEMENT_PLAIN[chart.yongsin.yongsin].need },
-      { label: '행운 포인트', text: `색 ${lucky.color} · 방향 ${lucky.direction} · 숫자 ${lucky.numbers.join('·')}` },
+      { label: '행운 포인트', text: `색 ${LUCKY_COLOR_PLAIN[chart.yongsin.yongsin]} · 방향 ${lucky.direction} · 숫자 ${lucky.numbers.join('·')}` },
     ],
     sections: [
       overviewSection(chart, name),

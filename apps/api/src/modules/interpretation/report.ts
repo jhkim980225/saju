@@ -58,6 +58,7 @@ import {
   targetFortuneYear,
   yearBriefSection,
 } from './reading.js';
+import { LUCKY_COLOR_PLAIN } from './content/plainFortune.js';
 
 export const ELEMENTS: Element[] = ['wood', 'fire', 'earth', 'metal', 'water'];
 export const GROUPS: TenGodGroup[] = ['비겁', '식상', '재성', '관성', '인성'];
@@ -518,11 +519,11 @@ export function buildSajuAnalysis(chart: SajuChart, now = new Date(), profileNam
     key: 'closing',
     title: '나답게 사는 법',
     summary: '나답게 살 때 운도 함께 따라와요',
-    keywords: [`행운의 색 ${info.color}`, `행운의 방향 ${info.direction}`, `행운의 숫자 ${info.numbers.join('·')}`],
+    keywords: [`행운의 색 ${LUCKY_COLOR_PLAIN[y.yongsin]}`, `행운의 방향 ${info.direction}`, `행운의 숫자 ${info.numbers.join('·')}`],
     paragraphs: [
       `${nameSubject(name, '은')}${REPORT_MISC.closingByStrength[chart.strength.level]}`,
       `마지막으로 건네고 싶은 한마디예요. ${dm.advice}`,
-      `기억해 두면 좋은 것도 정리해 둘게요. 힘이 되는 건 ${elWord(y.yongsin)}이고, 행운의 색은 ${info.color}, 방향은 ${info.direction}, 숫자는 ${info.numbers.join('·')}이에요. 생활 속에서는 ${YONGSIN_CONTENT[y.yongsin].tips.slice(4, 6).join(', ')} 같은 것도 해 보세요.`,
+      `기억해 두면 좋은 것도 정리해 둘게요. 힘이 되는 건 ${elWord(y.yongsin)}이고, 행운의 색은 ${LUCKY_COLOR_PLAIN[y.yongsin]}, 방향은 ${info.direction}, 숫자는 ${info.numbers.join('·')}이에요. 생활 속에서는 ${YONGSIN_CONTENT[y.yongsin].tips.slice(4, 6).join(', ')} 같은 것도 해 보세요.`,
       '사주는 정해진 운명표가 아니라 나를 이해하는 지도예요. 이 분석서가 내 강점을 믿고, 쉬어 갈 때를 알아차리는 데 작은 도움이 되면 좋겠어요.',
     ],
     basis: `일간 ${dm.name} · 일간의 힘 ${chart.strength.level} · 용신 ${EL_NAME[y.yongsin]}`,
@@ -609,7 +610,7 @@ export function buildYearlyReport(chart: SajuChart, year: number, profileName: s
         { label: '힘내기 좋은 달', text: best.map(mLabel).join(', ') },
         { label: '쉬어 갈 달', text: low.map(mLabel).join(', ') },
         { label: '나에게 필요한 것', text: ELEMENT_PLAIN[chart.yongsin.yongsin].need },
-        { label: '행운 포인트', text: `색 ${info.color} · 방향 ${info.direction} · 숫자 ${info.numbers.join('·')}` },
+        { label: '행운 포인트', text: `색 ${LUCKY_COLOR_PLAIN[chart.yongsin.yongsin]} · 방향 ${info.direction} · 숫자 ${info.numbers.join('·')}` },
       ],
       paragraphs: [
         `${year}년은 ${nameSubject(name, '에게')}${btg !== stg ? `${q(sp, '이', '가')} 겉으로 드러나고, ${q(bp, '이', '가')} 생활 바탕에 깔리는 해예요.` : `${q(sp, '이', '가')} 안팎으로 함께 흐르는 해예요.`}`,
