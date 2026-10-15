@@ -48,19 +48,20 @@ import {
   yearBriefSection,
 } from './reading.js';
 
-const ELEMENTS: Element[] = ['wood', 'fire', 'earth', 'metal', 'water'];
-const GROUPS: TenGodGroup[] = ['비겁', '식상', '재성', '관성', '인성'];
+export const ELEMENTS: Element[] = ['wood', 'fire', 'earth', 'metal', 'water'];
+export const GROUPS: TenGodGroup[] = ['비겁', '식상', '재성', '관성', '인성'];
 const POSITION_LABEL = { year: '년주 · 초년과 조상의 자리', month: '월주 · 청년기와 사회의 자리', day: '일주 · 나와 배우자의 자리', hour: '시주 · 말년과 자녀의 자리' } as const;
 
+// 문장 조립 도우미 — 주제별 리포트(loveReport.ts · careerWealthReport.ts)도 함께 쓴다
 /** 조사만 — '정관' → '과', '편재' → '와' */
-const particle = (word: string, withBatchim: string, without: string) => josa(word, withBatchim, without).slice(word.length);
+export const particle = (word: string, withBatchim: string, without: string) => josa(word, withBatchim, without).slice(word.length);
 /** 오행 이름('목(木)')은 앞 글자로 조사를 고른다 */
-const elp = (el: Element, withBatchim: string, without: string) => particle(EL_NAME[el].slice(0, 1), withBatchim, without);
-const ieyo = (word: string) => particle(word, '이에요', '예요');
+export const elp = (el: Element, withBatchim: string, without: string) => particle(EL_NAME[el].slice(0, 1), withBatchim, without);
+export const ieyo = (word: string) => particle(word, '이에요', '예요');
 /** 목록 + 마지막 낱말에 맞춘 조사 */
-const list = (items: string[], withBatchim: string, without: string) => items.join(', ') + particle(items[items.length - 1] ?? '', withBatchim, without);
-const kstYear = (now: Date) => new Date(now.getTime() + 9 * 3_600_000).getUTCFullYear();
-const pct = (n: number) => Math.round(n);
+export const list = (items: string[], withBatchim: string, without: string) => items.join(', ') + particle(items[items.length - 1] ?? '', withBatchim, without);
+export const kstYear = (now: Date) => new Date(now.getTime() + 9 * 3_600_000).getUTCFullYear();
+export const pct = (n: number) => Math.round(n);
 
 /** 웹 ElementBars 의 elementStatus 와 같은 기준 */
 export function elementLevel(count: number, percent: number): ElementLevel {

@@ -16,11 +16,12 @@ const m = vi.hoisted(() => ({
   report: vi.fn<(id: string) => Promise<ReportDto>>(),
   reportProgress: vi.fn<(id: string) => Promise<ReportProgressDto>>(),
   printWebView: vi.fn<(o: { name: string }) => Promise<void>>(),
+  chart: vi.fn(() => new Promise<never>(() => undefined)),
 }));
 
 vi.mock('../../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/api')>();
-  return { ...actual, api: { ...actual.api, report: m.report, reportProgress: m.reportProgress } };
+  return { ...actual, api: { ...actual.api, report: m.report, reportProgress: m.reportProgress, chart: m.chart } };
 });
 vi.mock('@capgo/capacitor-printer', () => ({ Printer: { printWebView: m.printWebView } }));
 
@@ -118,6 +119,25 @@ describe('AI 다듬기 — 규칙 기반 본문을 먼저 보여 준다', () => 
     await act(() => vi.advanceTimersByTimeAsync(5000));
     expect(m.reportProgress).not.toHaveBeenCalled();
     expect(screen.queryByText('AI가 문장을 다듬고 있어요')).not.toBeInTheDocument();
+  });
+});
+
+describe('주제별 리포트', () => {
+  it('재물·직업운은 종류 배지와 투자 조언이 아니라는 안내를 함께 보여 주고, 근거가 되는 원국을 불러온다', async () => {
+    m.report.mockResolvedValue({ ...base, type: 'career_wealth', title: '민수님의 재물·직업운 리포트', year: null });
+    renderPage();
+    await screen.findByText('규칙 기반 총운 문단이에요.');
+    expect(screen.getByText('재물·직업운')).toBeInTheDocument();
+    expect(screen.getByText('재물운은 투자 조언이 아니에요. 투자 결정은 본인의 판단과 전문가의 조언에 따라 주세요.')).toBeInTheDocument();
+    expect(m.chart).toHaveBeenCalledWith({ profileId: 'p1' });
+  });
+
+  it('연애·결혼운에는 투자 안내가 없다', async () => {
+    m.report.mockResolvedValue({ ...base, type: 'love', title: '민수님의 연애·결혼운 리포트', year: null });
+    renderPage();
+    await screen.findByText('규칙 기반 총운 문단이에요.');
+    expect(screen.getByText('연애·결혼운')).toBeInTheDocument();
+    expect(screen.queryByText(/투자 조언이 아니에요/)).not.toBeInTheDocument();
   });
 });
 

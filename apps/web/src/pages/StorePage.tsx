@@ -4,15 +4,19 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Page } from '@/components/AppShell';
 import { BottomSheet } from '@/components/BottomSheet';
+import { useOpenReport } from '@/components/OpenReportCard';
+import { TOPIC_REPORTS, TOPIC_REPORTS_ANCHOR, isTopicReportProduct, useOwnedTopicReports } from '@/components/TopicReportCards';
 import { Badge, Button, Card, IconButton, PageHeader, Spinner, cx } from '@/components/ui';
 import { useProducts, useProfiles } from '@/hooks/queries';
 import { usePurchase } from '@/hooks/usePurchase';
 import { t } from '@/lib/copy';
 import { won } from '@/lib/format';
 
-const GROUPS: { title: string; type: ProductDto['type'][] }[] = [
-  { title: '사주 리포트', type: ['one_time'] },
-  { title: 'AI 상담 질문권', type: ['credit_pack'] },
+const GROUPS: { title: string; match: (p: ProductDto) => boolean }[] = [
+  { title: '사주 리포트', match: (p) => p.type === 'one_time' && !isTopicReportProduct(p) },
+  // 연애·결혼운 · 재물·직업운 — 프로필 하나에 대한 주제별 리포트
+  { title: '주제별 리포트', match: isTopicReportProduct },
+  { title: 'AI 상담 질문권', match: (p) => p.type === 'credit_pack' },
 ];
 
 export function StorePage() {
@@ -23,12 +27,18 @@ export function StorePage() {
   const [target, setTarget] = useState<ProductDto | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const owned = useOwnedTopicReports();
+  const openReport = useOpenReport();
+  /** 프로필을 고르는 중인 상품이 주제별 리포트면 — 이미 산 프로필은 다시 사지 않고 바로 연다 */
+  const topic = target ? TOPIC_REPORTS.find((r) => r.productId === target.id) : undefined;
 
   const buy = async (p: ProductDto, profileId?: string) => {
     setBusy(p.id);
     setError(null);
     try {
-      await purchase({ product: p, profileId, returnTo: profileId ? `/saju/${profileId}` : '/my/payments' });
+      // 주제별 리포트는 결제 뒤 내 사주 화면의 리포트 카드('보고서 열기')로 바로 내려온다
+      const back = profileId ? `/saju/${profileId}${isTopicReportProduct(p) ? `#${TOPIC_REPORTS_ANCHOR}` : ''}` : '/my/payments';
+      await purchase({ product: p, profileId, returnTo: back });
     } catch (e) {
       setError(e instanceof Error ? e.message : t('payment.failBody'));
     } finally {
@@ -63,7 +73,7 @@ export function StorePage() {
         )}
         {GROUPS.map((g) => {
           // 타로 깊은 풀이처럼 리딩 하나를 여는 상품은 그 결과 화면에서만 판다
-          const items = (data ?? []).filter((p) => g.type.includes(p.type) && !p.requiresReading);
+          const items = (data ?? []).filter((p) => g.match(p) && !p.requiresReading);
           if (items.length === 0) return null;
           return (
             <section key={g.title}>
@@ -112,14 +122,25 @@ export function StorePage() {
           </Button>
         )}
         <ul className="divide-y divide-line">
-          {profiles.data?.map((p) => (
-            <li key={p.id}>
-              <button type="button" className="flex w-full items-center justify-between py-3.5 text-left" onClick={() => target && buy(target, p.id)}>
-                {p.name}
-                <span className="font-serif text-sm text-ink-3">{p.dayPillar}일주</span>
-              </button>
-            </li>
-          ))}
+          {profiles.data?.map((p) => {
+            const has = topic !== undefined && owned.owns(topic.type, p.id);
+            return (
+              <li key={p.id}>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-3 py-3.5 text-left disabled:opacity-40"
+                  disabled={openReport.isPending}
+                  onClick={() => (has && topic ? openReport.mutate({ type: topic.type, profileId: p.id }) : target && buy(target, p.id))}
+                >
+                  <span>
+                    {p.name}
+                    {has && <span className="ml-2 text-sm text-ink-3">구매함</span>}
+                  </span>
+                  {has ? <span className="text-sm font-semibold text-info">보고서 열기</span> : <span className="font-serif text-sm text-ink-3">{p.dayPillar}일주</span>}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </BottomSheet>
     </div>

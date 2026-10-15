@@ -438,6 +438,8 @@ else window.location.assign(url);
 | `report_saju_lifetime` | 평생 사주 정밀 리포트 | 9,900 | `kr.dalbitsaju.report.lifetime` | `report_saju_lifetime` | 소모성 |
 | `report_newyear_2027` | 2027 丁未년 신년운세 | 5,900 | `kr.dalbitsaju.report.newyear2027` | `report_newyear_2027` | 소모성 |
 | `report_compat` | 사주 궁합 리포트 | 5,900 | `kr.dalbitsaju.report.compat` | `report_compat` | 소모성 |
+| `report_love` | 연애·결혼운 리포트 (프로필 1명) | 4,900 | `kr.dalbitsaju.report.love` | `report_love` | 소모성 |
+| `report_career_wealth` | 재물·직업운 리포트 (프로필 1명) | 4,900 | `kr.dalbitsaju.report.careerwealth` | `report_career_wealth` | 소모성 |
 | `bundle_newyear_2027` | 2027 신년 패키지 | 16,900 | `kr.dalbitsaju.bundle.newyear2027` | `bundle_newyear_2027` | 소모성 |
 | `chat_pack_10` | AI 상담 질문권 10회 | 3,900 | `kr.dalbitsaju.chat.10` | `chat_pack_10` | 소모성 |
 | `chat_pack_30` | AI 상담 질문권 30회 | 9,900 | `kr.dalbitsaju.chat.30` | `chat_pack_30` | 소모성 |
@@ -447,12 +449,12 @@ else window.location.assign(url);
 | `tarot_compat_5` | 궁합 타로 5장 깊은 풀이 (리딩 1건, 질문권 1회) | 2,900 | `kr.dalbitsaju.tarot.compat5` | `tarot_compat_5` | 소모성 |
 | `tarot_celtic_10` | 켈틱 크로스 10장 깊은 풀이 (리딩 1건, 질문권 3회) | 4,900 | `kr.dalbitsaju.tarot.celtic10` | `tarot_celtic_10` | 소모성 |
 | `report_taekil` | 택일 상세 풀이 (택일 결과 1건, `readingId` 필요) | 990 | `kr.dalbitsaju.report.taekil` | `report_taekil` | 소모성 |
-| `report_love` 외 2차 상품 | (comingSoon) | — | 미정 | 미정 | — |
 
 - App Store 상품 ID 는 **삭제해도 재사용할 수 없습니다.** 등록 전에 catalog 의 ID 를 확정하세요(번들 ID 와 접두사가 달라도 문제없음).
 - 스토어 가격은 각 스토어의 원화 가격 포인트에서 고릅니다. 3,900·5,900원 포인트가 있는지 확인하고, 없으면 catalog 가격을 맞춥니다(research/03 §5.2).
 - 앱에 스토어 ID 가 없는 상품은 `startCheckout` 이 "앱에서 아직 구매할 수 없어요" 오류를 냅니다. 앱에서는 이런 상품을 **목록에서 숨기는 것**을 권장합니다.
 - 타로 상품(`tarot_*`)은 리딩 1건을 여는 상품이라 상점 목록에는 나오지 않고 타로 결과 화면의 결제 시트에서만 팝니다(`readingId` 필수). 4,900원 가격 포인트도 확인하세요.
+- 주제별 리포트(`report_love`·`report_career_wealth`)는 사주분석서처럼 `profileId` 가 필요합니다(`/payments/iap/verify` 에 함께 보냄). 같은 사람의 같은 리포트를 두 번 사지 않도록 상점·내 사주 화면은 이미 산 프로필이면 '보고서 열기'로 바꿔 보여 줍니다.
 
 ### 7.2 App Store Connect
 
