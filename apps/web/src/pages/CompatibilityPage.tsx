@@ -108,8 +108,8 @@ export function CompatibilityPage() {
           <div>
             {list.length > 0 && !b && (
               <div className="mt-10 rounded-2xl border border-dashed border-line-strong p-6 text-center lg:mt-2 lg:p-10">
-                <p className="font-serif text-lg">두 사람의 여덟 글자가 어떻게 만나는지 볼까요?</p>
-                <p className="mt-2 text-sm text-ink-2">상대를 고르면 점수와 끌림·조율 포인트를 바로 보여 드려요. 상대 사주는 마이에서 추가할 수 있어요.</p>
+                <p className="font-serif text-lg">두 사람이 얼마나 잘 맞는지 볼까요?</p>
+                <p className="mt-2 text-sm text-ink-2">상대를 고르면 태어난 날과 시간으로 궁합 점수와 잘 맞는 점을 바로 보여 드려요. 상대는 마이에서 추가할 수 있어요.</p>
                 <Button className="mt-4" onClick={() => setPicking('b')}>
                   {t('compatibility.pickPerson')}
                 </Button>
@@ -121,12 +121,14 @@ export function CompatibilityPage() {
               <div className="animate-fade mt-8 lg:mt-2">
                 <Card className="text-center">
                   <p className="text-sm text-ink-3">
-                    {r.a.name} {r.a.dayPillar} × {r.b.name} {r.b.dayPillar}
+                    {r.a.name} × {r.b.name}
                   </p>
                   <p className="tabular mt-3 font-serif text-6xl font-semibold">{r.result.score}</p>
                   <p className="mt-1 text-sm font-semibold text-gold">{r.gradeLabel}</p>
                   <p className="mt-4 font-serif text-lg leading-snug">{r.headline}</p>
-                  <ul className="mt-6 space-y-3 text-left">
+                  <p className="mt-2 text-xs text-ink-3">두 사람이 태어난 날과 시간으로 본 점수예요(100점 만점).</p>
+                  <p className="mt-6 text-left text-sm text-ink-3">나눠서 보면 이래요. 막대가 길수록 잘 맞아요.</p>
+                  <ul className="mt-3 space-y-3 text-left">
                     {(Object.keys(CAT_LABEL) as (keyof typeof CAT_LABEL)[]).map((k) => (
                       <li key={k}>
                         <p className="mb-1 text-sm font-semibold">{CAT_LABEL[k]}</p>
@@ -144,7 +146,7 @@ export function CompatibilityPage() {
                   <OpenReportCard
                     dto={{ type: 'compatibility', profileId: a, partnerProfileId: b }}
                     title="궁합 리포트 전체"
-                    body="본성과 오행의 균형, 끌림과 조율 포인트, 대화·갈등 방식, 서로를 위한 사용설명서, 올해·내년 흐름까지 담은 리포트예요."
+                    body="타고난 성향과 다섯 가지 기운의 균형, 끌림과 조심할 점, 대화·다툼 방식, 서로를 위한 사용설명서, 올해·내년 흐름까지 담은 리포트예요."
                   />
                 )}
                 <Button variant="secondary" block className="mt-2" onClick={() => setShareOpen(true)}>
@@ -175,8 +177,8 @@ export function CompatibilityPage() {
               <li key={p.id}>
                 <button type="button" className="flex w-full items-center justify-between py-3.5 text-left" onClick={() => setPerson(picking!, p.id)}>
                   {p.name}
-                  <span className="font-serif text-sm text-ink-3">
-                    {p.dayPillar} · {p.zodiac}띠
+                  <span className="text-sm text-ink-3">
+                    {p.zodiac}띠 · {p.birth.year}년생
                   </span>
                 </button>
               </li>

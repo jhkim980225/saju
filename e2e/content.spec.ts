@@ -14,8 +14,10 @@ test('신년운세: 2027 丁未년 — 미구매 시 총운·첫 두 달만 공�
   await expect(page).toHaveURL(new RegExp(`/yearly/${profile.id}$`));
 
   await expect(page.getByRole('heading', { level: 1, name: '2027 신년운세' })).toBeVisible();
-  await expect(page.getByText('서윤님의 2027 정미(丁未)년')).toBeVisible();
+  // 그해 이름은 한자 대신 '붉은 양의 해', 맨 위에 요약 카드
+  await expect(page.getByText('서윤님의 2027년 · 붉은 양의 해(정미년)')).toBeVisible();
   await expect(page.getByText(/^총운 \d+점$/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: '한눈에 보는 2027년' })).toBeVisible();
   expect(await lockedSections(page).count()).toBeGreaterThan(0);
 
   const months = page.getByRole('heading', { name: '열두 달의 흐름' }).locator('..').getByRole('listitem');
@@ -36,10 +38,13 @@ test('만세력: 날짜별 간지와 그 해의 24절기', async ({ page }) => {
   const date = page.getByLabel('날짜 선택');
   await date.fill('2000-01-01');
   await expect(page.getByText('양력 2000-01-01 · 음력 1999.11.25')).toBeVisible();
-  const pillar = (k: string) => page.getByText(`${k}주`, { exact: true }).locator('..');
-  await expect(pillar('년')).toContainText('己卯');
-  await expect(pillar('월')).toContainText('丙子');
-  await expect(pillar('일')).toContainText('戊午');
+  // 고른 날을 먼저 문장으로, 한자 아래에는 읽는 법 — 입춘 전이라 아직 지난해(己卯)로 센다는 안내
+  await expect(page.getByText('사주로는 기묘년(누런 토끼의 해) 병자월 무오일이에요.')).toBeVisible();
+  await expect(page.getByText(/입춘\(2월 4일 무렵\)부터 새해로/)).toBeVisible();
+  const pillar = (k: string) => page.getByText(k, { exact: true }).locator('..');
+  await expect(pillar('해')).toContainText('己卯기묘');
+  await expect(pillar('달')).toContainText('丙子병자');
+  await expect(pillar('날')).toContainText('戊午무오');
 
   await expect(page.getByRole('heading', { name: '2000년 24절기' })).toBeVisible();
   const terms = page.getByRole('heading', { name: '2000년 24절기' }).locator('..').getByRole('listitem');
@@ -50,6 +55,7 @@ test('만세력: 날짜별 간지와 그 해의 24절기', async ({ page }) => {
   // 다른 해로 바꾸면 그 해 절기로 갱신
   await date.fill('2024-06-01');
   await expect(page.getByRole('heading', { name: '2024년 24절기' })).toBeVisible();
+  await expect(page.getByText(/입춘\(2월 4일 무렵\)부터 새해로/)).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '2024년 24절기' }).locator('..').getByRole('listitem')).toHaveCount(24);
   await expect(page.getByRole('heading', { name: '2024년 24절기' }).locator('..').getByRole('listitem').filter({ hasText: '입춘' })).toContainText('2. 4. 17:27');
 });

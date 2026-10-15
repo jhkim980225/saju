@@ -39,7 +39,7 @@
 | POST | `/saju/years?from&to` | opt | 연도별 세운 점수 |
 | GET | `/saju/manse?date=YYYY-MM-DD` | - | 만세력: 년·월·일 간지, 음력, 그 해 24절기 |
 | GET | `/fortune/daily?profileId&date` | ✓ | 오늘의 운세(대표 프로필 기본) |
-| POST | `/fortune/daily` | - | 비회원 오늘의 운세 `{ birth, date? }` |
+| POST | `/fortune/daily` | - | 비회원 오늘의 운세 `{ birth, date?, name? }` — `name` 이 있으면 "서윤님," 하고 부른다 |
 | GET | `/fortune/yearly?profileId&year` | ✓ | 신년운세(미구매 시 총운·첫 두 달만) |
 | POST | `/compatibility` | opt | `{ profileIdA|birthA, profileIdB|birthB }` → 점수·근거(상세는 구매 시) |
 

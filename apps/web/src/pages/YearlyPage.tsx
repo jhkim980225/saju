@@ -4,6 +4,7 @@ import { ArrowLeft, Lock } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { Page } from '@/components/AppShell';
+import { KeyPointsCard } from '@/components/KeyPointsCard';
 import { OpenReportCard } from '@/components/OpenReportCard';
 import { PaywallSheet } from '@/components/PaywallSheet';
 import { ReadingSectionCard } from '@/components/ReadingSection';
@@ -29,6 +30,9 @@ export function YearlyPage() {
   const productId = `report_newyear_${year}`;
   const product = products?.find((p) => p.id === productId);
   const d = q.data;
+  // '나'·'본인' 같은 이름은 부르지 않는다(서버 displayName 과 같은 기준)
+  const callName = profile && !['나', '본인', ''].includes(profile.name.trim()) ? profile.name.trim() : null;
+  const firstLocked = d?.months.find((m) => m.locked);
   const onPurchase = async (p: ProductDto) => {
     await purchase({ product: p, profileId, returnTo: `/yearly/${profileId}?year=${year}`, profileName: profile?.name });
   };
@@ -52,13 +56,15 @@ export function YearlyPage() {
             <div>
               <section className="pt-4">
                 <p className="text-sm text-ink-3">
-                  {profile?.name ?? ''}님의 {year} {d.yearPillar.hangul}({d.yearPillar.hanja})년
+                  {callName ? `${callName}님의 ` : ''}
+                  {year}년 · {d.yearName ? `${d.yearName}(${d.yearPillar.hangul}년)` : `${d.yearPillar.hangul}년`}
                 </p>
                 <h1 className="mt-2 font-serif text-[26px] font-semibold leading-snug lg:text-[32px]">{d.headline}</h1>
                 <div className="mt-3 flex gap-2">
                   <Badge tone="gold">총운 {d.evaluation.scores.total}점</Badge>
-                  <Badge>{d.evaluation.pillar.stemTenGod}의 해</Badge>
+                  {d.gradeLabel && <Badge>{d.gradeLabel}</Badge>}
                 </div>
+                {d.keyPoints && <KeyPointsCard title={`한눈에 보는 ${year}년`} items={d.keyPoints} />}
               </section>
               {d.sections.map((s) => (
                 <ReadingSectionCard key={s.key} section={s} onUnlock={() => setPaywall(true)} price={product?.purchasable ? won(product.price) : undefined} />
@@ -67,16 +73,20 @@ export function YearlyPage() {
             <div className="lg:pt-4">
               <Card className="mt-2 lg:mt-0">
                 <h2 className="font-semibold">열두 달의 흐름</h2>
+                <p className="mt-1 text-sm text-ink-3">막대가 길수록 좋은 달이에요. 사주의 한 달은 매달 4~8일 무렵에 시작해요.</p>
                 <ol className="mt-4 space-y-3">
-                  {d.months.map((m) => (
+                  {d.months.map((m, i) => (
                     <li key={m.order} className="grid grid-cols-[4.5rem_1fr] items-start gap-3">
                       <div>
                         <p className="text-sm font-semibold">{m.label.split(' ')[0]}</p>
-                        <p className="font-serif text-xs text-ink-3">{m.ganzhi}</p>
+                        {i === d.months.length - 1 && <p className="text-xs text-ink-3">다음 해</p>}
                       </div>
                       {m.locked ? (
-                        <p className="flex items-center gap-1.5 text-sm text-ink-3">
-                          <Lock className="size-3.5" aria-hidden /> {m.summary}
+                        // 잠긴 달은 자물쇠만 — 같은 안내문을 열 번 늘어놓지 않고 목록 아래 한 줄로
+                        <p className="flex items-center gap-2 pt-0.5 text-sm text-ink-3">
+                          <Lock className="size-3.5 shrink-0" aria-label="잠김" />
+                          <span className="h-1.5 flex-1 rounded-full bg-subtle" aria-hidden />
+                          {m.summary && <span>{m.summary}</span>}
                         </p>
                       ) : (
                         <div>
@@ -89,6 +99,7 @@ export function YearlyPage() {
                     </li>
                   ))}
                 </ol>
+                {firstLocked && <p className="mt-4 text-sm text-ink-3">{firstLocked.label.split(' ')[0]}부터는 전체 보기에서 볼 수 있어요.</p>}
               </Card>
               {d.locked && (
                 <Button block size="lg" className="mt-6" onClick={() => setPaywall(true)}>

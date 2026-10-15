@@ -8,6 +8,7 @@ import { Button, Card, EmptyState, IconButton, PageHeader, Spinner, TextInput } 
 import { api } from '@/lib/api';
 import { t } from '@/lib/copy';
 import { todayKst } from '@/lib/format';
+import { ganzhiKo, yearNickname } from '@/lib/ganzhi';
 
 function BackHeader({ title }: { title: string }) {
   const navigate = useNavigate();
@@ -24,15 +25,22 @@ function BackHeader({ title }: { title: string }) {
   );
 }
 
-/** 만세력 — 날짜별 년·월·일 간지와 그 해의 24절기 */
+/**
+ * 만세력 — 날짜별 년·월·일 간지와 그 해의 24절기.
+ * 처음 보는 사람 기준: 맨 위에 "이게 뭔지" 한 줄, 고른 날을 문장으로 먼저, 한자 아래에는 읽는 법.
+ */
 export function MansePage() {
   const [date, setDate] = useState(todayKst().iso);
   const q = useQuery({ queryKey: ['manse', date], queryFn: () => api.manse(date) });
   const d = q.data;
+  // 사주의 새해는 1월 1일이 아니라 입춘 — 그 전이면 아직 지난해로 센다는 걸 알려 준다
+  const ipchun = d?.solarTerms.find((s) => s.name === '입춘');
+  const beforeIpchun = Boolean(d && ipchun && new Date(`${d.date}T12:00:00+09:00`) < new Date(ipchun.at));
   return (
     <div className="min-h-page">
       <BackHeader title="만세력" />
       <Page width="medium" className="space-y-4 pb-12">
+        <p className="pt-2 text-[15px] leading-relaxed text-ink-2">날짜를 사주에서 쓰는 글자로 바꿔 보여 주는 달력이에요. 날짜를 고르면 음력 날짜와 그해 24절기도 함께 볼 수 있어요.</p>
         <TextInput type="date" value={date} min="1900-01-01" max="2100-12-31" onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="날짜 선택" />
         {q.isLoading && <Spinner />}
         {d && (
@@ -42,21 +50,28 @@ export function MansePage() {
                 양력 {d.date}
                 {d.lunar && ` · 음력 ${d.lunar.year}.${d.lunar.month}.${d.lunar.day}${d.lunar.isLeapMonth ? '(윤)' : ''}`}
               </p>
+              <p className="mt-2 text-[17px] font-medium leading-relaxed">
+                사주로는 {ganzhiKo(d.yearPillar)}년{yearNickname(d.yearPillar) && `(${yearNickname(d.yearPillar)})`} {ganzhiKo(d.monthPillar)}월 {ganzhiKo(d.dayPillar)}일이에요.
+              </p>
+              {beforeIpchun && <p className="mt-1 text-sm text-ink-3">사주에서는 입춘(2월 4일 무렵)부터 새해로 세서, 이날은 아직 지난해로 봐요.</p>}
               <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                 {[
-                  ['년', d.yearPillar],
-                  ['월', d.monthPillar],
-                  ['일', d.dayPillar],
+                  ['해', d.yearPillar],
+                  ['달', d.monthPillar],
+                  ['날', d.dayPillar],
                 ].map(([k, v]) => (
                   <div key={k} className="rounded-xl bg-subtle py-3">
-                    <p className="text-xs text-ink-3">{k}주</p>
+                    <p className="text-xs text-ink-3">{k}</p>
                     <p className="mt-1 font-serif text-2xl">{v}</p>
+                    <p className="mt-0.5 text-sm text-ink-2">{ganzhiKo(v!)}</p>
                   </div>
                 ))}
               </div>
+              <p className="mt-3 text-xs text-ink-3">위는 한자, 아래는 읽는 법이에요.</p>
             </Card>
             <Card>
               <h2 className="font-semibold">{d.date.slice(0, 4)}년 24절기</h2>
+              <p className="mt-1 text-sm text-ink-3">해의 움직임에 맞춰 한 해를 스물넷으로 나눈 날이에요. 사주의 달은 이 날들에 맞춰 바뀌어요.</p>
               <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm lg:grid-cols-3 lg:gap-x-8">
                 {d.solarTerms.map((s) => (
                   <li key={s.at} className="flex justify-between">
@@ -65,7 +80,7 @@ export function MansePage() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-3 text-xs text-ink-3">절기 시각은 한국 표준시(KST) 기준이에요.</p>
+              <p className="mt-3 text-xs text-ink-3">시각은 한국 시간 기준이에요.</p>
             </Card>
             <TaekilEntryCard date={date > todayKst().iso ? date : undefined} className="" />
           </>

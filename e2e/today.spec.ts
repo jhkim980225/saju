@@ -30,7 +30,12 @@ test('오늘의 운세: 사주 저장 → 오늘 탭 → 주간 흐름 7일 → 
   await expect(page.getByText('오늘의 한 줄')).toBeVisible();
   await expect(page.getByText(/^총운 \d+점$/)).toBeVisible();
   await expect(page.getByRole('button', { name: '서윤 ▾' })).toBeVisible();
-  await expect(page.getByText(/오늘의 기운 .+ · 나의 일간/)).toBeVisible();
+  // 처음 보는 사람 기준: 이름으로 부르고, 맨 위 요약 카드, 용어는 '사주로 보면'에 접어 둔다
+  await expect(page.getByText(/^서윤님, 오늘/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: '한눈에 보는 오늘' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '오늘이 이런 이유' })).toBeVisible();
+  await expect(page.getByText('사주로 보면')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).not.toContainText(/[一-鿿]/);
 
   // 이번 주 흐름: 월~일 7칸, 모두 점수 로드
   const week = page.getByRole('heading', { name: '이번 주 흐름' }).locator('..').getByRole('listitem');
@@ -60,13 +65,13 @@ test('오늘의 운세: 사주 저장 → 오늘 탭 → 주간 흐름 7일 → 
   await expect(page.getByRole('button', { name: '서윤 ▾' })).toBeVisible(); // 대표 프로필 유지
 
   await page.getByRole('button', { name: '서윤 ▾' }).click();
-  await expect(page.getByRole('dialog').getByRole('button')).toContainText([/서윤.*甲辰일주/, /지훈.*戊辰일주/, '사주 추가하기']);
+  await expect(page.getByRole('dialog').getByRole('button')).toContainText([/서윤.*돼지띠 · 1995년생/, /지훈.*원숭이띠 · 1992년생/, '사주 추가하기']);
   const dailyForJihun = page.waitForResponse((r) => r.url().includes('/fortune/daily?profileId=') && r.status() === 200);
   await page.getByRole('dialog').getByRole('button', { name: /지훈/ }).click();
   await dailyForJihun;
   await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.getByRole('button', { name: '지훈 ▾' })).toBeVisible();
-  await expect(page.getByText(/오늘의 기운 .+ · 나의 일간/)).toBeVisible();
+  await expect(page.getByText(/^지훈님, 오늘/)).toBeVisible();
   await expect(page.getByRole('button', { name: /^[월화수목금토일]요일 \d+점$/ })).toHaveCount(7);
 
   // 선택한 사람은 새로고침 후에도 유지

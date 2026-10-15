@@ -151,7 +151,7 @@ export const api = {
   chart: (body: { birth?: BirthInputDto; profileId?: string }) => post<SajuChart>('/saju/chart', body),
   reading: (body: { birth?: BirthInputDto; profileId?: string; name?: string }) => post<ReadingDto>('/saju/reading', body),
   years: (body: { birth?: BirthInputDto; profileId?: string }) =>
-    post<{ year: number; ganzhi: string; hangul: string; tenGod: string; score: number; grade: string }[]>('/saju/years', body),
+    post<{ year: number; ganzhi: string; hangul: string; tenGod: string; score: number; grade: string; gradeLabel: string; yearName: string; theme: string }[]>('/saju/years', body),
   manse: (date?: string) => get<ManseDto>(`/saju/manse${date ? `?date=${date}` : ''}`, 'none'),
 
   // 운세
@@ -161,7 +161,8 @@ export const api = {
     if (date) q.set('date', date);
     return get<DailyFortuneDto | { needsProfile: true }>(`/fortune/daily?${q}`, 'required');
   },
-  dailyByBirth: (birth: BirthInputDto, date?: string) => post<DailyFortuneDto>('/fortune/daily', { birth, date }, 'none'),
+  /** name: 풀이에서 부를 이름(비회원 입력) */
+  dailyByBirth: (birth: BirthInputDto, date?: string, name?: string) => post<DailyFortuneDto>('/fortune/daily', { birth, date, ...(name ? { name } : {}) }, 'none'),
   yearly: (profileId: string, year: number) => get<YearlyFortuneDto>(`/fortune/yearly?profileId=${profileId}&year=${year}`, 'required'),
   compatibility: (dto: CompatibilityRequestDto) => post<CompatibilityDto>('/compatibility', dto),
 

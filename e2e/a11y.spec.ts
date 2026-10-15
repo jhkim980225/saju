@@ -98,7 +98,7 @@ test('탭 화면: 오늘·내 사주·궁합·물어보기·마이·신년운세
     ['/compatibility', '궁합', () => expect(page.getByRole('heading', { name: '누구와의 궁합이 궁금하세요?' })).toBeVisible()],
     ['/ask', '물어보기', () => expect(page.getByText('서윤님의 명식을 기준으로 답해요')).toBeVisible()],
     ['/my', '마이', () => expect(page.getByRole('heading', { name: '저장한 사주 (2)' })).toBeVisible()],
-    [`/yearly/${me.id}`, '신년운세', () => expect(page.getByText(/2027 정미\(丁未\)년/)).toBeVisible()],
+    [`/yearly/${me.id}`, '신년운세', () => expect(page.getByText(/2027년 · 붉은 양의 해\(정미년\)/)).toBeVisible()],
   ];
   for (const [path, screen, ready] of screens) {
     await page.goto(path);

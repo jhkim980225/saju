@@ -191,6 +191,8 @@ export interface ReadingSection {
   tips?: string[];
   /** 사주 근거 한 줄(용어 포함) — 화면에서는 '사주로 보면'으로 접어 둔다 */
   basis?: string;
+  /** 잠금 카드에 보여 줄 '이어서 읽을 수 있는 내용' — 없으면 화면 기본 목차 */
+  toc?: string[];
 }
 
 export interface ReadingDto {
@@ -218,6 +220,12 @@ export interface DailyFortuneDto {
   lucky: { color: string; number: number; direction: string; item: string; time: string };
   /** 오늘의 한마디(공유 카드용) */
   shareText: string;
+  /** 맨 위 '한눈에 보는 오늘' — 잘 풀리는 일·조심할 일·해 볼 일 */
+  keyPoints?: { label: string; text: string }[];
+  /** '오늘이 이런 이유' — 쉬운 말 문단 */
+  why?: string[];
+  /** 사주 근거(용어 포함) — '사주로 보면'으로 접어 둔다 */
+  basis?: string;
 }
 
 export const yearlyRequestSchema = z.object({
@@ -233,6 +241,12 @@ export interface YearlyFortuneDto {
   sections: ReadingSection[];
   months: { order: number; label: string; ganzhi: string; score: number; summary: string; locked: boolean }[];
   locked: boolean;
+  /** '붉은 양의 해' 처럼 그해를 부르는 쉬운 이름 */
+  yearName?: string;
+  /** '좋은 해' 같은 쉬운 등급 */
+  gradeLabel?: string;
+  /** 맨 위 '한눈에 보는 ○○년' */
+  keyPoints?: { label: string; text: string }[];
 }
 
 export const compatibilityRequestSchema = z.object({
