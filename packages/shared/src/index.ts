@@ -193,7 +193,35 @@ export interface ReadingSection {
   basis?: string;
   /** 잠금 카드에 보여 줄 '이어서 읽을 수 있는 내용' — 없으면 화면 기본 목차 */
   toc?: string[];
+  /** 리포트 맨 앞 '한눈에 보기' — 사주를 몰라도 10초 안에 알 수 있게 한 줄씩(라벨 + 내용) */
+  points?: { label: string; text: string }[];
 }
+
+/**
+ * 십성을 처음 보는 사람용 짧은 말 — 대운 타임라인 칸, 리포트 제목 등에 용어 대신 쓴다.
+ * 키는 엔진의 십성 이름(비견~정인)이다.
+ */
+export const TEN_GOD_PLAIN_LABEL: Record<string, string> = {
+  비견: '자립·독립',
+  겁재: '경쟁·도전',
+  식신: '재능·여유',
+  상관: '표현·변화',
+  편재: '활동·큰돈',
+  정재: '성실·저축',
+  편관: '시험·단련',
+  정관: '인정·책임',
+  편인: '탐구·직관',
+  정인: '배움·도움',
+};
+
+/** 운의 등급을 생활어로 — 엔진 등급(great~bad) 기준 */
+export const GRADE_PLAIN_LABEL: Record<'great' | 'good' | 'normal' | 'caution' | 'bad', string> = {
+  great: '아주 좋음',
+  good: '좋음',
+  normal: '보통',
+  caution: '조심',
+  bad: '쉬어 갈 때',
+};
 
 export interface ReadingDto {
   chart: SajuChart;

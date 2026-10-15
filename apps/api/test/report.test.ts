@@ -7,7 +7,9 @@ import { describe, expect, it } from 'vitest';
 import { buildCompatibilityReport, buildSajuAnalysis, buildYearlyReport, elementLevel } from '../src/modules/interpretation/report.js';
 
 const NOW = new Date('2026-10-13T03:00:00Z');
-const chars = (secs: ReadingSection[]) => secs.reduce((n, s) => n + [s.summary, ...s.paragraphs].join('').replace(/\s/g, '').length, 0);
+/** 화면에 보이는 분량 — 요약·본문·목록(tips)·한눈에 보기(points) */
+const chars = (secs: ReadingSection[]) =>
+  secs.reduce((n, s) => n + [s.summary, ...s.paragraphs, ...(s.tips ?? []), ...(s.points ?? []).map((p) => p.text)].join('').replace(/\s/g, '').length, 0);
 const text = (secs: ReadingSection[]) => secs.map((s) => [s.title, s.summary, ...(s.keywords ?? []), ...s.paragraphs].join('\n')).join('\n');
 
 /** 결정적 의사난수로 다양한 출생 정보 */
@@ -41,8 +43,9 @@ describe('사주분석서', () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it('A4 20쪽 안팎 — 공백 뺀 1만 8천 자 이상', () => {
-    expect(chars(secs)).toBeGreaterThan(18_000);
+  // 쉬운 말로 다시 쓰며 용어 풀이와 되풀이 문장을 걷어 내 1만 9천 자 → 1만 7천 자 안팎이 됐다
+  it('A4 20쪽 안팎 — 공백 뺀 1만 6천 자 이상', () => {
+    expect(chars(secs)).toBeGreaterThan(16_000);
   });
 
   it('오행 비율을 다섯 기운 모두 % 로 밝힌다', () => {
@@ -84,8 +87,8 @@ describe('궁합 리포트', () => {
   it('기질·본성·오행·끌림·조율·대화·갈등·사용설명서·시기·조언', () => {
     expect(secs.map((s) => s.key)).toEqual(['summary', 'persons', 'stemRelation', 'balance', 'strengths', 'cautions', 'categories', 'communication', 'conflict', 'loveStyle', 'manual', 'together', 'timing', 'advice']);
   });
-  it('공백 뺀 3천 8백 자 이상', () => {
-    expect(chars(secs)).toBeGreaterThan(3_800);
+  it('공백 뺀 3천 3백 자 이상', () => {
+    expect(chars(secs)).toBeGreaterThan(3_300);
   });
 });
 
@@ -104,17 +107,18 @@ describe('여러 사주로 만들어도 깨진 문장이 없다', () => {
           for (const p of s.paragraphs) expect(p.trim().length).toBeGreaterThan(5);
         }
       }
-      expect(chars(all[0]!)).toBeGreaterThan(16_000);
+      expect(chars(all[0]!)).toBeGreaterThan(14_500);
     });
   });
 });
 
 describe('오행 비율 단계', () => {
-  it('웹 ElementBars 와 같은 기준', () => {
-    expect(elementLevel(0, 0)).toBe('none');
-    expect(elementLevel(1, 8)).toBe('weak');
-    expect(elementLevel(2, 12)).toBe('balanced');
-    expect(elementLevel(2, 25)).toBe('developed');
-    expect(elementLevel(3, 35)).toBe('excess');
+  it('웹 ElementBars 와 같은 기준 — 글자 개수(글과 도넛이 같은 숫자)', () => {
+    expect(elementLevel(0)).toBe('none');
+    expect(elementLevel(1)).toBe('weak');
+    expect(elementLevel(2)).toBe('balanced');
+    expect(elementLevel(3)).toBe('developed');
+    expect(elementLevel(4)).toBe('excess');
+    expect(elementLevel(6)).toBe('excess');
   });
 });

@@ -282,9 +282,9 @@
         "description": "균형을 위해 챙기면 좋은 생활 습관"
       },
       "daeun": {
-        "label": "대운 흐름",
+        "label": "10년 흐름",
         "title": "10년마다 바뀌는 큰 물결",
-        "description": "지금 지나는 대운과 다음 흐름"
+        "description": "지금 지나는 10년과 다음 흐름"
       },
       "thisYear": {
         "label": "올해의 운세",
@@ -293,10 +293,10 @@
       }
     },
     "daeunTimeline": {
-      "current": "지금 대운",
+      "current": "지금",
       "remaining": "{{years}}년 남음",
       "age": "{{age}}세",
-      "next": "다음 대운"
+      "next": "다음 10년"
     },
     "actions": {
       "share": "결과 공유",
@@ -315,7 +315,7 @@
     "ctaNoPrice": "전체 풀이 열기",
     "dismiss": "무료 풀이만 볼게요",
     "sheetTitle": "{{name}}님의 전체 풀이",
-    "sheetSubtitle": "8개 영역 · 10년마다 바뀌는 큰 흐름 · 올해 달마다의 흐름",
+    "sheetSubtitle": "8개 영역 · 10년 흐름 · 올해 달별 흐름",
     "benefitContinue": "지금 읽던 곳에서 바로 이어서 읽어요",
     "benefitRevisit": "보관함에서 언제든 다시 볼 수 있어요",
     "benefitDepth": "영역마다 시기와 구체적인 조언까지 담았어요",
