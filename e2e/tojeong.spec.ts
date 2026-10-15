@@ -7,7 +7,7 @@ import { createProfileViaApi, expect, guestViaApi, injectSession, test } from '.
 test('비회원: 양력 생년월일 입력 → 163괘 결과 → 새로고침해도 유지 → 음력 윤달로 다시 보기', async ({ page }) => {
   await page.goto('/tojeong');
   await expect(page).toHaveTitle(/2027 토정비결/);
-  await expect(page.getByRole('heading', { name: /2027년, 나의 한 해를 괘 하나로 읽어요/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /2027년, 나의 한 해를 미리 읽어 봐요/ })).toBeVisible();
 
   // 형식 오류
   await page.getByRole('textbox', { name: '생년월일' }).fill('199005');
@@ -18,7 +18,8 @@ test('비회원: 양력 생년월일 입력 → 163괘 결과 → 새로고침�
   await page.getByRole('textbox', { name: '생년월일' }).fill('19900515');
   await page.getByRole('button', { name: '토정비결 보기' }).click();
   await expect(page.getByText('163괘', { exact: true })).toBeVisible();
-  await expect(page.getByText('2027 정미(丁未)년 토정비결')).toBeVisible();
+  await expect(page.getByText('2027년 토정비결', { exact: true })).toBeVisible();
+  await expect(page.getByText('이 풀이의 바탕이 된 옛 글귀')).toBeVisible();
   await expect(page.getByRole('heading', { name: '총평' })).toBeVisible();
   await expect(page.locator('[data-flow]')).toHaveCount(12);
   await expect(page.getByText(/^음력 1월/)).toBeVisible();
@@ -68,7 +69,7 @@ test('없는 음력 날짜는 안내 후 다시 입력할 수 있다', async ({ 
   await page.getByRole('radio', { name: '음력' }).click();
   await page.getByRole('textbox', { name: '생년월일' }).fill('19950130'); // 1995년 음력 정월은 29일까지
   await page.getByRole('button', { name: '토정비결 보기' }).click();
-  await expect(page.getByText('이 생년월일로는 괘를 뽑을 수 없어요')).toBeVisible();
+  await expect(page.getByText('이 생년월일로는 풀이를 볼 수 없어요')).toBeVisible();
   await expect(page.getByText(/존재하지 않는 날짜/)).toBeVisible();
   await page.getByRole('button', { name: '생년월일 다시 입력' }).click();
   await page.getByRole('textbox', { name: '생년월일' }).fill('19950129');
@@ -87,7 +88,7 @@ test('저장한 사주: 오늘 탭 바로가기 → 프로필로 본 452괘 → 
   await expect(page).toHaveURL(/\/tojeong$/);
   await expect(page.getByRole('button', { name: '서윤', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByText('452괘', { exact: true })).toBeVisible();
-  await expect(page.getByText('서윤님의 2027 정미(丁未)년 토정비결')).toBeVisible();
+  await expect(page.getByText('서윤님의 2027년 토정비결')).toBeVisible();
 
   const upsell = page.getByRole('link', { name: '신년운세 보기', exact: true });
   await expect(upsell).toHaveAttribute('href', `/yearly/${profile.id}?year=2027`);

@@ -11,6 +11,55 @@ import { STORAGE_KEYS, storage } from '@/lib/storage';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
+/** 그 시각 그 지역의 UTC 오프셋(분) — 브라우저가 모르면 null */
+function utcOffset(timeZone: string, utcMs: number): number | null {
+  try {
+    const name = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'longOffset' }).formatToParts(new Date(utcMs)).find((p) => p.type === 'timeZoneName')?.value ?? '';
+    if (name === 'GMT') return 0;
+    const m = /GMT([+-])(\d{1,2}):?(\d{2})?/.exec(name);
+    return m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3] ?? 0)) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 태어난 시각이 서머타임이었나 — 그해 1월·7월 중 작은 오프셋(표준시)보다 앞서 있으면 서머타임 */
+function bornInDst(timeZone: string, birthUtc: string, correctionMinutes: number): boolean {
+  const ms = Date.parse(birthUtc);
+  const y = new Date(ms).getUTCFullYear();
+  const [at, jan, jul] = [utcOffset(timeZone, ms), utcOffset(timeZone, Date.UTC(y, 0, 15)), utcOffset(timeZone, Date.UTC(y, 6, 15))];
+  // 오프셋을 못 읽으면 예전처럼 보정량으로만 짐작한다(경도 차이만으로는 50분을 넘기 어렵다)
+  if (at === null || jan === null || jul === null) return correctionMinutes < -50;
+  return at > Math.min(jan, jul) && correctionMinutes < -50;
+}
+
+/** 왜 시간이 바뀌는지 — 해의 위치 차이(경도)와 서머타임을 나눠서 말한다 */
+function correctionWhy(c: { input: { timeZone: string }; birthUtc: string; correctionMinutes: number }, place: string): string {
+  const dst = bornInDst(c.input.timeZone, c.birthUtc, c.correctionMinutes);
+  // 서머타임 1시간을 뺀 나머지가 해의 위치 차이
+  const sun = dst ? c.correctionMinutes + 60 : c.correctionMinutes;
+  const parts = [t('confirm.correctionWhy')];
+  if (sun < 0) parts.push(t('confirm.correctionEarlier', { place, minutes: -sun }));
+  if (sun > 0) parts.push(t('confirm.correctionLater', { place, minutes: sun }));
+  if (dst) parts.push(t('confirm.correctionWhyDst'));
+  return parts.join(' ');
+}
+
+/** 계산 엔진의 경계 경고(용어·습니다체)를 처음 보는 사람도 알아듣게 */
+function plainWarning(w: string): string {
+  const jieToday = /^생일에 절기\((.+?)\)가 바뀌어/.exec(w);
+  if (jieToday) {
+    const name = jieToday[1]!;
+    return name === '입춘'
+      ? '태어난 날에 입춘이 있어요. 사주에서는 입춘부터 새해로 보기 때문에, 태어난 시간에 따라 띠와 태어난 달의 글자가 달라질 수 있어요. 시간을 알면 넣어 주세요.'
+      : `태어난 날에 계절이 바뀌는 절기(${name})가 있어요. 태어난 시간에 따라 태어난 달의 글자가 달라질 수 있으니, 시간을 알면 넣어 주세요.`;
+  }
+  const near = /^절입 시각\((.+?)\) 전후 1시간/.exec(w);
+  if (near) return `계절이 바뀌는 절기(${near[1]})와 1시간도 차이 나지 않는 때에 태어났어요. 몇 분 차이로 태어난 달의 글자가 바뀔 수 있으니, 태어난 시간을 한 번 더 확인해 주세요.`;
+  if (w.startsWith('야자시')) return '밤 11시~자정 사이에 태어났어요. 고급 설정에서 고른 대로 태어난 날을 그날로 보고 계산했어요.';
+  return w;
+}
+
 export function ConfirmPage() {
   const navigate = useNavigate();
   const draft = storage.getJSON<BirthDraft>(STORAGE_KEYS.birthDraft);
@@ -57,18 +106,16 @@ export function ConfirmPage() {
                 ? t('confirm.timeUnknownLine', { place: city.name, gender })
                 : t('confirm.detailLine', { time: `${pad(dto.hour)}:${pad(dto.minute ?? 0)}`, place: city.name, gender })}
             </p>
-            {c.hourKnown && c.correctionMinutes !== 0 && (
-              <p className="text-sm text-info">
-                {t('confirm.correction', {
-                  minutes: c.correctionMinutes > 0 ? `+${c.correctionMinutes}` : c.correctionMinutes,
-                  reason: t('confirm.correctionReasonLongitude') + (c.correctionMinutes < -50 ? ` · ${t('confirm.correctionReasonDst')}` : ''),
-                })}
-                {c.correctedTime && ` → ${pad(c.correctedTime.hour)}:${pad(c.correctedTime.minute)} 기준`}
-              </p>
+            {c.hourKnown && c.correctionMinutes !== 0 && c.correctedTime && (
+              // 왜 시간이 바뀌는지 먼저 말한다 — '경도 보정' 같은 용어 대신
+              <div className="rounded-lg bg-subtle p-3 text-sm leading-relaxed">
+                <p className="font-semibold text-info">{t('confirm.correctionPlain', { time: `${pad(c.correctedTime.hour)}:${pad(c.correctedTime.minute)}` })}</p>
+                <p className="mt-1 text-ink-2">{correctionWhy(c, city.name)}</p>
+              </div>
             )}
             {c.warnings.map((w) => (
               <p key={w} className="rounded-lg bg-subtle p-2 text-sm text-ink-2">
-                {w}
+                {plainWarning(w)}
               </p>
             ))}
             <div className="pt-2">

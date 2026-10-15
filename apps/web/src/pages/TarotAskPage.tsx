@@ -69,8 +69,8 @@ function PairPicker({ me, partner, onChange }: { me?: string; partner?: string; 
                   }}
                 >
                   {p.name}
-                  <span className="font-serif text-sm text-ink-3">
-                    {p.dayPillar} · {p.zodiac}띠
+                  <span className="text-sm text-ink-3">
+                    {p.birth.year}.{p.birth.month}.{p.birth.day}생 · {p.zodiac}띠
                   </span>
                 </button>
               </li>

@@ -16,6 +16,8 @@ import { storage } from '@/lib/storage';
 import { isMember, useSession } from '@/lib/session';
 import { useTheme, type ThemeMode } from '@/lib/theme';
 
+const PROVIDER_LABEL: Record<string, string> = { kakao: '카카오', naver: '네이버', google: '구글', apple: '애플', email: '이메일', guest: '게스트' };
+
 export function MyPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -76,7 +78,7 @@ export function MyPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-lg font-semibold">{t('common.honorific', { name: user!.nickname })}</p>
-                  <p className="text-sm text-ink-3">{user!.email ?? `${user!.provider} 로그인`}</p>
+                  <p className="text-sm text-ink-3">{user!.email ?? `${PROVIDER_LABEL[user!.provider] ?? user!.provider}로 로그인했어요`}</p>
                 </div>
                 {user!.isPremium && <Badge tone="gold">플러스</Badge>}
               </div>
@@ -117,8 +119,8 @@ export function MyPage() {
                     <p className="font-medium">
                       {p.name} <span className="text-xs text-ink-3">{RELATION_LABEL[p.relation]}</span>
                     </p>
-                    <p className="font-serif text-sm text-ink-3">
-                      {p.birth.calendar === 'lunar' ? '음' : '양'} {p.birth.year}.{p.birth.month}.{p.birth.day} · {p.dayPillar}일주
+                    <p className="text-sm text-ink-3">
+                      {p.birth.calendar === 'lunar' ? '음력' : '양력'} {p.birth.year}.{p.birth.month}.{p.birth.day} · {p.zodiac}띠
                     </p>
                   </Link>
                   <Link to={`/profiles/${p.id}/edit`} aria-label={`${p.name} 수정`} className="grid size-10 place-items-center rounded-full text-ink-3 hover:bg-subtle">

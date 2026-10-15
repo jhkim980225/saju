@@ -39,6 +39,7 @@ import { firstNoonDateOnOrAfter, isoOf, keyDaySummary, kstDateOf, monthDay, pick
 import {
   ANIMAL_TRAITS,
   BOND_GLOSS,
+  BOND_REASON,
   BOND_SHORT,
   FLOW_GLOSS,
   FLOW_TEXT,
@@ -59,9 +60,11 @@ import {
   type StemKey,
 } from './content/zodiacText.js';
 
-/** 오행 이름 — 문장 안 표기('나무'), 근거 표기('나무(木)') */
+/** 오행 이름 — 문장 안 표기('나무'). 한자는 근거 카드 제목에만 */
 const EL_NAME: Record<Element, string> = { wood: '나무', fire: '불', earth: '흙', metal: '쇠', water: '물' };
-const elFull = (e: Element) => `${EL_NAME[e]}(${ELEMENT_INFO[e].hanja})`;
+/** '오늘' → '오늘은', '올해' → '올해는' */
+const topic = (w: string) => w + (/[가-힣]$/.test(w) && (w.charCodeAt(w.length - 1) - 0xac00) % 28 !== 0 ? '은' : '는');
+const animalName = (branch: number) => BRANCHES[mod(branch, 12)]!.animal;
 
 const stemHanja = (s: number) => STEMS[mod(s, 10)]!.hanja;
 const branchHanja = (b: number) => BRANCHES[mod(b, 12)]!.hanja;
@@ -142,14 +145,15 @@ function periodContext(period: FreeFortunePeriod, base: Ymd): PeriodContext {
   return { period, target: base, range: range(start, end, `${ys.year}년 ${monthDay(ys)} 입춘 ~ ${ye.year}년 ${monthDay(ye)} 입춘 전`), pillar: { stem: y.stem, branch: y.branch, label: '올해 세운', short: '올해' }, week: null, background: null };
 }
 
-function luckyOf(animal: ZodiacAnimal, ev: ZodiacEvaluation, seed: string): ZodiacFortuneDto['lucky'] {
+/** when — '오늘' · '내일' · '이번 달' · '올해' (기운이 들어오는 때) */
+function luckyOf(animal: ZodiacAnimal, ev: ZodiacEvaluation, seed: string, when: string): ZodiacFortuneDto['lucky'] {
   const combo = ev.bonds.find((b) => (b.kind === '육합' || b.kind === '삼합') && b.element);
   const animalEl = BRANCHES[animal.branch]!.element;
   const el = combo?.element ?? generatedBy(animalEl);
   const info = ELEMENT_INFO[el];
   const basis = combo
-    ? `${combo.kind}으로 생기는 ${elFull(el)}의 기운`
-    : `띠 글자 ${animal.hanja}(${EL_NAME[animalEl]})의 기운을 키워 주는 ${elFull(el)}의 기운`;
+    ? `${animal.name}띠가 ${when}의 기운과 ${combo.kind === '육합' ? '짝을 이뤄' : '힘을 모아'} 만드는 ${EL_NAME[el]} 기운`
+    : `${animal.name}띠(${EL_NAME[animalEl]})를 키워 주는 ${EL_NAME[el]} 기운`;
   return { color: info.color, direction: info.direction, number: info.numbers[hashSeed(seed) % 2]!, basis };
 }
 
@@ -182,8 +186,8 @@ function yearLines(animal: ZodiacAnimal, ctx: PeriodContext, seedBase: string): 
       const days = ctx.week!.map((d) => ({ d, p: dayPillarAt(d) }));
       const best = days.reduce((a, b) => (STEM_RANK[stemKeyOf(birthStem, b.p.stem)] > STEM_RANK[stemKeyOf(birthStem, a.p.stem)] ? b : a));
       stem = best.p.stem;
-      lead = `이번 주에는 ${weekdayOf(best.d)}(${ganzhi(best.p)}일)이 가장 잘 맞아요. `;
-      where = `${weekdayOf(best.d)} 천간 ${stemHanja(stem)}`;
+      lead = `이번 주에는 ${weekdayOf(best.d)}이 가장 잘 맞아요. `;
+      where = `${weekdayOf(best.d)}(${ganzhi(best.p)}일) 천간 ${stemHanja(stem)}`;
     }
     const key = stemKeyOf(birthStem, stem);
     const h = hashSeed(seed);
@@ -229,10 +233,9 @@ export function buildZodiacFortune(animal: ZodiacAnimal, period: FreeFortunePeri
     const scale = period === 'today' || period === 'tomorrow' ? 'day' : 'span';
     const text = pick(RELATION_TEXT[keyOf(ev)][scale], `${seedBase}|main`);
     const flowSentence = pick(FLOW_TEXT[ev.flow], `${seedBase}|flow`)({
-      label: pillar.label,
-      stem: stemHanja(pillar.stem),
+      when: topic(pillar.short),
+      animal: animal.name,
       stemEl: EL_NAME[STEMS[pillar.stem]!.element],
-      animal: animal.hanja,
       animalEl: EL_NAME[BRANCHES[animal.branch]!.element],
     });
     const paragraphs = [text.body, flowSentence];
@@ -248,7 +251,7 @@ export function buildZodiacFortune(animal: ZodiacAnimal, period: FreeFortunePeri
       tip: text.tip,
       reasons: [...bondReasons(animal, pillar, ev), flowReason(animal, pillar, ev)],
       keyDays: [],
-      lucky: luckyOf(animal, ev, seedBase),
+      lucky: luckyOf(animal, ev, seedBase, pillar.short),
       years: yearLines(animal, ctx, seedBase),
     };
   }
@@ -267,7 +270,8 @@ export function buildZodiacFortune(animal: ZodiacAnimal, period: FreeFortunePeri
 
   const keyDay = (x: (typeof days)[number], kind: 'good' | 'caution'): FreeFortuneKeyDayDto => {
     const b = strongestBond(x.ev.bonds, kind === 'good' ? 1 : -1)!;
-    return { date: isoOf(x.d), weekday: weekdayOf(x.d), marker: ganzhi(x.p), kind, reason: `${bondTitle(animal.branch, x.p.branch, b)} — ${KEYDAY_TEXT[b.kind as BranchBond]}` };
+    // 그날 붙는 띠 동물('말의 날')로 부른다 — 간지 한자·관계 용어는 쓰지 않는다
+    return { date: isoOf(x.d), weekday: weekdayOf(x.d), marker: `${animalName(x.p.branch)}의 날`, kind, reason: KEYDAY_TEXT[b.kind as BranchBond] };
   };
   const keyDays = [
     ...[...goods].sort((a, b) => b.score - a.score).slice(0, 2).map((x) => keyDay(x, 'good')),
@@ -276,13 +280,13 @@ export function buildZodiacFortune(animal: ZodiacAnimal, period: FreeFortunePeri
 
   const bg = ctx.background!;
   const bgEv = evaluateZodiac(animal.branch, bg);
-  const paragraphs = [text.body, `한 주의 바탕인 이번 달 월건 ${ganzhi(bg)}의 기운은 ${animal.name}띠와 ${BOND_SHORT[keyOf(bgEv)]}`];
+  const paragraphs = [text.body, `이번 주가 속한 이번 달의 기운은 ${animal.name}띠와 ${BOND_SHORT[keyOf(bgEv)]}`];
   const firstDay = days[0]!.d;
   const lastDay = days[6]!.d;
   const reasons: FreeFortuneReasonDto[] = [
     {
       title: `${monthDay(firstDay)} ~ ${monthDay(lastDay)} 일진 7일`,
-      body: `${days.map((x) => `${weekdayOf(x.d).slice(0, 1)} ${ganzhi(x.p)}`).join(' · ')} — 띠 글자 ${animal.hanja} 기준으로 손을 잡는 날 ${goods.length}일, 부딪치는 날 ${cautions.length}일이에요.`,
+      body: `${days.map((x) => `${weekdayOf(x.d).slice(0, 1)} ${ganzhi(x.p)}`).join(' · ')} — ${animal.name}띠와 손을 잡는 날 ${goods.length}일, 부딪치는 날 ${cautions.length}일이에요.`,
     },
     ...bondReasons(animal, bg, bgEv),
   ];
@@ -296,7 +300,7 @@ export function buildZodiacFortune(animal: ZodiacAnimal, period: FreeFortunePeri
     tip: text.tip,
     reasons,
     keyDays,
-    lucky: luckyOf(animal, bgEv, seedBase),
+    lucky: luckyOf(animal, bgEv, seedBase, bg.short),
     years: yearLines(animal, ctx, seedBase),
   };
 }
@@ -309,7 +313,14 @@ export function buildZodiacOverview(period: FreeFortunePeriod, base: Ymd): Zodia
     periodLabel: FREE_FORTUNE_PERIOD_LABEL[period],
     range: items[0]!.range,
     pillar: items[0]!.pillar,
-    items: items.map((f) => ({ animal: f.animal, tone: f.tone, toneLabel: f.toneLabel, headline: f.headline, reason: period === 'week' ? keyDaySummary(f.keyDays) : (f.reasons[0]?.title ?? '') })),
+    items: items.map((f) => ({ animal: f.animal, tone: f.tone, toneLabel: f.toneLabel, headline: f.headline, reason: period === 'week' ? keyDaySummary(f.keyDays) : plainReason(f, period, base) })),
   };
+}
+
+/** 12띠 한눈에 보기의 한 줄 이유 — 한자·관계 용어 없이 */
+function plainReason(f: ZodiacFortuneDto, period: FreeFortunePeriod, base: Ymd): string {
+  const ctx = periodContext(period, base);
+  const ev = evaluateZodiac(f.animal.branch, ctx.pillar!);
+  return BOND_REASON[keyOf(ev)](`${ctx.pillar!.short}의`, f.animal.name);
 }
 

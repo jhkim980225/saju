@@ -28,7 +28,8 @@ test('랜딩 → 입력 → 확인 → 결과: 甲辰 일주 8글자와 잠금 �
   await expect(page.getByText('양력 1995년 3월 14일 (화)')).toBeVisible();
   await expect(page.getByText('= 음력 1995년 2월 14일')).toBeVisible();
   await expect(page.getByText('14:30 · 서울특별시 · 여성')).toBeVisible();
-  await expect(page.getByText('시간 보정 -32분 (지역 경도) → 13:58 기준')).toBeVisible();
+  await expect(page.getByText('태어난 시간을 실제 해 시각 13:58 기준으로 계산해요')).toBeVisible();
+  await expect(page.getByText(/서울특별시에서는 해가 시계보다 32분쯤 늦게 지나가서, 그만큼 앞당겨 계산했어요/)).toBeVisible();
 
   await page.getByRole('button', { name: '사주 풀이 보기' }).click();
   await expect(page).toHaveURL(/\/result$/);
@@ -49,7 +50,7 @@ test('랜딩 → 입력 → 확인 → 결과: 甲辰 일주 8글자와 잠금 �
   await expect(page.locator('[aria-label*=", 한자 "]')).toHaveCount(8);
   await expect(page.getByLabel('태어난 시간 모름')).toHaveCount(0);
   await expect(page.getByText('양력 1995.03.14 14:30')).toBeVisible();
-  await expect(page.getByText('보정 -32분', { exact: true })).toBeVisible();
+  await expect(page.getByText('실제 해 시각 13:58', { exact: true })).toBeVisible();
 
   // 무료 섹션은 열려 있고, 유료 섹션은 잠금 카드로 표시
   await expect(page.getByRole('heading', { name: '한눈에 보는 나' })).toBeVisible();
@@ -75,7 +76,7 @@ test('결과에서 보관함에 저장 → 내 사주·마이에 저장된다', 
   await expect(page.getByText(/^갑진일주 · /)).toBeVisible();
   await page.getByRole('navigation', { name: '주요 메뉴' }).getByRole('link', { name: '마이' }).click();
   await expect(page.getByRole('heading', { name: '저장한 사주 (1)' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /서윤\s*나/ })).toContainText('양 1995.3.14 · 甲辰일주');
+  await expect(page.getByRole('link', { name: /서윤\s*나/ })).toContainText('양력 1995.3.14 · 돼지띠');
 
   // 결과 화면에서 다시 저장해도 중복 저장되지 않는다
   await page.goto('/result');

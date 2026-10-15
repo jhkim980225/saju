@@ -55,18 +55,18 @@ const FIXTURE: ZodiacFortuneDto = {
   pillar: null,
   tone: 'mixed',
   toneLabel: '좋고 궂음이 섞여요',
-  trait: '호랑이띠는 이른 봄 나무(木)의 기운이에요.',
+  trait: '시작하는 힘이 크고, 앞장서는 자리에서 빛나는 편이에요. 계절로는 이른 봄, 다섯 기운 가운데 나무(木)에 속해요.',
   headline: '사람 사이의 온도 차가 큰 한 주예요',
-  paragraphs: ['반가운 만남과 엇갈림이 번갈아 오기 쉬운 흐름이에요.', '한 주의 바탕인 이번 달 월건 戊戌의 기운은 호랑이띠와 힘을 모으는 흐름이에요.'],
+  paragraphs: ['반가운 만남과 엇갈림이 번갈아 오기 쉬운 흐름이에요.', '이번 주가 속한 이번 달의 기운은 호랑이띠와 힘을 모으는 흐름이에요.'],
   tip: '중요한 대화는 좋은 날에 꺼내 보세요.',
-  reasons: [{ title: '이번 달 월건 戊戌 · 寅戌 삼합(불의 무리)', body: '같은 무리(삼합)에 속한 글자끼리 만나 힘을 모으는 관계예요.' }],
+  reasons: [{ title: '이번 달 월건 戊戌 · 寅戌 삼합(불의 무리)', body: '한편이 되는 띠끼리 만나 힘을 모으는 관계예요.' }],
   keyDays: [
-    { date: '2026-10-13', weekday: '화요일', marker: '庚申', kind: 'caution', reason: '寅申 충 — 정면으로 부딪치는 날이라 일정 변경과 말다툼을 조심해요.' },
-    { date: '2026-10-16', weekday: '금요일', marker: '癸亥', kind: 'good', reason: '寅亥 육합(나무) — 서로 끌어당기는 날이라 약속과 협력에 좋아요.' },
+    { date: '2026-10-13', weekday: '화요일', marker: '원숭이의 날', kind: 'caution', reason: '정면으로 부딪치는 날이라 일정 변경과 말다툼을 조심해요.' },
+    { date: '2026-10-16', weekday: '금요일', marker: '돼지의 날', kind: 'good', reason: '서로 끌어당기는 날이라 약속과 협력에 좋아요.' },
   ],
-  lucky: { color: '적색·분홍', direction: '남쪽', number: 2, basis: '삼합으로 생기는 불(火)의 기운' },
-  years: [{ year: 1986, ganzhi: '丙寅', text: '이번 주에는 수요일(辛酉일)이 가장 잘 맞아요.', reason: '태어난 해 천간 丙 · 수요일 천간 辛 → 丙辛합(물의 기운으로 묶임)' }],
-  basisNote: '띠는 사주 계산과 같이 입춘(양력 2월 4일 무렵)을 해의 경계로 봐요.',
+  lucky: { color: '적색·분홍', direction: '남쪽', number: 2, basis: '호랑이띠와 한편이 된 기운이 함께 만드는 불 기운' },
+  years: [{ year: 1986, ganzhi: '丙寅', text: '이번 주에는 수요일이 가장 잘 맞아요.', reason: '태어난 해 천간 丙 · 수요일(辛酉일) 천간 辛 → 丙辛합(물의 기운으로 묶임)' }],
+  basisNote: '옛 달력에서는 해·달·날마다 열두 띠 가운데 하나가 돌아가며 붙어요.',
   disclaimer: '띠별 운세는 같은 띠라면 모두에게 같은 풀이예요.',
 };
 
@@ -90,10 +90,14 @@ describe('띠 상세 화면', () => {
     expect(tabs.querySelector('a[href="/zodiac/tiger/month"]')?.textContent).toBe('이번 달');
 
     expect(screen.getByText('이번 주 눈여겨볼 날')).toBeInTheDocument();
-    expect(screen.getByText(/寅申 충 — 정면으로 부딪치는 날/)).toBeInTheDocument();
-    expect(screen.getByText('이번 달 월건 戊戌 · 寅戌 삼합(불의 무리)')).toBeInTheDocument();
+    expect(screen.getByText(/^정면으로 부딪치는 날이라/)).toBeInTheDocument();
+    expect(screen.getByText('· 원숭이의 날')).toBeInTheDocument();
+    // 용어가 든 근거는 접혀 있다(궁금한 사람만 펼침)
+    const reason = screen.getByText('이번 달 월건 戊戌 · 寅戌 삼합(불의 무리)');
+    expect(reason.closest('details')?.open).toBe(false);
     expect(screen.getByText('1986년생')).toBeInTheDocument();
-    expect(screen.getByText(/태어난 해의 천간과 이번 주 7일의 천간/)).toBeInTheDocument();
+    expect(screen.getByText(/태어난 해마다 이번 주에 잘 맞는 요일이 달라요/)).toBeInTheDocument();
+    expect(screen.getByText(/^1986년생\(丙寅\) · /).closest('details')?.open).toBe(false);
 
     expect(document.title).toBe('호랑이띠 이번 주 운세 — 띠별 운세 | 달빛사주');
     expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toContain('1986');

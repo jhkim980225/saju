@@ -35,7 +35,7 @@ export const CATALOG: CatalogItem[] = [
   {
     id: 'report_saju_mini',
     name: '첫 사주 미니 리포트',
-    description: '재물운·연애운·직업운 풀이를 열어볼 수 있어요. (계정당 1회)',
+    description: '돈·연애·일에 대한 풀이(재물운·연애운·직업운)를 열어 볼 수 있어요. 계정마다 한 번만 살 수 있어요.',
     type: 'one_time',
     price: 990,
     listPrice: 2900,
@@ -48,7 +48,7 @@ export const CATALOG: CatalogItem[] = [
   {
     id: 'report_saju_lifetime',
     name: '평생 사주분석서',
-    description: '원국표·오행 비율·대운 80년·열두 달 월운까지 A4 20쪽 분량. PDF로 저장할 수 있어요. AI 질문권 3회 포함.',
+    description: '타고난 성향과 다섯 가지 기운(나무·불·흙·쇠·물)의 균형, 80년 동안 10년마다 바뀌는 큰 흐름, 한 해 열두 달 흐름까지 A4 20쪽에 담았어요. PDF로 저장할 수 있고, AI 상담 질문권 3회가 함께 들어 있어요.',
     type: 'one_time',
     price: 9900,
     listPrice: 19800,
@@ -61,7 +61,7 @@ export const CATALOG: CatalogItem[] = [
   {
     id: 'report_newyear_2027',
     name: '2027 丁未년 신년운세',
-    description: '2027년 총운과 재물·애정·직장·건강, 열두 달마다 영역별 흐름까지 A4 10쪽 분량으로 담았어요.',
+    description: '2027년 한 해의 큰 흐름과 돈·사랑·일·건강, 열두 달 흐름까지 A4 10쪽에 담았어요.',
     type: 'one_time',
     price: 5900,
     listPrice: 7900,
@@ -74,7 +74,7 @@ export const CATALOG: CatalogItem[] = [
   {
     id: 'report_compat',
     name: '사주 궁합 리포트',
-    description: '본성과 오행의 균형, 끌림과 조율 포인트, 대화·갈등 방식, 올해·내년 흐름까지 담은 리포트예요.',
+    description: '두 사람의 타고난 성향이 어떻게 어울리는지, 서로 끌리는 점과 맞춰 갈 점, 대화하고 다투는 방식, 올해와 내년 흐름까지 담았어요.',
     type: 'one_time',
     price: 5900,
     grants: ['report:compatibility'],
@@ -85,7 +85,7 @@ export const CATALOG: CatalogItem[] = [
   {
     id: 'report_love',
     name: '연애·결혼운 리포트',
-    description: '타고난 연애 방식과 배우자 자리, 나에게 맞는 사람, 부딪히기 쉬운 지점, 앞으로 10년의 인연 흐름과 가까운 3년 풀이까지 담았어요. PDF로 저장할 수 있어요.',
+    description: '사랑할 때의 내 모습, 오래 함께하기 좋은 사람, 부딪히기 쉬운 지점, 앞으로 10년의 인연 흐름과 가까운 3년 풀이까지 담았어요. PDF로 저장할 수 있어요.',
     type: 'one_time',
     price: 4900,
     grants: ['report:love'],
@@ -95,7 +95,7 @@ export const CATALOG: CatalogItem[] = [
   {
     id: 'report_career_wealth',
     name: '재물·직업운 리포트',
-    description: '돈이 들고 나는 구조, 버는 방식과 지키는 방식, 어울리는 일과 분야, 앞으로 10년의 전환 시기와 가까운 3년 풀이까지 담았어요. PDF로 저장할 수 있어요.',
+    description: '돈이 들어오고 나가는 길, 잘 버는 방법과 지키는 방법, 어울리는 일과 분야, 앞으로 10년 가운데 방향을 바꾸기 좋은 때와 가까운 3년 풀이까지 담았어요. PDF로 저장할 수 있어요.',
     type: 'one_time',
     price: 4900,
     grants: ['report:career_wealth'],
@@ -105,7 +105,7 @@ export const CATALOG: CatalogItem[] = [
   {
     id: 'bundle_newyear_2027',
     name: '2027 신년 패키지',
-    description: '사주분석서 + 2027 신년운세 + 궁합 1회권 + AI 질문권 10회',
+    description: '사주분석서와 2027 신년운세, 궁합 리포트 한 번, AI 상담 질문권 열 번을 한꺼번에 담았어요.',
     type: 'one_time',
     price: 16900,
     listPrice: 23700,
@@ -118,7 +118,7 @@ export const CATALOG: CatalogItem[] = [
   {
     id: 'chat_pack_10',
     name: 'AI 상담 질문권 10회',
-    description: '내 사주를 아는 AI 상담가에게 궁금한 걸 물어보세요. 유효기간 없음.',
+    description: '내 사주를 아는 AI 상담가에게 궁금한 걸 물어보세요. 기한 없이 쓸 수 있어요.',
     type: 'credit_pack',
     price: 3900,
     credits: 10,
@@ -128,7 +128,7 @@ export const CATALOG: CatalogItem[] = [
   {
     id: 'chat_pack_30',
     name: 'AI 상담 질문권 30회',
-    description: '1회당 330원. 유효기간 없음.',
+    description: '한 번에 330원꼴이에요. 기한 없이 쓸 수 있어요.',
     type: 'credit_pack',
     price: 9900,
     listPrice: 11700,
@@ -141,7 +141,7 @@ export const CATALOG: CatalogItem[] = [
   {
     id: 'tarot_question_3',
     name: '질문 타로 3장 깊은 풀이',
-    description: '자리마다 질문에 맞춘 풀이, 카드끼리 이어지는 이야기, 사주로 본 근거까지. AI 질문권 1회 포함.',
+    description: '카드 자리마다 질문에 맞춘 풀이와 카드끼리 이어지는 이야기, 내 사주와 함께 본 풀이까지 담았어요. AI 상담 질문권 1회가 함께 들어 있어요.',
     type: 'one_time',
     price: 990,
     credits: 1,
@@ -152,7 +152,7 @@ export const CATALOG: CatalogItem[] = [
   {
     id: 'tarot_love_5',
     name: '연애 속마음·재회 타로 5장',
-    description: '상대의 마음과 둘 사이의 흐름, 관계를 위한 행동까지 다섯 장으로 깊게 읽어요. AI 질문권 1회 포함.',
+    description: '상대의 마음과 둘 사이의 흐름, 관계를 위해 해 볼 일까지 다섯 장으로 깊게 읽어요. AI 상담 질문권 1회가 함께 들어 있어요.',
     type: 'one_time',
     price: 2900,
     credits: 1,
@@ -163,7 +163,7 @@ export const CATALOG: CatalogItem[] = [
   {
     id: 'tarot_choice_3',
     name: '양자택일 타로 3장 깊은 풀이',
-    description: '두 선택지를 같은 무게로 나란히 놓고, 길마다 기대할 것과 챙길 것을 읽어요. 사주로 본 근거까지. AI 질문권 1회 포함.',
+    description: '두 선택지를 같은 무게로 나란히 놓고, 길마다 기대할 것과 챙길 것을 읽어요. 내 사주와 함께 본 풀이와 AI 상담 질문권 1회가 함께 들어 있어요.',
     type: 'one_time',
     price: 990,
     credits: 1,
@@ -174,7 +174,7 @@ export const CATALOG: CatalogItem[] = [
   {
     id: 'tarot_compat_5',
     name: '궁합 타로 5장 깊은 풀이',
-    description: '두 사람의 마음과 끌림·조율할 점을 다섯 장으로 읽고, 두 사람의 사주로 본 근거까지 함께 담았어요. AI 질문권 1회 포함.',
+    description: '두 사람의 마음과 서로 끌리는 점, 맞춰 갈 점을 다섯 장으로 읽고, 두 사람의 사주와 함께 본 풀이까지 담았어요. AI 상담 질문권 1회가 함께 들어 있어요.',
     type: 'one_time',
     price: 2900,
     credits: 1,
@@ -185,7 +185,7 @@ export const CATALOG: CatalogItem[] = [
   {
     id: 'tarot_celtic_10',
     name: '켈틱 크로스 10장 깊은 풀이',
-    description: '한 가지 고민을 열 자리로 깊고 넓게 펼쳐 읽어요. 자리별 풀이와 카드끼리 이어지는 이야기, 사주로 본 근거까지. AI 질문권 3회 포함.',
+    description: '한 가지 고민을 카드 열 장으로 깊고 넓게 펼쳐 읽어요. 자리별 풀이와 카드끼리 이어지는 이야기, 내 사주와 함께 본 풀이까지 담았어요. AI 상담 질문권 3회가 함께 들어 있어요.',
     type: 'one_time',
     price: 4900,
     credits: 3,
@@ -197,7 +197,7 @@ export const CATALOG: CatalogItem[] = [
   {
     id: 'report_taekil',
     name: '택일 상세 풀이',
-    description: 'Top 3 길일의 근거와 좋은 시간, 날짜마다 좋고 아쉬운 이유와 빠진 까닭, 목적에 맞춘 조언까지 열어 봐요.',
+    description: '추천 날짜 세 곳이 좋은 이유와 시작하기 좋은 시간, 날짜마다 좋은 점과 아쉬운 점, 목적에 맞춘 조언까지 열어 봐요.',
     type: 'one_time',
     price: 990,
     grants: ['taekil:reading'],

@@ -17,8 +17,8 @@ import { todayKst } from '@/lib/format';
 import { usePageMeta } from '@/lib/pageMeta';
 import { NotFoundPage } from './NotFoundPage';
 
-const UPSELL = '띠별 운세는 같은 해에 태어난 모두에게 같아요. 태어난 날과 시간까지 넣으면 나만의 일진 풀이를 매일 볼 수 있어요.';
-const BASIS_SHORT = '띠 글자와 그날의 일진이 맺는 합·충·형·파·해·원진 관계로 풀었어요. 띠는 사주처럼 입춘을 해의 경계로 봐요.';
+const UPSELL = '띠별 운세는 같은 해에 태어난 모두에게 같아요. 태어난 날과 시간까지 넣으면 나에게만 맞춘 오늘의 운세를 매일 볼 수 있어요.';
+const BASIS_SHORT = '옛 달력에서는 날마다 열두 띠 가운데 하나가 돌아가며 붙어요. 오늘 날의 띠가 내 띠와 손을 잡는지, 부딪치는지를 보고 풀었어요.';
 
 export function ZodiacHubPage() {
   const own = useOwnSigns();
@@ -26,7 +26,7 @@ export function ZodiacHubPage() {
   const overview = useQuery({ queryKey: ['zodiac', 'overview', 'today', today.iso], queryFn: () => api.zodiacOverview('today', today.iso), staleTime: 10 * 60_000 });
   usePageMeta({
     title: '띠별 운세 — 12띠 오늘의 운세 | 달빛사주',
-    description: '쥐띠부터 돼지띠까지 열두 띠의 오늘·내일·이번 주·이번 달·올해 운세. 일진과 띠의 합·충 관계로 푼 근거와 년생별 한 줄까지 무료로 보여 드려요.',
+    description: '쥐띠부터 돼지띠까지 열두 띠의 오늘·내일·이번 주·이번 달·올해 운세. 그날의 띠와 내 띠가 잘 맞는지 푼 이유와 년생별 한 줄까지 무료로 보여 드려요.',
     path: '/zodiac',
   });
 
@@ -41,7 +41,6 @@ export function ZodiacHubPage() {
         <section className="pt-4 lg:pt-2">
           <p className="text-sm font-semibold text-ink-3">
             {today.month}월 {today.day}일 {today.weekday}
-            {overview.data?.pillar && <span className="ml-1 font-serif">· {overview.data.pillar.label} {overview.data.pillar.hanja}</span>}
           </p>
           <h2 className="mt-2 font-serif text-[26px] font-semibold leading-snug lg:text-[32px]">열두 띠, 오늘은 어떤 흐름일까요</h2>
           <p className="mt-3 text-[15px] leading-relaxed text-ink-2">{BASIS_SHORT}</p>
@@ -69,7 +68,7 @@ export function ZodiacHubPage() {
                           <ToneBadge tone={it.tone} label={it.toneLabel} />
                         </span>
                         <span className="mt-1 block text-[15px] leading-snug">{it.headline}</span>
-                        <span className="mt-1 block font-serif text-xs text-ink-3">{it.reason}</span>
+                        <span className="mt-1 block text-xs text-ink-3">{it.reason}</span>
                       </span>
                     </Link>
                   </li>
@@ -142,7 +141,7 @@ function ZodiacDetail({ animal, period }: { animal: ZodiacAnimal; period: FreeFo
   const years = birthYearsOf(animal, today.year);
   usePageMeta({
     title: `${title} — 띠별 운세 | 달빛사주`,
-    description: `${animal.name}띠(${animal.hanja}) ${PERIOD_TITLE[period]}. 일진·월건·세운과 ${animal.hanja}의 합·충 관계로 풀고, ${years.slice(-5).join('·')}년생 등 년생별 한 줄까지 무료로 보여 드려요.`,
+    description: `${animal.name}띠 ${PERIOD_TITLE[period]}. 그 기간의 띠와 ${animal.name}띠가 잘 맞는지로 풀고, ${years.slice(-5).join('·')}년생 등 년생별 한 줄까지 무료로 보여 드려요.`,
     path: zodiacPath(animal.slug, period),
   });
   const d = q.data;
@@ -168,21 +167,9 @@ function ZodiacDetail({ animal, period }: { animal: ZodiacAnimal; period: FreeFo
         {d && (
           <div className="animate-fade lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-10">
             <div>
-              <FortuneMain
-                eyebrow={
-                  <>
-                    {d.range.label}
-                    {d.pillar && <span className="ml-1 font-serif">· {d.pillar.label} {d.pillar.hanja}</span>}
-                  </>
-                }
-                tone={d.tone}
-                toneLabel={d.toneLabel}
-                headline={d.headline}
-                paragraphs={d.paragraphs}
-                tip={d.tip}
-              />
-              <KeyDays days={d.keyDays} />
-              <ReasonCard reasons={d.reasons} />
+              <FortuneMain eyebrow={d.range.label} tone={d.tone} toneLabel={d.toneLabel} headline={d.headline} paragraphs={d.paragraphs} tip={d.tip} />
+              <KeyDays days={d.keyDays} note={`옛 달력에서는 날마다 열두 띠 동물이 돌아가며 붙어요. ${animal.name}띠와 잘 맞는 날과 부딪치는 날을 골랐어요.`} />
+              <ReasonCard reasons={d.reasons} intro={`옛 달력에서 그 기간에 붙는 두 글자(간지)와 ${animal.name}띠 글자(${animal.hanja})가 어떤 관계인지 적었어요.`} />
               <div className="mt-6">
                 <AdSlot placement="web_content_mid" />
               </div>
@@ -191,19 +178,27 @@ function ZodiacDetail({ animal, period }: { animal: ZodiacAnimal; period: FreeFo
                   년생별 {animal.name}띠 운세
                 </h3>
                 <p className="mt-1 text-sm text-ink-3">
-                  {d.pillar ? `태어난 해의 천간과 ${d.pillar.label}의 천간이 맺는 관계로 골랐어요.` : '태어난 해의 천간과 이번 주 7일의 천간을 견줘, 가장 잘 맞는 날을 골랐어요.'}
+                  {d.pillar ? `같은 ${animal.name}띠라도 태어난 해마다 기운이 조금씩 달라서, 해마다 한 줄씩 따로 풀었어요.` : `같은 ${animal.name}띠라도 태어난 해마다 이번 주에 잘 맞는 요일이 달라요.`}
                 </p>
                 <ul className="mt-3 divide-y divide-line border-y border-line">
                   {d.years.map((y) => (
                     <li key={y.year} className="py-4">
-                      <p className="font-semibold">
-                        <span>{y.year}년생</span> <span className="ml-1 font-serif font-normal text-ink-3">{y.ganzhi}</span>
-                      </p>
+                      <p className="font-semibold">{y.year}년생</p>
                       <p className="mt-1 text-[15px] leading-relaxed">{y.text}</p>
-                      <p className="mt-1 font-serif text-xs text-ink-3">{y.reason}</p>
                     </li>
                   ))}
                 </ul>
+                {/* 용어(천간·십신)가 든 근거는 궁금한 사람만 펼쳐 보게 */}
+                <details className="group mt-3 text-sm text-ink-3">
+                  <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-full border border-line px-3 py-1 hover:text-ink-2 [&::-webkit-details-marker]:hidden">
+                    년생별 풀이 근거 <span className="transition-transform group-open:rotate-180" aria-hidden>▾</span>
+                  </summary>
+                  <ul className="mt-2 space-y-1 font-serif text-xs leading-relaxed">
+                    {d.years.map((y) => (
+                      <li key={y.year}>{`${y.year}년생(${y.ganzhi}) · ${y.reason}`}</li>
+                    ))}
+                  </ul>
+                </details>
               </section>
             </div>
 

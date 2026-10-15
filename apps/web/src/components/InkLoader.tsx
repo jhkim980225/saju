@@ -26,7 +26,8 @@ export function InkLoader({ name }: { name?: string }) {
           ))}
         </div>
       </div>
-      <p className="font-serif text-lg">{t(`loading.step${step + 1}`, { name: name || '당신' })}</p>
+      {/* 이름이 없으면 '당신님' 대신 '나만의' — docs/PLAIN_KOREAN.md 규칙 4 */}
+      <p className="font-serif text-lg">{step === 4 && !name ? t('loading.step5NoName') : t(`loading.step${step + 1}`, { name: name ?? '' })}</p>
       {slow && <p className="text-sm text-ink-3">{t('loading.slow')}</p>}
     </div>
   );

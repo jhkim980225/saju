@@ -136,7 +136,7 @@ export function buildHoroscope(sign: StarSign, period: FreeFortunePeriod, base: 
           weekday: weekdayOf(x.d),
           marker: signName(x.moonSign),
           kind,
-          reason: `${HOUSES[x.house - 1]!.short} — 달이 ${signName(x.moonSign)}에 있어 내 별자리와 ${ASPECT_TEXT[x.aspect].label}의 자리예요.`,
+          reason: `${HOUSES[x.house - 1]!.short}이에요. 달이 ${signName(x.moonSign)}에 있어, 내 별자리와 ${ASPECT_TEXT[x.aspect].label}예요.`,
         }));
     };
     const keyDays = [...pickDays(goods, ASPECT_RANK_GOOD, 'good'), ...pickDays(cautions, ASPECT_RANK_CAUTION, 'caution')].sort((a, b) => a.date.localeCompare(b.date));
@@ -249,6 +249,7 @@ export function buildHoroscopeOverview(period: FreeFortunePeriod, base: Ymd): Ho
     period,
     periodLabel: FREE_FORTUNE_PERIOD_LABEL[period],
     range: items[0]!.range,
-    items: items.map((h) => ({ sign: h.sign, tone: h.tone, toneLabel: h.toneLabel, headline: h.headline, reason: period === 'week' ? keyDaySummary(h.keyDays) : `${h.sky[0]!.bodyLabel} ${h.sky[0]!.signName} · ${houseLabel(h.sky[0]!.house)}` })),
+    // 한 줄 이유 — '몇 번째 자리' 대신 그 자리의 주제로: '달이 사수자리를 지나요 — 나에게는 먼 곳 · 공부 쪽이에요'
+    items: items.map((h) => ({ sign: h.sign, tone: h.tone, toneLabel: h.toneLabel, headline: h.headline, reason: period === 'week' ? keyDaySummary(h.keyDays) : `${h.sky[0]!.bodyLabel}이 ${h.sky[0]!.signName}를 지나요 — 나에게는 '${h.sky[0]!.houseTheme}' 자리예요` })),
   };
 }

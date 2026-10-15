@@ -49,7 +49,7 @@ export function fetchTojeong(body: TojeongRequestDto): Promise<TojeongDto> {
   return request<TojeongDto>('POST', '/tojeong', { body: { year: TOJEONG_DEFAULT_YEAR, ...body } });
 }
 
-export const FLOW_LABEL: Record<TojeongMonthFlow, string> = { rise: '힘이 붙는 달', even: '고른 달', care: '살피는 달' };
+export const FLOW_LABEL: Record<TojeongMonthFlow, string> = { rise: '힘이 붙는 달', even: '무난한 달', care: '살피는 달' };
 
 /** 열두 달 흐름 표시 — 점의 채움으로 기운을 보여 준다(색은 오행 데이터에만 쓰는 원칙) */
 export const FLOW_DOT: Record<TojeongMonthFlow, string> = {

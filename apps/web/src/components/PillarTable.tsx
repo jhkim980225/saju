@@ -8,7 +8,7 @@ import { cx } from './ui';
 type Pos = 'hour' | 'day' | 'month' | 'year';
 const ORDER: Pos[] = ['hour', 'day', 'month', 'year'];
 
-function Tile({ hanja, hangul, element, yinYang, isMe, kind, position }: { hanja: string; hangul: string; element: keyof typeof ELEMENT_META; yinYang: 'yang' | 'yin'; isMe?: boolean; kind: '천간' | '지지'; position: string }) {
+function Tile({ hanja, hangul, element, yinYang, isMe, kind, position, expert }: { hanja: string; hangul: string; element: keyof typeof ELEMENT_META; yinYang: 'yang' | 'yin'; isMe?: boolean; kind: '천간' | '지지'; position: string; expert: boolean }) {
   const m = ELEMENT_META[element];
   return (
     <div
@@ -22,12 +22,19 @@ function Tile({ hanja, hangul, element, yinYang, isMe, kind, position }: { hanja
       )}
     >
       <span className="font-serif text-[clamp(26px,8vw,34px)] font-medium leading-none">{hanja}</span>
-      <span className="mt-1.5 text-[11px] font-semibold opacity-90">
-        {hangul}·{m.hanja}
-        <span className="ml-0.5" aria-hidden>
-          {yinYang === 'yang' ? '+' : '−'}
+      {expert ? (
+        <span className="mt-1.5 text-[11px] font-semibold opacity-90">
+          {hangul}·{m.hanja}
+          <span className="ml-0.5" aria-hidden>
+            {yinYang === 'yang' ? '+' : '−'}
+          </span>
         </span>
-      </span>
+      ) : (
+        // 처음 보는 사람에게는 음양(+/−)·한자 대신 기운 이름만
+        <span className="mt-1.5 text-[11px] font-semibold opacity-90">
+          {hangul} · {m.label}
+        </span>
+      )}
     </div>
   );
 }
@@ -51,7 +58,7 @@ export function PillarTable({ chart, editHref }: { chart: SajuChart; editHref?: 
 
   return (
     <div>
-      {!expert && <p className="mb-3 text-center text-sm text-ink-3">태어난 연·월·일·시를 여덟 글자로 바꾼 표예요. '나'로 표시된 글자가 나 자신이에요.</p>}
+      {!expert && <p className="mb-3 text-center text-sm text-ink-3">{t('result.pillarTable.intro')}</p>}
       <div className={cx('grid gap-x-2 gap-y-1.5 text-center', expert ? 'grid-cols-[2.5rem_repeat(4,minmax(0,1fr))]' : 'grid-cols-4')}>
         {expert && <div />}
         {ORDER.map((p) => (
@@ -75,13 +82,13 @@ export function PillarTable({ chart, editHref }: { chart: SajuChart; editHref?: 
         {rowLabel(t('result.pillarTable.heavenlyStem'))}
         {ORDER.map((p) => {
           const c = col(p);
-          return c ? <Tile key={p} hanja={c.stem.hanja} hangul={c.stem.hangul} element={c.stem.element} yinYang={c.stem.yinYang} isMe={p === 'day'} kind="천간" position={label(p)} /> : <UnknownTile key={p} />;
+          return c ? <Tile key={p} hanja={c.stem.hanja} hangul={c.stem.hangul} element={c.stem.element} yinYang={c.stem.yinYang} isMe={p === 'day'} kind="천간" position={label(p)} expert={expert} /> : <UnknownTile key={p} />;
         })}
 
         {rowLabel(t('result.pillarTable.earthlyBranch'))}
         {ORDER.map((p) => {
           const c = col(p);
-          return c ? <Tile key={p} hanja={c.branch.hanja} hangul={c.branch.hangul} element={c.branch.element} yinYang={c.branch.yinYang} kind="지지" position={label(p)} /> : <UnknownTile key={p} />;
+          return c ? <Tile key={p} hanja={c.branch.hanja} hangul={c.branch.hangul} element={c.branch.element} yinYang={c.branch.yinYang} kind="지지" position={label(p)} expert={expert} /> : <UnknownTile key={p} />;
         })}
 
         {expert && (
@@ -137,7 +144,7 @@ export function PillarTable({ chart, editHref }: { chart: SajuChart; editHref?: 
 
       <div className="mt-3 flex justify-center">
         <button type="button" onClick={() => setExpert((v) => !v)} className="text-sm font-medium text-ink-2 underline underline-offset-4 print:hidden">
-          {expert ? t('result.pillarTable.expertHide') : `${t('result.pillarTable.expertShow')} · 십성·지장간·12운성·신살`}
+          {expert ? t('result.pillarTable.expertHide') : `${t('result.pillarTable.expertShow')} · ${t('result.pillarTable.expertShowHint')}`}
         </button>
       </div>
       {expert && (chart.relations.length > 0 || chart.gongmang) && (

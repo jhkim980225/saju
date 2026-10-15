@@ -817,7 +817,8 @@ export type TaekilPurposeId = (typeof TAEKIL_PURPOSE_IDS)[number];
 export const TAEKIL_PURPOSE_LABEL: Record<TaekilPurposeId, string> = { move: '이사', contract: '계약', exam: '면접·시험', wedding: '결혼', opening: '개업', travel: '여행·출발' };
 export const TAEKIL_GRADE_IDS = ['best', 'good', 'normal', 'caution', 'avoid'] as const;
 export type TaekilGradeId = (typeof TAEKIL_GRADE_IDS)[number];
-export const TAEKIL_GRADE_NAME: Record<TaekilGradeId, string> = { best: '대길', good: '길', normal: '보통', caution: '주의', avoid: '피함' };
+/** 등급 이름 — 사주를 모르는 사람도 바로 알게 생활어로(대길·길 대신) */
+export const TAEKIL_GRADE_NAME: Record<TaekilGradeId, string> = { best: '아주 좋은 날', good: '좋은 날', normal: '평범한 날', caution: '조심할 날', avoid: '피할 날' };
 /** 기간은 최대 92일, 후보 날짜는 2~10개 */
 export const TAEKIL_LIMITS = { maxRangeDays: 92, minCandidates: 2, maxCandidates: 10, maxDaysAhead: 730 } as const;
 /** 택일 상세를 여는 상품 */
@@ -846,6 +847,8 @@ export interface TaekilReasonDto {
   label: string;
   /** 풀어 쓴 한두 문장 */
   text: string;
+  /** 옛 달력·사주 용어 — 예: '건제12신 성(成)일 · 이루어지는 날'. 화면에서는 접어 둔다 */
+  term?: string;
   /** 점수 가감 */
   weight: number;
   /** 이 날을 후보에서 빼는 사유인가 */
@@ -871,8 +874,10 @@ export interface TaekilDayDto {
   reasons: TaekilReasonDto[] | null;
   /** Top 3 에 들지 못한 까닭 (Top 3 는 null) */
   dropReason: string | null;
-  /** 황도시(길한 시간) — Top 3 만 */
+  /** 황도시(길한 시간) — Top 3 만. '오전 9~11시' */
   goodHours: string[] | null;
+  /** 이날의 옛 달력·사주 용어 한 줄(일진·건제12신·황도·황도시) — 화면에서는 접어 둔다 */
+  basis?: string | null;
 }
 
 export interface TaekilResultDto {

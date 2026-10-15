@@ -146,7 +146,11 @@ describe('타로 API', () => {
     expect(res.body.productId).toBe('tarot_question_3');
     expect(res.body.sections.find((s: any) => s.key === 'overview').locked).toBeUndefined();
     expect(res.body.sections.find((s: any) => s.key === 'pos-situation').locked).toBe(true);
-    expect(res.body.sections.find((s: any) => s.key === 'saju').summary).toContain('달빛사주 방식');
+    // 잠긴 사주 섹션은 쉬운 말 결론만 — 용어 근거(basis)는 열린 뒤에만
+    const lockedSaju = res.body.sections.find((s: any) => s.key === 'saju');
+    expect(lockedSaju.summary).toMatch(/카드예요$/);
+    expect(lockedSaju.basis).toBeUndefined();
+    expect(res.body.basis).toContain('달빛사주 방식');
   });
 
   it('같은 날 같은 질문은 다시 뽑지 않는다 (셔플 단계 안내 + 409)', async () => {
@@ -299,7 +303,8 @@ describe('2차 펼침 방식 정의', () => {
     const maybe = buildTarotReading({ id: 'm', spread: 'yesno', topic: 'yesno', drawn: [{ index: moon, orientation: 'upright' }], chart: calculateSaju(BIRTH), unlocked: true });
     expect(maybe.lean).toBe('maybe');
     expect(maybe.sections[0]!.paragraphs[1]).toMatch(/^조건 — /);
-    expect(maybe.sections.find((s) => s.key === 'saju')!.paragraphs.join(' ')).toContain('이번에 뽑은 달은');
+    expect(maybe.sections.find((s) => s.key === 'saju')!.paragraphs.join(' ')).toContain('이번에 뽑은 달 카드는');
+    expect(maybe.sections.find((s) => s.key === 'saju')!.basis).toMatch(/^일간 .+ · 용신 .+ · 카드 원소 달=/);
     const no = buildTarotReading({ id: 'n', spread: 'yesno', topic: 'yesno', drawn: [{ index: tower, orientation: 'upright' }], chart: null, unlocked: true });
     expect(no.lean).toBe('no');
     expect(no.sections.map((s) => s.paragraphs.join(' ')).join(' ')).not.toMatch(/YES|NO|정답/);
@@ -319,7 +324,7 @@ describe('2차 펼침 방식 정의', () => {
     expect(text).toContain('지금 회사에 남기');
     expect(text).toContain('새 회사로 옮기기');
     expect(text).not.toMatch(/정답(이에요|입니다)|추천해요|고르세요/);
-    expect(r.sections.find((s) => s.key === 'saju')!.paragraphs.join(' ')).toContain('지금의 나 자리의');
+    expect(r.sections.find((s) => s.key === 'saju')!.paragraphs.join(' ')).toContain("'지금의 나' 자리의");
     // 잠금 — 지금의 나 자리만 무료, 두 선택지 자리는 똑같이 잠긴다
     const locked = buildTarotReading({ id: 'c', spread: 'choice', topic: 'choice', drawn, chart: null, unlocked: false, options: { a: 'A안', b: 'B안' } });
     expect(locked.sections.find((s) => s.key === 'pos-now')!.locked).toBeUndefined();
@@ -327,17 +332,20 @@ describe('2차 펼침 방식 정의', () => {
     expect(locked.sections.find((s) => s.key === 'pos-optionB')!.locked).toBe(true);
   });
 
-  it('궁합 타로 — 두 사람의 일간·용신으로 근거를 함께 읽는다', () => {
+  it('궁합 타로 — 두 사람의 타고난 기운으로 쉽게 읽고, 일간·용신은 근거(basis)에만', () => {
     const me = { name: '민수', chart: calculateSaju(BIRTH) };
     const partner = { name: '지은', chart: calculateSaju({ ...BIRTH, year: 1992, month: 8, day: 20, gender: 'female' }) };
     const drawn = [3, 22, 40, 58, 70].map((index) => ({ index, orientation: 'upright' as const }));
     const r = buildTarotReading({ id: 'p', spread: 'compat', topic: 'compat', drawn, chart: me.chart, unlocked: true, people: { me, partner } });
     const saju = r.sections.find((s) => s.key === 'saju')!;
-    expect(r.basis).toMatch(/^근거: 민수 일간 .+·용신 .+ · 지은 일간 .+·용신 .+ · 카드 원소/);
-    expect(saju.paragraphs[0]).toMatch(/일간인 민수님에게는/);
-    expect(saju.paragraphs[1]).toMatch(/일간인 지은님에게는/);
-    expect(saju.paragraphs[2]).toMatch(/민수님에게는 .+, 지은님에게는 .+이에요\./);
-    expect(saju.paragraphs.join(' ')).toContain('두 사람의 일간을 견주면');
+    expect(r.basis).toMatch(/^민수 일간 .+·용신 .+ · 지은 일간 .+·용신 .+ · 카드 원소/);
+    expect(saju.basis).toBe(r.basis);
+    expect(saju.paragraphs[0]).toMatch(/^사주로 보면 민수님은 .+의 기운을, 지은님은 .+의 기운을 타고났어요\./);
+    expect(saju.paragraphs[1]).toMatch(/^'나의 마음' 자리의 .+ 민수님에게 .+이에요\.$/);
+    expect(saju.paragraphs[2]).toMatch(/^'상대의 마음' 자리의 .+ 지은님에게 .+이에요\.$/);
+    expect(saju.paragraphs[3]).toMatch(/민수님에게는 .+, 지은님에게는 .+이에요\./);
+    expect(saju.paragraphs.join(' ')).toMatch(/받쳐 주는 사이예요|이끌고 다잡아 주는 사이예요|같은 기운을 타고나서/);
+    expect(saju.paragraphs.join(' ')).not.toMatch(/일간|용신|[一-鿿]/);
     expect(r.sections[0]!.paragraphs[0]).toMatch(/^민수님과 지은님 사이를 다섯 장으로/);
     // 상대 자리는 '속마음' 문안, 함께 가꿀 것은 '조언' 문안
     expect(DECK[22]!.upright.feelings.startsWith(r.cards[1]!.line)).toBe(true);
@@ -464,7 +472,9 @@ describe('2차 펼침 방식 API', () => {
     expect(paid.body.granted).toMatchObject({ credits: 1, entitlements: [`tarot:reading:${res.body.id}`] });
     const opened = await api('GET', `/tarot/readings/${res.body.id}`, { token: member });
     expect(opened.body.locked).toBe(false);
-    expect(opened.body.sections.find((s: any) => s.key === 'saju').paragraphs.join(' ')).toContain('지은님의 용신');
+    const openedSaju = opened.body.sections.find((s: any) => s.key === 'saju');
+    expect(openedSaju.paragraphs.join(' ')).toContain('지은님');
+    expect(openedSaju.basis).toMatch(/지은 일간 .+·용신/);
 
     // 다른 계정의 프로필은 상대로 쓸 수 없다
     const stranger = (await api('POST', '/auth/guest', { body: { deviceId: 'tarot-device-compat' } })).body.accessToken;

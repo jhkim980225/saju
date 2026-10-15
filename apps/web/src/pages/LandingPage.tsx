@@ -16,6 +16,8 @@ const SAMPLE = [
 ] as const;
 
 const PREVIEW = ['overview', 'personality', 'wealth', 'love', 'career', 'health', 'daeun', 'thisYear'] as const;
+/** 처음 오는 사람에게 용어('대운')를 먼저 보이지 않게 — 랜딩 미리보기에서만 쉬운 이름으로 */
+const PREVIEW_LABEL: Partial<Record<(typeof PREVIEW)[number], string>> = { daeun: '인생의 큰 흐름' };
 const FAQ = ['timeUnknown', 'lunar', 'accuracy', 'privacy'] as const;
 
 export function LandingPage() {
@@ -82,7 +84,7 @@ export function LandingPage() {
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-center text-xs text-ink-3">예시 사주팔자</p>
+            <p className="mt-3 text-center text-xs text-ink-3">예시 사주팔자 · 태어난 연·월·일·시가 이렇게 여덟 글자가 돼요</p>
           </div>
         </section>
 
@@ -105,7 +107,7 @@ export function LandingPage() {
           <ul className="no-scrollbar -mx-5 mt-4 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:grid lg:grid-cols-4 lg:gap-3 lg:overflow-visible lg:px-0">
             {PREVIEW.map((k) => (
               <li key={k} className="shrink-0 rounded-2xl border border-line bg-surface px-4 py-3 lg:px-5 lg:py-4">
-                <p className="text-xs text-ink-3">{t(`result.sections.${k}.label`)}</p>
+                <p className="text-xs text-ink-3">{PREVIEW_LABEL[k] ?? t(`result.sections.${k}.label`)}</p>
                 <p className="mt-1 font-serif text-[15px] font-semibold">{t(`result.sections.${k}.title`, { year: targetFortuneYear() })}</p>
               </li>
             ))}

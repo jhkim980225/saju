@@ -195,19 +195,19 @@ export function BirthFormPage() {
           <div>
             <button type="button" onClick={() => setAdvanced((v) => !v)} aria-expanded={advanced} className="flex items-center gap-1 text-[15px] font-medium text-ink-2">
               <ChevronDown className={cx('size-4 transition-transform', advanced && 'rotate-180')} aria-hidden />
-              {t('form.advanced.toggle')} <span className="text-sm text-ink-3">(경도 보정 · 야자시)</span>
+              {t('form.advanced.toggle')} <span className="text-sm text-ink-3">({t('form.advanced.toggleHint')})</span>
             </button>
             {advanced && (
               <div className="mt-4 space-y-5 rounded-2xl bg-subtle p-4">
-                <Field label={t('form.advanced.longitude')} helper={`${t('form.advanced.longitudeHelper')} 서머타임 기간은 자동으로 반영돼요.`}>
+                <Field label={t('form.advanced.longitude')} helper={t('form.advanced.longitudeHelper')}>
                   <Segmented
                     name={t('form.advanced.longitude')}
                     value={form.timeCorrection}
                     onChange={(v) => set('timeCorrection', v)}
                     options={[
-                      { value: 'lmt', label: '경도 보정' },
-                      { value: 'trueSolar', label: '진태양시' },
-                      { value: 'clock', label: '보정 안 함' },
+                      { value: 'lmt', label: t('form.advanced.longitudeLmt') },
+                      { value: 'trueSolar', label: t('form.advanced.longitudeTrueSolar') },
+                      { value: 'clock', label: t('form.advanced.longitudeClock') },
                     ]}
                   />
                 </Field>
@@ -217,8 +217,8 @@ export function BirthFormPage() {
                     value={form.ziHourRule}
                     onChange={(v) => set('ziHourRule', v)}
                     options={[
-                      { value: 'nextDay', label: '23시부터 다음 날 (기본)' },
-                      { value: 'midnight', label: '야자시 적용' },
+                      { value: 'nextDay', label: t('form.advanced.yajasiNextDay') },
+                      { value: 'midnight', label: t('form.advanced.yajasiMidnight') },
                     ]}
                   />
                 </Field>
