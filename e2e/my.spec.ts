@@ -10,7 +10,7 @@ test('화면 테마·글자 크기 설정이 적용되고 새로고침 후에도
   // 기본은 로고와 같은 밤하늘(남색)
   await expect(themeGroup.getByRole('radio', { name: '밤하늘' })).toHaveAttribute('aria-checked', 'true');
   await expect(html).toHaveAttribute('data-theme', 'dark');
-  await expect(page.locator('meta[name="theme-color"]').first()).toHaveAttribute('content', '#0A1029');
+  await expect(page.locator('meta[name="theme-color"]').first()).toHaveAttribute('content', '#060B24');
   const darkBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 
   await themeGroup.getByRole('radio', { name: '밝은 화면' }).click();

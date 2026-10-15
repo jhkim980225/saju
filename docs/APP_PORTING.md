@@ -588,7 +588,7 @@ rm -rf .assets
 ```
 
 - `@capacitor/assets` 는 `sharp` 네이티브 바이너리를 받습니다. npm 11 설치 스크립트 정책으로 막히면 `npm install-scripts approve sharp` 후 다시 실행하거나, 정책이 없는 환경에서 생성해 결과 이미지만 커밋하세요.
-- Android 12+ 시스템 스플래시는 "아이콘 + 배경색"만 씁니다(배경색은 `capacitor.config.ts` 의 `SplashScreen.backgroundColor` = 밤하늘 남색 `#0A1029`). 그 이후 Capacitor 스플래시는 `launchAutoHide:false` 라서 `initNative()` 가 첫 렌더 직후 숨깁니다.
+- Android 12+ 시스템 스플래시는 "아이콘 + 배경색"만 씁니다(배경색은 `capacitor.config.ts` 의 `SplashScreen.backgroundColor` = 밤하늘 남색 `#060B24`). 그 이후 Capacitor 스플래시는 `launchAutoHide:false` 라서 `initNative()` 가 첫 렌더 직후 숨깁니다.
 - 알림 아이콘(Android)은 흰색 단색 + 투명 배경이어야 합니다. 지금의 `ic_stat_yd` 는 예전 초승달 벡터 그대로입니다. 새 로고로 바꾸려면 Android Studio **Image Asset → Notification Icons** 에서 `resources/icon-foreground.png` 로 만드세요.
 
 ---

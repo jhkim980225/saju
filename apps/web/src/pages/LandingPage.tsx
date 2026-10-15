@@ -88,7 +88,7 @@ function AuthButtons() {
       <Link to="/login" className={cx(pill, 'px-3 text-[#c9c1ae]')}>
         로그인
       </Link>
-      <Link to="/signup" className={cx(pill, 'bg-[#e8c47c] text-[#0a1029]')}>
+      <Link to="/signup" className={cx(pill, 'bg-[#e8c47c] text-[#060b24]')}>
         회원가입
       </Link>
     </div>

@@ -31,21 +31,21 @@
 /* 밤하늘 — 기본. data-theme 이 붙기 전(첫 그림)에도 남색으로 뜨게 :root 에 둔다 */
 :root,
 [data-theme='dark'] {
-  --canvas: #0a1029;
-  --surface: #111938;
-  --subtle: #18213f;
-  --border: #232d52;
-  --border-strong: #34406b;
+  --canvas: #060b24;
+  --surface: #0c1434;
+  --subtle: #121b3f;
+  --border: #1b2650;
+  --border-strong: #2a3870;
   --focus: #f0cf86;
   --text-1: #f4ecd9;
   --text-2: #c9c1ae;
   --text-3: #a29eab;
   --action: #e8c47c;
-  --on-action: #0a1029;
-  --action-2: #1c2647;
+  --on-action: #060b24;
+  --action-2: #152045;
   --gold: #e8c47c;
   --seal: #e8c47c;
-  --on-seal: #0a1029;
+  --on-seal: #060b24;
   --success: #86cfa4;
   --danger: #ff8f86;
   --info: #a9bdf0;
@@ -95,11 +95,11 @@
   --subtle: #ebe5d8;
   --border: #e0d7c5;
   --border-strong: #c9bda4;
-  --focus: #141b3d;
-  --text-1: #141b3d;
+  --focus: #0e1538;
+  --text-1: #0e1538;
   --text-2: #454c66;
   --text-3: #5f6479;
-  --action: #141b3d;
+  --action: #0e1538;
   --on-action: #f3dfae;
   --action-2: #ebe5d8;
   --gold: #86601c;
@@ -265,7 +265,7 @@ h3 {
     radial-gradient(1px 1px at 48% 6%, rgba(255, 236, 196, 0.6), transparent 60%),
     radial-gradient(1.2px 1.2px at 4% 88%, rgba(255, 236, 196, 0.5), transparent 60%),
     radial-gradient(70% 55% at 50% 28%, rgba(232, 196, 124, 0.14), transparent 70%),
-    linear-gradient(180deg, #0c1431 0%, #0a1029 100%);
+    linear-gradient(180deg, #0a1236 0%, #060b24 100%);
 }
 .night-sky .sky-text-2 {
   color: var(--sky-text-2);

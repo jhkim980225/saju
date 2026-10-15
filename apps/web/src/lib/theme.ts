@@ -12,7 +12,7 @@ interface ThemeState {
 }
 
 /** 브라우저 주소창·상태바 색 — 밤하늘 남색 / 밝은 화면 상아색 (styles/index.css 의 --canvas) */
-export const THEME_COLOR = { dark: '#0A1029', light: '#F5F1E8' } as const;
+export const THEME_COLOR = { dark: '#060B24', light: '#F5F1E8' } as const;
 
 const media = typeof window !== 'undefined' ? window.matchMedia?.('(prefers-color-scheme: dark)') : undefined;
 
