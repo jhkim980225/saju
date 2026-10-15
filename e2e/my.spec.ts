@@ -1,5 +1,5 @@
 /**
- * 시나리오 8 — 마이: 다크 모드(data-theme), 글자 크기, 로그아웃, 회원 탈퇴 후 재로그인 불가
+ * 시나리오 8 — 마이: 화면 테마(밤하늘·밝은 화면·기기 설정, data-theme), 글자 크기, 로그아웃, 회원 탈퇴 후 재로그인 불가
  */
 import { apiCall, createProfileViaApi, expect, injectSession, signupViaApi, test } from './support/fixtures';
 
@@ -7,13 +7,17 @@ test('화면 테마·글자 크기 설정이 적용되고 새로고침 후에도
   await page.goto('/my');
   const html = page.locator('html');
   const themeGroup = page.getByRole('radiogroup', { name: '화면 테마' });
-  await expect(themeGroup.getByRole('radio', { name: '시스템 설정' })).toHaveAttribute('aria-checked', 'true');
-  await expect(html).toHaveAttribute('data-theme', 'light'); // 브라우저 colorScheme=light
-
-  await themeGroup.getByRole('radio', { name: '다크' }).click();
+  // 기본은 로고와 같은 밤하늘(남색)
+  await expect(themeGroup.getByRole('radio', { name: '밤하늘' })).toHaveAttribute('aria-checked', 'true');
   await expect(html).toHaveAttribute('data-theme', 'dark');
-  await expect(page.locator('meta[name="theme-color"]').first()).toHaveAttribute('content', '#14130F');
+  await expect(page.locator('meta[name="theme-color"]').first()).toHaveAttribute('content', '#0A1029');
   const darkBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+
+  await themeGroup.getByRole('radio', { name: '밝은 화면' }).click();
+  await expect(html).toHaveAttribute('data-theme', 'light');
+  await expect(page.locator('meta[name="theme-color"]').first()).toHaveAttribute('content', '#F5F1E8');
+  const lightBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  expect(lightBg).not.toBe(darkBg);
 
   const fontGroup = page.getByRole('radiogroup', { name: '글자 크기' });
   await expect(fontGroup.getByRole('radio', { name: '보통' })).toHaveAttribute('aria-checked', 'true');
@@ -26,15 +30,16 @@ test('화면 테마·글자 크기 설정이 적용되고 새로고침 후에도
 
   // 새로고침 후 유지
   await page.reload();
-  await expect(html).toHaveAttribute('data-theme', 'dark');
-  await expect(page.getByRole('radiogroup', { name: '화면 테마' }).getByRole('radio', { name: '다크' })).toHaveAttribute('aria-checked', 'true');
+  await expect(html).toHaveAttribute('data-theme', 'light');
+  await expect(page.getByRole('radiogroup', { name: '화면 테마' }).getByRole('radio', { name: '밝은 화면' })).toHaveAttribute('aria-checked', 'true');
   await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--font-scale'))).toBe('1.125');
 
-  // 라이트로 되돌리면 배경색도 바뀐다
-  await page.getByRole('radiogroup', { name: '화면 테마' }).getByRole('radio', { name: '라이트' }).click();
+  // 기기 설정을 따르면 브라우저(colorScheme=light)대로, 밤하늘로 돌아가면 남색
+  await page.getByRole('radiogroup', { name: '화면 테마' }).getByRole('radio', { name: '기기 설정' }).click();
   await expect(html).toHaveAttribute('data-theme', 'light');
-  const lightBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  expect(lightBg).not.toBe(darkBg);
+  await page.getByRole('radiogroup', { name: '화면 테마' }).getByRole('radio', { name: '밤하늘' }).click();
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(darkBg);
 });
 
 test('로그아웃하면 세션이 지워지고 랜딩으로 돌아간다', async ({ page, api }) => {

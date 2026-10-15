@@ -162,7 +162,7 @@ export function AskPage() {
               rows={1}
               placeholder={t('ask.placeholder')}
               aria-label={t('ask.placeholder')}
-              className="max-h-32 min-h-12 flex-1 resize-none rounded-2xl border border-line-strong bg-surface px-4 py-3 text-base outline-none focus:border-ink"
+              className="max-h-32 min-h-12 flex-1 resize-none rounded-2xl border border-line-strong bg-surface px-4 py-3 text-base outline-none focus:border-focus"
             />
             <button type="submit" aria-label={t('ask.send')} disabled={!text.trim() || send.isPending} className="grid size-12 shrink-0 place-items-center rounded-full bg-action text-on-action disabled:opacity-40">
               <SendHorizontal className="size-5" />

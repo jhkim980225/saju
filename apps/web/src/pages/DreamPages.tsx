@@ -131,7 +131,7 @@ function DreamSearch({ autoFocus }: { autoFocus?: boolean }) {
           placeholder="예) 뱀, 돼지꿈, 이가 빠지는 꿈"
           autoFocus={autoFocus}
           enterKeyHint="search"
-          className="h-13 w-full rounded-xl border border-line-strong bg-surface pl-12 pr-4 text-base text-ink outline-none placeholder:text-ink-3 focus:border-ink"
+          className="h-13 w-full rounded-xl border border-line-strong bg-surface pl-12 pr-4 text-base text-ink outline-none placeholder:text-ink-3 focus:border-focus"
         />
       </form>
       {typed && (
@@ -278,7 +278,7 @@ export function DreamHomePage() {
                 }}
                 className={cx(
                   'inline-flex h-10 shrink-0 items-center rounded-full border px-4 text-sm font-medium transition-colors',
-                  c === category ? 'border-ink bg-action text-on-action' : 'border-line-strong bg-surface text-ink-2',
+                  c === category ? 'border-action bg-action text-on-action' : 'border-line-strong bg-surface text-ink-2',
                 )}
               >
                 {DREAM_CATEGORY_META[c].label}
@@ -560,7 +560,7 @@ export function DreamAskPage() {
             onChange={(e) => setText(e.target.value.slice(0, DREAM_TEXT_MAX))}
             rows={6}
             placeholder="예) 큰 뱀이 집 안으로 들어와 제 손을 물었어요. 무섭기보다는 신기한 느낌이었어요."
-            className="mt-2 w-full resize-none rounded-xl border border-line-strong bg-surface px-4 py-3 text-base leading-relaxed outline-none placeholder:text-ink-3 focus:border-ink"
+            className="mt-2 w-full resize-none rounded-xl border border-line-strong bg-surface px-4 py-3 text-base leading-relaxed outline-none placeholder:text-ink-3 focus:border-focus"
           />
           <div className="mt-2 min-h-6 text-sm text-ink-3" aria-live="polite">
             {preview.length > 0 ? (

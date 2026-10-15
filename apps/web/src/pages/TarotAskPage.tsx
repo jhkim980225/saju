@@ -198,7 +198,7 @@ export function TarotAskPage() {
             rows={3}
             required={questionRequired}
             placeholder={questionRequired ? t('tarot.question.examples.yesno.0') : spreadKey === 'choice' ? t('tarot.question.examples.choice.0') : t('tarot.question.placeholder')}
-            className="mt-2 w-full resize-none rounded-xl border border-line-strong bg-surface px-4 py-3 text-base leading-relaxed outline-none placeholder:text-ink-3 focus:border-ink"
+            className="mt-2 w-full resize-none rounded-xl border border-line-strong bg-surface px-4 py-3 text-base leading-relaxed outline-none placeholder:text-ink-3 focus:border-focus"
           />
         </div>
 

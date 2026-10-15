@@ -150,7 +150,7 @@ export function buildKakaoTemplate(p: SharePayload): Record<string, unknown> {
       buttons,
     };
   }
-  // 피드 템플릿은 content.imageUrl 이 사실상 필수이고 기본 OG 이미지(og-image.svg)는 카카오가 지원하지 않는 형식이라 텍스트 템플릿을 쓴다
+  // 피드 템플릿은 content.imageUrl 이 사실상 필수라, 이미지를 넘기지 않은 공유는 텍스트 템플릿을 쓴다
   return { objectType: 'text', text: clip(`${p.title}\n${p.text}`, 200), link, buttons };
 }
 

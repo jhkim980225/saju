@@ -53,8 +53,8 @@
 ```
 apps/web
 ├─ capacitor.config.ts          appId kr.dalbitsaju.app · appName 달빛사주 · webDir dist · 플러그인 설정
-├─ resources/icon.svg           앱 아이콘 원본 1024×1024 (한지 바탕 + 인주색 낙관에 음각 초승달)
-├─ resources/splash.svg         스플래시 원본 2732×2732
+├─ resources/icon*.png          앱 아이콘 원본 1024×1024 (남색 밤하늘 + 황금 초승달 — /image 로고에서 잘라 냄)
+├─ resources/splash.png         스플래시 원본 2732×2732
 └─ src/native/
    ├─ index.ts                  initNative() + 팀장 연결용 export (플러그인 정적 import 없음 → 웹 번들 영향 최소)
    ├─ bootstrap.ts              (앱에서만 동적 import) 저장소 hydrate · 브리지 등록 · 뒤로가기 · 딥링크 · 스플래시
@@ -560,27 +560,36 @@ finishPurchase(receipt)           iOS finishTransaction / Android consumePurchas
 
 ## 10. 아이콘 · 스플래시
 
-원본: `apps/web/resources/icon.svg`(1024×1024, 한지 `#F7F3EC` 바탕 + 인주색 `#A63A2B` 낙관에 음각 초승달), `apps/web/resources/splash.svg`(2732×2732, 같은 낙관을 가운데 480px 에). 초승달은 폰트 없이 패스로 그려 렌더러·폰트 설치 여부와 무관하게 같게 나옵니다. `public/favicon.svg` 와 같은 낙관 모티프입니다.
+원본 로고: 저장소 루트 `image/달빛사주_ 황금 초승달 로고.png`(남색 밤하늘 + 황금 초승달 + 붓글씨 "달빛사주", 1254×1254).
+여기서 잘라 낸 결과물(2026-10-16):
 
-[`@capacitor/assets`](https://github.com/ionic-team/capacitor-assets) 는 `icon-only` / `icon-foreground` / `icon-background` / `splash` / `splash-dark` 파일명을 읽으므로, 원본을 임시 폴더에 그 이름으로 복사해 생성합니다(플랫폼 추가 후, `apps/web` 에서).
+| 파일 | 쓰임 |
+|---|---|
+| `apps/web/resources/icon.png` | 앱 아이콘 1024×1024 — 남색 바탕 + 초승달 원 |
+| `apps/web/resources/icon-foreground.png` / `icon-background.png` | Android 적응형 아이콘 전경(투명) / 배경(남색) |
+| `apps/web/resources/splash.png` | 스플래시 2732×2732 — 남색 바탕 가운데 로고 |
+| `apps/web/public/brand/*.webp` | 웹 로고: `mark`(헤더 초승달), `word`(붓글씨), `emblem`(첫 화면 큰 초승달), `full`(초승달+글씨) |
+| `apps/web/public/favicon-32.png`, `apple-touch-icon.png`, `icon-192/512.png`, `og-image.png` | 파비콘 · 홈 화면 아이콘 · 공유 미리보기(1200×630) |
+
+- 웹 로고는 원본의 남색 바탕을 걷어 낸(color-to-alpha) 투명 그림이라 **남색 위에서만** 또렷합니다. 밝은 화면 테마의 헤더는 남색 앱 아이콘(`icon-192.png`) + 남색 글자로 바꿔 씁니다(`components/Seal.tsx`).
+- 네이티브 리소스(Android `res/mipmap-*`·`res/drawable*/splash.png`, iOS `AppIcon.appiconset`·`Splash.imageset`)는 위 PNG 를 기존 파일 크기 그대로 다시 그려 넣었습니다. 적응형 아이콘 XML 이 16.7% 인셋을 주므로 전경 PNG 는 초승달 원이 그림을 거의 꽉 채웁니다.
+- 다시 만들 때는 [`@capacitor/assets`](https://github.com/ionic-team/capacitor-assets) 를 써도 됩니다(`apps/web` 에서):
 
 ```bash
 cd apps/web
 rm -rf .assets && mkdir .assets
-cp resources/icon.svg   .assets/icon-only.svg          # iOS 아이콘 · Android 레거시 아이콘
-cp resources/icon.svg   .assets/icon-foreground.svg    # Android 적응형 전경(16.7% 인셋 → 낙관이 안전 영역 안)
-printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><rect width="1024" height="1024" fill="#F7F3EC"/></svg>' > .assets/icon-background.svg
-cp resources/splash.svg .assets/splash.svg
-# 다크 스플래시: 바탕(id="bg")만 먹밤색으로
-sed 's/id="bg" width="2732" height="2732" fill="#F7F3EC"/id="bg" width="2732" height="2732" fill="#14130F"/' resources/splash.svg > .assets/splash-dark.svg
+cp resources/icon.png            .assets/icon-only.png
+cp resources/icon-foreground.png .assets/icon-foreground.png
+cp resources/icon-background.png .assets/icon-background.png
+cp resources/splash.png          .assets/splash.png
+cp resources/splash.png          .assets/splash-dark.png
 npx @capacitor/assets@3.0.5 generate --assetPath .assets --ios --android
 rm -rf .assets
 ```
 
-- 결과: iOS `ios/App/App/Assets.xcassets/AppIcon.appiconset`, `Splash.imageset`; Android `res/mipmap-*`(ic_launcher, 적응형 xml), `res/drawable*/splash.png`.
 - `@capacitor/assets` 는 `sharp` 네이티브 바이너리를 받습니다. npm 11 설치 스크립트 정책으로 막히면 `npm install-scripts approve sharp` 후 다시 실행하거나, 정책이 없는 환경에서 생성해 결과 이미지만 커밋하세요.
-- Android 12+ 시스템 스플래시는 "아이콘 + 배경색"만 씁니다(배경색은 `capacitor.config.ts` 의 `SplashScreen.backgroundColor`). 그 이후 Capacitor 스플래시는 `launchAutoHide:false` 라서 `initNative()` 가 첫 렌더 직후 숨깁니다.
-- 알림 아이콘(Android)은 흰색 단색 + 투명 배경이어야 합니다. Android Studio **Image Asset → Notification Icons** 에서 `icon.svg` 로 `ic_stat_yd` 를 만듭니다.
+- Android 12+ 시스템 스플래시는 "아이콘 + 배경색"만 씁니다(배경색은 `capacitor.config.ts` 의 `SplashScreen.backgroundColor` = 밤하늘 남색 `#0A1029`). 그 이후 Capacitor 스플래시는 `launchAutoHide:false` 라서 `initNative()` 가 첫 렌더 직후 숨깁니다.
+- 알림 아이콘(Android)은 흰색 단색 + 투명 배경이어야 합니다. 지금의 `ic_stat_yd` 는 예전 초승달 벡터 그대로입니다. 새 로고로 바꾸려면 Android Studio **Image Asset → Notification Icons** 에서 `resources/icon-foreground.png` 로 만드세요.
 
 ---
 

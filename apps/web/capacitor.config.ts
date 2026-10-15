@@ -10,14 +10,14 @@ import type { KeyboardResize } from '@capacitor/keyboard';
  * 달빛사주 iOS/Android 앱 설정 — 절차는 docs/APP_PORTING.md.
  * 웹 빌드(dist)를 네이티브 웹뷰에 싣는다: `npm run build:app -w @saju/web` (vite build --mode app → cap sync)
  */
-const HANJI = '#F7F3EC'; // 한지색 — 라이트 배경 (theme-color 와 동일)
+const NIGHT = '#0A1029'; // 밤하늘 남색 — 기본 테마 배경 (theme-color 와 동일)
 
 const config: CapacitorConfig = {
   appId: 'kr.dalbitsaju.app',
   appName: '달빛사주',
   webDir: 'dist',
-  // 웹뷰 로딩 전 흰 화면 대신 한지색
-  backgroundColor: HANJI,
+  // 웹뷰 로딩 전 흰 화면 대신 밤하늘 남색
+  backgroundColor: NIGHT,
   // 서버 로그·웹 콜백 페이지에서 앱 웹뷰를 구분하기 위한 표식
   appendUserAgent: 'YeodeoljaApp',
   server: {
@@ -29,10 +29,10 @@ const config: CapacitorConfig = {
   ios: {
     // index.html 이 viewport-fit=cover 이고 CSS 가 env(safe-area-inset-*) 로 직접 여백을 주므로 웹뷰 자동 인셋은 끈다(이중 여백 방지)
     contentInset: 'never',
-    backgroundColor: HANJI,
+    backgroundColor: NIGHT,
   },
   android: {
-    backgroundColor: HANJI,
+    backgroundColor: NIGHT,
     allowMixedContent: false,
   },
   experimental: {
@@ -47,7 +47,7 @@ const config: CapacitorConfig = {
       launchAutoHide: false,
       launchShowDuration: 0,
       launchFadeOutDuration: 200,
-      backgroundColor: HANJI,
+      backgroundColor: NIGHT,
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,
       splashFullScreen: false,

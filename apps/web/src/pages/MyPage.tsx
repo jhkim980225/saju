@@ -176,9 +176,9 @@ export function MyPage() {
                 value={theme.mode}
                 onChange={theme.setMode}
                 options={[
-                  { value: 'system', label: t('my.theme.system') },
-                  { value: 'light', label: t('my.theme.light') },
                   { value: 'dark', label: t('my.theme.dark') },
+                  { value: 'light', label: t('my.theme.light') },
+                  { value: 'system', label: t('my.theme.system') },
                 ]}
               />
             </div>

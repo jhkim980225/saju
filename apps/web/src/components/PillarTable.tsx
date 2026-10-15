@@ -18,7 +18,7 @@ function Tile({ hanja, hangul, element, yinYang, isMe, kind, position, expert }:
         m.cls.soft,
         m.cls.ink,
         yinYang === 'yin' && 'border border-current/40',
-        isMe && 'ring-2 ring-ink ring-offset-2 ring-offset-surface',
+        isMe && 'ring-2 ring-focus ring-offset-2 ring-offset-surface',
       )}
     >
       <span className="font-serif text-[clamp(26px,8vw,34px)] font-medium leading-none">{hanja}</span>

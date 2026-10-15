@@ -125,7 +125,7 @@ export function TaekilPage() {
                       role="radio"
                       aria-checked={purpose === p}
                       onClick={() => setPurpose(p)}
-                      className={cx('rounded-2xl border p-3.5 text-left transition-colors', purpose === p ? 'border-ink bg-surface' : 'border-line bg-canvas')}
+                      className={cx('rounded-2xl border p-3.5 text-left transition-colors', purpose === p ? 'border-focus bg-surface' : 'border-line bg-canvas')}
                     >
                       <span className="block font-semibold">{t(`taekil.purposes.${p}.label`)}</span>
                       <span className="mt-0.5 block text-xs text-ink-3">{t(`taekil.purposes.${p}.hint`)}</span>

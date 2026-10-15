@@ -416,9 +416,9 @@
     "dailyPushTime": "오늘의 운세 알림 시간",
     "theme": {
       "label": "화면 테마",
-      "system": "시스템 설정",
-      "light": "라이트",
-      "dark": "다크"
+      "system": "기기 설정",
+      "light": "밝은 화면",
+      "dark": "밤하늘"
     },
     "fontSize": "글자 크기",
     "about": "서비스 안내",

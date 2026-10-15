@@ -29,7 +29,7 @@ export function MoreMenu({ title = '다른 운세 보기', exclude, className }:
         {items.map(({ to, label, icon: Icon }) => (
           <li key={to}>
             <Link to={to} className="flex h-full flex-col items-center gap-2 rounded-2xl border border-line bg-surface px-2 py-4 text-center transition-colors hover:border-line-strong">
-              <Icon className="size-6 text-ink-2" strokeWidth={1.5} aria-hidden />
+              <Icon className="size-6 text-gold" strokeWidth={1.5} aria-hidden />
               <span className="text-[13px] font-medium leading-tight break-keep">{label}</span>
             </Link>
           </li>

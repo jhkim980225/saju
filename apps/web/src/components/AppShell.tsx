@@ -21,7 +21,7 @@ const DESKTOP_LINKS: { to: string; label: string }[] = [
 ];
 
 const desktopLink = ({ isActive }: { isActive: boolean }) =>
-  cx('inline-flex h-10 items-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[15px] font-medium transition-colors', isActive ? 'bg-subtle text-ink' : 'text-ink-2 hover:text-ink');
+  cx('inline-flex h-10 items-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[15px] font-medium transition-colors', isActive ? 'bg-subtle text-gold' : 'text-ink-2 hover:text-ink');
 
 export function DesktopNav() {
   const user = useSession((s) => s.user);
@@ -84,7 +84,7 @@ export function TabLayout() {
             <li key={to}>
               <NavLink
                 to={to}
-                className={({ isActive }) => cx('flex h-full flex-col items-center justify-center gap-1 text-[11px] font-medium', isActive || (to === '/ask' && askActive) ? 'text-ink' : 'text-ink-3')}
+                className={({ isActive }) => cx('flex h-full flex-col items-center justify-center gap-1 text-[11px] font-medium', isActive || (to === '/ask' && askActive) ? 'text-gold' : 'text-ink-3')}
               >
                 {({ isActive }) => (
                   <>

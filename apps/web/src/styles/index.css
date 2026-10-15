@@ -21,30 +21,95 @@
 }
 
 /*
- * 달빛사주 디자인 토큰 — "먹과 여백"
- * 크롬(UI)은 무채색, 유채색은 오행 데이터에만 쓴다. (docs/research/02-ui-ux-analysis.md §7.3~7.6)
+ * 달빛사주 디자인 토큰 — "밤하늘과 달빛"
+ * 로고(남색 밤하늘 + 황금 초승달)에서 왔다. 기본은 밤하늘(남색 바탕 · 달빛 상아색 글자 · 금빛 버튼)이고,
+ * 마이 > 화면 테마에서 밝은 화면(상아색 바탕 · 남색 글자 · 남색 버튼)을 고를 수 있다.
+ * 유채색은 금빛(브랜드)과 오행 데이터에만 쓴다.
  */
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
-:root {
-  --canvas: #f7f3ec;
-  --surface: #fffdf9;
-  --subtle: #efe9df;
-  --border: #e3dbcd;
-  --border-strong: #cfc4b2;
-  --focus: #1f1d1a;
-  --text-1: #1f1d1a;
-  --text-2: #57514a;
-  --text-3: #6f675d;
-  --action: #1f1d1a;
-  --on-action: #f7f3ec;
-  --action-2: #efe9df;
-  --gold: #7e5f26;
-  --seal: #a63a2b;
+/* 밤하늘 — 기본. data-theme 이 붙기 전(첫 그림)에도 남색으로 뜨게 :root 에 둔다 */
+:root,
+[data-theme='dark'] {
+  --canvas: #0a1029;
+  --surface: #111938;
+  --subtle: #18213f;
+  --border: #232d52;
+  --border-strong: #34406b;
+  --focus: #f0cf86;
+  --text-1: #f4ecd9;
+  --text-2: #c9c1ae;
+  --text-3: #a29eab;
+  --action: #e8c47c;
+  --on-action: #0a1029;
+  --action-2: #1c2647;
+  --gold: #e8c47c;
+  --seal: #e8c47c;
+  --on-seal: #0a1029;
+  --success: #86cfa4;
+  --danger: #ff8f86;
+  --info: #a9bdf0;
+  --scrim: rgba(3, 6, 18, 0.7);
+  /* 바탕 위쪽에 비치는 달빛 */
+  --glow: rgba(232, 196, 124, 0.09);
+
+  --wood: #5bc0a0;
+  --wood-soft: #12302f;
+  --wood-ink: #b3ead8;
+  --fire: #f08a72;
+  --fire-soft: #3a1d2b;
+  --fire-ink: #fbc9bc;
+  --earth: #e2b866;
+  --earth-soft: #33291c;
+  --earth-ink: #f3dcaa;
+  --metal: #b4bccb;
+  --metal-soft: #232b45;
+  --metal-ink: #e0e5ee;
+  --water: #8aa6e6;
+  --water-soft: #172552;
+  --water-ink: #cbd8f5;
+  /* 오행 도넛 차트 전용 — 원형으로 맞닿는 이웃(목화·화토·토금·금수·수목)이 색각 이상에서도 구분되고 남색 카드 위에서 3:1 이상.
+     금(白)은 전통대로 무채색에 가깝게 두고, 범례의 글자·수치로 함께 구분한다 */
+  --chart-wood: #57a662;
+  --chart-fire: #c2454a;
+  --chart-earth: #bd8602;
+  --chart-metal: #7a93a7;
+  --chart-water: #4866c8;
+
+  --font-scale: 1;
+  /* 데스크톱 상단 내비 높이 — 모바일은 0 */
+  --nav-h: 0px;
+  color-scheme: dark;
+}
+
+@media (width >= 64rem) {
+  :root {
+    --nav-h: 4rem;
+  }
+}
+
+/* 밝은 화면 — 상아색 바탕에 남색 글자, 금빛은 강조에만 */
+[data-theme='light'] {
+  --canvas: #f5f1e8;
+  --surface: #fffdf8;
+  --subtle: #ebe5d8;
+  --border: #e0d7c5;
+  --border-strong: #c9bda4;
+  --focus: #141b3d;
+  --text-1: #141b3d;
+  --text-2: #454c66;
+  --text-3: #5f6479;
+  --action: #141b3d;
+  --on-action: #f3dfae;
+  --action-2: #ebe5d8;
+  --gold: #86601c;
+  --seal: #86601c;
+  --on-seal: #fffdf8;
   --success: #2f6b4a;
   --danger: #b3261e;
   --info: #3a4f7a;
-  --scrim: rgba(31, 29, 26, 0.48);
+  --scrim: rgba(20, 27, 61, 0.48);
+  --glow: transparent;
 
   --wood: #2e7d67;
   --wood-soft: #e2f1eb;
@@ -61,67 +126,12 @@
   --water: #2d3b5c;
   --water-soft: #e2e6f0;
   --water-ink: #1e2840;
-  /* 오행 도넛 차트 전용 — 원형으로 맞닿는 이웃(목화·화토·토금·금수·수목)이 색각 이상에서도 구분되게 조정한 단계.
-     금(白)은 전통대로 무채색에 가깝게 두고, 범례의 글자·수치로 함께 구분한다 */
   --chart-wood: #50a075;
   --chart-fire: #b5072c;
   --chart-earth: #bd8a26;
   --chart-metal: #6d7b85;
   --chart-water: #1852a3;
-
-  --font-scale: 1;
-  /* 데스크톱 상단 내비 높이 — 모바일은 0 */
-  --nav-h: 0px;
   color-scheme: light;
-}
-
-@media (width >= 64rem) {
-  :root {
-    --nav-h: 4rem;
-  }
-}
-
-[data-theme='dark'] {
-  --canvas: #14130f;
-  --surface: #1e1c18;
-  --subtle: #28251f;
-  --border: #37332c;
-  --border-strong: #4a453c;
-  --focus: #eee8dd;
-  --text-1: #eee8dd;
-  --text-2: #bdb5a8;
-  --text-3: #958c7f;
-  --action: #eee8dd;
-  --on-action: #14130f;
-  --action-2: #28251f;
-  --gold: #d4b26e;
-  --seal: #e07a63;
-  --success: #7cc39a;
-  --danger: #f2877e;
-  --info: #9db3e0;
-  --scrim: rgba(0, 0, 0, 0.6);
-
-  --wood: #5bb89a;
-  --wood-soft: #1c2f28;
-  --wood-ink: #a9e0cc;
-  --fire: #ee7a62;
-  --fire-soft: #3a201a;
-  --fire-ink: #f8c2b5;
-  --earth: #ddb060;
-  --earth-soft: #352a15;
-  --earth-ink: #f1d9a6;
-  --metal: #aeb4bd;
-  --metal-soft: #2a2c30;
-  --metal-ink: #dde0e4;
-  --water: #7f98cf;
-  --water-soft: #1c2335;
-  --water-ink: #c5d2ee;
-  --chart-wood: #57a662;
-  --chart-fire: #b03f42;
-  --chart-earth: #bd8602;
-  --chart-metal: #7a93a7;
-  --chart-water: #415fa7;
-  color-scheme: dark;
 }
 
 @theme inline {
@@ -130,6 +140,7 @@
   --color-subtle: var(--subtle);
   --color-line: var(--border);
   --color-line-strong: var(--border-strong);
+  --color-focus: var(--focus);
   --color-ink: var(--text-1);
   --color-ink-2: var(--text-2);
   --color-ink-3: var(--text-3);
@@ -138,6 +149,7 @@
   --color-action-2: var(--action-2);
   --color-gold: var(--gold);
   --color-seal: var(--seal);
+  --color-on-seal: var(--on-seal);
   --color-success: var(--success);
   --color-danger: var(--danger);
   --color-info: var(--info);
@@ -169,7 +181,8 @@ html {
 
 body {
   margin: 0;
-  background: var(--canvas);
+  /* 화면 위쪽에 은은한 달빛 — 밝은 화면에서는 투명 */
+  background: radial-gradient(1100px 520px at 50% -220px, var(--glow), transparent 70%) no-repeat, var(--canvas);
   color: var(--text-1);
   font-family: var(--font-sans);
   letter-spacing: -0.01em;
@@ -230,6 +243,32 @@ h3 {
 }
 .no-scrollbar {
   scrollbar-width: none;
+}
+
+/*
+ * 밤하늘 패널 — 로고와 같은 남색 바탕에 잔별과 달빛.
+ * 테마와 상관없이 늘 남색이다(밝은 화면에서는 남색 띠로 보인다). 안의 글자는 .night-sky 의 색을 따른다.
+ */
+.night-sky {
+  --sky-text: #f4ecd9;
+  --sky-text-2: #c9c1ae;
+  color: var(--sky-text);
+  background:
+    radial-gradient(1.2px 1.2px at 8% 22%, rgba(255, 236, 196, 0.85), transparent 60%),
+    radial-gradient(1px 1px at 18% 64%, rgba(255, 236, 196, 0.55), transparent 60%),
+    radial-gradient(1.4px 1.4px at 27% 12%, rgba(255, 236, 196, 0.7), transparent 60%),
+    radial-gradient(1px 1px at 36% 82%, rgba(255, 236, 196, 0.5), transparent 60%),
+    radial-gradient(1.2px 1.2px at 63% 18%, rgba(255, 236, 196, 0.75), transparent 60%),
+    radial-gradient(1px 1px at 71% 58%, rgba(255, 236, 196, 0.5), transparent 60%),
+    radial-gradient(1.6px 1.6px at 84% 30%, rgba(255, 236, 196, 0.8), transparent 60%),
+    radial-gradient(1px 1px at 92% 74%, rgba(255, 236, 196, 0.55), transparent 60%),
+    radial-gradient(1px 1px at 48% 6%, rgba(255, 236, 196, 0.6), transparent 60%),
+    radial-gradient(1.2px 1.2px at 4% 88%, rgba(255, 236, 196, 0.5), transparent 60%),
+    radial-gradient(70% 55% at 50% 28%, rgba(232, 196, 124, 0.14), transparent 70%),
+    linear-gradient(180deg, #0c1431 0%, #0a1029 100%);
+}
+.night-sky .sky-text-2 {
+  color: var(--sky-text-2);
 }
 
 /* 먹 번짐 로딩 */

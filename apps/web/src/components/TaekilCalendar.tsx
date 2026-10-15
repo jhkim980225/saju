@@ -109,7 +109,7 @@ export function DatePickerCalendar({
 /** 추천 순위 도장 */
 export function RankSeal({ rank, className }: { rank: number; className?: string }) {
   return (
-    <span className={cx('grid size-5 place-items-center rounded-full bg-seal font-serif text-[11px] font-bold leading-none text-white', className)} aria-hidden>
+    <span className={cx('grid size-5 place-items-center rounded-full bg-seal font-serif text-[11px] font-bold leading-none text-on-seal', className)} aria-hidden>
       {rank}
     </span>
   );

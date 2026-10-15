@@ -244,7 +244,7 @@ export function TarotDrawPage() {
                 if (i < picks.length) return <TarotCardBack />;
                 return (
                   <div
-                    className={cx('aspect-[2/3] rounded-xl border-2 border-dashed bg-canvas', i === nextSlot && step === 'pick' ? 'border-ink' : 'border-line-strong')}
+                    className={cx('aspect-[2/3] rounded-xl border-2 border-dashed bg-canvas', i === nextSlot && step === 'pick' ? 'border-focus' : 'border-line-strong')}
                     aria-label={t('tarot.a11y.slotEmpty', { position: p.label })}
                   />
                 );

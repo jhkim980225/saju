@@ -95,7 +95,7 @@ export function PaywallSheet({
             role="radio"
             aria-checked={selected === p.id}
             onClick={() => setSelected(p.id)}
-            className={cx('w-full rounded-2xl border p-4 text-left transition-colors', selected === p.id ? 'border-ink bg-surface' : 'border-line bg-canvas')}
+            className={cx('w-full rounded-2xl border p-4 text-left transition-colors', selected === p.id ? 'border-focus bg-surface' : 'border-line bg-canvas')}
           >
             <div className="flex items-center gap-2">
               <span className="font-semibold">{p.name}</span>

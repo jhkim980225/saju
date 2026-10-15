@@ -75,7 +75,7 @@ export function PickerRow<T extends { slug: string }>({
                 aria-current={active ? 'page' : undefined}
                 className={cx(
                   'flex w-16 flex-col items-center gap-1 rounded-2xl border py-2.5 transition-colors lg:w-full',
-                  active ? 'border-ink bg-action text-on-action' : 'border-line bg-surface text-ink-2 hover:border-line-strong',
+                  active ? 'border-action bg-action text-on-action' : 'border-line bg-surface text-ink-2 hover:border-line-strong',
                 )}
               >
                 <span className="font-serif text-xl leading-none" aria-hidden>

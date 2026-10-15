@@ -104,7 +104,7 @@ export function toggleDate(dates: string[], tapped: string): string[] {
   return [...dates, tapped].sort();
 }
 
-/** 등급 표시 — 색만으로 구분하지 않도록 기호를 함께 쓴다(먹 계열 + 금색·인주색 포인트) */
+/** 등급 표시 — 색만으로 구분하지 않도록 기호를 함께 쓴다(남색 바탕 + 금빛 포인트) */
 export const GRADE_STYLE: Record<TaekilGradeId, { mark: string; label: string; cell: string; badge: string }> = {
   best: { mark: '◎', label: TAEKIL_GRADE_NAME.best, cell: 'bg-action text-on-action', badge: 'bg-action text-on-action' },
   good: { mark: '○', label: TAEKIL_GRADE_NAME.good, cell: 'bg-subtle text-ink ring-1 ring-inset ring-ink/60', badge: 'border border-ink/60 text-ink' },

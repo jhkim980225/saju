@@ -55,7 +55,7 @@ export function Segmented<T extends string>({ value, onChange, options, name }: 
           role="radio"
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
-          className={cx('h-11 rounded-lg text-[15px] font-medium transition-colors', value === o.value ? 'bg-surface text-ink shadow-[0_1px_2px_rgba(0,0,0,0.06)]' : 'text-ink-3')}
+          className={cx('h-11 rounded-lg text-[15px] font-medium transition-colors', value === o.value ? 'bg-action text-on-action shadow-[0_1px_2px_rgba(0,0,0,0.12)]' : 'text-ink-2 hover:text-ink')}
         >
           {o.label}
         </button>
@@ -90,7 +90,7 @@ export const TextInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLIn
       ref={ref}
       aria-invalid={invalid || undefined}
       className={cx(
-        'h-13 w-full rounded-xl border bg-surface px-4 text-base text-ink outline-none placeholder:text-ink-3 focus:border-ink',
+        'h-13 w-full rounded-xl border bg-surface px-4 text-base text-ink outline-none placeholder:text-ink-3 focus:border-focus',
         invalid ? 'border-danger' : 'border-line-strong',
         className,
       )}
@@ -107,7 +107,7 @@ export function Chip({ active, onClick, children, className }: { active?: boolea
       aria-pressed={active}
       className={cx(
         'inline-flex h-10 shrink-0 items-center rounded-full border px-4 text-sm font-medium transition-colors',
-        active ? 'border-ink bg-action text-on-action' : 'border-line-strong bg-surface text-ink-2',
+        active ? 'border-action bg-action text-on-action' : 'border-line-strong bg-surface text-ink-2',
         className,
       )}
     >

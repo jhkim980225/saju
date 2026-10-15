@@ -37,7 +37,7 @@ export function DaeunTimeline({ chart }: { chart: SajuChart }) {
               key={p.startAge}
               ref={isNow ? ref : undefined}
               aria-label={`${p.startAge}세부터 10년, ${mood(p.stemTenGod)}${isNow ? `, ${t('result.daeunTimeline.current')}` : ''}`}
-              className={cx('w-[4.75rem] shrink-0 snap-center rounded-2xl border p-2 text-center', isNow ? 'border-ink bg-surface' : 'border-line')}
+              className={cx('w-[4.75rem] shrink-0 snap-center rounded-2xl border p-2 text-center', isNow ? 'border-focus bg-surface' : 'border-line')}
             >
               <p className="tabular text-xs font-semibold text-ink-2">{t('result.daeunTimeline.age', { age: p.startAge })}</p>
               <div className={cx('mx-auto mt-1.5 grid size-10 place-items-center rounded-lg font-serif text-xl', se.cls.soft, se.cls.ink)} aria-hidden>
