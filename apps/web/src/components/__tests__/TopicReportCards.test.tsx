@@ -94,13 +94,15 @@ describe('주제별 리포트 카드', () => {
     await screen.findByRole('article', { name: '연애·결혼운 리포트' });
     for (const title of ['연애·결혼운 리포트', '재물·직업운 리포트']) {
       expect(within(card(title)).getByText('4,900원')).toBeInTheDocument();
+      // 카드 설명도 쉬운 말로 — 용어(일간·일지·재성·식상·비겁·대운·세운)를 쓰지 않는다
+      expect(card(title).textContent).not.toMatch(/일간|일지|재성|식상|비겁|대운|세운|원국|오행|배우자/);
       expect(within(card(title)).queryByRole('button', { name: '보고서 열기' })).not.toBeInTheDocument();
     }
     const user = userEvent.setup();
     await user.click(within(card('연애·결혼운 리포트')).getByRole('button', { name: '구매하기' }));
     const sheet = await screen.findByRole('dialog');
     expect(within(sheet).getByText('민수님의 연애·결혼운 리포트')).toBeInTheDocument();
-    expect(within(sheet).getByText('성별이 아닌 기질과 오행으로 본 잘 맞는 사람')).toBeInTheDocument();
+    expect(within(sheet).getByText('성별이 아닌 기질로 본 나와 잘 맞는 사람')).toBeInTheDocument();
     // 결제 시트에는 이 상품 하나만
     expect(within(sheet).getAllByRole('radio')).toHaveLength(1);
     await user.click(within(sheet).getByRole('button', { name: '4,900원 결제하기' }));

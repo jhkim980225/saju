@@ -39,7 +39,10 @@ test('연애·결혼운 — 내 사주에서 결제하고 바로 열어 읽은 �
   await expect(page.getByRole('main').getByRole('heading', { level: 1, name: '서윤님의 연애·결혼운 리포트' })).toBeVisible();
   await expect(page.getByRole('navigation', { name: '목차' })).toBeVisible();
   await expect.poll(() => page.locator('section[id^="sec-"]').count()).toBe(12);
-  await expect(page.locator('#sec-spousePalace')).toContainText('배우자 자리');
+  // 사주를 몰라도 읽히게 — 이름으로 부르고, 용어는 '사주로 보면'을 펼쳐야 보인다
+  await expect(page.locator('#sec-summary .prose-reading p').first()).toHaveText(/^서윤님은 /);
+  await expect(page.locator('#sec-spousePalace')).toContainText('가까운 사이');
+  await expect(page.locator('#sec-spousePalace details')).not.toHaveAttribute('open', '');
   await expect(page.locator('#sec-decade')).toContainText('2036');
   await expect(page.getByText('AI가 문장을 다듬고 있어요')).toHaveCount(0);
   const reportUrl = page.url();

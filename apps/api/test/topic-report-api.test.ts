@@ -91,6 +91,9 @@ describe('연애·결혼운 리포트 — 구매 → 미리 만들기 → 열기
     expect(opened.body.id).toBe(list[0].id);
     expect(opened.body).toMatchObject({ type: 'love', status: 'ready', generator: 'rule', progress: null, year: null, partnerProfileId: null });
     expect(opened.body.sections.map((s: { key: string }) => s.key)).toEqual(LOVE_KEYS);
+    // 프로필 이름으로 부른다 — 첫 장 첫 문장, 용어는 '사주로 보면'(basis)에만
+    expect(opened.body.sections[0].paragraphs[0]).toMatch(/^민수님은 /);
+    expect(opened.body.sections[0].basis).toMatch(/일간 .+ · 일지\(배우자 자리\)/);
     const got = await api('GET', `/reports/${opened.body.id}`, { token });
     expect(got.body.sections).toEqual(opened.body.sections);
     expect((await api('GET', `/reports/${opened.body.id}/progress`, { token })).body).toEqual({ status: 'ready', progress: null });
@@ -135,6 +138,7 @@ describe('재물·직업운 리포트', () => {
     const opened = await api('POST', '/reports', { token, body: { type: 'career_wealth', profileId: me } });
     expect(opened.body.id).toBe(list[0].id);
     expect(opened.body.sections.map((s: { key: string }) => s.key)).toEqual(CAREER_KEYS);
+    expect(opened.body.sections[0].paragraphs[0]).toMatch(/^민수님은 /);
   });
 
   it('인앱결제(Google Play 목업)로 사도 같은 권한이 생기고 미리 만들어진다', async () => {
