@@ -10,6 +10,7 @@ import { ShareSheet } from '@/components/ShareSheet';
 import { TodayTarotCard } from '@/components/TodayTarotCard';
 import { TojeongEntryCard } from '@/components/TojeongEntryCard';
 import { DreamEntryCard } from '@/components/DreamEntryCard';
+import { KeyPointsCard } from '@/components/KeyPointsCard';
 import { TaekilEntryCard } from '@/components/TaekilEntryCard';
 import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, ScoreBar, Spinner, cx } from '@/components/ui';
 import { useProfiles } from '@/hooks/queries';
@@ -47,7 +48,7 @@ export function TodayPage() {
   const useBirth = !profile && Boolean(draft) && profiles.isFetched;
 
   const fetchDay = (d: string): Promise<DailyFortuneDto> =>
-    profile ? (api.dailyByProfile(profile.id, d) as Promise<DailyFortuneDto>) : api.dailyByBirth(draft!.dto, d);
+    profile ? (api.dailyByProfile(profile.id, d) as Promise<DailyFortuneDto>) : api.dailyByBirth(draft!.dto, d, draft?.form.name);
   const enabled = Boolean(profile) || useBirth;
   const daily = useQuery({ queryKey: ['daily', profile?.id ?? 'draft', date, user?.id], queryFn: () => fetchDay(date), enabled });
   const dates = useMemo(() => weekDates(today.iso), [today.iso]);
@@ -68,12 +69,7 @@ export function TodayPage() {
   return (
     <div className="min-h-page">
       <PageHeader
-        title={
-          <span>
-            {t('today.dateTitle', { month: mm, day: dd, weekday: weekdayOf(date) })}
-            {d && <span className="ml-1 font-serif text-ink-3">· {t('today.dayPillar', { ganji: d.dayPillar.hanja })}</span>}
-          </span>
-        }
+        title={t('today.dateTitle', { month: mm, day: dd, weekday: weekdayOf(date) })}
         right={
           list.length > 0 ? (
             <button type="button" onClick={() => setPickProfile(true)} className="rounded-full border border-line-strong px-3 py-1.5 text-sm">
@@ -114,7 +110,10 @@ export function TodayPage() {
                 <p className="prose-reading mt-4 text-[17px] leading-relaxed">{d.message}</p>
               </section>
 
-              {top.length > 0 && (
+              {d.keyPoints && d.keyPoints.length > 0 ? (
+                // 사주를 몰라도 10초 안에 — 무엇이 잘 풀리고 무엇을 조심할지
+                <KeyPointsCard title="한눈에 보는 오늘" items={d.keyPoints} level={3} />
+              ) : top.length > 0 && (
                 <div className="mt-4 flex flex-wrap gap-2 text-sm">
                   <span className="rounded-full bg-subtle px-3 py-1.5">
                     <b className="mr-1">{t('today.actions.boost')}</b>
@@ -129,6 +128,7 @@ export function TodayPage() {
 
               <Card className="mt-6">
                 <h3 className="font-semibold">{t('today.weekFlowTitle')}</h3>
+                <p className="mt-1 text-sm text-ink-3">동그라미가 클수록 운이 좋은 날이에요. 요일을 누르면 그날 운세로 바뀌어요.</p>
                 <ol className="mt-4 grid grid-cols-7 gap-1 text-center">
                   {dates.map((iso, i) => {
                     const w = week[i]?.data;
@@ -150,7 +150,9 @@ export function TodayPage() {
               </Card>
 
               <Card className="mt-4">
-                <ul className="space-y-4">
+                <h3 className="font-semibold">분야별 운</h3>
+                <p className="mt-1 text-sm text-ink-3">100점에 가까울수록 좋아요. 50점보다 낮은 분야는 오늘 조금 조심하면 돼요.</p>
+                <ul className="mt-4 space-y-4">
                   {d.categories.map((c) => (
                     <li key={c.key}>
                       <div className="mb-1.5 flex items-center justify-between text-[15px] font-semibold">{c.label}</div>
@@ -181,9 +183,9 @@ export function TodayPage() {
               <Card className="mt-4 lg:mt-0">
                 <h3 className="flex items-center gap-2 font-semibold">
                   <Sparkles className="size-4 text-gold" aria-hidden />
-                  오늘의 조언
+                  {d.keyPoints?.length ? '오늘의 행운' : '오늘의 조언'}
                 </h3>
-                <p className="mt-2 text-[15px] leading-relaxed">{d.advice}</p>
+                {!d.keyPoints?.length && <p className="mt-2 text-[15px] leading-relaxed">{d.advice}</p>}
                 <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
                   {[
                     ['행운의 색', d.lucky.color],
@@ -201,13 +203,22 @@ export function TodayPage() {
               </Card>
 
               <Card className="mt-4">
-                <h3 className="font-semibold">{t('today.whyCardTitle')}</h3>
-                <p className="mt-2 text-sm text-ink-2">
-                  {t('today.whyCardBody', { dayGanji: `${d.dayPillar.hangul}(${d.dayPillar.hanja})`, dayMaster: d.evaluation.pillar.stemTenGod })}
-                </p>
-                <p className="mt-2 text-sm text-ink-2">
-                  오늘의 천간은 나에게 <b>{d.evaluation.pillar.stemTenGod}</b>, 지지는 <b>{d.evaluation.pillar.branchTenGod}</b>의 기운이고, 일간은 오늘 &lsquo;{d.evaluation.pillar.twelveStage}&rsquo;의 자리에 있어요.
-                </p>
+                <h3 className="font-semibold">오늘이 이런 이유</h3>
+                <p className="mt-1 text-sm text-ink-3">날마다 들어오는 기운이 달라요. 오늘 기운이 나와 어떻게 만나는지 보고 하루 흐름을 읽어요.</p>
+                <div className="mt-3 space-y-2 text-[15px] leading-relaxed text-ink-2">
+                  {(d.why ?? []).map((w) => (
+                    <p key={w}>{w}</p>
+                  ))}
+                </div>
+                {d.basis && (
+                  // 용어가 궁금한 사람만 펼쳐 보게 — 본문은 쉬운 말로만
+                  <details className="group mt-4 text-sm text-ink-3">
+                    <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-full border border-line px-3 py-1 hover:text-ink-2 [&::-webkit-details-marker]:hidden">
+                      사주로 보면 <span className="transition-transform group-open:rotate-180" aria-hidden>▾</span>
+                    </summary>
+                    <p className="mt-2 leading-relaxed">{d.basis}</p>
+                  </details>
+                )}
               </Card>
 
               <div className="mt-6">
@@ -261,7 +272,9 @@ export function TodayPage() {
                 }}
               >
                 {p.name}
-                <span className="font-serif text-sm text-ink-3">{p.dayPillar}일주</span>
+                <span className="text-sm text-ink-3">
+                  {p.zodiac}띠 · {p.birth.year}년생
+                </span>
               </button>
             </li>
           ))}

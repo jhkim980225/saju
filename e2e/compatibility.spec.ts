@@ -11,7 +11,7 @@ test('궁합: 상대 추가 → 점수와 잠금 → 번들 결제 → 1회권�
   await page.goto('/compatibility');
   await expect(page.getByRole('heading', { name: '누구와의 궁합이 궁금하세요?' })).toBeVisible();
   await expect(page.getByRole('button', { name: '서윤', exact: true })).toBeVisible();
-  await expect(page.getByText('두 사람의 여덟 글자가 어떻게 만나는지 볼까요?')).toBeVisible();
+  await expect(page.getByText('두 사람이 얼마나 잘 맞는지 볼까요?')).toBeVisible();
 
   // 상대 추가
   await page.getByRole('button', { name: '사람 고르기', exact: true }).click();
@@ -24,9 +24,11 @@ test('궁합: 상대 추가 → 점수와 잠금 → 번들 결제 → 1회권�
 
   // 상대 고르기 → 점수·근거
   await page.getByRole('button', { name: '+ 사람 고르기' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: /지훈.*戊辰.*띠/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /지훈.*원숭이띠/ }).click();
   await expect(page).toHaveURL(/\/compatibility\?a=[\w-]+&b=[\w-]+/);
-  await expect(page.getByText('서윤 甲辰 × 지훈 戊辰')).toBeVisible();
+  await expect(page.getByText('서윤 × 지훈', { exact: true })).toBeVisible();
+  // 무료 요약은 두 사람을 이름으로, 쉬운 말로
+  await expect(page.getByText(/^서윤님은 .+ 사람이고, 지훈님은 .+ 사람이에요\.$/)).toBeVisible();
   const score = page.locator('p.tabular.font-serif');
   await expect(score).toHaveText(/^\d{1,3}$/);
   for (const label of ['성격', '끌림·애정', '안정·생활', '서로 채워줌']) await expect(page.getByLabel(new RegExp(`^${label} \\d+점$`))).toBeVisible();
@@ -50,7 +52,7 @@ test('궁합: 상대 추가 → 점수와 잠금 → 번들 결제 → 1회권�
   // 원래 궁합 화면으로 복귀 — 아직 1회권은 쓰지 않은 상태
   await page.getByRole('button', { name: '이어서 읽기' }).click();
   await expect(page).toHaveURL(/\/compatibility\?a=[\w-]+&b=[\w-]+/);
-  await expect(page.getByText('서윤 甲辰 × 지훈 戊辰')).toBeVisible();
+  await expect(page.getByText('서윤 × 지훈', { exact: true })).toBeVisible();
   await expect(lockedSections(page)).toHaveCount(lockedCount);
 
   // 잠금 해제 → 1회권 사용

@@ -61,7 +61,8 @@ export function navLabel(s: ReadingSection): string {
 export function ReadingSectionCard({ section, onUnlock, price }: { section: ReadingSection; onUnlock?: (s: ReadingSection) => void; price?: string }) {
   const { label, title } = sectionLabels(section);
   const locked = Boolean(section.locked);
-  const toc = TOC[section.key] ?? TOC[section.key.replace(/\d+/, '')] ?? ['시기별 흐름과 구체적인 조언'];
+  // 서버가 목차를 주면 그걸 쓴다(신년운세·궁합처럼 같은 key 라도 내용이 다른 화면)
+  const toc = section.toc ?? TOC[section.key] ?? TOC[section.key.replace(/\d+/, '')] ?? ['시기별 흐름과 구체적인 조언'];
   return (
     <section id={`sec-${section.key}`} className="scroll-mt-28 border-t border-line py-8 first:border-t-0">
       {label && <p className="text-sm font-semibold text-ink-3">{label}</p>}
@@ -111,7 +112,7 @@ export function ReadingSectionCard({ section, onUnlock, price }: { section: Read
             <Lock className="size-4" aria-hidden />
             {t('paywall.lockTitle')}
           </p>
-          <p className="mt-2 text-sm text-ink-2">{t('paywall.lockBody', { section: label })}</p>
+          <p className="mt-2 text-sm text-ink-2">{label ? t('paywall.lockBody', { section: label }) : '나머지 내용을 이어서 읽을 수 있어요.'}</p>
           <p className="mt-4 text-xs font-semibold text-ink-3">{t('paywall.tocTitle')}</p>
           <ul className="mt-2 space-y-1.5 text-[15px] text-ink">
             {toc.map((x) => (

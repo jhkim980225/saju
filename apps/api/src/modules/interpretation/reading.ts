@@ -2,6 +2,22 @@
  * 규칙 기반 해석 생성기 — 계산 엔진 결과 + 콘텐츠 문구를 조합해 사람이 읽을 풀이를 만든다.
  * AI(Claude)가 설정되면 ai.ts 가 이 결과를 초안으로 삼아 문장을 다듬는다.
  */
+import type { FortuneHighlight } from '@saju/core';
+import { YEARLY_CATEGORY } from './content/fortuneTemplates.js';
+import { TEN_GOD_PLAIN } from './content/tenGods.js';
+import {
+  CATEGORY_PLAIN,
+  COMPAT_ADVICE_SUMMARY,
+  COMPAT_CATEGORY_PLAIN,
+  DAY_GRADE_PLAIN,
+  LOVE_STYLE,
+  LUCKY_COLOR_PLAIN,
+  YEAR_CATEGORY_PLAIN,
+  YEAR_GRADE_PLAIN,
+  compatFactorPlain,
+  complementPlain,
+  yearNickname,
+} from './content/plainFortune.js';
 import {
   ELEMENT_INFO,
   GRADE_LABEL,
@@ -381,12 +397,81 @@ export function buildBasicReading(chart: SajuChart, opts: { access: ReadingAcces
 }
 
 // ---------------------------------------------------------------------------
-// 오늘의 운세
+// 오늘의 운세 · 신년운세 · 궁합 — 쉬운 말 (docs/PLAIN_KOREAN.md)
+// 본문에는 용어·한자를 쓰지 않는다. 일진·세운·십신·신살 같은 근거는 basis('사주로 보면')에만 둔다.
 // ---------------------------------------------------------------------------
 
 const LUCKY_TIME: Record<Element, string> = { wood: '오전 5~7시', fire: '오전 11시~오후 1시', earth: '오후 1~3시', metal: '오후 5~7시', water: '밤 9~11시' };
 
-export function buildDailyFortune(chart: SajuChart, date: { year: number; month: number; day: number }, profileId: string | null): DailyFortuneDto {
+/** 운에서 들어온 기운의 용어 — 근거 줄에만 쓴다 */
+const HIGHLIGHT_TERM: Record<FortuneHighlight, string> = {
+  yongsin_stem: '천간이 용신',
+  yongsin_branch: '지지가 용신',
+  gisin_stem: '천간이 기신',
+  gisin_branch: '지지가 기신',
+  stem_combine_day: '일간과 천간합',
+  stem_clash_day: '일간과 천간충',
+  branch_combine_day: '일지와 합',
+  branch_clash_day: '일지와 충',
+  branch_punish_day: '일지와 형',
+  branch_wonjin_day: '일지와 원진',
+  branch_clash_month: '월지와 충',
+  dohwa: '도화',
+  yeokma: '역마',
+  hwagae: '화개',
+  cheoneul: '천을귀인',
+  munchang: '문창귀인',
+  yangin: '양인',
+  gongmang: '공망',
+};
+
+/** '사주로 보면' 한 줄 — 오늘·올해 공통 */
+function luckBasis(label: string, ev: FortuneEvaluation): string {
+  const p = ev.pillar;
+  return [`${label} ${p.ganzhi.hangul}(${p.ganzhi.hanja})`, `천간 ${p.stemTenGod} · 지지 ${p.branchTenGod}`, `12운성 ${p.twelveStage}`, ...ev.highlights.map((h) => HIGHLIGHT_TERM[h])].join(' · ');
+}
+
+/**
+ * 운의 첫 문단 — "오늘은 서윤님에게 '배움과 도움'의 기운이 들어오는 날이에요. …"
+ * 천간이 나에게 꼭 필요한/잘 맞지 않는 기운이면 그 말을 같은 문단에 녹이고, 그 하이라이트는 따로 쓰지 않는다.
+ */
+function luckLead(ev: FortuneEvaluation, when: string, unit: '날' | '해', general: string, name: string | null): { text: string; folded: FortuneHighlight[] } {
+  const theme = TEN_GOD_PLAIN[ev.pillar.stemTenGod].theme;
+  const isDay = unit === '날' ? '날이에요' : '해예요';
+  if (ev.fit.stem === 'yongsin') {
+    return { text: `${when} ${nameSubject(name, '에게')}꼭 필요한 '${theme}'의 기운이 들어오는 ${isDay}. ${general}`, folded: ['yongsin_stem'] };
+  }
+  if (ev.fit.stem === 'gisin') {
+    const withWho = name ? `${name}님과는` : '나와는';
+    return { text: `${when} '${theme}'의 기운이 들어오는 ${isDay}. ${general} 이 기운이 ${withWho} 잘 맞지 않는 편이라, 큰일은 한 번 더 살피고 정하는 게 좋아요.`, folded: ['gisin_stem'] };
+  }
+  return { text: `${when} ${nameSubject(name, '에게')}'${theme}'의 기운이 들어오는 ${isDay}. ${general}`, folded: [] };
+}
+
+/** 이미 앞 문단(그 기운의 설명)에서 한 말과 겹치는 하이라이트 — 예: '배움과 도움' 뒤의 '도와주는 사람이 나타나요' */
+const HIGHLIGHT_SAID_BY: Partial<Record<FortuneHighlight, TenGod[]>> = { cheoneul: ['정인'], munchang: ['정인', '편인'], hwagae: ['편인'], yangin: ['겁재'] };
+
+/** 첫 문단에 녹인 것을 뺀 하이라이트 — 나와 맞는지(용신·기신)를 먼저. 이름이 있으면 '나와/나에게'를 이름으로 */
+function restHighlights(ev: FortuneEvaluation, folded: FortuneHighlight[], max: number, name: string | null, told: TenGod[] = [ev.pillar.stemTenGod]): string[] {
+  const alreadySaid = (h: FortuneHighlight) =>
+    folded.includes(h) ||
+    (HIGHLIGHT_SAID_BY[h] ?? []).some((t) => told.includes(t)) ||
+    // 일지와 충이 있으면 월지와 충(같은 '변화' 이야기)은 한 번만
+    (h === 'branch_clash_month' && ev.highlights.includes('branch_clash_day'));
+  const rest = ev.highlights.filter((h) => !alreadySaid(h));
+  const fitFirst = [...rest.filter((h) => /^(yongsin|gisin)/.test(h)), ...rest.filter((h) => !/^(yongsin|gisin)/.test(h))];
+  return fitFirst.slice(0, max).map((h) => (name ? FORTUNE_TEMPLATES.highlights[h].replace(/^나와 /, `${name}님과 `).replace(/^나에게 /, `${name}님에게 `) : FORTUNE_TEMPLATES.highlights[h]));
+}
+
+/** 행운 아이템 — 숫자는 따로 보여 주므로 빼고, 괄호 속 한자는 지운다('풍경(風磬)'은 한자를 빼면 경치로 읽혀 풀어 쓴다) */
+const luckyItem = (el: Element, seed: string) =>
+  pick(ELEMENT_CONTENT[el].luckyItems.filter((x) => !x.startsWith('숫자')), seed)
+    .replace(/종소리 나는 풍경\(風磬\)/, '바람에 울리는 작은 종')
+    .replace(/\([一-鿿]+\)/g, '');
+
+/** 오늘의 운세. rawName 은 프로필(또는 비회원 입력) 이름 — 있으면 "서윤님," 하고 부른다 */
+export function buildDailyFortune(chart: SajuChart, date: { year: number; month: number; day: number }, profileId: string | null, rawName: string | null = null): DailyFortuneDto {
+  const name = displayName(rawName);
   const dp = dayPillarOf(date);
   const dateStr = `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
   const seed = `${dateStr}|${chart.birthUtc}`;
@@ -395,28 +480,41 @@ export function buildDailyFortune(chart: SajuChart, date: { year: number; month:
   const cats: DailyCategory[] = ['wealth', 'love', 'career', 'health', 'study'];
   const categories = cats.map((k) => ({
     key: k,
-    label: FORTUNE_CATEGORY_LABEL[k],
+    label: CATEGORY_PLAIN[k].label,
     score: ev.scores[k],
     message: pick(FORTUNE_TEMPLATES.dailyCategory[k][band(ev.scores[k])], `${seed}|${k}`),
   }));
-  const highlightText = ev.highlights.filter((h) => !h.startsWith('yongsin') && !h.startsWith('gisin')).slice(0, 2).map((h) => FORTUNE_TEMPLATES.highlights[h]);
-  const message = [pick(FORTUNE_TEMPLATES.dailyMessage[ev.grade], `${seed}|msg`), ...highlightText].join(' ');
+  const ranked = [...categories].sort((x, y) => y.score - x.score);
+  const top = ranked[0]!;
+  const low = ranked[ranked.length - 1]!;
+  const advice = pick(tg.dailyAdvice, `${seed}|advice`);
+  // 운이 낮은 날에는 그 기운의 조심할 모습을 말한다('기회가 많아져요'라고 해 놓고 '조심할 날'이 되지 않게)
+  const tgPlain = TEN_GOD_PLAIN[ev.pillar.stemTenGod];
+  const lead = luckLead(ev, '오늘은', '날', ev.grade === 'caution' || ev.grade === 'bad' ? tgPlain.lineLow : tgPlain.line, name);
   const el = ev.lucky.element;
   return {
     date: dateStr,
     profileId,
     dayPillar: { hanja: ev.pillar.ganzhi.hanja, hangul: ev.pillar.ganzhi.hangul },
     evaluation: ev,
-    gradeLabel: GRADE_LABEL[ev.grade],
+    gradeLabel: DAY_GRADE_PLAIN[ev.grade],
     headline: pick(FORTUNE_TEMPLATES.dailyHeadline[ev.grade], `${seed}|head`),
-    message,
+    message: `${name ? `${name}님, ` : ''}${pick(FORTUNE_TEMPLATES.dailyMessage[ev.grade], `${seed}|msg`)}`,
     categories,
-    advice: pick(tg.dailyAdvice, `${seed}|advice`),
+    advice,
+    // 사주를 몰라도 10초 안에 — 무엇이 잘 풀리고 무엇을 조심할지
+    keyPoints: [
+      { label: '잘 풀리는 일', text: top.score >= 50 ? CATEGORY_PLAIN[top.key].good : `${josa(top.label, '은', '는')} 그나마 괜찮아요` },
+      { label: '조심할 일', text: low.score >= 70 ? '크게 조심할 일은 없어요' : CATEGORY_PLAIN[low.key].watch },
+      { label: '오늘 해 볼 일', text: advice.replace(/^오늘(은)? /, '') },
+    ],
+    why: [lead.text, ...restHighlights(ev, lead.folded, 2, name)],
+    basis: luckBasis('오늘 일진', ev),
     lucky: {
-      color: ev.lucky.color,
+      color: LUCKY_COLOR_PLAIN[el],
       number: ev.lucky.number,
       direction: ev.lucky.direction,
-      item: pick(ELEMENT_CONTENT[el].luckyItems, `${seed}|item`),
+      item: luckyItem(el, `${seed}|item`),
       time: LUCKY_TIME[el],
     },
     shareText: pick(FORTUNE_TEMPLATES.shareQuotes, `${seed}|share`),
@@ -427,44 +525,95 @@ export function buildDailyFortune(chart: SajuChart, date: { year: number; month:
 // 신년(세운) 운세
 // ---------------------------------------------------------------------------
 
-export function buildYearlyFortune(chart: SajuChart, year: number, unlocked: boolean): YearlyFortuneDto {
+type YearCategory = 'wealth' | 'love' | 'career' | 'health';
+const YEAR_CATEGORIES: YearCategory[] = ['wealth', 'love', 'career', 'health'];
+const YEAR_SECTION_TITLE: Record<YearCategory, string> = { wealth: '재물운', love: '애정운', career: '직장·사업운', health: '건강운' };
+const YEAR_TOC: Record<YearCategory, string[]> = {
+  wealth: ['올해 돈이 들어오고 나가는 흐름', '돈 관리에서 챙길 점', '열두 달 흐름'],
+  love: ['올해 연애와 사람 사이의 흐름', '관계에서 챙길 점', '열두 달 흐름'],
+  career: ['올해 일과 직장의 흐름', '일에서 챙길 점', '열두 달 흐름'],
+  health: ['올해 몸 컨디션의 흐름', '건강을 위해 챙길 습관', '열두 달 흐름'],
+};
+
+/** 열두 달 요약 — 같은 문장이 두 번 나오지 않게 고른다(같은 등급 문구가 모자라면 그달 기운의 문장으로) */
+function monthSummaries(chart: SajuChart, year: number, seed: string) {
+  const used = new Set<string>();
+  return wolun(chart.dayMaster.index, year).map((m, i) => {
+    const mev = evaluateFortune(chart, m, `${seed}-m${m.order}`);
+    const pool = FORTUNE_TEMPLATES.monthlySummary[mev.grade];
+    const start = hashSeed(`${seed}-ms${m.order}`) % pool.length;
+    const rotated = [...pool.slice(start), ...pool.slice(0, start)];
+    const fallback = TEN_GOD_PLAIN[m.stemTenGod].month;
+    const summary = rotated.find((s) => !used.has(s)) ?? (used.has(fallback) ? rotated[0]! : fallback);
+    used.add(summary);
+    // 달마다 이름표가 붙어 있으니 '이번 달은'은 뺀다(열두 줄이 같은 말로 시작하지 않게)
+    const calMonth = ((i + 1) % 12) + 1; // 寅월 ≈ 양력 2월
+    return { order: m.order, label: `${calMonth}월`, ganzhi: m.ganzhi.hanja, score: mev.scores.total, summary: summary.replace(/^이번 달은 /, '') };
+  });
+}
+
+/** 신년운세. rawName 은 프로필 이름 */
+export function buildYearlyFortune(chart: SajuChart, year: number, unlocked: boolean, rawName: string | null = null): YearlyFortuneDto {
+  const name = displayName(rawName);
   const yp = yearPillarOf(year);
   const ev: FortuneEvaluation = evaluateFortune(chart, yp, `year-${year}`);
-  const tg = TEN_GOD_CONTENT[ev.pillar.stemTenGod];
-  const btg = TEN_GOD_CONTENT[ev.pillar.branchTenGod];
+  const stg = ev.pillar.stemTenGod;
+  const btg = ev.pillar.branchTenGod;
+  const tg = TEN_GOD_CONTENT[stg];
+  const bt = TEN_GOD_CONTENT[btg];
+  const plain = TEN_GOD_PLAIN[stg];
   const PRODUCT = `report_newyear_${year}`;
   const seed = `${year}-${chart.birthUtc}`;
-  const sec = (key: string, title: string, score: number, paragraphs: string[], summary: string): ReadingSection => ({ key, title, score, paragraphs, summary });
-  const sections: ReadingSection[] = [
-    sec('total', `${year}년 총운`, ev.scores.total, [
-      `${year}년 ${ev.pillar.ganzhi.hangul}(${ev.pillar.ganzhi.hanja})년은 천간으로 ${ev.pillar.stemTenGod}, 지지로 ${ev.pillar.branchTenGod}의 기운이 들어와요. ${tg.inLuck.general}`,
-      btg.inLuck.general,
-      ...ev.highlights.slice(0, 3).map((h) => FORTUNE_TEMPLATES.highlights[h]),
-    ], pick(FORTUNE_TEMPLATES.yearlyHeadline[ev.grade], seed)),
-    lock(sec('wealth', '재물운', ev.scores.wealth, [tg.inLuck.wealth, btg.inLuck.wealth], pick(FORTUNE_TEMPLATES.dailyCategory.wealth[band(ev.scores.wealth)], `${seed}w`)), !unlocked, PRODUCT),
-    lock(sec('love', '애정운', ev.scores.love, [tg.inLuck.love, btg.inLuck.love], pick(FORTUNE_TEMPLATES.dailyCategory.love[band(ev.scores.love)], `${seed}l`)), !unlocked, PRODUCT),
-    lock(sec('career', '직장·사업운', ev.scores.career, [tg.inLuck.career, btg.inLuck.career], pick(FORTUNE_TEMPLATES.dailyCategory.career[band(ev.scores.career)], `${seed}c`)), !unlocked, PRODUCT),
-    lock(sec('health', '건강운', ev.scores.health, [tg.inLuck.health, btg.inLuck.health], pick(FORTUNE_TEMPLATES.dailyCategory.health[band(ev.scores.health)], `${seed}h`)), !unlocked, PRODUCT),
-  ];
-  const months = wolun(chart.dayMaster.index, year).map((m, i) => {
-    const mev = evaluateFortune(chart, m, `${seed}-m${m.order}`);
-    const calMonth = ((i + 1) % 12) + 1; // 寅월 ≈ 양력 2월
-    return {
-      order: m.order,
-      label: `${calMonth}월 (${m.termName}~)`,
-      ganzhi: m.ganzhi.hanja,
-      score: mev.scores.total,
-      summary: pick(FORTUNE_TEMPLATES.monthlySummary[mev.grade], `${seed}-ms${m.order}`),
-      locked: !unlocked && i >= 2,
-    };
-  });
+  // 운이 낮은 해에는 그 기운의 조심할 모습을 말한다(좋은 말 뒤에 '잘 맞지 않는다'가 붙어 앞뒤가 엇갈리지 않게)
+  const lead = luckLead(ev, `${year}년은`, '해', ev.grade === 'caution' || ev.grade === 'bad' ? plain.lineLow : tg.inLuck.general, name);
+  const total: ReadingSection = {
+    key: 'total',
+    title: `${year}년 총운`,
+    summary: '',
+    paragraphs: [
+      lead.text,
+      // 같은 십신이면 같은 말이 되므로 한 번만
+      ...(btg !== stg ? [`그 밑바탕에는 '${TEN_GOD_PLAIN[btg].theme}'의 기운도 함께 흘러요. ${bt.inLuck.general}`] : []),
+      ...restHighlights(ev, lead.folded, 2, name, btg !== stg ? [stg, btg] : [stg]),
+    ],
+    basis: luckBasis(`${year}년`, ev),
+  };
+  const category = (key: YearCategory): ReadingSection =>
+    lock(
+      {
+        key,
+        title: YEAR_SECTION_TITLE[key],
+        score: ev.scores[key],
+        summary: pick(YEARLY_CATEGORY[key][band(ev.scores[key])], `${seed}${key[0]}`),
+        paragraphs: [tg.inLuck[key], ...(btg !== stg ? [`한편 ${bt.inLuck[key]}`] : [])],
+        toc: YEAR_TOC[key],
+      },
+      !unlocked,
+      PRODUCT,
+    );
+  const ranked = [...YEAR_CATEGORIES].sort((x, y) => ev.scores[y] - ev.scores[x]);
+  const best = ranked[0]!;
+  const worst = ranked[ranked.length - 1]!;
+  const months = monthSummaries(chart, year, seed).map((m, i) => ({ ...m, locked: !unlocked && i >= 2 }));
   return {
     year,
     yearPillar: { hanja: ev.pillar.ganzhi.hanja, hangul: ev.pillar.ganzhi.hangul },
     evaluation: ev,
     headline: pick(FORTUNE_TEMPLATES.yearlyHeadline[ev.grade], seed),
-    sections,
-    months: months.map((m) => (m.locked ? { ...m, summary: '프리미엄에서 확인할 수 있어요.', score: 0 } : m)),
+    yearName: yearNickname(yp.stem, yp.branch),
+    gradeLabel: YEAR_GRADE_PLAIN[ev.grade],
+    keyPoints: [
+      { label: '올해의 기운', text: `'${plain.theme}'의 해예요` },
+      {
+        label: '잘 풀리는 일',
+        text: ev.scores[best] >= 50 ? `${josa(YEAR_CATEGORY_PLAIN[best].good, '이', '가')} 가장 잘 풀려요` : `${josa(YEAR_CATEGORY_PLAIN[best].label, '은', '는')} 그나마 괜찮아요`,
+      },
+      { label: '조심할 것', text: ev.scores[worst] >= 70 ? '크게 조심할 일은 없어요' : `${josa(YEAR_CATEGORY_PLAIN[worst].watch, '은', '는')} 조심하면 좋아요` },
+      { label: '해 볼 일', text: plain.yearTip },
+    ],
+    sections: [total, ...YEAR_CATEGORIES.map(category)],
+    // 잠긴 달은 점수·요약을 비운다 — 화면은 자물쇠만 보이고, 안내는 목록 아래 한 줄로
+    months: months.map((m) => (m.locked ? { ...m, summary: '', score: 0 } : m)),
     locked: !unlocked,
   };
 }
@@ -475,28 +624,141 @@ export function buildYearlyFortune(chart: SajuChart, year: number, unlocked: boo
 
 export const COMPAT_GRADE_LABEL = { excellent: '천생연분', good: '좋은 인연', normal: '노력하면 좋은 인연', effort: '서로 배워가는 인연' } as const;
 
+/**
+ * 궁합 섹션 — 무료: 두 사람이 어떤 사람인지 + 잘 맞는 점 두 가지까지 / 유료: 끌림·조심할 점·조언.
+ * names 는 프로필 이름(비회원은 입력 이름, 없으면 '나'·'상대'). 이름이 없으면 '나'와 '상대'로 부른다.
+ */
 export function buildCompatibilitySections(a: SajuChart, b: SajuChart, r: CompatibilityResult, names: { a: string; b: string }, unlocked: boolean) {
   const PRODUCT = 'report_compat';
+  const na = displayName(names.a);
+  const nb = displayName(names.b);
+  const A = na ? `${na}님` : '나';
+  const B = nb && nb !== '상대' ? `${nb}님` : '상대';
+  const people = { a: A, b: B, ca: a, cb: b };
   const dmA = dayMasterContent(a);
   const dmB = dayMasterContent(b);
-  const pos = r.factors.filter((f) => f.tone === 'positive');
-  const neg = r.factors.filter((f) => f.tone === 'negative');
+
+  // 엔진 요인 → 쉬운 문장. 같은 말이 두 번 나오지 않게 묶는다
+  // - 오행 보완은 사람별로 한 문장에, 꼭 필요한 기운(용신)과 같은 오행이면 보완 문장은 뺀다
+  // - 서로가 서로의 배우자 기운이면 한 문장으로
+  type Line = { text: string; term: string; tone: 'positive' | 'negative' | 'neutral' };
+  const lines: Line[] = [];
+  const has = (key: string) => r.factors.some((f) => f.key === key);
+  const lacking = (side: 'a' | 'b') => {
+    const giverDominant = (side === 'a' ? b : a).elements.dominant;
+    const covered = has(side === 'a' ? 'yongsin_a' : 'yongsin_b');
+    return r.factors
+      .filter((f) => f.key.startsWith(`complement_${side}_`))
+      .map((f) => f.key.slice(13) as Element)
+      .filter((e) => !(covered && e === giverDominant));
+  };
+  const spouse = r.factors.filter((f) => f.key.startsWith('spouse_star_'));
+  const spouseBoth = spouse.length === 2 && spouse[0]!.weight === spouse[1]!.weight;
+  let complementDone = false;
+  let spouseDone = false;
+  for (const f of r.factors) {
+    if (f.key.startsWith('complement_')) {
+      if (complementDone) continue;
+      complementDone = true;
+      if (lacking('a').length) lines.push({ ...complementPlain(lacking('a'), A, B), tone: 'positive' });
+      if (lacking('b').length) lines.push({ ...complementPlain(lacking('b'), B, A), tone: 'positive' });
+      continue;
+    }
+    if (spouseBoth && f.key.startsWith('spouse_star_')) {
+      if (spouseDone) continue;
+      spouseDone = true;
+      const p = compatFactorPlain({ ...f, key: 'spouse_star_both' }, people);
+      if (p) lines.push({ ...p, tone: f.tone });
+      continue;
+    }
+    const p = compatFactorPlain(f, people);
+    if (p) lines.push({ ...p, tone: f.tone });
+  }
+  const pos = lines.filter((l) => l.tone === 'positive');
+  const neg = lines.filter((l) => l.tone === 'negative');
+  const freePos = pos.slice(0, 2);
+  const restPos = pos.slice(2);
+  const terms = (ls: Line[]) => [...new Set(ls.map((l) => l.term))].join(' · ');
+
+  const spA = STEM_PLAIN[a.dayMaster.index]!;
+  const spB = STEM_PLAIN[b.dayMaster.index]!;
+  const sameStem = a.dayMaster.index === b.dayMaster.index;
+  const whoLine = sameStem ? `두 사람 모두 ${spA.headline}이에요.` : `${josa(A, '은', '는')} ${spA.headline}이고, ${josa(B, '은', '는')} ${spB.headline}이에요.`;
+  const loveLines = sameStem
+    ? [`두 사람 모두 ${LOVE_STYLE[a.dayMaster.index]}`]
+    : [`${josa(A, '은', '는')} ${LOVE_STYLE[a.dayMaster.index]}`, `${josa(B, '은', '는')} ${LOVE_STYLE[b.dayMaster.index]}`];
+
   const sections: ReadingSection[] = [
     {
       key: 'summary',
       title: '한눈에 보는 궁합',
-      summary: pick(FORTUNE_TEMPLATES.compatibilityHeadline[r.grade], `${a.birthUtc}|${b.birthUtc}`),
-      score: r.score,
-      paragraphs: [
-        `${names.a}님은 ${dmA.title}(${dmA.name}), ${names.b}님은 ${dmB.title}(${dmB.name})의 기운을 지녔어요.`,
-        ...pos.slice(0, 2).map((f) => f.label),
-      ],
+      // 점수·등급·한 줄 평은 화면 위 점수 카드에 있으므로 요약은 비워 둔다(같은 말 두 번 금지)
+      summary: '',
+      paragraphs: [whoLine, ...(freePos.length ? freePos.map((l) => l.text) : ['눈에 띄는 끌림보다 시간이 지날수록 깊어지는 사이예요.'])],
+      basis: [`${names.a} 일간 ${dmA.name}`, `${names.b} 일간 ${dmB.name}`, ...new Set(freePos.map((l) => l.term))].join(' · '),
     },
-    lock({ key: 'strengths', title: '서로 끌리는 이유', summary: pos.length ? `${pos.length}가지 좋은 인연 포인트` : '천천히 쌓아가는 인연', score: r.categories.romance, paragraphs: pos.length ? pos.map((f) => f.label) : ['눈에 띄는 끌림보다 시간이 지날수록 깊어지는 관계예요.'] }, !unlocked, PRODUCT),
-    lock({ key: 'cautions', title: '함께 조심할 점', summary: neg.length ? `${neg.length}가지 조율 포인트` : '큰 갈등 요소가 적어요', score: r.categories.stability, paragraphs: neg.length ? neg.map((f) => f.label) : ['서로 부딪히는 기운이 적어 편안한 관계를 만들기 좋아요.'] }, !unlocked, PRODUCT),
-    lock({ key: 'advice', title: '더 좋은 관계를 위한 조언', summary: COMPAT_GRADE_LABEL[r.grade], paragraphs: [FORTUNE_TEMPLATES.compatibilityAdvice[r.grade], `${names.a}님의 연애 스타일: ${dmA.love}`, `${names.b}님의 연애 스타일: ${dmB.love}`] }, !unlocked, PRODUCT),
+    lock(
+      {
+        key: 'strengths',
+        title: '서로 끌리는 이유',
+        summary: pos.length >= 3 ? '잘 맞는 점이 많은 사이예요' : pos.length ? '잘 맞는 점이 분명한 사이예요' : '천천히 쌓아 가는 인연이에요',
+        paragraphs: [COMPAT_CATEGORY_PLAIN.romance[band(r.categories.romance)], ...restPos.map((l) => l.text), COMPAT_CATEGORY_PLAIN.complement[band(r.categories.complement)]],
+        ...(restPos.length ? { basis: terms(restPos) } : {}),
+        toc: ['두 사람이 서로 끌리는 이유', '함께 있으면 좋은 점'],
+      },
+      !unlocked,
+      PRODUCT,
+    ),
+    lock(
+      {
+        key: 'cautions',
+        title: '함께 조심할 점',
+        summary: neg.length >= 3 ? '맞춰 갈 부분이 몇 가지 있어요' : neg.length ? '맞춰 갈 부분이 조금 있어요' : '크게 부딪히는 부분이 적어요',
+        paragraphs: [
+          COMPAT_CATEGORY_PLAIN.stability[band(r.categories.stability)],
+          ...(neg.length ? neg.map((l) => l.text) : ['서로 부딪히는 일이 적어 편안한 관계를 만들기 좋아요. 지금처럼 서로를 배려하면 충분해요.']),
+        ],
+        ...(neg.length ? { basis: terms(neg) } : {}),
+        toc: ['자주 부딪히는 지점', '부딪힐 때 푸는 방법'],
+      },
+      !unlocked,
+      PRODUCT,
+    ),
+    lock(
+      {
+        key: 'advice',
+        title: '더 좋은 관계를 위한 조언',
+        summary: COMPAT_ADVICE_SUMMARY[r.grade],
+        paragraphs: [FORTUNE_TEMPLATES.compatibilityAdvice[r.grade], ...loveLines],
+        toc: ['두 사람에게 맞는 관계 조언', '서로의 연애 방식'],
+      },
+      !unlocked,
+      PRODUCT,
+    ),
   ];
-  return { sections, gradeLabel: COMPAT_GRADE_LABEL[r.grade], headline: sections[0]!.summary };
+  return { sections: dedupeSentences(sections), gradeLabel: COMPAT_GRADE_LABEL[r.grade], headline: pick(FORTUNE_TEMPLATES.compatibilityHeadline[r.grade], `${a.birthUtc}|${b.birthUtc}`) };
+}
+
+/** 여러 섹션에 걸쳐 같은 문장이 또 나오면 뒤의 것을 지운다(문단이 통째로 비면 문단도 뺀다) */
+function dedupeSentences(sections: ReadingSection[]): ReadingSection[] {
+  const seen = new Set<string>();
+  return sections.map((sec) => ({
+    ...sec,
+    paragraphs: sec.paragraphs
+      .map((p) =>
+        p
+          .split(/(?<=[.!?])\s+/)
+          .filter((sentence) => {
+            const key = sentence.trim();
+            if (key.length <= 12) return true;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .join(' '),
+      )
+      .filter(Boolean),
+  }));
 }
 
 /** '병오' 처럼 그해 간지의 한글 */
@@ -509,10 +771,20 @@ export function gradeLabel(g: FortuneGrade) {
   return GRADE_LABEL[g];
 }
 
-/** 세운 목록(대운 화면 보조) */
+/** 세운 목록(대운 화면 보조) — 쉬운 이름(yearName·theme·gradeLabel)을 함께 준다. tenGod·grade 는 전문가 보기용 */
 export function yearList(chart: SajuChart, from: number, to: number) {
   return seun(chart.dayMaster.index, from, to).map((y) => {
     const ev = evaluateFortune(chart, y, `year-${y.year}`);
-    return { year: y.year, ganzhi: y.ganzhi.hanja, hangul: y.ganzhi.hangul, tenGod: y.stemTenGod, score: ev.scores.total, grade: ev.grade };
+    return {
+      year: y.year,
+      ganzhi: y.ganzhi.hanja,
+      hangul: y.ganzhi.hangul,
+      tenGod: y.stemTenGod,
+      score: ev.scores.total,
+      grade: ev.grade,
+      gradeLabel: YEAR_GRADE_PLAIN[ev.grade],
+      yearName: yearNickname(y.stem, y.branch),
+      theme: TEN_GOD_PLAIN[y.stemTenGod].theme,
+    };
   });
 }

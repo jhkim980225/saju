@@ -6,6 +6,7 @@
 import { utcToZoned } from '@saju/core';
 import type { FastifyBaseLogger } from 'fastify';
 import { buildDailyFortune } from '../modules/interpretation/reading.js';
+import { displayName } from '../modules/interpretation/content/plain.js';
 import type { Services } from '../services.js';
 
 const HOUR_KST = 8;
@@ -26,9 +27,10 @@ export async function runDailyPush(services: Services, log?: FastifyBaseLogger) 
     const profile = services.profiles.primary(userId);
     if (!profile) return null;
     const daily = buildDailyFortune(services.profiles.chartOf(profile), date, profile.id);
+    const name = displayName(profile.name);
     return {
       title: '오늘의 한 줄이 도착했어요',
-      body: `${profile.name}님, ${daily.headline}`,
+      body: name ? `${name}님, ${daily.headline}` : daily.headline,
       link: '/today',
       data: { kind: 'daily', profileId: profile.id },
     };

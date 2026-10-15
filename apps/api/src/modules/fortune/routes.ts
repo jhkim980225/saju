@@ -17,13 +17,13 @@ export const fortuneRoutes: FastifyPluginAsync = async (app) => {
     const user = requireUser(req);
     const profile = q.profileId ? profiles.getOwned(user.id, q.profileId) : profiles.primary(user.id);
     if (!profile) return { needsProfile: true };
-    return buildDailyFortune(profiles.chartOf(profile), q.date ? parseDate(q.date) : todayInSeoul(), profile.id);
+    return buildDailyFortune(profiles.chartOf(profile), q.date ? parseDate(q.date) : todayInSeoul(), profile.id, profile.name);
   });
 
-  /** 오늘의 운세 — 비회원(생년월일 직접 입력) */
+  /** 오늘의 운세 — 비회원(생년월일 직접 입력). name 은 풀이에서 부를 이름(선택) */
   app.post('/daily', async (req) => {
-    const body = parse(z.object({ birth: birthInputSchema, date: dateQuery.optional() }), req.body);
-    return buildDailyFortune(calculateSaju(birthDtoToInput(body.birth)), body.date ? parseDate(body.date) : todayInSeoul(), null);
+    const body = parse(z.object({ birth: birthInputSchema, date: dateQuery.optional(), name: z.string().max(20).optional() }), req.body);
+    return buildDailyFortune(calculateSaju(birthDtoToInput(body.birth)), body.date ? parseDate(body.date) : todayInSeoul(), null, body.name ?? null);
   });
 
   /** 신년운세 — 미구매 시 총운·첫 두 달만 공개 */
@@ -32,6 +32,6 @@ export const fortuneRoutes: FastifyPluginAsync = async (app) => {
     const user = requireUser(req);
     const profile = profiles.getOwned(user.id, q.profileId);
     const year = q.year ?? targetFortuneYear();
-    return buildYearlyFortune(profiles.chartOf(profile), year, reports.yearlyUnlocked(user.id, profile.id, year));
+    return buildYearlyFortune(profiles.chartOf(profile), year, reports.yearlyUnlocked(user.id, profile.id, year), profile.name);
   });
 };
