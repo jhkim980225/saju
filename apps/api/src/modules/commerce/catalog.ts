@@ -175,9 +175,6 @@ export const CATALOG: CatalogItem[] = [
   // ── 2차 출시 ───────────────────────────────────────────
   { id: 'report_love', name: '연애·결혼운 리포트', description: '인연이 들어오는 시기와 나에게 맞는 사람.', type: 'one_time', price: 4900, grants: ['report:love'], comingSoon: true },
   { id: 'report_career_wealth', name: '재물·직업운 리포트', description: '돈이 모이는 방식과 커리어 전환 타이밍.', type: 'one_time', price: 4900, grants: ['report:career_wealth'], comingSoon: true },
-  { id: 'chat_pack_100', name: 'AI 상담 질문권 100회', description: '1회당 269원. 유효기간 없음.', type: 'credit_pack', price: 26900, credits: 100, comingSoon: true },
-  { id: 'sub_plus_monthly', name: '플러스 월 구독', description: '광고 제거 · 월운 자동 발행 · 질문권 월 100회 · 리포트 20% 할인', type: 'subscription', price: 6900, credits: 100, periodDays: 30, comingSoon: true },
-  { id: 'sub_plus_yearly', name: '플러스 연 구독', description: '월 구독 혜택 + 신년운세 포함', type: 'subscription', price: 59000, credits: 100, periodDays: 365, comingSoon: true },
   // ── 택일 (docs/research/05-tarot-market.md §2.2 사주아이 '990원 택일') — 택일 결과 1건의 상세를 여는 소모성 상품 ──
   {
     id: 'report_taekil',

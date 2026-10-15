@@ -2,7 +2,7 @@
  * 커머스 코어 — 상품 / 주문 / 결제 승인 / 지급(fulfillment) / 질문권 원장 / 권한(entitlement).
  * 결제사 연동은 providers/* 게이트웨이가 담당하고, 여기서는 금액 검증과 지급의 원자성을 보장한다.
  */
-import { and, asc, desc, eq, inArray, like, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, like, notInArray, sql } from 'drizzle-orm';
 import type { CheckoutDto, OrderCreateDto, OrderDto, PaymentProvider, PaymentResultDto, ProductDto, WalletDto } from '@saju/shared';
 import { ERROR_CODES } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
@@ -27,8 +27,12 @@ export interface FulfilledEvent {
 
 const DAY = 86_400_000;
 
-/** 카탈로그 → DB upsert */
+/** 카탈로그 → DB upsert. 카탈로그에서 뺀 상품은 지우지 않고 판매 중지(active=false) — 지난 주문이 참조한다 */
 export function seedCatalog(db: Db) {
+  db.update(products)
+    .set({ active: false, updatedAt: Date.now() })
+    .where(and(eq(products.active, true), notInArray(products.id, CATALOG.map((c) => c.id))))
+    .run();
   CATALOG.forEach((c, i) => {
     const values = {
       name: c.name,

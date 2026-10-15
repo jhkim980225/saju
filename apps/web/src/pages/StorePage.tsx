@@ -13,7 +13,6 @@ import { won } from '@/lib/format';
 const GROUPS: { title: string; type: ProductDto['type'][] }[] = [
   { title: '사주 리포트', type: ['one_time'] },
   { title: 'AI 상담 질문권', type: ['credit_pack'] },
-  { title: '플러스 구독', type: ['subscription'] },
 ];
 
 export function StorePage() {

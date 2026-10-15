@@ -448,7 +448,6 @@ else window.location.assign(url);
 | `tarot_celtic_10` | 켈틱 크로스 10장 깊은 풀이 (리딩 1건, 질문권 3회) | 4,900 | `kr.dalbitsaju.tarot.celtic10` | `tarot_celtic_10` | 소모성 |
 | `report_taekil` | 택일 상세 풀이 (택일 결과 1건, `readingId` 필요) | 990 | `kr.dalbitsaju.report.taekil` | `report_taekil` | 소모성 |
 | `report_love` 외 2차 상품 | (comingSoon) | — | 미정 | 미정 | — |
-| `sub_plus_monthly` / `sub_plus_yearly` | 플러스 구독 (2차) | 6,900 / 59,000 | 미정 | 미정 | 자동 갱신 구독, 그룹 `plus` |
 
 - App Store 상품 ID 는 **삭제해도 재사용할 수 없습니다.** 등록 전에 catalog 의 ID 를 확정하세요(번들 ID 와 접두사가 달라도 문제없음).
 - 스토어 가격은 각 스토어의 원화 가격 포인트에서 고릅니다. 3,900·5,900원 포인트가 있는지 확인하고, 없으면 catalog 가격을 맞춥니다(research/03 §5.2).
