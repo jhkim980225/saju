@@ -15,6 +15,7 @@ import { PaywallSheet } from './PaywallSheet';
 import { PillarTable } from './PillarTable';
 import { ReadingSectionCard, navLabel } from './ReadingSection';
 import { ShareSheet } from './ShareSheet';
+import { TopicReportCards } from './TopicReportCards';
 import { Badge, Button, Card, cx } from './ui';
 
 /**
@@ -155,6 +156,8 @@ export function ReadingView({
             body="원국표, 오행 비율, 대운 80년, 올해·내년 운세, 열두 달 월운까지 한 권으로 묶었어요. A4 20쪽이 넘는 분량이고 PDF로 저장할 수 있어요."
           />
         )}
+
+        <TopicReportCards profileId={profileId} ensureProfile={ensureProfile} name={name} returnTo={returnTo} />
 
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Button variant="secondary" onClick={() => setShareOpen(true)}>

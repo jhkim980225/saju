@@ -1,5 +1,6 @@
 /**
- * 유료 리포트 — 권한 확인 → 규칙 기반 생성·저장(즉시 응답) → (AI 설정 시) 뒤에서 문장 다듬기 → 같은 행을 최종본으로 교체.
+ * 유료 리포트(사주분석서 · 신년운세 · 궁합 · 연애·결혼운 · 재물·직업운)
+ * — 권한 확인 → 규칙 기반 생성·저장(즉시 응답) → (AI 설정 시) 뒤에서 문장 다듬기 → 같은 행을 최종본으로 교체.
  * - 결제가 확정되면 지급 알림으로 미리 만들기 시작한다(prewarm). 사용자가 처음 열 때는 이미 다듬는 중이거나 끝나 있다.
  * - 같은 조건의 리포트는 다시 만들지 않고 저장본을 돌려준다(AI 비용 절감).
  *   생성은 await 없이 끝나므로 "저장본 확인 → 저장" 사이에 다른 요청이 끼지 않는다(단일 인스턴스 기준).
@@ -14,11 +15,24 @@ import { badRequest, notFound, paymentRequired } from '../../lib/errors.js';
 import { newId } from '../../lib/ids.js';
 import type { AiService } from '../ai/service.js';
 import { compatKey, type CommerceService, type FulfilledEvent } from '../commerce/service.js';
+import { buildCareerWealthReport } from '../interpretation/careerWealthReport.js';
+import { buildLoveReport } from '../interpretation/loveReport.js';
 import { targetFortuneYear, yearPillarHangul, type ReadingAccess } from '../interpretation/reading.js';
 import { buildCompatibilityReport, buildSajuAnalysis, buildYearlyReport } from '../interpretation/report.js';
 import type { ProfileService } from '../profiles/service.js';
 
 type CreateInput = Omit<ReportCreateDto, 'year'> & { year?: number };
+
+/**
+ * 프로필 하나에 대한 주제별 리포트 — 권한 키 report:<type>:<profileId> (카탈로그 grant report:<type>)
+ * 평생 사주분석서와 같은 방식: 구매한 프로필만 열리고, 같은 프로필은 저장본을 다시 쓴다.
+ */
+const TOPIC_REPORTS = {
+  love: { productId: 'report_love', name: '연애·결혼운 리포트', build: buildLoveReport },
+  career_wealth: { productId: 'report_career_wealth', name: '재물·직업운 리포트', build: buildCareerWealthReport },
+} as const;
+type TopicReportType = keyof typeof TOPIC_REPORTS;
+const isTopicReport = (type: string): type is TopicReportType => Object.hasOwn(TOPIC_REPORTS, type);
 
 export function createReportService(db: Db, profiles: ProfileService, commerce: CommerceService, ai: AiService) {
   const access = (userId: string, profileId: string): ReadingAccess => {
@@ -29,12 +43,15 @@ export function createReportService(db: Db, profiles: ProfileService, commerce: 
   const yearlyUnlocked = (userId: string, profileId: string, year: number) =>
     commerce.isPremium(userId) || commerce.hasEntitlement(userId, `report:yearly:${profileId}:${year}`);
   const compatUnlocked = (userId: string, a: string, b: string) => commerce.isPremium(userId) || commerce.hasEntitlement(userId, compatKey(a, b));
+  const topicUnlocked = (userId: string, type: TopicReportType, profileId: string) =>
+    commerce.isPremium(userId) || commerce.hasEntitlement(userId, `report:${type}:${profileId}`);
 
   /** 저장된 리포트를 지금도 볼 권한이 있는가 (환불 후 열람 차단) */
   const canView = (userId: string, r: Report): boolean => {
     if (r.type === 'lifetime') return access(userId, r.profileId) === 'full';
     if (r.type === 'yearly') return r.year !== null && yearlyUnlocked(userId, r.profileId, r.year);
     if (r.type === 'compatibility') return r.partnerProfileId !== null && compatUnlocked(userId, r.profileId, r.partnerProfileId);
+    if (isTopicReport(r.type)) return topicUnlocked(userId, r.type, r.profileId);
     return false;
   };
 
@@ -140,6 +157,14 @@ export function createReportService(db: Db, profiles: ProfileService, commerce: 
         };
         break;
       }
+      case 'love':
+      case 'career_wealth': {
+        const topic = TOPIC_REPORTS[dto.type];
+        if (!topicUnlocked(userId, dto.type, profile.id)) throw paymentRequired(`${topic.name}를 구매하면 볼 수 있어요.`, { productId: topic.productId });
+        title = `${profile.name}님의 ${topic.name}`;
+        build = () => topic.build(profiles.chartOf(profile), now);
+        break;
+      }
       default:
         throw badRequest('곧 출시될 리포트예요.');
     }
@@ -182,6 +207,7 @@ export function createReportService(db: Db, profiles: ProfileService, commerce: 
     access,
     yearlyUnlocked,
     compatUnlocked,
+    topicUnlocked,
     create,
     get,
 
@@ -201,6 +227,7 @@ export function createReportService(db: Db, profiles: ProfileService, commerce: 
         let dto: CreateInput | null = null;
         if (kind !== 'report' || !profileId) continue;
         if (type === 'lifetime') dto = { type: 'lifetime', profileId };
+        else if (type && isTopicReport(type)) dto = { type, profileId };
         else if (type === 'yearly') dto = { type: 'yearly', profileId, year: Number(year) };
         // 권한 키는 두 ID 를 정렬해 두므로, 화면이 여는 순서(주문의 profileId → partnerProfileId)로 만든다
         else if (type === 'compatibility' && e.profileId && e.partnerProfileId) dto = { type: 'compatibility', profileId: e.profileId, partnerProfileId: e.partnerProfileId };

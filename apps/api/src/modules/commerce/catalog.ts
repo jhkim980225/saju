@@ -81,6 +81,27 @@ export const CATALOG: CatalogItem[] = [
     iosProductId: 'kr.dalbitsaju.report.compat',
     androidProductId: 'report_compat',
   },
+  // ── 주제별 리포트 (docs/research/01-competitor-features.md S8) — 프로필 하나, 일회성 ──
+  {
+    id: 'report_love',
+    name: '연애·결혼운 리포트',
+    description: '타고난 연애 방식과 배우자 자리, 나에게 맞는 사람, 부딪히기 쉬운 지점, 앞으로 10년의 인연 흐름과 가까운 3년 풀이까지 담았어요. PDF로 저장할 수 있어요.',
+    type: 'one_time',
+    price: 4900,
+    grants: ['report:love'],
+    iosProductId: 'kr.dalbitsaju.report.love',
+    androidProductId: 'report_love',
+  },
+  {
+    id: 'report_career_wealth',
+    name: '재물·직업운 리포트',
+    description: '돈이 들고 나는 구조, 버는 방식과 지키는 방식, 어울리는 일과 분야, 앞으로 10년의 전환 시기와 가까운 3년 풀이까지 담았어요. PDF로 저장할 수 있어요.',
+    type: 'one_time',
+    price: 4900,
+    grants: ['report:career_wealth'],
+    iosProductId: 'kr.dalbitsaju.report.careerwealth',
+    androidProductId: 'report_career_wealth',
+  },
   {
     id: 'bundle_newyear_2027',
     name: '2027 신년 패키지',
@@ -172,9 +193,6 @@ export const CATALOG: CatalogItem[] = [
     iosProductId: 'kr.dalbitsaju.tarot.celtic10',
     androidProductId: 'tarot_celtic_10',
   },
-  // ── 2차 출시 ───────────────────────────────────────────
-  { id: 'report_love', name: '연애·결혼운 리포트', description: '인연이 들어오는 시기와 나에게 맞는 사람.', type: 'one_time', price: 4900, grants: ['report:love'], comingSoon: true },
-  { id: 'report_career_wealth', name: '재물·직업운 리포트', description: '돈이 모이는 방식과 커리어 전환 타이밍.', type: 'one_time', price: 4900, grants: ['report:career_wealth'], comingSoon: true },
   // ── 택일 (docs/research/05-tarot-market.md §2.2 사주아이 '990원 택일') — 택일 결과 1건의 상세를 여는 소모성 상품 ──
   {
     id: 'report_taekil',

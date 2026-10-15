@@ -54,10 +54,12 @@ test('만세력: 날짜별 간지와 그 해의 24절기', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '2024년 24절기' }).locator('..').getByRole('listitem').filter({ hasText: '입춘' })).toContainText('2. 4. 17:27');
 });
 
-test('상점: 판매 상품·가격·출시 예정 상품', async ({ page }) => {
+test('상점: 판매 상품·가격 (일회성 판매만, 출시 예정 없음)', async ({ page }) => {
   await page.goto('/store');
   await expect(page.getByRole('heading', { name: '이용권 · 리포트' })).toBeVisible();
-  for (const g of ['사주 리포트', 'AI 상담 질문권', '플러스 구독']) await expect(page.getByRole('heading', { level: 2, name: g })).toBeVisible();
+  for (const g of ['사주 리포트', '주제별 리포트', 'AI 상담 질문권']) await expect(page.getByRole('heading', { level: 2, name: g })).toBeVisible();
+  // 플러스 구독·질문권 100회는 팔지 않는다(2026-10-15 결정)
+  await expect(page.getByRole('heading', { level: 2, name: '플러스 구독' })).toHaveCount(0);
 
   const card = (name: string) => page.getByRole('listitem').filter({ hasText: name });
   const onSale: [string, string][] = [
@@ -65,6 +67,8 @@ test('상점: 판매 상품·가격·출시 예정 상품', async ({ page }) => 
     ['평생 사주분석서', '9,900원'],
     ['2027 丁未년 신년운세', '5,900원'],
     ['사주 궁합 리포트', '5,900원'],
+    ['연애·결혼운 리포트', '4,900원'],
+    ['재물·직업운 리포트', '4,900원'],
     ['2027 신년 패키지', '16,900원'],
     ['AI 상담 질문권 10회', '3,900원'],
     ['AI 상담 질문권 30회', '9,900원'],
@@ -73,10 +77,8 @@ test('상점: 판매 상품·가격·출시 예정 상품', async ({ page }) => 
     await expect(card(name)).toContainText(price);
     await expect(card(name).getByRole('button', { name: '구매하기' })).toBeEnabled();
   }
-  for (const name of ['연애·결혼운 리포트', '재물·직업운 리포트', 'AI 상담 질문권 100회', '플러스 월 구독', '플러스 연 구독']) {
-    await expect(card(name)).toContainText('출시 예정');
-    await expect(card(name).getByRole('button', { name: '준비 중' })).toBeDisabled();
-  }
+  await expect(page.getByRole('button', { name: '준비 중' })).toHaveCount(0);
+  for (const name of ['AI 상담 질문권 100회', '플러스 월 구독', '플러스 연 구독']) await expect(card(name)).toHaveCount(0);
   await expect(card('2027 신년 패키지')).toContainText('23,700원'); // 정가(취소선)
   await expect(card('2027 丁未년 신년운세')).toContainText(/할인 마감 2026\. 12\. 31\./);
 

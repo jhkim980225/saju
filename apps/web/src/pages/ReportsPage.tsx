@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ReportDto } from '@saju/shared';
+import type { ReportDto, ReportType } from '@saju/shared';
 import { ArrowLeft, ChevronRight, Loader2, Printer } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -9,19 +9,25 @@ import { ElementBars } from '@/components/ElementBars';
 import { PillarTable } from '@/components/PillarTable';
 import { ReadingSectionCard } from '@/components/ReadingSection';
 import { toast } from '@/components/Toast';
-import { Badge, Button, Card, EmptyState, ErrorState, IconButton, PageHeader, Spinner } from '@/components/ui';
-import { qk } from '@/hooks/queries';
+import { TopicReportCards } from '@/components/TopicReportCards';
+import { Badge, Button, Card, Chip, EmptyState, ErrorState, IconButton, PageHeader, Spinner } from '@/components/ui';
+import { qk, useProfiles } from '@/hooks/queries';
 import { api } from '@/lib/api';
 import { t } from '@/lib/copy';
 import { formatDateKo } from '@/lib/format';
 import { isNativeApp, nativePlatform } from '@/lib/platform';
+import { STORAGE_KEYS, storage } from '@/lib/storage';
 import { printCurrentPage } from '@/native';
 
-const TYPE_LABEL = { lifetime: '사주분석서', yearly: '신년운세', compatibility: '궁합', love: '연애·결혼', wealth: '재물', career: '직업' } as const;
+const TYPE_LABEL: Record<ReportType, string> = { lifetime: '사주분석서', yearly: '신년운세', compatibility: '궁합', love: '연애·결혼운', career_wealth: '재물·직업운' };
 
 export function ReportsPage() {
   const navigate = useNavigate();
   const q = useQuery({ queryKey: qk.reports, queryFn: api.reports });
+  const profiles = useProfiles();
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  const profileList = profiles.data ?? [];
+  const target = profileList.find((p) => p.id === (pickedId ?? storage.get(STORAGE_KEYS.activeProfile))) ?? profileList[0];
   // 결제로 연 택일 결과도 보관함에 함께 보여 준다 (잠긴 미리보기는 택일 화면의 '최근에 본 택일'에)
   const taekil = useQuery({ queryKey: ['taekil', 'list'], queryFn: api.taekilList });
   const items = [
@@ -56,6 +62,21 @@ export function ReportsPage() {
             </li>
           ))}
         </ul>
+
+        {target && (
+          <div className="mt-10 border-t border-line pt-2">
+            {profileList.length > 1 && (
+              <div className="no-scrollbar -mx-5 mt-6 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0" role="group" aria-label="리포트를 볼 사람">
+                {profileList.map((p) => (
+                  <Chip key={p.id} active={p.id === target.id} onClick={() => setPickedId(p.id)}>
+                    {p.name} · {p.dayPillar}
+                  </Chip>
+                ))}
+              </div>
+            )}
+            <TopicReportCards profileId={target.id} name={target.name} returnTo="/my/reports" heading={`${target.name}님의 주제별 리포트`} className={profileList.length > 1 ? 'mt-4' : 'mt-6'} />
+          </div>
+        )}
       </Page>
     </div>
   );
@@ -148,11 +169,11 @@ export function ReportViewPage() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['report', id], queryFn: () => api.report(id!), enabled: Boolean(id) });
   const report = q.data;
-  // 사주분석서는 원국표·오행 비율·대운 타임라인을 함께 보여 준다
+  // 한 사람의 사주로 쓴 리포트(사주분석서·연애·결혼운·재물·직업운)는 근거가 되는 원국표·오행 비율·대운 타임라인을 함께 보여 준다
   const chart = useQuery({
     queryKey: ['chart', report?.profileId],
     queryFn: () => api.chart({ profileId: report!.profileId }),
-    enabled: report?.type === 'lifetime',
+    enabled: report?.type === 'lifetime' || report?.type === 'love' || report?.type === 'career_wealth',
   });
 
   // 규칙 기반 본문을 먼저 보여 주고, AI 가 다듬는 동안 본문 없이 진행만 폴링한다
@@ -287,6 +308,7 @@ export function ReportViewPage() {
               <ReadingSectionCard key={s.key} section={s} />
             ))}
             <p className="mt-6 text-xs text-ink-3">{t('disclaimer.standard')}</p>
+            {report.type === 'career_wealth' && <p className="mt-1 text-xs text-ink-3">{t('disclaimer.finance')}</p>}
             {report.generator === 'ai' && <p className="mt-1 text-xs text-ink-3">{t('disclaimer.ai')}</p>}
           </>
         )}

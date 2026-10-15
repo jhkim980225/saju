@@ -242,6 +242,38 @@ describe('사주분석서 — 결제 직후 미리 만들고, 규칙 기반 본�
   });
 });
 
+describe('주제별 리포트(연애·결혼운 · 재물·직업운) — 같은 방식으로 미리 만들고 다듬는다', () => {
+  it('결제 확정 → 규칙 기반 본문을 바로 저장하고, 덩어리 단위 진행률과 함께 AI 가 다듬는다', async () => {
+    const token = await member();
+    const profileId = await profile(token);
+    await buy(token, 'report_love', { profileId });
+    const [saved] = (await api('GET', '/reports', { token })).body;
+    expect(saved.type).toBe('love');
+    // 약 1만 자 → 3,500자 덩어리 몇 개를 한 번에 보낸다
+    const chunks = h.calls.length;
+    expect(chunks).toBeGreaterThanOrEqual(2);
+    expect(chunks).toBeLessThanOrEqual(5);
+
+    const first = await api('POST', '/reports', { token, body: { type: 'love', profileId } });
+    expect(first.body).toMatchObject({ id: saved.id, status: 'polishing', generator: 'rule', progress: { done: 0, total: chunks } });
+    settle(1);
+    await vi.waitFor(async () => expect((await progressOf(token, saved.id)).progress).toEqual({ done: 1, total: chunks }));
+    settle();
+    await vi.waitFor(async () => expect((await progressOf(token, saved.id)).status).toBe('ready'));
+    const done = (await api('GET', `/reports/${saved.id}`, { token })).body;
+    expect(done.generator).toBe('ai');
+    expect(done.sections.map((s: DraftSection) => s.key)).toEqual(first.body.sections.map((s: DraftSection) => s.key));
+    expect(done.sections.every((s: DraftSection) => s.paragraphs.every((p) => p.startsWith('[AI]')))).toBe(true);
+
+    // 재물·직업운은 따로 산다 — 연애·결혼운 권한으로는 열리지 않는다
+    expect((await api('POST', '/reports', { token, body: { type: 'career_wealth', profileId } })).status).toBe(402);
+    h.auto = true;
+    await buy(token, 'report_career_wealth', { profileId });
+    const types = (await api('GET', '/reports', { token })).body.map((r: { type: string }) => r.type).sort();
+    expect(types).toEqual(['career_wealth', 'love']);
+  });
+});
+
 describe('신년 패키지 · 궁합 1회권', () => {
   it('패키지 결제 → 분석서·신년운세를 미리 만들고, 1회권은 대상이 정해질 때 한 번만 쓴다', async () => {
     h.auto = true;

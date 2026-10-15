@@ -260,7 +260,8 @@ export interface ManseDto {
 // 리포트 (유료)
 // ---------------------------------------------------------------------------
 
-export const REPORT_TYPES = ['lifetime', 'yearly', 'compatibility', 'love', 'wealth', 'career'] as const;
+/** love · career_wealth — 프로필 하나에 대한 주제별 리포트(연애·결혼운 · 재물·직업운) */
+export const REPORT_TYPES = ['lifetime', 'yearly', 'compatibility', 'love', 'career_wealth'] as const;
 export type ReportType = (typeof REPORT_TYPES)[number];
 
 export const reportCreateSchema = z.object({

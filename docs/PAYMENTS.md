@@ -299,6 +299,22 @@ sequenceDiagram
 - [ ] 우리 상품마다 **결제창** 만들기(내 스토어 → 결제창). 가격은 `catalog.ts` 판매가와 똑같이, **쿠폰·할인은 쓰지 않음**(금액이 다르면 지급하지 않음)
   - 결제창 설정 3단계: **진입 페이지**와 **이동 페이지** 모두 `{웹 도메인}/payments/success?provider=groble` (돌아온 화면이 주문 상태를 조회하며 기다림)
   - 각 결제창 링크를 `GROBLE_PRODUCT_LINKS` 에 `상품ID=링크` 로 적기. 타로·택일 같은 결과 열람 상품도 각각 하나씩
+  - 만들 결제창(2026-10-15 카탈로그 기준, 가격은 VAT 포함 판매가):
+
+    | 상품 ID | 결제창 이름 | 가격 |
+    |---|---|---:|
+    | `report_saju_mini` | 첫 사주 미니 리포트 | 990원 |
+    | `report_saju_lifetime` | 평생 사주분석서 | 9,900원 |
+    | `report_newyear_2027` | 2027 丁未년 신년운세 | 5,900원 (2027-01-01부터 7,900원) |
+    | `report_compat` | 사주 궁합 리포트 | 5,900원 |
+    | `report_love` | 연애·결혼운 리포트 | 4,900원 |
+    | `report_career_wealth` | 재물·직업운 리포트 | 4,900원 |
+    | `bundle_newyear_2027` | 2027 신년 패키지 | 16,900원 |
+    | `chat_pack_10` / `chat_pack_30` | AI 상담 질문권 10회 / 30회 | 3,900원 / 9,900원 |
+    | `tarot_question_3` / `tarot_choice_3` | 질문 타로 3장 / 양자택일 타로 3장 깊은 풀이 | 각 990원 |
+    | `tarot_love_5` / `tarot_compat_5` | 연애 속마음·재회 타로 5장 / 궁합 타로 5장 깊은 풀이 | 각 2,900원 |
+    | `tarot_celtic_10` | 켈틱 크로스 10장 깊은 풀이 | 4,900원 |
+    | `report_taekil` | 택일 상세 풀이 | 990원 |
 - [ ] 내 스토어 → **연동** → 웹훅: URL `https://{API 도메인}/api/v1/payments/webhooks/groble`, 이벤트 `payment.completed`·`payment.refunded`·`payment.cancel_requested` 선택 → 발급된 시크릿을 `GROBLE_WEBHOOK_SECRET` 에(한 번만 보여 줌)
 - [ ] 연동 화면의 **테스트 발송** → 서버가 200(ref 없는 테스트는 기록만)
 - [ ] **실결제 1건**(가장 싼 상품) → 웹 화면이 완료로 바뀌는지, 주문에 `merchantUid` 가 저장됐는지 확인 → 그로블에서 환불 → 주문 `refunded`·권한 회수 확인
