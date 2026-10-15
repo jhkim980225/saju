@@ -233,11 +233,15 @@ describe('사주분석서 — 결제 직후 미리 만들고, 규칙 기반 본�
     await buy(token, 'report_saju_lifetime', { profileId: b });
     expect(h.inFlight).toBe(16);
     expect(h.calls).toHaveLength(16);
-    settle();
-    // 자리가 나면 남은 2덩어리가 이어서 나간다
-    await vi.waitFor(() => expect(h.calls).toHaveLength(18));
-    settle();
+    // 두 리포트의 덩어리 수 합(본문 길이에 따라 8~9개씩) — 16을 넘는 만큼은 자리가 날 때까지 기다린다
     const ids = (await api('GET', '/reports', { token })).body.map((r: { id: string }) => r.id);
+    let total = 0;
+    for (const id of ids) total += (await progressOf(token, id)).progress!.total;
+    expect(total).toBeGreaterThan(16);
+    settle();
+    // 자리가 나면 남은 덩어리가 이어서 나간다
+    await vi.waitFor(() => expect(h.calls).toHaveLength(total));
+    settle();
     for (const id of ids) await vi.waitFor(async () => expect((await progressOf(token, id)).status).toBe('ready'));
   });
 });

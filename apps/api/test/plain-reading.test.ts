@@ -1,0 +1,65 @@
+/**
+ * 무료 풀이 화면의 말투 — 사주를 모르는 사람이 읽어도 이해되는 사람 말투인지 회귀 검사.
+ * 60일주 × (이름 있음/없음) × 시간 앎/모름. 사주 근거(basis)는 '사주로 보면'에 접어 두므로 검사에서 뺀다.
+ */
+import { calculateSaju, type BirthInput } from '@saju/core';
+import type { ReadingSection } from '@saju/shared';
+import { describe, expect, it } from 'vitest';
+import { buildBasicReading } from '../src/modules/interpretation/reading.js';
+
+const NOW = new Date('2026-10-15T03:00:00Z');
+const FREE = ['overview', 'personality', 'elements', 'yongsin', 'shinsal'];
+
+/** 1990-01-01 부터 60일 — 일주 60개를 한 번씩 */
+const births: BirthInput[] = Array.from({ length: 60 }, (_, i) => {
+  const d = new Date(Date.UTC(1990, 0, 1 + i));
+  return { calendar: 'solar', year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate(), hour: i % 3 === 0 ? null : 9 + (i % 12), minute: i % 3 === 0 ? null : 0, gender: i % 2 ? 'male' : 'female' };
+});
+
+/** 화면에 그대로 보이는 글(근거 접힘 제외) — 잠긴 섹션은 미리보기 문단·요약만 */
+const visible = (s: ReadingSection) => [s.summary, ...s.paragraphs, ...(s.tips ?? [])].filter(Boolean);
+/** 문단 끝 괄호 속 신살 이름 '(천을귀인)'은 용어를 원하는 사람을 위한 꼬리표라 허용 */
+const stripTermTag = (t: string) => t.replace(/\s\([가-힣]+(귀인|살|망)\)$/, '');
+
+/** 낱말 첫머리에서만 — '번지지'·'상관없이' 같은 일상어는 걸리지 않게('지지'는 일상어와 겹쳐 뺐다) */
+const JARGON = ['당신', '일간', '일지', '용신', '희신', '십신', '12운성', '지장간', '신강', '신약', '중화', '천간', '겁재', '비견', '식신', '상관(?!없)', '편재', '정재', '편관', '정관', '편인', '정인', '순행', '역행'].map(
+  (j) => [j, new RegExp(`(^|[^가-힣])${j}`)] as const,
+);
+const STEMS = ['갑목', '을목', '병화', '정화', '무토', '기토', '경금', '신금', '임수', '계수'];
+
+describe('무료 풀이 — 사람이 말하듯 쉬운 말', () => {
+  for (const name of ['서윤', '']) {
+    it(`60일주 · 이름 ${name ? '있음' : '없음'} — 용어·한자·'당신'·일간 이름·반복 문장 없음`, () => {
+      for (const birth of births) {
+        const r = buildBasicReading(calculateSaju(birth), { access: 'none', now: NOW, name });
+        const secs = r.sections;
+        const free = secs.filter((s) => FREE.includes(s.key));
+        expect(free.map((s) => s.key)).toEqual(FREE);
+        const lines = [r.headline, ...secs.flatMap(visible)].map(stripTermTag);
+        const where = `${birth.year}-${birth.month}-${birth.day} ${name || '(이름 없음)'}`;
+        for (const line of lines) {
+          expect(line, where).not.toMatch(/[一-鿿]{2,}/); // 한자 단어(괄호 속 한 글자 '火' 정도만 허용)
+          for (const [j, re] of JARGON) expect(re.test(line), `${where}: '${j}' — ${line}`).toBe(false);
+          for (const s of STEMS) expect(line.includes(`${s}은`) || line.includes(`${s}의`) || line.includes(`${s}에게`), `${where}: ${s} — ${line}`).toBe(false);
+          expect(line, where).not.toMatch(/undefined|null|\{|\}|\s{2,}|님님/);
+          if (!name) expect(line, where).not.toContain('님');
+        }
+        // 같은 문장이 화면에 두 번 나오지 않는다(잠긴 섹션 미리보기 포함)
+        const sentences = lines.flatMap((l) => l.split(/(?<=[.!?…])\s+/)).map((x) => x.trim()).filter((x) => x.length > 12);
+        const seen = new Set<string>();
+        for (const s of sentences) {
+          expect(seen.has(s), `${where}: 반복 — ${s}`).toBe(false);
+          seen.add(s);
+        }
+        if (name) expect(free[0]!.paragraphs[0]).toMatch(/^서윤님은 /);
+      }
+    });
+  }
+
+  it('근거는 basis 로 따로 — 일주·용신 같은 용어는 거기에만', () => {
+    const r = buildBasicReading(calculateSaju(births[0]!), { access: 'none', now: NOW, name: '서윤' });
+    const overview = r.sections.find((s) => s.key === 'overview')!;
+    expect(overview.basis).toMatch(/일주 · 일간 .+ · 용신 /);
+    expect(r.sections.find((s) => s.key === 'yongsin')!.tips!.length).toBeGreaterThan(0);
+  });
+});

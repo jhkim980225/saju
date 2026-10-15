@@ -27,7 +27,7 @@ export function ResultPage() {
     const id = setTimeout(() => setMinWaitDone(true), MIN_LOADING_MS);
     return () => clearTimeout(id);
   }, []);
-  const q = useQuery({ queryKey: ['reading', 'draft', draft?.dto], queryFn: () => api.reading({ birth: draft!.dto }), enabled: Boolean(draft), retry: 1 });
+  const q = useQuery({ queryKey: ['reading', 'draft', draft?.dto, draft?.form.name], queryFn: () => api.reading({ birth: draft!.dto, name: draft!.form.name.trim() || undefined }), enabled: Boolean(draft), retry: 1 });
   if (!draft) return <Navigate to="/input" replace />;
   const name = draft.form.name.trim() || t('common.me');
 

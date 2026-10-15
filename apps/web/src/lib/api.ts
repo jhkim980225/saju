@@ -149,7 +149,7 @@ export const api = {
 
   // 사주
   chart: (body: { birth?: BirthInputDto; profileId?: string }) => post<SajuChart>('/saju/chart', body),
-  reading: (body: { birth?: BirthInputDto; profileId?: string }) => post<ReadingDto>('/saju/reading', body),
+  reading: (body: { birth?: BirthInputDto; profileId?: string; name?: string }) => post<ReadingDto>('/saju/reading', body),
   years: (body: { birth?: BirthInputDto; profileId?: string }) =>
     post<{ year: number; ganzhi: string; hangul: string; tenGod: string; score: number; grade: string }[]>('/saju/years', body),
   manse: (date?: string) => get<ManseDto>(`/saju/manse${date ? `?date=${date}` : ''}`, 'none'),

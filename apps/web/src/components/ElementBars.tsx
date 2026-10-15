@@ -4,13 +4,17 @@ import { t } from '@/lib/copy';
 import { ELEMENT_META, ELEMENT_ORDER } from '@/lib/format';
 import { cx } from './ui';
 
-export function elementStatus(count: number, percent: number): 'none' | 'weak' | 'balanced' | 'developed' | 'excess' {
+/** 글자 개수 기준 상태 — 풀이 글('나무 3개, 불 0개')과 같은 기준 */
+export function elementStatus(count: number): 'none' | 'weak' | 'balanced' | 'developed' | 'excess' {
   if (count === 0) return 'none';
-  if (percent >= 35) return 'excess';
-  if (percent >= 25) return 'developed';
-  if (percent >= 12) return 'balanced';
+  if (count >= 4) return 'excess';
+  if (count === 3) return 'developed';
+  if (count === 2) return 'balanced';
   return 'weak';
 }
+
+/** 풀이 글과 같은 쉬운 이름 */
+const PLAIN_NAME: Record<Element, string> = { wood: '나무', fire: '불', earth: '흙', metal: '쇠', water: '물' };
 
 /** 도넛 전용 색(styles/index.css --chart-*) — 원형으로 맞닿는 이웃끼리도 구분되게 조정한 단계 */
 const CHART_COLOR: Record<Element, string> = {
@@ -44,22 +48,22 @@ function arcPath(a0: number, a1: number) {
 }
 
 /**
- * 오행 분포 — 도넛(상생 순서 목→화→토→금→수, 12시에서 시계 방향) + 범례(비율·상태).
- * 정확한 비교는 범례의 숫자가 맡고, 도넛은 한눈에 보는 비중만 보여 준다.
- * 조각·범례에 마우스를 올리거나(터치는 탭) 포커스하면 가운데에 그 오행이 나온다. 기본은 가장 강한 오행.
+ * 오행 분포 — 도넛(상생 순서 목→화→토→금→수, 12시에서 시계 방향) + 범례(글자 수·상태).
+ * 사주 여덟(시간 모르면 여섯) 글자의 오행 개수 기준이라 풀이 글과 같은 숫자를 보여 준다. 정확한 비교는 범례의 숫자가 맡는다.
+ * 조각·범례에 마우스를 올리거나(터치는 탭) 포커스하면 가운데에 그 오행이 나온다. 기본은 가장 많은 오행.
  */
 export function ElementBars({ chart, compact }: { chart: SajuChart; compact?: boolean }) {
-  const { count, percent } = chart.elements;
+  const { count } = chart.elements;
   const [active, setActive] = useState<Element | null>(null);
 
-  const total = ELEMENT_ORDER.reduce((s, e) => s + percent[e], 0) || 1;
-  const strongest = ELEMENT_ORDER.reduce((a, b) => (percent[b] > percent[a] ? b : a));
+  const total = ELEMENT_ORDER.reduce((s, e) => s + count[e], 0) || 1;
+  const strongest = ELEMENT_ORDER.reduce((a, b) => (count[b] > count[a] ? b : a));
   const shown = active ?? strongest;
-  const present = ELEMENT_ORDER.filter((e) => percent[e] > 0);
+  const present = ELEMENT_ORDER.filter((e) => count[e] > 0);
 
   let start = 0;
   const segments = present.map((e) => {
-    const sweep = (percent[e] / total) * Math.PI * 2;
+    const sweep = (count[e] / total) * Math.PI * 2;
     const seg = { e, a0: start, a1: start + sweep };
     start += sweep;
     return seg;
@@ -67,7 +71,7 @@ export function ElementBars({ chart, compact }: { chart: SajuChart; compact?: bo
 
   const label = (e: Element) => {
     const m = ELEMENT_META[e];
-    return t('a11y.ohaengBar', { element: `${m.name}(${m.hanja})`, count: count[e], percent: Math.round(percent[e]), status: t(`result.ohaengChart.status.${elementStatus(count[e], percent[e])}`) });
+    return t('a11y.ohaengBar', { element: `${m.name}(${m.hanja})`, count: count[e], status: t(`result.ohaengChart.status.${elementStatus(count[e])}`) });
   };
   const toggle = (e: Element) => setActive((cur) => (cur === e ? null : e));
 
@@ -95,16 +99,16 @@ export function ElementBars({ chart, compact }: { chart: SajuChart; compact?: bo
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center" aria-hidden>
           <span className={cx('font-serif font-semibold leading-none text-ink', compact ? 'text-2xl' : 'text-3xl sm:text-4xl')}>{ELEMENT_META[shown].hanja}</span>
           <span className="tabular mt-1.5 text-xs text-ink-2">
-            {ELEMENT_META[shown].name} {Math.round(percent[shown])}%
+            {PLAIN_NAME[shown]} {count[shown]}개
           </span>
-          {!active && !compact && <span className="mt-0.5 text-[11px] text-ink-3">가장 강한 기운</span>}
+          {!active && !compact && <span className="mt-0.5 text-[11px] text-ink-3">가장 많은 기운</span>}
         </div>
       </div>
 
       <ul className={cx('min-w-0 flex-1', compact ? 'space-y-1' : 'space-y-1.5')}>
         {ELEMENT_ORDER.map((e) => {
           const m = ELEMENT_META[e];
-          const status = elementStatus(count[e], percent[e]);
+          const status = elementStatus(count[e]);
           return (
             <li key={e}>
               <button
@@ -122,9 +126,9 @@ export function ElementBars({ chart, compact }: { chart: SajuChart; compact?: bo
               >
                 <span className="size-2.5 rounded-[3px] [print-color-adjust:exact]" style={{ background: CHART_COLOR[e] }} aria-hidden />
                 <span className="whitespace-nowrap text-[15px] text-ink">
-                  <span className="font-serif font-semibold">{m.hanja}</span> <span className="text-xs text-ink-2">{m.name}</span>
+                  <span className="font-serif font-semibold">{m.hanja}</span> <span className="text-xs text-ink-2">{PLAIN_NAME[e]}</span>
                 </span>
-                <span className="tabular text-right text-sm font-medium text-ink">{Math.round(percent[e])}%</span>
+                <span className="tabular text-right text-sm font-medium text-ink">{count[e]}개</span>
                 <span className={cx('min-w-7 text-right text-xs', status === 'none' || status === 'weak' ? 'text-danger' : status === 'excess' ? 'text-gold' : 'text-ink-3')}>
                   {t(`result.ohaengChart.status.${status}`)}
                 </span>

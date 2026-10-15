@@ -8,13 +8,13 @@ import { buildBasicReading, yearList, type ReadingAccess } from '../interpretati
 import { birthDtoToInput } from '../profiles/service.js';
 
 /** birth 또는 profileId 로 원국 계산. profileId 는 로그인 필요 */
-export function resolveChart(app: FastifyInstance, req: FastifyRequest, body: z.output<typeof chartRequestSchema>): { chart: SajuChart; profileId: string | null } {
+export function resolveChart(app: FastifyInstance, req: FastifyRequest, body: z.output<typeof chartRequestSchema>): { chart: SajuChart; profileId: string | null; name: string | null } {
   if (body.profileId) {
     if (!req.user) throw unauthorized();
     const p = app.ctx.services.profiles.getOwned(req.user.id, body.profileId);
-    return { chart: app.ctx.services.profiles.chartOf(p), profileId: p.id };
+    return { chart: app.ctx.services.profiles.chartOf(p), profileId: p.id, name: p.name };
   }
-  return { chart: calculateSaju(birthDtoToInput(body.birth!)), profileId: null };
+  return { chart: calculateSaju(birthDtoToInput(body.birth!)), profileId: null, name: body.name ?? null };
 }
 
 export function todayInSeoul(): { year: number; month: number; day: number } {
@@ -44,9 +44,9 @@ export const sajuRoutes: FastifyPluginAsync = async (app) => {
   /** 기본 풀이 — 구매 여부에 따라 유료 섹션 잠금 */
   app.post('/reading', { preHandler: app.optionalAuth }, async (req) => {
     const body = parse(chartRequestSchema, req.body);
-    const { chart, profileId } = resolveChart(app, req, body);
+    const { chart, profileId, name } = resolveChart(app, req, body);
     const access: ReadingAccess = req.user && profileId ? app.ctx.services.reports.access(req.user.id, profileId) : 'none';
-    return buildBasicReading(chart, { access });
+    return buildBasicReading(chart, { access, name });
   });
 
   /** 세운 목록 (연도별 점수) */

@@ -122,7 +122,7 @@ export function ReadingView({
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-semibold">{t('result.ohaengChart.title')}</h2>
             <span className="text-xs text-ink-3">
-              용신 {chart.yongsin.yongsin === 'wood' ? '木' : chart.yongsin.yongsin === 'fire' ? '火' : chart.yongsin.yongsin === 'earth' ? '土' : chart.yongsin.yongsin === 'metal' ? '金' : '水'} · {chart.strength.level}
+              필요한 기운 · {{ wood: '나무(木)', fire: '불(火)', earth: '흙(土)', metal: '쇠(金)', water: '물(水)' }[chart.yongsin.yongsin]}
             </span>
           </div>
           <ElementBars chart={chart} />

@@ -166,6 +166,8 @@ export type { SajuChart, FortuneEvaluation, FortuneScores, CompatibilityResult, 
 export const chartRequestSchema = z.object({
   birth: birthInputSchema.optional(),
   profileId: z.string().optional(),
+  /** 풀이에서 부를 이름(비회원 입력용). profileId 로 볼 때는 프로필 이름을 쓴다 */
+  name: z.string().max(20).optional(),
 }).refine((v) => v.birth || v.profileId, { message: 'birth 또는 profileId 가 필요합니다.' });
 export type ChartRequestDto = z.input<typeof chartRequestSchema>;
 
@@ -185,6 +187,10 @@ export interface ReadingSection {
   locked?: boolean;
   /** 잠금 해제에 필요한 상품 */
   unlockProductId?: string;
+  /** 바로 해 볼 수 있는 일 — 본문 뒤 목록으로 보여 준다 */
+  tips?: string[];
+  /** 사주 근거 한 줄(용어 포함) — 화면에서는 '사주로 보면'으로 접어 둔다 */
+  basis?: string;
 }
 
 export interface ReadingDto {

@@ -28,9 +28,9 @@ const TOC: Record<string, string[]> = {
 /** 카피 가이드에 없는 섹션의 짧은 라벨(섹션 바로가기 칩용) */
 const SHORT_LABEL: Record<string, string> = {
   elements: '오행',
-  yongsin: '용신',
-  shinsal: '신살',
-  tenGods: '십신',
+  yongsin: '필요한 기운',
+  shinsal: '특별한 기운',
+  tenGods: '움직이는 힘',
   relations: '합충',
   stages: '12운성',
   total: '총운',
@@ -86,6 +86,25 @@ export function ReadingSectionCard({ section, onUnlock, price }: { section: Read
           <p key={i}>{p}</p>
         ))}
       </div>
+      {!locked && section.tips && section.tips.length > 0 && (
+        <ul className="mt-4 space-y-2">
+          {section.tips.map((tip) => (
+            <li key={tip} className="flex gap-2.5 text-[15px] leading-relaxed text-ink-2">
+              <span className="mt-[9px] size-1.5 shrink-0 rounded-full bg-gold" aria-hidden />
+              {tip}
+            </li>
+          ))}
+        </ul>
+      )}
+      {!locked && section.basis && (
+        // 용어가 궁금한 사람만 펼쳐 보게 — 본문은 쉬운 말로만
+        <details className="group mt-4 text-sm text-ink-3">
+          <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-full border border-line px-3 py-1 hover:text-ink-2 [&::-webkit-details-marker]:hidden">
+            사주로 보면 <span className="transition-transform group-open:rotate-180" aria-hidden>▾</span>
+          </summary>
+          <p className="mt-2 leading-relaxed">{section.basis}</p>
+        </details>
+      )}
       {locked && (
         <div className="mt-2 rounded-2xl border border-gold/40 bg-surface p-5" aria-label={t('a11y.lockedSection')}>
           <p className="flex items-center gap-2 font-semibold text-gold">

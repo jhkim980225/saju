@@ -226,10 +226,10 @@
       "infoTitle": "오행은 이렇게 판단해요",
       "count": "{{count}}개",
       "status": {
-        "excess": "과다",
-        "developed": "발달",
-        "balanced": "적정",
-        "weak": "부족",
+        "excess": "아주 많음",
+        "developed": "많음",
+        "balanced": "적당",
+        "weak": "적음",
         "none": "없음"
       },
       "tipForMissing": "부족한 기운 채우는 법"
@@ -593,7 +593,7 @@
   },
   "a11y": {
     "pillarCell": "{{position}} {{kind}} {{hangul}}, 한자 {{hanja}}, {{element}} {{polarity}}",
-    "ohaengBar": "{{element}} {{percent}}%, {{count}}개, {{status}}",
+    "ohaengBar": "{{element}} {{count}}개, {{status}}",
     "lockedSection": "잠긴 내용이에요. 전체 풀이를 열면 읽을 수 있어요.",
     "closeSheet": "시트 닫기",
     "openGlossary": "{{term}} 뜻 보기"
