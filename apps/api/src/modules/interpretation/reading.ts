@@ -17,18 +17,17 @@ import {
   type Element,
   type FortuneEvaluation,
   type FortuneGrade,
+  type FortuneHighlight,
   type SajuChart,
   type TenGod,
   type TenGodGroup,
 } from '@saju/core';
-import { FORTUNE_CATEGORY_LABEL, type DailyFortuneDto, type ReadingDto, type ReadingSection, type YearlyFortuneDto } from '@saju/shared';
+import { FORTUNE_CATEGORY_LABEL, GRADE_PLAIN_LABEL, TEN_GOD_PLAIN_LABEL, type DailyFortuneDto, type ReadingDto, type ReadingSection, type YearlyFortuneDto } from '@saju/shared';
 import {
   DAY_MASTERS,
   DAY_PILLARS,
   ELEMENT_CONTENT,
   FORTUNE_TEMPLATES,
-  SHINSAL_CONTENT,
-  STRENGTH_CONTENT,
   TEN_GOD_CONTENT,
   TWELVE_STAGE_CONTENT,
   YONGSIN_CONTENT,
@@ -36,6 +35,7 @@ import {
   type ScoreBand,
 } from './content/index.js';
 import { ELEMENT_PLAIN, SHINSAL_ORDER, SHINSAL_PLAIN, STEM_PLAIN, STRENGTH_PLAIN, displayName, nameSubject, personalize } from './content/plain.js';
+import { CHILD_HINT, GROUP_PLAIN, HIGHLIGHT_PLAIN, HIGHLIGHT_TERM, TEN_GOD_PLAIN } from './content/reportPlain.js';
 
 /** 신년운세·"올해 운세" 대상 연도 — KST 기준 10월부터는 다음 해 (웹 lib/format.ts 와 같은 규칙) */
 export function targetFortuneYear(now = new Date()): number {
@@ -185,21 +185,30 @@ function yongsinSection(chart: SajuChart, name: string | null): ReadingSection {
   };
 }
 
+/** 조사만 — '배움' → '이', '여유' → '가' */
+const pt = (word: string, withBatchim: string, without: string) => josa(word, withBatchim, without).slice(word.length);
+const GROUP_ORDER: TenGodGroup[] = ['비겁', '식상', '재성', '관성', '인성'];
+
 function tenGodSection(chart: SajuChart, name: string | null): ReadingSection {
   const g = groupCount(chart);
   const top = dominantTenGod(chart);
-  const tg = TEN_GOD_CONTENT[top];
-  const absentGroups = (Object.keys(g) as TenGodGroup[]).filter((k) => g[k] === 0);
+  const tp = TEN_GOD_PLAIN[top];
+  const absentGroups = GROUP_ORDER.filter((k) => g[k] === 0);
+  // 용어(비견·식상…) 대신 쉬운 이름으로 — 이름은 basis 에만
   const paragraphs = [
-    `${nameSubject(name, '은')}무엇보다 '${tg.keyword}'${josa(tg.keyword, '이', '가').slice(tg.keyword.length)} 강한 사람이에요. 나를 움직이는 힘이 어디서 나오는지 알면, 그 힘을 훨씬 잘 쓸 수 있어요.`,
-    `${top}(${tg.keyword}) — ${tg.meaning}`,
-    tg.strong,
+    `${nameSubject(name, '은')}무엇보다 '${tp.phrase}'${pt(tp.phrase, '이', '가')} 강한 사람이에요. 나를 움직이는 힘이 어디서 나오는지 알면, 그 힘을 훨씬 잘 쓸 수 있어요.`,
+    tp.meaning,
+    tp.strong,
   ];
-  for (const group of absentGroups) {
-    const rep = (Object.keys(TEN_GOD_CONTENT) as TenGod[]).find((t) => TEN_GOD_GROUP[t] === group)!;
-    paragraphs.push(`${group}이(가) 없는 사주예요. ${TEN_GOD_CONTENT[rep].absent}`);
-  }
-  return { key: 'tenGods', title: '나를 움직이는 힘', summary: `'${tg.keyword}'${josa(tg.keyword, '이', '가').slice(tg.keyword.length)} 나를 움직이는 힘이에요`, keywords: [tg.keyword], paragraphs, basis: `가장 두드러진 십신 ${top}` };
+  for (const group of absentGroups) paragraphs.push(`'${GROUP_PLAIN[group].name}'${pt(GROUP_PLAIN[group].name, '은', '는')} 비어 있는 편이에요. ${GROUP_PLAIN[group].absent}`);
+  return {
+    key: 'tenGods',
+    title: '나를 움직이는 힘',
+    summary: `'${tp.phrase}'${pt(tp.phrase, '이', '가')} 나를 움직여요`,
+    keywords: [TEN_GOD_PLAIN_LABEL[top]!],
+    paragraphs,
+    basis: `가장 두드러진 십성 ${top} · ${GROUP_ORDER.map((k) => `${k} ${g[k]}`).join(' · ')}`,
+  };
 }
 
 function shinsalSection(chart: SajuChart): ReadingSection {
@@ -225,17 +234,29 @@ function shinsalSection(chart: SajuChart): ReadingSection {
   };
 }
 
+// --- 유료 섹션(미니 리포트·사주분석서로 열림) — 무료 섹션과 같은 쉬운 말 기준. 용어는 basis 에만 ---
+
+/** 다섯 묶음 개수 — basis 용 '비겁 2 · 식상 0 …' */
+const groupBasis = (g: Record<TenGodGroup, number>) => GROUP_ORDER.map((k) => `${k} ${g[k]}`).join(' · ');
+
 function wealthSection(chart: SajuChart, name: string | null): ReadingSection {
   const dm = dayMasterContent(chart);
   const g = groupCount(chart);
   const p = [dmText(chart, dm.wealth, name)];
-  if (g.재성 >= 3) p.push('사주에 재성이 많아 돈의 흐름을 잘 읽고 기회를 포착하는 감각이 있어요. 다만 일간의 힘이 받쳐줘야 재물을 지킬 수 있으니, 체력과 집중력 관리가 곧 재테크예요.');
-  else if (g.재성 === 0) p.push('재성이 드러나지 않은 사주는 돈 자체보다 실력·명예·관계를 쌓을 때 재물이 따라오는 구조예요. 전문성을 키우는 것이 가장 확실한 재테크가 돼요.');
-  else p.push('재성이 적당히 자리해 있어 꾸준히 벌고 모으는 힘이 있어요. 수입원을 하나 더 만드는 작은 실험이 좋은 결과로 이어질 수 있어요.');
-  if (g.식상 >= 2) p.push('식상이 발달해 재능과 아이디어를 수익으로 연결하는 힘이 있어요. 콘텐츠·기술·서비스처럼 "내가 만든 것"으로 버는 방식이 잘 맞아요.');
-  if (g.비겁 >= 3) p.push('비겁이 강해 동업이나 돈거래에서 내 몫을 지키는 습관이 중요해요. 계약서와 기록을 꼼꼼히 남겨 두세요.');
+  if (g.재성 >= 3) p.push('사주에 돈을 다루는 기운이 많아서, 돈이 어디로 흐르는지 읽고 기회를 알아채는 감각이 있어요. 다만 몸과 마음이 지치면 번 것도 새기 쉬우니, 컨디션 관리가 곧 재테크예요.');
+  else if (g.재성 === 0) p.push('사주에 돈을 다루는 기운이 겉으로 드러나지 않아요. 이런 사람은 돈을 좇을 때보다 실력과 이름을 쌓을 때 재물이 뒤따라와요. 한 분야의 전문가가 되는 것이 가장 확실한 길이에요.');
+  else p.push('사주에 돈을 다루는 기운이 알맞게 있어서 꾸준히 벌고 모으는 힘이 있어요. 수입원을 하나 더 만드는 작은 실험이 좋은 결과로 이어질 수 있어요.');
+  if (g.식상 >= 2) p.push('재능과 아이디어를 수입으로 바꾸는 힘도 있어요. 콘텐츠·기술·서비스처럼 "내가 만든 것"으로 버는 방식이 잘 맞아요.');
+  if (g.비겁 >= 3) p.push('친구나 동료와 돈이 얽힐 일이 많은 편이라, 내 몫을 지키는 습관이 특히 중요해요. 동업이나 돈거래에서는 계약서와 기록을 꼼꼼히 남겨 두세요.');
   const score = Math.min(95, 55 + g.재성 * 6 + g.식상 * 4 - Math.max(0, g.비겁 - 2) * 4);
-  return { key: 'wealth', title: '재물운', summary: g.재성 ? '흐름을 읽으면 재물이 쌓이는 사주' : '실력이 곧 재물이 되는 사주', paragraphs: p, score };
+  return {
+    key: 'wealth',
+    title: '재물운',
+    summary: g.재성 ? '흐름을 읽으면 재물이 쌓이는 사주예요' : '실력이 곧 재물이 되는 사주예요',
+    paragraphs: p,
+    score,
+    basis: `재성 ${g.재성} · 식상 ${g.식상} · 비겁 ${g.비겁} (여덟 글자 속 십성 개수)`,
+  };
 }
 
 function loveSection(chart: SajuChart, name: string | null): ReadingSection {
@@ -244,93 +265,145 @@ function loveSection(chart: SajuChart, name: string | null): ReadingSection {
   const g = groupCount(chart);
   const male = chart.input.gender === 'male';
   const spouseGroup: TenGodGroup = male ? '재성' : '관성';
-  const love = dmText(chart, dm.love, name);
-  const p = [love, dp.love];
-  if (g[spouseGroup] === 0) p.push(`배우자를 뜻하는 ${spouseGroup}이(가) 사주에 드러나 있지 않아, 인연이 운에서 들어오는 시기를 잘 잡는 것이 중요해요. 대운·세운에서 ${spouseGroup} 기운이 올 때 좋은 만남이 이어지기 쉬워요.`);
-  else if (g[spouseGroup] >= 3) p.push(`${spouseGroup}이(가) 많아 이성의 관심을 받기 쉬운 편이에요. 여러 인연 중 나를 편안하게 해주는 사람을 알아보는 안목이 행복의 열쇠예요.`);
-  if (hasShinsal(chart, '도화살')) p.push(`${SHINSAL_CONTENT['도화살'].summary} 매력이 빛나는 만큼 표현은 진솔하게 해 주세요.`);
-  if (hasShinsal(chart, '홍염살')) p.push(SHINSAL_CONTENT['홍염살'].summary);
+  const p = [dmText(chart, dm.love, name), dp.love];
+  if (g[spouseGroup] === 0) p.push('사주에 짝을 뜻하는 기운이 드러나 있지 않아요. 그래서 인연은 흐름이 들어오는 때를 잘 잡는 게 중요해요. 해마다 바뀌는 흐름에서 이 기운이 들어오는 해에 좋은 만남이 이어지기 쉬워요.');
+  else if (g[spouseGroup] >= 3) p.push('사주에 짝을 뜻하는 기운이 넉넉해서 관심을 받기 쉬운 편이에요. 여러 인연 가운데 나를 편안하게 해 주는 사람을 알아보는 눈이 행복의 열쇠예요.');
+  // 무료 '특별한 기운' 섹션과 같은 문장을 되풀이하지 않게 연애에 맞춘 말로
+  if (hasShinsal(chart, '도화살')) p.push('연애에서는 사람을 끄는 매력이 첫 만남부터 빛을 발해요. 관심을 많이 받는 만큼, 마음은 한 사람에게 진솔하게 표현해 주세요.');
+  if (hasShinsal(chart, '홍염살')) p.push('가까워질수록 은근한 매력이 더 깊게 느껴지는 사람이에요. 서두르지 않고 천천히 마음을 열어도 충분해요.');
   const dayRel = chart.relations.filter((r) => r.positions.includes('day') && r.target === 'branch');
-  if (dayRel.some((r) => r.type === '충')) p.push('배우자 자리(일지)에 충이 있어 관계에 변화가 생기기 쉬워요. 서로의 공간과 속도를 존중할수록 오래 가는 인연이 돼요.');
-  const score = Math.min(95, 58 + g[spouseGroup] * 6 + (hasShinsal(chart, '도화살') ? 6 : 0) - (dayRel.some((r) => r.type === '충') ? 8 : 0));
-  // 요약은 본문 첫 문장과 겹치지 않게 — 인연의 별 개수로 짧게
-  const loveSummary = g[spouseGroup] === 0 ? '좋은 인연이 들어오는 때를 잘 잡으면 되는 사주' : g[spouseGroup] >= 3 ? '사람을 끄는 힘이 있는 사주' : '진심으로 오래 가는 사랑을 하는 사주';
-  return { key: 'love', title: '연애·결혼운', summary: loveSummary, paragraphs: p, score };
+  const dayClash = dayRel.some((r) => r.type === '충');
+  if (dayClash) p.push('가장 가까운 사람의 자리에 부딪히는 기운이 있어서, 관계에 변화가 생기기 쉬워요. 서로의 공간과 속도를 존중할수록 오래 가는 인연이 돼요.');
+  const score = Math.min(95, 58 + g[spouseGroup] * 6 + (hasShinsal(chart, '도화살') ? 6 : 0) - (dayClash ? 8 : 0));
+  // 요약은 본문 첫 문장과 겹치지 않게 — 인연의 기운 개수로 짧게
+  const loveSummary = g[spouseGroup] === 0 ? '좋은 인연이 들어오는 때를 잘 잡으면 되는 사주예요' : g[spouseGroup] >= 3 ? '사람을 끄는 힘이 있는 사주예요' : '진심으로 오래 가는 사랑을 하는 사주예요';
+  const tags = [hasShinsal(chart, '도화살') && '도화살', hasShinsal(chart, '홍염살') && '홍염살', dayClash && '일지 충'].filter(Boolean);
+  return {
+    key: 'love',
+    title: '연애·결혼운',
+    summary: loveSummary,
+    paragraphs: p,
+    score,
+    basis: `배우자 기운(${spouseGroup}) ${g[spouseGroup]}개 · 일지 ${chart.pillars.day.branch.hangul}(${chart.pillars.day.branch.hanja}) ${chart.pillars.day.branch.tenGod}${tags.length ? ` · ${tags.join(' · ')}` : ''}`,
+  };
 }
 
 function careerSection(chart: SajuChart, name: string | null): ReadingSection {
   const dm = dayMasterContent(chart);
   const dp = dayPillarContent(chart);
   const g = groupCount(chart);
-  const p = [dmText(chart, dm.career, name), dp.career, `잘 어울리는 분야: ${dm.jobs.join(', ')}`];
-  if (g.관성 >= 2) p.push('관성이 발달해 조직·제도 안에서 인정받는 힘이 있어요. 공공기관, 대기업, 전문 자격이 필요한 분야에서 안정적으로 성장하기 좋아요.');
-  if (g.식상 >= 2) p.push('식상이 강해 자기표현과 창의력이 무기예요. 기획·크리에이티브·교육·프리랜서처럼 자율성이 보장되는 일이 잘 맞아요.');
-  if (g.인성 >= 2) p.push('인성이 강해 배우고 가르치는 힘이 있어요. 연구·교육·상담·자격증 기반 직무에서 깊이를 쌓으면 대체 불가능한 사람이 돼요.');
-  if (hasShinsal(chart, '역마살')) p.push(`${SHINSAL_CONTENT['역마살'].summary} 이동·출장·해외와 관련된 일에서 기회가 많아요.`);
-  if (hasShinsal(chart, '문창귀인')) p.push(SHINSAL_CONTENT['문창귀인'].summary);
+  const p = [dmText(chart, dm.career, name), dp.career, `잘 어울리는 분야는 ${dm.jobs.join(', ')} 같은 쪽이에요.`];
+  if (g.관성 >= 2) p.push('책임지는 힘이 커서 조직과 제도 안에서 인정받기 좋아요. 공공기관, 큰 회사, 전문 자격이 필요한 분야에서 안정적으로 자라요.');
+  if (g.식상 >= 2) p.push('표현하는 힘이 강해서 자기표현과 창의력이 무기예요. 기획·창작·교육·프리랜서처럼 내 방식대로 일할 수 있는 자리가 잘 맞아요.');
+  if (g.인성 >= 2) p.push('배우는 힘이 강해서 깊이 공부하고 가르치는 일과 잘 맞아요. 연구·교육·상담처럼 자격이 필요한 일에서 깊이를 쌓으면 대신하기 어려운 사람이 돼요.');
+  if (hasShinsal(chart, '역마살')) p.push('일에서도 자리를 옮기거나 밖으로 다니는 업무가 잘 맞아요. 출장이 잦거나 해외와 닿는 일을 눈여겨보세요.');
+  if (hasShinsal(chart, '문창귀인')) p.push('글과 말로 생각을 정리하는 재주가 일에서도 큰 무기예요. 기획서·보고서·강의처럼 머리를 쓰는 일에서 돋보여요.');
   const score = Math.min(95, 58 + g.관성 * 5 + g.인성 * 3 + g.식상 * 3);
-  return { key: 'career', title: '직업·적성', summary: `${dm.jobs.slice(0, 3).join(', ')} 분야와 잘 맞아요`, keywords: dm.jobs.slice(0, 5), paragraphs: p, score };
+  return {
+    key: 'career',
+    title: '일과 적성',
+    summary: `${dm.jobs.slice(0, 3).join(', ')} 분야와 잘 맞아요`,
+    keywords: dm.jobs.slice(0, 5),
+    paragraphs: p,
+    score,
+    basis: `관성 ${g.관성} · 식상 ${g.식상} · 인성 ${g.인성}${hasShinsal(chart, '역마살') ? ' · 역마살' : ''}${hasShinsal(chart, '문창귀인') ? ' · 문창귀인' : ''}`,
+  };
 }
 
 function healthSection(chart: SajuChart, name: string | null): ReadingSection {
   const dm = dayMasterContent(chart);
-  const e = chart.elements;
+  const many = manyElements(chart);
+  const none = noneElements(chart);
+  // 글자 개수 기준(화면 도넛과 같은 숫자). 병원 안내는 섹션 끝에 한 번만 — 기운별 문구의 안내 문장은 뺀다
+  const organs = (el: Element) => ELEMENT_CONTENT[el].organs.split(/(?<=[.!?])\s+/).filter((x) => !/병원|의료진|전문의|진료/.test(x)).join(' ');
   const p = [dmText(chart, dm.health, name)];
-  for (const el of e.excess) p.push(`${EL_NAME[el]} 기운이 강한 편이라 무리하지 않도록 관리해 주세요. ${ELEMENT_CONTENT[el].organs}`);
-  for (const el of e.lacking) p.push(`${EL_NAME[el]} 기운이 부족한 편이라 관련 컨디션을 꾸준히 살펴 주세요. ${ELEMENT_CONTENT[el].organs} 생활 속에서는 ${ELEMENT_CONTENT[el].balanceTips.slice(0, 2).join(', ')} 같은 습관이 도움이 돼요.`);
-  p.push('사주의 건강 풀이는 생활 습관을 돌아보는 참고 자료예요. 불편한 증상이 있다면 꼭 전문의와 상담해 주세요.');
-  return { key: 'health', title: '건강운', summary: noneElements(chart).length ? `${plainNames(noneElements(chart))} 기운을 채우는 생활 습관이 좋아요` : '규칙적인 생활 리듬이 건강의 열쇠예요', paragraphs: p };
+  for (const el of many) {
+    // 나를 뜻하는 기운은 바로 앞 문단(일간 건강)이 이미 말했다
+    p.push(el === chart.dayMaster.element ? `${ELEMENT_PLAIN[el].name} 기운이 많은 편이라, 위에서 말한 몸의 신호를 특히 잘 살펴 주세요.` : `${ELEMENT_PLAIN[el].name} 기운이 많은 편이라 그쪽으로 무리하지 않게 살펴 주세요. ${organs(el)}`);
+  }
+  for (const el of none) p.push(`${ELEMENT_PLAIN[el].name} 기운이 하나도 없어서 그쪽 컨디션을 꾸준히 살펴 주세요. ${organs(el)}`);
+  p.push('사주로 보는 건강 풀이는 생활 습관을 돌아보는 참고 자료예요. 불편한 증상이 이어지면 꼭 병원에서 확인해 주세요.');
+  return {
+    key: 'health',
+    title: '건강',
+    summary: none.length ? `${plainNames(none)} 기운 쪽 컨디션을 챙겨 주면 좋아요` : '규칙적인 생활 리듬이 건강의 열쇠예요',
+    paragraphs: p,
+    basis: `오행 개수 ${ELEMENT_KEYS.map((k) => `${EL_NAME[k].slice(0, 1)}${chart.elements.count[k]}`).join(' ')}${many.length ? ` · 많은 오행 ${many.map((e) => EL_NAME[e]).join('·')}` : ''}${none.length ? ` · 없는 오행 ${none.map((e) => EL_NAME[e]).join('·')}` : ''}`,
+  };
 }
 
 function daeunSection(chart: SajuChart, now = new Date(), name: string | null = null): ReadingSection {
   const year = now.getFullYear();
   const birthYear = chart.solarDate.year;
   const started = year - birthYear >= chart.daeun.startAge;
+  const periods = chart.daeun.periods.slice(0, 8);
+  const current = periods.find((p) => year >= p.startYear && year <= p.endYear);
   const paragraphs: string[] = [
     `사람의 운은 10년마다 계절처럼 바뀌어요. ${nameSubject(name, '의')}첫 번째 10년은 만 ${chart.daeun.startAge}세에 ${started ? '시작됐어요' : '시작돼요'}.`,
   ];
-  let current = '';
-  let currentRange = '';
-  for (const p of chart.daeun.periods.slice(0, 8)) {
+  // 같은 묶음의 10년이 두 번 이어지면(예: 나무 → 나무) 긴 풀이는 처음 한 번만
+  const told = new Set<TenGodGroup>();
+  for (const p of periods) {
     const ev = evaluateFortune(chart, p);
     const group = TEN_GOD_GROUP[p.stemTenGod];
-    const isNow = year >= p.startYear && year <= p.endYear;
-    if (isNow) {
-      current = `${p.ganzhi.hangul}(${p.ganzhi.hanja}) 대운`;
-      currentRange = `${p.startYear}~${p.endYear}년`;
+    const head = `${p === current ? '▶ ' : ''}${p.startAge}~${p.endAge}세 (${p.startYear}~${p.endYear}년) · ${GRADE_PLAIN_LABEL[ev.grade]} — '${TEN_GOD_PLAIN_LABEL[p.stemTenGod]}'의 10년.`;
+    // 이미 지나온 어린 시절의 10년은 직장·돈 이야기 대신 그때의 모습으로
+    if (p.endAge < 20 && p.endYear < year) {
+      paragraphs.push(`${head} ${CHILD_HINT[p.stemTenGod]}`);
+      continue;
     }
-    paragraphs.push(`${isNow ? '▶ ' : ''}${p.startAge}~${p.endAge}세 (${p.startYear}~${p.endYear}) ${p.ganzhi.hangul}(${p.ganzhi.hanja}) 대운 · ${GRADE_LABEL[ev.grade]} — ${p.stemTenGod}·${p.branchTenGod}의 시기. ${FORTUNE_TEMPLATES.daeunTheme[group]}`);
+    if (told.has(group)) paragraphs.push(`${head} 앞의 10년에 이어 '${GROUP_PLAIN[group].name}'의 흐름이 한 번 더 이어져요.`);
+    else paragraphs.push(`${head} ${FORTUNE_TEMPLATES.daeunTheme[group]}`);
+    told.add(group);
   }
   return {
     key: 'daeun',
-    title: '대운의 흐름',
-    summary: currentRange ? `지금은 ${currentRange}의 10년을 지나고 있어요` : `만 ${chart.daeun.startAge}세에 첫 번째 10년이 시작돼요`,
+    title: '10년마다 바뀌는 큰 흐름',
+    summary: current ? `지금은 ${current.startYear}~${current.endYear}년의 10년을 지나고 있어요` : `만 ${chart.daeun.startAge}세에 첫 번째 10년이 시작돼요`,
     paragraphs,
     keywords: [`현재 만 ${Math.max(0, year - birthYear)}세`],
-    basis: `대운수 ${chart.daeun.startAge} · ${chart.daeun.direction === 'forward' ? '순행' : '역행'}${current ? ` · 지금 ${current}` : ''}`,
+    basis: `대운수 ${chart.daeun.startAge} · ${chart.daeun.direction === 'forward' ? '순행' : '역행'}${current ? ` · 지금 ${current.ganzhi.hangul}(${current.ganzhi.hanja}) 대운` : ''} · ${periods.map((p) => `${p.ganzhi.hangul} ${p.stemTenGod}`).join(', ')}`,
   };
 }
 
-export function yearBriefSection(chart: SajuChart, year: number, name: string | null = null): ReadingSection {
+/** 십성 운 문구 첫머리의 '비견운에는' 같은 용어를 쉬운 말로 */
+export const luckLead = (text: string, lead: string) => text.replace(/^\S+운에는 /, lead);
+
+/** 같은 리포트 안에서 같은 하이라이트 문장을 되풀이하지 않게(report.ts reportOnce 와 같은 모양) */
+interface Seen {
+  first: (key: string) => boolean;
+}
+/** 운의 하이라이트(신살·합충) → 쉬운 말. 용신·기신 안내는 fit 문장이 맡으므로 뺀다 */
+export function plainHighlights(hs: FortuneHighlight[], n: number, seen?: Seen): { text: string[]; terms: string[] } {
+  const picked = hs.filter((h) => !h.startsWith('yongsin') && !h.startsWith('gisin')).filter((h) => !seen || seen.first(`hl:${h}`)).slice(0, n);
+  return { text: picked.map((h) => HIGHLIGHT_PLAIN[h]), terms: picked.map((h) => HIGHLIGHT_TERM[h]) };
+}
+
+export function yearBriefSection(chart: SajuChart, year: number, name: string | null = null, seen?: Seen): ReadingSection {
   const yp = yearPillarOf(year);
   const ev = evaluateFortune(chart, yp, `year-${year}`);
-  const tg = TEN_GOD_CONTENT[ev.pillar.stemTenGod];
+  const stg = ev.pillar.stemTenGod;
+  const tg = TEN_GOD_CONTENT[stg];
+  const tp = TEN_GOD_PLAIN[stg];
+  const hl = plainHighlights(ev.highlights, 3, seen);
   return {
     key: `year${year}`,
     title: `${year}년 운세`,
     summary: pick(FORTUNE_TEMPLATES.yearlyHeadline[ev.grade], `${year}-${chart.pillars.day.ganzhi.index}`),
     score: ev.scores.total,
-    keywords: [tg.keyword, GRADE_LABEL[ev.grade]],
-    basis: `${ev.pillar.ganzhi.hangul}(${ev.pillar.ganzhi.hanja})년 · ${ev.pillar.stemTenGod}운`,
+    keywords: [TEN_GOD_PLAIN_LABEL[stg]!, GRADE_PLAIN_LABEL[ev.grade]],
+    basis: `${ev.pillar.ganzhi.hangul}(${ev.pillar.ganzhi.hanja})년 · 천간 ${stg} · 지지 ${ev.pillar.branchTenGod} · ${GRADE_LABEL[ev.grade]}${hl.terms.length ? ` · ${hl.terms.join(' · ')}` : ''}`,
     paragraphs: [
-      `${year}년은 ${nameSubject(name, '에게')}'${tg.keyword}'의 기운이 들어오는 해예요. ${tg.inLuck.general.replace(/^\S+운에는 /, '이런 해에는 ')}`,
+      `${year}년은 ${nameSubject(name, '에게')}'${tp.phrase}'${pt(tp.phrase, '이', '가')} 들어오는 해예요. ${luckLead(tg.inLuck.general, '이런 해에는 ')}`,
       `재물: ${tg.inLuck.wealth}`,
       `애정: ${tg.inLuck.love}`,
       `일·커리어: ${tg.inLuck.career}`,
-      ...ev.highlights.slice(0, 3).map((h) => FORTUNE_TEMPLATES.highlights[h]),
+      `건강: ${tg.inLuck.health}`,
+      ...hl.text,
     ],
   };
 }
+
 
 export type ReadingAccess = 'none' | 'mini' | 'full';
 

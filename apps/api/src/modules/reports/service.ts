@@ -129,7 +129,7 @@ export function createReportService(db: Db, profiles: ProfileService, commerce: 
       case 'lifetime': {
         if (access(userId, profile.id) !== 'full') throw paymentRequired('평생 사주분석서를 구매하면 볼 수 있어요.', { productId: 'report_saju_lifetime' });
         title = `${profile.name}님의 사주분석서`;
-        build = () => buildSajuAnalysis(profiles.chartOf(profile), now);
+        build = () => buildSajuAnalysis(profiles.chartOf(profile), now, profile.name);
         break;
       }
       case 'yearly': {
@@ -137,7 +137,7 @@ export function createReportService(db: Db, profiles: ProfileService, commerce: 
         year = y;
         if (!yearlyUnlocked(userId, profile.id, y)) throw paymentRequired(`${y} 신년운세를 구매하면 볼 수 있어요.`, { productId: `report_newyear_${y}` });
         title = `${profile.name}님의 ${y} ${yearPillarHangul(y)}년 신년운세`;
-        build = () => buildYearlyReport(profiles.chartOf(profile), y);
+        build = () => buildYearlyReport(profiles.chartOf(profile), y, profile.name);
         break;
       }
       case 'compatibility': {

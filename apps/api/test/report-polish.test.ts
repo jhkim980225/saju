@@ -137,16 +137,17 @@ function settle(n = Infinity, how: 'resolve' | 'reject' = 'resolve') {
 const progressOf = async (token: string, id: string) => (await api('GET', `/reports/${id}/progress`, { token })).body;
 
 describe('사주분석서 — 결제 직후 미리 만들고, 규칙 기반 본문을 바로 보여 준다', () => {
-  it('결제 확정 → 보관함에 바로 생기고 9덩어리를 한 번에(동시에) 다듬는다', async () => {
+  it('결제 확정 → 보관함에 바로 생기고 덩어리 전부를 한 번에(동시에) 다듬는다', async () => {
     const token = await member();
     const profileId = await profile(token);
     await buy(token, 'report_saju_lifetime', { profileId });
 
     const list = await api('GET', '/reports', { token });
     expect(list.body).toHaveLength(1);
-    // 예전에는 4개씩 세 차례(4 → 4 → 1)였다 — 이제 한 번에 모두 보낸다
-    expect(h.calls).toHaveLength(9);
-    expect(h.inFlight).toBe(9);
+    // 예전에는 4개씩 차례로 보냈다 — 이제 한 번에 모두 보낸다(쉬운 말로 다시 쓴 뒤 약 1만 7천 자 → 7덩어리 안팎)
+    const n = h.calls.length;
+    expect(n).toBeGreaterThanOrEqual(6);
+    expect(h.inFlight).toBe(n);
 
     // 처음 열기 — 기다리지 않고 규칙 기반 본문 + 진행률
     const t0 = Date.now();
@@ -154,18 +155,18 @@ describe('사주분석서 — 결제 직후 미리 만들고, 규칙 기반 본�
     expect(Date.now() - t0).toBeLessThan(1000);
     expect(first.status).toBe(201);
     expect(first.body.id).toBe(list.body[0].id);
-    expect(first.body).toMatchObject({ status: 'polishing', generator: 'rule', progress: { done: 0, total: 9 } });
+    expect(first.body).toMatchObject({ status: 'polishing', generator: 'rule', progress: { done: 0, total: n } });
     expect(first.body.sections.length).toBeGreaterThan(30);
     expect(first.body.sections.flatMap((s: DraftSection) => s.paragraphs).some((p: string) => p.startsWith('[AI]'))).toBe(false);
 
     settle(4);
-    await vi.waitFor(async () => expect((await progressOf(token, first.body.id)).progress).toEqual({ done: 4, total: 9 }));
+    await vi.waitFor(async () => expect((await progressOf(token, first.body.id)).progress).toEqual({ done: 4, total: n }));
 
     // 다듬는 중에 다시 열어도 같은 리포트 — AI 를 다시 부르지 않는다
     const again = await api('POST', '/reports', { token, body: { type: 'lifetime', profileId } });
     expect(again.body.id).toBe(first.body.id);
     expect(again.body.status).toBe('polishing');
-    expect(h.calls).toHaveLength(9);
+    expect(h.calls).toHaveLength(n);
 
     settle();
     await vi.waitFor(async () => expect((await progressOf(token, first.body.id)).status).toBe('ready'));
@@ -205,18 +206,19 @@ describe('사주분석서 — 결제 직후 미리 만들고, 규칙 기반 본�
     const profileId = await profile(token);
     await buy(token, 'report_saju_lifetime', { profileId });
     const id = (await api('GET', '/reports', { token })).body[0].id;
-    expect(h.calls).toHaveLength(9);
+    const n = h.calls.length;
+    expect(n).toBeGreaterThanOrEqual(6);
     // 다듬던 중 프로세스가 죽었다 — 먼저 띄운 서버의 호출은 끝나지 않고, 새 서버는 진행 기록이 없다
     const lost = h.calls.splice(0);
     const restarted = await buildApp({ config: app.ctx.config, db, logger: false });
     try {
       expect(db.select().from(reports).where(eq(reports.id, id)).get()!.generator).toBe('polishing');
       const reopened = await api('GET', `/reports/${id}`, { token, via: restarted });
-      expect(reopened.body).toMatchObject({ status: 'polishing', progress: { done: 0, total: 9 } });
-      expect(h.calls).toHaveLength(9);
+      expect(reopened.body).toMatchObject({ status: 'polishing', progress: { done: 0, total: n } });
+      expect(h.calls).toHaveLength(n);
       // 한 번 더 열어도 다시 시작하지 않는다
       await api('GET', `/reports/${id}/progress`, { token, via: restarted });
-      expect(h.calls).toHaveLength(9);
+      expect(h.calls).toHaveLength(n);
       settle();
       await vi.waitFor(async () => expect((await api('GET', `/reports/${id}`, { token, via: restarted })).body).toMatchObject({ status: 'ready', generator: 'ai' }));
     } finally {
@@ -229,11 +231,13 @@ describe('사주분석서 — 결제 직후 미리 만들고, 규칙 기반 본�
     const token = await member();
     const a = await profile(token, '가');
     const b = await profile(token, '나', { ...BIRTH, year: 1991 });
+    const c = await profile(token, '다', { ...BIRTH, year: 1987 });
     await buy(token, 'report_saju_lifetime', { profileId: a });
     await buy(token, 'report_saju_lifetime', { profileId: b });
+    await buy(token, 'report_saju_lifetime', { profileId: c });
     expect(h.inFlight).toBe(16);
     expect(h.calls).toHaveLength(16);
-    // 두 리포트의 덩어리 수 합(본문 길이에 따라 8~9개씩) — 16을 넘는 만큼은 자리가 날 때까지 기다린다
+    // 세 리포트의 덩어리 수 합(본문 길이에 따라 6~8개씩) — 16을 넘는 만큼은 자리가 날 때까지 기다린다
     const ids = (await api('GET', '/reports', { token })).body.map((r: { id: string }) => r.id);
     let total = 0;
     for (const id of ids) total += (await progressOf(token, id)).progress!.total;

@@ -169,7 +169,7 @@ export function ReportViewPage() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['report', id], queryFn: () => api.report(id!), enabled: Boolean(id) });
   const report = q.data;
-  // 한 사람의 사주로 쓴 리포트(사주분석서·연애·결혼운·재물·직업운)는 근거가 되는 원국표·오행 비율·대운 타임라인을 함께 보여 준다
+  // 한 사람의 사주로 쓴 리포트(사주분석서·연애·결혼운·재물·직업운)는 근거가 되는 여덟 글자 표·다섯 기운 도넛·10년 흐름 타임라인을 함께 보여 준다
   const chart = useQuery({
     queryKey: ['chart', report?.profileId],
     queryFn: () => api.chart({ profileId: report!.profileId }),
@@ -232,6 +232,9 @@ export function ReportViewPage() {
   };
   const platform = nativePlatform();
   const appHint = platform === 'web' ? null : APP_PDF_HINT[platform];
+  // 첫 섹션에 '한눈에 보기'(points)가 있으면 표와 차트보다 먼저 보여 준다(옛 저장본은 그대로 순서대로)
+  const lead = report?.sections[0]?.points?.length ? report.sections[0] : null;
+  const rest = report ? (lead ? report.sections.slice(1) : report.sections) : [];
 
   return (
     <div className="min-h-page">
@@ -271,18 +274,22 @@ export function ReportViewPage() {
             </div>
             {polishing && !polishedReady && <PolishingNotice progress={progress.data?.progress ?? report.progress} />}
 
+            {/* 사주를 몰라도 10초 안에 — 표·용어보다 '한눈에 보기'를 먼저 */}
+            {lead && <ReadingSectionCard section={lead} />}
+
             {chart.data && (
-              <div className="mt-6 space-y-4">
+              <div className="mt-2 space-y-4">
                 <Card className="break-inside-avoid">
-                  <h2 className="mb-3 font-semibold">사주 원국표</h2>
+                  <h2 className="mb-3 font-semibold">타고난 여덟 글자</h2>
                   <PillarTable chart={chart.data} />
                 </Card>
                 <Card className="break-inside-avoid">
-                  <h2 className="mb-4 font-semibold">{t('result.ohaengChart.title')}</h2>
+                  <h2 className="font-semibold">{t('result.ohaengChart.title')}</h2>
+                  <p className="mb-4 mt-1 text-sm text-ink-3">여덟 글자를 나무·불·흙·쇠·물, 다섯 가지 성질로 나눠 센 거예요.</p>
                   <ElementBars chart={chart.data} />
                 </Card>
                 <Card className="break-inside-avoid">
-                  <h2 className="mb-3 font-semibold">대운 흐름</h2>
+                  <h2 className="mb-1 font-semibold">10년마다 바뀌는 흐름</h2>
                   <DaeunTimeline chart={chart.data} />
                 </Card>
               </div>
@@ -304,7 +311,7 @@ export function ReportViewPage() {
               </nav>
             )}
 
-            {report.sections.map((s) => (
+            {rest.map((s) => (
               <ReadingSectionCard key={s.key} section={s} />
             ))}
             <p className="mt-6 text-xs text-ink-3">{t('disclaimer.standard')}</p>

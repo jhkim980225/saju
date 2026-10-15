@@ -14,15 +14,15 @@ const SECTION_COPY: Record<string, string> = {
   daeun: 'daeun',
 };
 
-/** 잠금 카드에 공개할 유료 목차 */
+/** 잠금 카드에 공개할 유료 목차 — 사주를 몰라도 무엇을 읽게 되는지 알 수 있게 쉬운 말로 */
 const TOC: Record<string, string[]> = {
-  wealth: ['돈이 모이는 방식과 새는 지점', '재성·식상으로 본 수입 구조', '나에게 맞는 돈 관리 습관'],
-  love: ['사랑할 때의 나', '배우자 자리(일지)로 본 인연', '좋은 인연이 들어오는 시기'],
-  career: ['강점이 살아나는 직무와 분야', '조직형·독립형 성향', '커리어 전환 포인트'],
-  health: ['오행 균형으로 본 체질 경향', '챙기면 좋은 생활 습관'],
-  tenGods: ['나를 움직이는 핵심 기운', '비어 있는 기운이 주는 과제'],
-  daeun: ['지금 지나는 대운', '10년마다 바뀌는 흐름', '대운별 기회와 주의점'],
-  relations: ['합과 충이 만드는 변화'],
+  wealth: ['돈이 모이는 방식과 새는 곳', '재능이 수입이 되는 길', '나에게 맞는 돈 관리 습관'],
+  love: ['사랑할 때의 나', '나와 잘 맞는 사람', '좋은 인연이 들어오는 때'],
+  career: ['강점이 살아나는 일과 분야', '조직이 맞는지, 혼자가 맞는지', '일에서 기회가 오는 방향'],
+  health: ['다섯 가지 기운으로 본 몸의 신호', '챙기면 좋은 생활 습관'],
+  tenGods: ['나를 움직이는 힘', '비어 있는 힘이 주는 숙제'],
+  daeun: ['지금 지나는 10년', '10년마다 바뀌는 흐름', '시기마다 기회와 조심할 점'],
+  relations: ['글자끼리 끌리고 부딪히는 곳'],
 };
 
 /** 카피 가이드에 없는 섹션의 짧은 라벨(섹션 바로가기 칩용) */
@@ -31,8 +31,11 @@ const SHORT_LABEL: Record<string, string> = {
   yongsin: '필요한 기운',
   shinsal: '특별한 기운',
   tenGods: '움직이는 힘',
-  relations: '합충',
-  stages: '12운성',
+  chart: '여덟 글자',
+  strength: '힘의 세기',
+  relations: '끌림과 부딪힘',
+  stages: '자리별 기운',
+  daeunContext: '10년 흐름',
   total: '총운',
   months: '월별 흐름',
   summary: '요약',
@@ -59,7 +62,8 @@ export function navLabel(s: ReadingSection): string {
 }
 
 export function ReadingSectionCard({ section, onUnlock, price }: { section: ReadingSection; onUnlock?: (s: ReadingSection) => void; price?: string }) {
-  const { label, title } = sectionLabels(section);
+  // 리포트 맨 앞 '한눈에 보기'(points)는 리포트가 정한 제목 그대로('한눈에 보는 서윤님')
+  const { label, title } = section.points?.length ? { label: '', title: section.title } : sectionLabels(section);
   const locked = Boolean(section.locked);
   const toc = TOC[section.key] ?? TOC[section.key.replace(/\d+/, '')] ?? ['시기별 흐름과 구체적인 조언'];
   return (
@@ -67,6 +71,17 @@ export function ReadingSectionCard({ section, onUnlock, price }: { section: Read
       {label && <p className="text-sm font-semibold text-ink-3">{label}</p>}
       <h2 className="mt-1 font-serif text-[22px] font-semibold leading-snug">{title}</h2>
       {section.summary && <p className="mt-3 text-[17px] font-medium leading-relaxed text-ink-2">{section.summary}</p>}
+      {!locked && section.points && section.points.length > 0 && (
+        // 리포트 맨 앞 '한눈에 보기' — 표·용어보다 먼저 결론을 한 줄씩
+        <dl className="mt-4 space-y-2.5 rounded-2xl border border-line bg-surface p-4">
+          {section.points.map((k) => (
+            <div key={k.label} className="grid grid-cols-[5.75rem_1fr] gap-3 text-[15px] leading-relaxed">
+              <dt className="text-ink-3">{k.label}</dt>
+              <dd className="text-ink">{k.text}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
       {typeof section.score === 'number' && !locked && (
         <div className="mt-4">
           <ScoreBar score={section.score} label={label} />

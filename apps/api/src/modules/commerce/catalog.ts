@@ -48,7 +48,7 @@ export const CATALOG: CatalogItem[] = [
   {
     id: 'report_saju_lifetime',
     name: '평생 사주분석서',
-    description: '원국표·오행 비율·대운 80년·열두 달 월운까지 A4 20쪽 분량. PDF로 저장할 수 있어요. AI 질문권 3회 포함.',
+    description: '타고난 여덟 글자·다섯 가지 기운·10년마다 바뀌는 흐름·열두 달 흐름까지 A4 20쪽 안팎. PDF로 저장할 수 있어요. AI 질문권 3회 포함.',
     type: 'one_time',
     price: 9900,
     listPrice: 19800,
@@ -74,7 +74,7 @@ export const CATALOG: CatalogItem[] = [
   {
     id: 'report_compat',
     name: '사주 궁합 리포트',
-    description: '본성과 오행의 균형, 끌림과 조율 포인트, 대화·갈등 방식, 올해·내년 흐름까지 담은 리포트예요.',
+    description: '타고난 성질과 다섯 가지 기운의 균형, 끌리는 점과 맞춰 갈 점, 대화·다툼 방식, 올해·내년 흐름까지 담은 리포트예요.',
     type: 'one_time',
     price: 5900,
     grants: ['report:compatibility'],

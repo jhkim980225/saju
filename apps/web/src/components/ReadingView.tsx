@@ -167,7 +167,7 @@ export function ReadingView({
           <OpenReportCard
             dto={{ type: 'lifetime', profileId }}
             title={`${name}님의 사주분석서`}
-            body="원국표, 오행 비율, 대운 80년, 올해·내년 운세, 열두 달 월운까지 한 권으로 묶었어요. A4 20쪽이 넘는 분량이고 PDF로 저장할 수 있어요."
+            body="타고난 여덟 글자와 다섯 가지 기운, 10년마다 바뀌는 흐름, 올해·내년 운세, 열두 달 흐름까지 한 권으로 묶었어요. A4 20쪽 안팎이고 PDF로 저장할 수 있어요."
           />
         )}
 
