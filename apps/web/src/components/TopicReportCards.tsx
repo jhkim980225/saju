@@ -28,16 +28,16 @@ export const TOPIC_REPORTS: TopicReport[] = [
     productId: 'report_love',
     title: '연애·결혼운 리포트',
     icon: Heart,
-    body: (name) => `${name}님의 일간과 배우자 자리(일지)로 사랑하는 방식과 잘 맞는 사람을 읽고, 앞으로 10년 동안 인연의 기운이 커지는 해를 짚어 드려요.`,
-    benefits: ['타고난 연애 방식과 끌림, 부딪히기 쉬운 지점', '성별이 아닌 기질과 오행으로 본 잘 맞는 사람', '앞으로 10년의 인연 흐름과 가까운 3년 풀이'],
+    body: (name) => `${name}님이 사랑할 때 어떤 사람인지, 누구와 잘 맞는지 읽고, 앞으로 10년 가운데 새 인연이 들어오기 좋은 때를 짚어 드려요.`,
+    benefits: ['사랑할 때의 나, 끌리는 매력, 부딪히기 쉬운 지점', '성별이 아닌 기질로 본 나와 잘 맞는 사람', '앞으로 10년의 인연 흐름과 가까운 3년, 좋은 달까지'],
   },
   {
     type: 'career_wealth',
     productId: 'report_career_wealth',
     title: '재물·직업운 리포트',
     icon: Coins,
-    body: (name) => `${name}님의 재성·식상·비겁 구조로 돈이 들고 나는 방식과 어울리는 일을 읽고, 앞으로 10년의 전환 시기를 짚어 드려요.`,
-    benefits: ['돈이 모이는 구조, 버는 방식과 지키는 방식', '어울리는 일과 분야, 직장형·독립형 성향', '앞으로 10년의 전환 시기와 가까운 3년 풀이'],
+    body: (name) => `${name}님에게 돈이 들어오는 길과 잘 맞는 일을 읽고, 앞으로 10년 가운데 돈과 일이 잘 풀리는 해, 일이 바뀌기 쉬운 해를 짚어 드려요.`,
+    benefits: ['돈이 들어오는 길, 버는 방식과 지키는 방식', '어울리는 일과 분야, 직장형·독립형 성향', '앞으로 10년의 흐름과 가까운 3년, 상황별 조언'],
   },
 ];
 
@@ -155,7 +155,7 @@ export function TopicReportCards({
         onClose={() => setPaywall(null)}
         productIds={paywallIds}
         title={paywall ? `${name}님의 ${paywall.title}` : undefined}
-        subtitle="사주 원국과 앞으로의 대운·세운을 근거로 쓴 리포트예요. 결제하면 바로 만들어 보관함에 넣어 드려요."
+        subtitle="사주를 몰라도 읽히게, 결론부터 쉬운 말로 쓴 리포트예요. 결제하면 바로 만들어 보관함에 넣어 드려요."
         benefits={paywall?.benefits}
         onPurchase={onPurchase}
       />

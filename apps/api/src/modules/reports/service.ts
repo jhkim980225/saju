@@ -162,7 +162,7 @@ export function createReportService(db: Db, profiles: ProfileService, commerce: 
         const topic = TOPIC_REPORTS[dto.type];
         if (!topicUnlocked(userId, dto.type, profile.id)) throw paymentRequired(`${topic.name}를 구매하면 볼 수 있어요.`, { productId: topic.productId });
         title = `${profile.name}님의 ${topic.name}`;
-        build = () => topic.build(profiles.chartOf(profile), now);
+        build = () => topic.build(profiles.chartOf(profile), now, profile.name);
         break;
       }
       default:

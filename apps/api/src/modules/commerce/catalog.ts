@@ -85,7 +85,7 @@ export const CATALOG: CatalogItem[] = [
   {
     id: 'report_love',
     name: '연애·결혼운 리포트',
-    description: '사랑할 때의 내 모습, 오래 함께하기 좋은 사람, 부딪히기 쉬운 지점, 앞으로 10년의 인연 흐름과 가까운 3년 풀이까지 담았어요. PDF로 저장할 수 있어요.',
+    description: '사랑할 때의 나와 가까운 사이에서의 모습, 나에게 맞는 사람, 부딪히기 쉬운 지점, 앞으로 10년의 인연 흐름과 가까운 3년 풀이까지 담았어요. PDF로 저장할 수 있어요.',
     type: 'one_time',
     price: 4900,
     grants: ['report:love'],
