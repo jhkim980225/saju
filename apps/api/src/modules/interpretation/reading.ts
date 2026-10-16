@@ -139,7 +139,7 @@ export const TERM_DEFS: TermDef[] = [
   term('십성', '일간을 기준으로 다른 글자와의 관계를 열 가지로 나눈 것'),
   term('용신', '사주의 균형과 흐름에 가장 도움이 된다고 보는 오행'),
   term('희신', '용신을 생하는 오행'),
-  term('기신', '용신, 곧 사주의 균형에 가장 도움이 된다고 보는 오행을 극하는 오행'),
+  term('기신', '용신을 극해 사주의 균형을 해치기 쉽다고 보는 오행'),
   term('대운', '10년 단위로 바뀌는 운의 큰 흐름'),
   term('신살', '특정 글자의 조합에 붙이는 보조적인 해석 요소'),
   term('배우자성', '배우자를 뜻하는 십성으로, 전통적으로 남성은 재성·여성은 관성'),
@@ -239,7 +239,7 @@ function overviewSection(chart: SajuChart, name: string | null): ReadingSection 
     keywords: [...dm.keywords.slice(0, 3), STRENGTH_PLAIN[chart.strength.level].chip],
     paragraphs: [
       `${nameSubject(name, '은')}${STEM_PLAIN[chart.dayMaster.index]!.line}`,
-      `달빛사주의 억부 중심 간이 계산으로는 ${EL_KO[yong]}(${ELEMENT_PLAIN[yong].name}) 기운이 사주의 균형에 가장 도움이 된다고 보며, 생활 습관으로 옮기면 '${need.need}'에 가깝습니다. 아래 '나에게 필요한 기운'에서 구체적인 방법을 안내합니다.`,
+      `달빛사주의 억부 중심 간이 계산으로는 ${EL_KO[yong]}(${ELEMENT_PLAIN[yong].name}) 기운이 사주의 균형에 가장 도움이 된다고 보며, 생활 습관으로 옮기면 '${need.need}'에 가깝습니다. 아래 '용신' 항목에서 구체적인 방법을 안내합니다.`,
     ],
     basis: `${chart.pillars.day.ganzhi.hangul}(${chart.pillars.day.ganzhi.hanja})일주 · 일간 ${dm.name} · 가장 강한 기운 ${EL_NAME[chart.elements.dominant]} · 용신 ${EL_NAME[chart.yongsin.yongsin]}`,
   };
@@ -291,7 +291,7 @@ function elementsSection(chart: SajuChart): ReadingSection {
           : '다섯 오행이 고르게 분포한 사주예요';
   return {
     key: 'elements',
-    title: '다섯 가지 기운',
+    title: '오행 분포',
     summary,
     paragraphs,
     basis: `오행 개수(천간·지지 ${n} 글자 기준, 달빛사주 집계) ${ELEMENT_KEYS.map((k) => `${EL_NAME[k].slice(0, 1)}${e.count[k]}`).join(' ')} · 지장간·월령을 반영한 비중은 사주분석서에서 다뤄요`,
@@ -313,7 +313,7 @@ function yongsinSection(chart: SajuChart, name: string | null): ReadingSection {
       : `${STRENGTH_PHRASE[s.level]}(달빛사주 기준 100점 만점에 ${s.score}점)에 해당해, ${YONGSIN_ROLE[groupOfElement(chart, y.yongsin)]} ${k} 기운이 균형에 도움이 된다고 봅니다.`;
   return {
     key: 'yongsin',
-    title: '나에게 필요한 기운',
+    title: '용신 — 나에게 필요한 기운',
     summary: `${el.need}${josa(el.need, '이', '가').slice(el.need.length)} 가장 도움이 돼요`,
     keywords: [`행운의 색 ${LUCKY_COLOR_PLAIN[y.yongsin]}`, `행운의 방향 ${info.direction}`, `행운의 숫자 ${info.numbers.join('·')}`],
     paragraphs: [
@@ -359,7 +359,7 @@ function shinsalSection(chart: SajuChart): ReadingSection {
   if (all.length === 0) {
     return {
       key: 'shinsal',
-      title: '타고난 특별한 기운',
+      title: '신살 — 타고난 특별한 기운',
       summary: '두드러진 신살이 없는 사주예요',
       paragraphs: ['신살(神殺)은 특정 글자의 조합에 붙이는 이름으로, 성향을 해석할 때 참고하는 보조 요소입니다. 달빛사주가 살펴보는 신살 가운데 해당하는 것이 없으며, 신살이 없다고 해서 좋거나 나쁜 것은 아니에요.'],
     };
@@ -371,7 +371,7 @@ function shinsalSection(chart: SajuChart): ReadingSection {
   const [first, ...rest] = shown;
   return {
     key: 'shinsal',
-    title: '타고난 특별한 기운',
+    title: '신살 — 타고난 특별한 기운',
     summary: SHINSAL_PLAIN[first!.name].lead.replace(/\.$/, ''),
     paragraphs: [
       '신살(神殺)은 특정 글자의 조합에 붙이는 이름으로, 성향이나 두드러지는 부분을 해석할 때 참고하는 보조 요소입니다. 신살 하나만으로 좋고 나쁨을 판단하지는 않아요.',
