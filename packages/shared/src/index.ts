@@ -796,7 +796,7 @@ export const tojeongRequestSchema = z
   .refine((v) => v.birth || v.profileId, { message: 'birth 또는 profileId 가 필요합니다.' });
 export type TojeongRequestDto = z.input<typeof tojeongRequestSchema>;
 
-/** 그달의 기운 — rise 힘이 붙는 달, even 고른 달, care 살피는 달 */
+/** 그달의 기운 — rise 좋은 달, even 무난한 달, care 조심할 달 */
 export type TojeongMonthFlow = 'rise' | 'even' | 'care';
 
 export interface TojeongDto {
