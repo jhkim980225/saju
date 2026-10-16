@@ -149,7 +149,7 @@ function chartSection(chart: SajuChart, name: string | null): ReadingSection {
   const me = name ? `${name}님을` : '나를';
   const paragraphs = [
     `사주는 태어난 해·달·날·시를 각각 두 글자씩, 모두 여덟 글자로 바꾼 거예요. 글자마다 나무·불·흙·쇠·물 가운데 하나의 성질이 있어요. 그중 태어난 날의 위 글자가 '나'를 뜻하고, 나머지 글자는 나에게 어떤 힘이 되는지로 읽어요.`,
-    `${me} 뜻하는 글자는 태어난 날의 위 글자예요. ${elWord(chart.dayMaster.element)}이고, 그림으로 그리면 ${q(dm.title, '이', '가')} 떠오르는 모습이에요.`,
+    `${me} 뜻하는 글자가 ${elWord(chart.dayMaster.element)}이라서, 앞 장의 성격 풀이도 주로 이 글자를 바탕으로 했어요. 나머지 글자는 자리마다 아래처럼 읽어요.`,
     ...rows.map((p) => {
       const pos = POSITION_PLAIN[p.position];
       const lead = p.stem.element === p.branch.element ? `${pos.name}의 두 글자는 모두 ${elWord(p.stem.element)}이에요.` : `${pos.name}의 두 글자는 ${elWord(p.stem.element)}과 ${elWord(p.branch.element)}이에요.`;
@@ -171,20 +171,11 @@ function chartSection(chart: SajuChart, name: string | null): ReadingSection {
   };
 }
 
-/** 일주 문단 첫머리의 비유('~ 큰 나무처럼,')를 뺀다 — 바로 앞 일간 문단의 비유와 겹치지 않게(비유는 문단마다 하나) */
-export function dropSimile(text: string): string {
-  const m = text.match(/^([^.!?]{4,60}?(?:처럼|듯)),?\s+([^.!?]*[.!?])\s*/);
-  if (!m) return text;
-  const rest = text.slice(m[0].length);
-  // 비유를 빼고 남은 말이 너무 짧으면('맑아요.') 첫 문장을 통째로 뺀다
-  return m[2]!.length >= 12 ? `${m[2]} ${rest}`.trim() : rest || text;
-}
-
 function personalitySection(base: ReadingSection, chart: SajuChart): ReadingSection {
-  // 일간 성격 뒤, '신경 쓸 점' 앞에 일주(태어난 날 두 글자)의 결을 더한다
+  // 일간 성격 뒤, '신경 쓸 점' 앞에 일주(태어난 날 두 글자)로 본 성향을 더한다 — 일주 문단은 비유 없이 성향부터 말한다(dayPillars.ts)
   const dp = dayPillarContent(chart);
   const body = base.paragraphs.slice(0, -1);
-  return { ...base, paragraphs: [...body, dropSimile(dp.personality), base.paragraphs.at(-1)!] };
+  return { ...base, paragraphs: [...body, dp.personality, base.paragraphs.at(-1)!] };
 }
 
 function elementRatioSection(chart: SajuChart): ReadingSection {
@@ -206,7 +197,7 @@ function elementRatioSection(chart: SajuChart): ReadingSection {
   return {
     key: 'elements',
     title: '다섯 가지 기운의 비율',
-    summary: fill.length ? `${fill.map(el).join('·')} 기운을 채워 주면 균형이 잡혀요` : many.length ? `${many.map(el).join('·')} 기운이 중심을 잡고 있어요` : none.length ? `${none.map(el).join('·')} 기운이 비어 있어요` : '다섯 기운이 고르게 섞여 있어요',
+    summary: fill.length ? `${fill.map(el).join('·')} 기운을 채워 주면 균형이 잡혀요` : many.length ? `${many.map(el).join('·')} 기운이 많은 편이에요` : none.length ? `${none.map(el).join('·')} 기운이 비어 있어요` : '다섯 기운이 고르게 섞여 있어요',
     keywords: ELEMENTS.map((x) => `${el(x)} ${e.count[x]}개 · ${pct(e.percent[x])}%`),
     paragraphs,
     ...(tips.length ? { tips } : {}),
@@ -241,7 +232,7 @@ function yongsinDetailSection(base: ReadingSection, chart: SajuChart): ReadingSe
     ...base,
     paragraphs: [
       ...body,
-      `${elWord(y.yongsin)}을 곁에서 돕는 건 ${elWord(y.heesin)}이에요. 둘을 함께 챙기면 효과가 커지고, 이 기운이 들어오는 해나 달에는 일이 한결 순하게 풀려요.`,
+      `${elWord(y.yongsin)}을 곁에서 돕는 건 ${elWord(y.heesin)}이에요. 둘을 함께 챙기면 효과가 커지고, 이 기운이 들어오는 해나 달에는 일이 비교적 수월하게 진행돼요.`,
       `반대로 ${elWord(y.gisin)}은 지나치면 피곤해지는 기운이에요. 나쁜 기운이라기보다 '많으면 버거운 기운'이라, 이 기운이 세게 들어오는 때에는 속도를 조금 늦춰 주세요.`,
       base.paragraphs.at(-1)!,
     ],
@@ -334,7 +325,7 @@ function stagesSection(chart: SajuChart): ReadingSection {
   const rows = POSITIONS.map((pos) => chart.pillars[pos]).filter((p): p is NonNullable<typeof p> => p !== null);
   const seen = new Set<string>();
   const paragraphs = [
-    '네 자리마다 기운의 세기가 달라요. 사람의 한평생에 빗대어, 막 태어난 때부터 한창 왕성한 때, 쉬어 가는 때까지 열두 단계로 나눠 봐요.',
+    '네 자리마다 기운의 세기가 달라요. 막 시작하는 때부터 한창 왕성한 때, 힘을 거두고 쉬는 때까지 열두 단계로 나눠서 봐요.',
     ...rows.map((p) => {
       const pos = POSITION_PLAIN[p.position];
       const s = TWELVE_STAGE_CONTENT[p.branch.twelveStage];
@@ -371,8 +362,8 @@ function daeunSections(chart: SajuChart, now: Date, once: Once, name: string | n
     summary: current ? `지금은 ${range(current)}의 10년을 지나고 있어요` : `만 ${chart.daeun.startAge}세에 첫 10년이 시작돼요`,
     keywords: [`${chart.daeun.startAge}세부터 10년마다`, ...(current ? [`지금 '${TEN_GOD_PLAIN_LABEL[current.stemTenGod]}'의 10년`] : [])],
     paragraphs: [
-      `운은 10년마다 계절처럼 바뀌어요. 같은 사람이라도 어떤 계절을 지나느냐에 따라 힘을 쓰기 좋은 때와 쉬어 갈 때가 달라져요. ${nameSubject(name, '의')}첫 10년은 만 ${chart.daeun.startAge}세에 시작${year - chart.solarDate.year >= chart.daeun.startAge ? '됐어요' : '돼요'}.`,
-      '아래는 10년마다의 분위기를 한 단어로 적고, 흐름이 얼마나 순한지를 점수로 나타낸 거예요. 점수가 낮은 때는 나쁜 때라기보다 속도를 늦추고 다지는 때예요.',
+      `운은 10년마다 크게 바뀌어요. 같은 사람이라도 어느 10년을 지나느냐에 따라 힘을 쓰기 좋은 때와 쉬어 갈 때가 달라져요. ${nameSubject(name, '의')}첫 10년은 만 ${chart.daeun.startAge}세에 시작${year - chart.solarDate.year >= chart.daeun.startAge ? '됐어요' : '돼요'}.`,
+      '아래는 10년마다의 분위기를 한 단어로 적고, 흐름이 얼마나 순조로운지를 점수로 나타낸 거예요. 점수가 낮은 때는 나쁜 때라기보다 속도를 늦추고 다지는 때예요.',
       ...periods.map((p, i) => `${p === current ? '▶ ' : ''}${range(p)} (${p.startYear}~${p.endYear}년) · '${TEN_GOD_PLAIN_LABEL[p.stemTenGod]}' · ${GRADE_PLAIN_LABEL[evs[i]!.grade]} ${evs[i]!.scores.total}점`),
     ],
     basis: `대운수 ${chart.daeun.startAge}(정밀 ${chart.daeun.startExact.years}년 ${chart.daeun.startExact.months}개월) · ${chart.daeun.direction === 'forward' ? '순행' : '역행'} · ${periods.map((p, i) => `${p.ganzhi.hangul}(${p.ganzhi.hanja}) ${p.stemTenGod}·${p.branchTenGod} ${GRADE_LABEL[evs[i]!.grade]}`).join(', ')}`,
@@ -517,14 +508,14 @@ export function buildSajuAnalysis(chart: SajuChart, now = new Date(), profileNam
   };
   const closing: ReadingSection = {
     key: 'closing',
-    title: '나답게 사는 법',
-    summary: '나답게 살 때 운도 함께 따라와요',
+    title: '나에게 맞는 생활 방식',
+    summary: '타고난 힘의 세기에 맞춰 지내는 방법을 정리했어요',
     keywords: [`행운의 색 ${LUCKY_COLOR_PLAIN[y.yongsin]}`, `행운의 방향 ${info.direction}`, `행운의 숫자 ${info.numbers.join('·')}`],
     paragraphs: [
       `${nameSubject(name, '은')}${REPORT_MISC.closingByStrength[chart.strength.level]}`,
-      `마지막으로 건네고 싶은 한마디예요. ${dm.advice}`,
-      `기억해 두면 좋은 것도 정리해 둘게요. 힘이 되는 건 ${elWord(y.yongsin)}이고, 행운의 색은 ${LUCKY_COLOR_PLAIN[y.yongsin]}, 방향은 ${info.direction}, 숫자는 ${info.numbers.join('·')}이에요. 생활 속에서는 ${YONGSIN_CONTENT[y.yongsin].tips.slice(4, 6).join(', ')} 같은 것도 해 보세요.`,
-      '사주는 정해진 운명표가 아니라 나를 이해하는 지도예요. 이 분석서가 내 강점을 믿고, 쉬어 갈 때를 알아차리는 데 작은 도움이 되면 좋겠어요.',
+      `생활에서 이 점을 기억해 두면 좋아요. ${dm.advice}`,
+      `도움이 되는 것도 정리해 둘게요. 힘이 되는 건 ${elWord(y.yongsin)}이고, 행운의 색은 ${LUCKY_COLOR_PLAIN[y.yongsin]}, 방향은 ${info.direction}, 숫자는 ${info.numbers.join('·')}이에요. 생활 속에서는 ${YONGSIN_CONTENT[y.yongsin].tips.slice(4, 6).join(', ')} 같은 것도 해 보세요.`,
+      '사주는 앞날을 정해 두는 것이 아니라, 내가 어떤 성향이고 언제 힘을 쓰기 좋은지 살펴보는 참고 자료예요. 강점을 살릴 때와 쉬어 갈 때를 판단할 때 이 분석서를 다시 펼쳐 보세요.',
     ],
     basis: `일간 ${dm.name} · 일간의 힘 ${chart.strength.level} · 용신 ${EL_NAME[y.yongsin]}`,
   };
@@ -592,7 +583,7 @@ export function buildYearlyReport(chart: SajuChart, year: number, profileName: s
         `한 해 전체로 보면 — ${tg.inLuck[key]}`,
         btg !== stg ? `생활 바탕에서는 — ${bt.inLuck[key]}` : '',
         daeun ? `올해가 속한 10년으로 보면 — ${LUCK_CONTENT.daeun[daeun.stemTenGod][key]}` : '',
-        `${AREA_NAME[key]} 흐름이 가장 좋은 달은 ${mLabel(r[0]!.i)}이고, ${mLabel(r[r.length - 1]!.i)}에는 한 박자 쉬어 가면 좋아요.`,
+        `${AREA_NAME[key]} 흐름이 가장 좋은 달은 ${mLabel(r[0]!.i)}이고, ${mLabel(r[r.length - 1]!.i)}에는 속도를 조금 늦추면 좋아요.`,
       ].filter(Boolean),
       basis: `천간 ${stg} · 지지 ${btg}${daeun ? ` · ${daeun.ganzhi.hangul} 대운 ${daeun.stemTenGod}` : ''} · ${AREA_NAME[key]} 점수 ${ev.scores[key]}`,
     };
@@ -628,7 +619,7 @@ export function buildYearlyReport(chart: SajuChart, year: number, profileName: s
       summary: daeun ? `${range(daeun)}, '${TEN_GOD_PLAIN_LABEL[daeun.stemTenGod]}'의 10년 안의 한 해예요` : '첫 10년이 시작되기 전의 한 해예요',
       paragraphs: daeun
         ? [
-            `${year}년은 ${range(daeun)}(${daeun.startYear}~${daeun.endYear}년)의 10년 안에 있어요. 한 해의 운은 이 10년이라는 큰 계절 위에서 움직여요.`,
+            `${year}년은 ${range(daeun)}(${daeun.startYear}~${daeun.endYear}년)의 10년 안에 있어요. 한 해의 운은 이 10년의 큰 흐름에 영향을 받아요.`,
             `이 10년에는 ${q(TEN_GOD_PLAIN[daeun.stemTenGod].phrase, '이', '가')} 겉으로 드러나요.${btg === stg && daeun.stemTenGod === stg ? '' : ` ${LUCK_CONTENT.daeun[daeun.stemTenGod].general}`}`,
           ]
         : ['10년마다 바뀌는 흐름이 시작되기 전에는 타고난 기질과 한 해의 운이 그대로 드러나요. 올해의 흐름을 더 직접적으로 느낄 수 있어요.'],
@@ -713,19 +704,19 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
     const zb = b.zodiac.animal;
     const elOf = (key: string) => el(key.slice(key.lastIndexOf('_') + 1) as Element);
     if (k === 'stem_combine') return fill('{A:과/와} {B:은/는} 타고난 성질끼리 서로 끌어당기는 짝이에요.');
-    if (k === 'stem_clash') return fill('{A:과/와} {B:은/는} 타고난 성질이 서로 정면으로 마주 보는 짝이에요.');
+    if (k === 'stem_clash') return fill('{A:과/와} {B:은/는} 타고난 성질이 정반대 방향인 짝이에요.');
     if (k === 'stem_same') return fill('{A:과/와} {B:은/는} 타고난 성질이 같은 쪽이에요.');
     if (k === 'stem_generate') return rel === 1 ? fill('{A:이/가} {B:을/를} 북돋아 주는 흐름이에요.') : fill('{B:이/가} {A:을/를} 북돋아 주는 흐름이에요.');
     if (k === 'stem_control') return rel === 2 ? fill('{A:이/가} 이끌고 {B:이/가} 맞추는 흐름이 생기기 쉬워요.') : fill('{B:이/가} 이끌고 {A:이/가} 맞추는 흐름이 생기기 쉬워요.');
     if (k === 'day_branch_combine') return '함께 사는 생활에서 손발이 잘 맞는 짝이에요.';
-    if (k === 'day_branch_half') return '생활 속에서 같은 방향을 보며 손을 잡는 짝이에요.';
-    if (k === 'day_branch_clash') return '함께 사는 생활에서는 서로 정반대 쪽을 보는 짝이에요.';
-    if (k === 'day_branch_punish') return '생활 속에서 서로를 다듬으려는 긴장이 있는 짝이에요.';
-    if (k === 'day_branch_harm') return '함께 사는 생활에서는 결이 조금 다른 짝이에요.';
+    if (k === 'day_branch_half') return '생활 속에서 같은 목표를 두고 힘을 모으는 짝이에요.';
+    if (k === 'day_branch_clash') return '함께 사는 생활에서는 습관과 방식이 정반대인 짝이에요.';
+    if (k === 'day_branch_punish') return '생활 속에서 서로의 습관을 고치려 하다 긴장이 생기기 쉬운 짝이에요.';
+    if (k === 'day_branch_harm') return '함께 사는 생활에서는 생각이 조금씩 다른 짝이에요.';
     if (k === 'day_branch_wonjin') return '생활 속에서 끌리면서도 미묘하게 서운해지기 쉬운 짝이에요.';
     if (k === 'zodiac_combine') return `${za}띠와 ${zb}띠는 서로 잘 어울리는 띠예요.`;
     if (k === 'zodiac_trine') return `${za}띠와 ${zb}띠는 같은 무리에 속해 손발이 잘 맞는 띠예요.`;
-    if (k === 'zodiac_clash') return `${za}띠와 ${zb}띠는 서로 마주 보는 띠예요.`;
+    if (k === 'zodiac_clash') return `${za}띠와 ${zb}띠는 서로 부딪히기 쉬운 띠예요.`;
     if (k === 'zodiac_wonjin') return `${za}띠와 ${zb}띠는 묘하게 엇갈리기 쉬운 띠예요.`;
     if (k.startsWith('complement_a_')) return `${who(A, '에게')} 없는 ${elOf(k)} 기운을 ${who(B, '이/가')} 채워 줘요.`;
     if (k.startsWith('complement_b_')) return `${who(B, '에게')} 없는 ${elOf(k)} 기운을 ${who(A, '이/가')} 채워 줘요.`;
@@ -814,19 +805,19 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
       ],
       paragraphs: [
         `${who(A, '과/와')} ${who(B, '의')} 궁합은 100점 만점에 ${r.score}점, ${q(COMPAT_GRADE_LABEL[r.grade], '이에요', '예요')}. 타고난 성질, 함께 사는 생활, 띠, 다섯 가지 기운이 서로를 채우는지까지 함께 따져 본 점수예요.`,
-        `잘 맞는 점 ${pos.length}가지, 맞춰 갈 점 ${neg.length}가지가 보여요. 점수는 출발점일 뿐, 서로를 이해하는 만큼 관계는 달라져요.`,
+        `잘 맞는 점 ${pos.length}가지, 맞춰 갈 점 ${neg.length}가지가 보여요. 점수는 참고일 뿐이고, 서로를 얼마나 이해하느냐에 따라 관계는 달라져요.`,
       ],
       basis: `${A} 일간 ${dmA.name}·일지 ${a.pillars.day.branch.hanja} · ${B} 일간 ${dmB.name}·일지 ${b.pillars.day.branch.hanja} · 영역 점수 ${(Object.keys(CATEGORY_LABEL) as (keyof typeof CATEGORY_LABEL)[]).map((k) => `${CATEGORY_LABEL[k]} ${r.categories[k]}`).join(' · ')}`,
     },
     {
       key: 'persons',
       title: '두 사람의 타고난 기질',
-      summary: sameStem ? `두 사람 모두 '${dmA.title}' 같은 사람이에요` : `'${dmA.title}'${particle(dmA.title, '과', '와')} '${dmB.title}'의 만남`,
+      summary: sameStem ? '같은 성향끼리 만나 서로를 쉽게 이해하는 사이예요' : '성향이 서로 달라 상대에게 없는 점을 보여 주는 사이예요',
       paragraphs: [
-        `${who(A, '은/는')} '${dmA.title}'에 빗댈 수 있어요. ${STEM_PLAIN[a.dayMaster.index]!.line}`,
-        dropSimile(dpA.personality),
-        sameStem ? `${who(B, '도')} 같은 '${dmB.title}'의 기질을 타고났어요. 그래서 서로를 설명 없이도 잘 알아봐요.` : `${who(B, '은/는')} '${dmB.title}'에 빗댈 수 있어요. ${STEM_PLAIN[b.dayMaster.index]!.line}`,
-        ...(samePillar ? [] : [dropSimile(dpB.personality)]),
+        `먼저 ${A === '나' ? '내' : who(A, '의')} 타고난 성향이에요. ${STEM_PLAIN[a.dayMaster.index]!.line}`,
+        dpA.personality,
+        sameStem ? `${who(B, '도')} 같은 성향을 타고났어요. 그래서 서로를 설명 없이도 잘 알아봐요.` : `${who(B, '의')} 타고난 성향도 볼게요. ${STEM_PLAIN[b.dayMaster.index]!.line}`,
+        ...(samePillar ? [] : [dpB.personality]),
         sameStem
           ? `두 사람 모두 강점은 ${strengthsOf(dmA).join(', ')}${ieyo(strengthsOf(dmA).at(-1)!)}. 같은 강점을 가진 만큼, 일을 나눌 때는 한 사람이 앞에서 끌고 한 사람이 뒤를 챙기는 식으로 자리를 바꿔 가며 맡아 보세요.`
           : `${who(A, '의')} 강점은 ${strengthsOf(dmA).join(', ')}이고, ${who(B, '의')} 강점은 ${strengthsOf(dmB).join(', ')}${ieyo(strengthsOf(dmB).at(-1)!)}. 강점이 다를수록 역할을 나누기 쉬워요.`,
@@ -837,13 +828,14 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
       key: 'stemRelation',
       title: '타고난 성질의 관계',
       summary: stemFactors.some((f) => f.key === 'stem_combine')
-        ? '타고난 성질끼리 손을 잡는 사이예요'
+        ? '타고난 성질끼리 잘 맞는 사이예요'
         : stemFactors.some((f) => f.key === 'stem_clash')
-          ? '타고난 성질이 서로 마주 보는 사이예요'
+          ? '타고난 성질이 정반대인 사이예요'
           : (['닮은 성질끼리 만난 사이예요', '한 사람이 다른 사람의 힘이 되어 주는 사이예요', '이끄는 쪽과 맞추는 쪽이 생기기 쉬운 사이예요', '이끄는 쪽과 맞추는 쪽이 생기기 쉬운 사이예요', '한 사람이 다른 사람의 힘이 되어 주는 사이예요'] as const)[rel]!,
       paragraphs: [
         `${who(A, '은/는')} ${elWord(a.dayMaster.element)}, ${who(B, '은/는')} ${elWord(b.dayMaster.element)}을 타고났어요.${stemFactors.some((f) => f.key === 'stem_combine') ? '' : ` ${fill(REPORT_MISC.compatStemRelation[relKey])}`}`,
-        ...stemFactors.map(factorText),
+        // 북돋는·이끄는·닮은 관계는 바로 앞 문단(compatStemRelation)과 같은 이야기라 한 번만 쓴다
+        ...stemFactors.filter((f) => !['stem_generate', 'stem_control', 'stem_same'].includes(f.key)).map(factorText),
       ],
       basis: `일간 ${dmA.name} · ${dmB.name} (${['비화', '상생', '상극', '상극', '상생'][rel]})${stemFactors.length ? ` · ${stemFactors.map(factorTerm).join(' · ')}` : ''}`,
     },
@@ -856,7 +848,7 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
         yongA === yongB
           ? `두 사람 모두 가장 필요한 건 '${ELEMENT_PLAIN[yongA].need}'(${elWord(yongA)})이에요.`
           : `${who(A, '에게')} 가장 필요한 건 '${ELEMENT_PLAIN[yongA].need}'(${elWord(yongA)})이고, ${who(B, '에게')} 가장 필요한 건 '${ELEMENT_PLAIN[yongB].need}'(${elWord(yongB)})이에요.`,
-        ...(balanceFactors.length ? balanceFactors.map(factorText) : ['두 사람의 기운이 서로를 크게 채우거나 누르지 않아, 각자의 색을 지키며 함께하기 좋아요.']),
+        ...(balanceFactors.length ? balanceFactors.map(factorText) : ['두 사람의 기운이 서로를 크게 채우거나 누르지 않아, 각자의 방식을 지키며 함께하기 좋아요.']),
       ],
       basis: `오행 개수 ${A} ${ELEMENTS.map((x) => `${EL_NAME[x].slice(0, 1)}${a.elements.count[x]}`).join(' ')} · ${B} ${ELEMENTS.map((x) => `${EL_NAME[x].slice(0, 1)}${b.elements.count[x]}`).join(' ')} · 용신 ${EL_NAME[yongA]} · ${EL_NAME[yongB]}`,
     },
@@ -898,7 +890,7 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
         ga === gb ? `${who(B, '도')} 같은 힘이 가장 강해서, 마음을 전하는 방식이 닮았어요.` : `${who(B, '은/는')} ${q(GROUP_PLAIN[gb].name, '이', '가')} 가장 강해요. ${REPORT_MISC.compatCommunication[gb]}`,
         ga === gb
           ? '같은 방식으로 마음을 표현하니 오해는 적지만, 둘 다 같은 곳에서 지칠 수 있어요. 가끔은 상대가 잘 하지 않는 방식으로 먼저 다가가 보세요.'
-          : '표현 방식이 다르다는 건 서로에게 없는 말투를 가르쳐 줄 수 있다는 뜻이에요. 상대의 방식을 "틀렸다"가 아니라 "다르다"로 읽어 주세요.',
+          : '표현 방식이 다르면 서로에게 없는 말투를 배울 수 있어요. 상대의 방식이 마음에 들지 않을 때는 고치라고 하기보다 왜 그렇게 하는지 먼저 물어보세요.',
       ],
       basis: `가장 강한 십성 묶음 ${A} ${ga} · ${B} ${gb}`,
     },
@@ -922,13 +914,13 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
         dpA.love,
         ...(sameStem ? [] : [loveOf(dmB, names.b, B)]),
         ...(samePillar ? [] : [dpB.love]),
-        ...(sameStem ? [`${who(B, '도')} 같은 결의 사랑을 해요. 그래서 서로의 서운함이 어디서 오는지 금방 알아챌 수 있어요.`] : []),
+        ...(sameStem ? [`${who(B, '도')} 연애하는 방식이 비슷해요. 그래서 서로의 서운함이 어디서 오는지 금방 알아챌 수 있어요.`] : []),
       ],
       basis: `${A} ${dmA.name} · ${B} ${dmB.name}`,
     },
     {
       key: 'manual',
-      title: '서로를 위한 사용설명서',
+      title: '서로를 대하는 방법',
       summary: '상대가 힘을 얻는 순간과 조심할 지점',
       paragraphs: [
         `${who(A, '은/는')} ${list(dmA.strengths.slice(2, 4), '을', '를')} 알아봐 줄 때 힘을 얻어요. 가끔은 이런 모습도 보여요. ${weakOf(dmA)}. 그럴 땐 너그럽게 봐 주면 좋아요.`,
@@ -946,9 +938,9 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
       summary: yongA === yongB ? `두 사람 모두 ${elWord(yongA)}에서 힘을 얻어요` : `${el(yongA)}${particle(el(yongA), '과', '와')} ${el(yongB)} 기운을 함께 채워요`,
       paragraphs: [
         yongA === yongB
-          ? `두 사람 모두에게 힘이 되는 건 '${ELEMENT_PLAIN[yongA].need}'이에요. 필요한 기운이 같아서, 아래 활동을 함께하면 둘 다 충전돼요. 정기적인 데이트 습관으로 만들어 보세요.`
+          ? `두 사람 모두에게 힘이 되는 건 '${ELEMENT_PLAIN[yongA].need}'이에요. 필요한 기운이 같아서, 아래 활동을 함께하면 둘 다 힘이 나요. 한 달에 한두 번은 함께하는 데이트 습관으로 만들어 보세요.`
           : `${who(A, '에게')} 힘이 되는 건 '${ELEMENT_PLAIN[yongA].need}'이고, ${who(B, '에게')} 힘이 되는 건 '${ELEMENT_PLAIN[yongB].need}'이에요. 아래 활동 가운데 번갈아 상대에게 필요한 것을 골라 함께하면 서로를 채워 주는 시간이 돼요.`,
-        `함께 쓰면 좋은 색은 ${[...new Set([ELEMENT_INFO[yongA].color, ELEMENT_INFO[yongB].color])].join(', ')}이고, 함께 가면 좋은 방향은 ${[...new Set([ELEMENT_INFO[yongA].direction, ELEMENT_INFO[yongB].direction])].join(', ')}이에요.`,
+        `함께 쓰면 좋은 색은 ${[...new Set([LUCKY_COLOR_PLAIN[yongA], LUCKY_COLOR_PLAIN[yongB]])].join(', ')}이고, 함께 가면 좋은 방향은 ${[...new Set([ELEMENT_INFO[yongA].direction, ELEMENT_INFO[yongB].direction])].join(', ')}이에요.`,
       ],
       tips: [...new Set([...ELEMENT_CONTENT[yongA].balanceTips.slice(0, 3), ...ELEMENT_CONTENT[yongB].balanceTips.slice(0, 3)])],
       basis: `용신 ${A} ${EL_NAME[yongA]} · ${B} ${EL_NAME[yongB]}`,
@@ -962,7 +954,7 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
           da && `${who(A, '은/는')} 지금 ${range(da)}(${da.startYear}~${da.endYear}년), '${TEN_GOD_PLAIN_LABEL[da.stemTenGod]}'의 10년을 지나고 있어요. ${LUCK_CONTENT.daeun[da.stemTenGod].love}`,
           db &&
             (da && da.stemTenGod === db.stemTenGod
-              ? `${who(B, '도')} 지금 ${range(db)}(${db.startYear}~${db.endYear}년), 같은 '${TEN_GOD_PLAIN_LABEL[db.stemTenGod]}'의 10년을 지나고 있어요. 두 사람이 비슷한 계절을 함께 걷는 셈이에요.`
+              ? `${who(B, '도')} 지금 ${range(db)}(${db.startYear}~${db.endYear}년), 같은 '${TEN_GOD_PLAIN_LABEL[db.stemTenGod]}'의 10년을 지나고 있어요. 두 사람이 비슷한 시기를 함께 지나는 셈이에요.`
               : `${who(B, '은/는')} 지금 ${range(db)}(${db.startYear}~${db.endYear}년), '${TEN_GOD_PLAIN_LABEL[db.stemTenGod]}'의 10년을 지나고 있어요. ${LUCK_CONTENT.daeun[db.stemTenGod].love}`),
         ].filter((x): x is string => Boolean(x)),
         ...[0, 1].map((i) => {
@@ -973,7 +965,7 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
           const tail = both
             ? ['두 사람 모두 기운이 오르는 해라 함께 계획한 일을 시작하기 좋아요.', '둘 다 기운이 좋은 해라 미뤄 둔 큰 계획을 함께 꺼내 보기 좋아요.'][i]
             : gap
-              ? ['한 사람의 기운이 더 높은 해라, 여유가 있는 쪽이 상대의 속도를 기다려 주면 관계가 단단해져요.', '기운의 높낮이가 엇갈리는 해라, 힘이 남는 쪽이 먼저 손을 내밀면 좋아요.'][i]
+              ? ['한 사람의 기운이 더 높은 해라, 여유가 있는 쪽이 상대의 속도를 기다려 주면 관계가 안정돼요.', '기운의 높낮이가 엇갈리는 해라, 기운이 좋은 쪽이 상대의 일을 먼저 도와주면 좋아요.'][i]
               : ['두 사람 모두 차분히 다지는 해라, 큰 결정보다 일상의 리듬을 맞추는 데 힘을 쓰면 좋아요.', '둘 다 무난하게 흘러가는 해라, 함께하는 작은 습관을 하나 만들기 좋아요.'][i];
           return `${ya[i]!.yr}년 — ${who(A, '은/는')} '${TEN_GOD_PLAIN_LABEL[ea.pillar.stemTenGod]}'의 해로 ${ea.scores.total}점, ${who(B, '은/는')} '${TEN_GOD_PLAIN_LABEL[eb.pillar.stemTenGod]}'의 해로 ${eb.scores.total}점이에요. ${tail}`;
         }),
@@ -988,7 +980,7 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
       paragraphs: [
         FORTUNE_TEMPLATES.compatibilityAdvice[r.grade],
         `두 사람이 가장 신경 쓰면 좋은 영역은 '${CATEGORY_LABEL[lowCat]}'이에요. 이 부분은 한 달에 한 번쯤 서로의 생각을 물어보는 시간을 정해 두면 좋아요.`,
-        '궁합은 두 사람의 기운이 만나는 방식을 보는 참고 자료예요. 관계의 답은 결국 서로를 대하는 매일의 태도에 있어요.',
+        '궁합은 두 사람의 기운이 만나는 방식을 보는 참고 자료예요. 실제 관계는 서로를 대하는 평소 태도에 따라 얼마든지 달라질 수 있어요.',
       ],
       basis: `궁합 등급 ${r.grade} · 가장 낮은 영역 ${CATEGORY_LABEL[lowCat]} ${r.categories[lowCat]}`,
     },

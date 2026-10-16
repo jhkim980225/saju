@@ -146,7 +146,7 @@ export function CompatibilityPage() {
                   <OpenReportCard
                     dto={{ type: 'compatibility', profileId: a, partnerProfileId: b }}
                     title="궁합 리포트 전체"
-                    body="타고난 성향과 다섯 가지 기운의 균형, 끌림과 조심할 점, 대화·다툼 방식, 서로를 위한 사용설명서, 올해·내년 흐름까지 담은 리포트예요."
+                    body="타고난 성향과 다섯 가지 기운의 균형, 끌림과 조심할 점, 대화·다툼 방식, 서로를 대하는 방법, 올해·내년 흐름까지 담은 리포트예요."
                   />
                 )}
                 <Button variant="secondary" block className="mt-2" onClick={() => setShareOpen(true)}>
