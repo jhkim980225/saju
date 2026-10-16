@@ -25,7 +25,7 @@ import type { DrawnCard } from './deck.js';
 import { YES_NO_LABEL, leanOf } from './yesno.js';
 
 export const TAROT_DISCLAIMER =
-  '타로는 지금의 마음과 흐름을 비춰 보는 참고 도구예요. 미래를 정해 주지 않으니, 중요한 결정은 스스로의 판단과 전문가의 조언을 함께 고려해 주세요.';
+  '타로는 지금의 마음과 상황을 정리해 보는 참고 도구예요. 미래를 정해 주지 않으니, 중요한 결정은 스스로의 판단과 전문가의 조언을 함께 고려해 주세요.';
 
 // ── 달빛사주 방식 원소 연결 ───────────────────────────────────
 
@@ -168,15 +168,15 @@ function whoOf(name: string | null | undefined): Who {
 function relationLine(rel: Relation, x: string, w: Who): string {
   switch (rel) {
     case 'same':
-      return `${x} ${w.with} 같은 기운이라, 카드의 말이 자연스럽게 와닿을 거예요.`;
+      return `${x} ${w.with} 같은 기운이라, 카드가 말하는 내용이 쉽게 이해되는 편이에요.`;
     case 'support':
-      return `${x} ${w.to} 힘을 보태 주는 기운이에요. 카드의 메시지에서 용기를 얻기 좋아요.`;
+      return `${x} ${w.to} 힘을 보태 주는 기운이에요. 카드가 권하는 쪽으로 움직이기가 비교적 편해요.`;
     case 'express':
-      return `${x} ${w.subj} 가진 힘을 밖으로 꺼내게 하는 기운이에요. 생각만 하기보다 움직일수록 뜻이 또렷해져요.`;
+      return `${x} ${w.subj} 가진 힘을 밖으로 꺼내게 하는 기운이에요. 생각만 하기보다 직접 해 볼 때 카드의 뜻이 잘 드러나요.`;
     case 'manage':
       return `${x} ${w.subj} 직접 손대서 결과로 만들어 가는 기운이에요. 구체적인 계획으로 옮겨 보면 좋아요.`;
     default:
-      return `${x} ${w.obj} 다그치고 다듬는 기운이라 조금 부담스러울 수 있어요. 그만큼 배울 게 분명한 카드예요.`;
+      return `${x} ${w.obj} 다그치고 다듬는 기운이라 조금 부담스러울 수 있어요. 대신 무엇을 고치면 좋을지가 분명하게 보이는 카드예요.`;
   }
 }
 
@@ -202,13 +202,13 @@ const cardEls = (placed: TarotPlacedCardDto[]) => placed.map((p) => `${p.nameKo}
 /** 카드 원소와 용신 — 같은 방향(같거나 낳아 줌) · 누름 · 부딪히지 않음 */
 const yongsinRel = (el: Element, y: Element): 'align' | 'press' | 'calm' => (el === y || generates(el) === y ? 'align' : controls(el) === y ? 'press' : 'calm');
 
-/** 타고난 기운을 한마디로 — "단단하고 맺고 끊는 쇠" */
+/** 타고난 기운을 한마디로 — "판단하고 정리하는 쪽에 힘이 있는 쇠" (비유 없이 뜻으로) */
 const ELEMENT_NATURE: Record<Element, string> = {
-  wood: '쭉쭉 자라고 뻗어 가는 나무',
-  fire: '밝게 타오르며 드러내는 불',
-  earth: '든든하게 받쳐 주는 흙',
-  metal: '단단하고 맺고 끊는 쇠',
-  water: '유연하게 스며드는 물',
+  wood: '새로 시작하고 넓혀 가는 쪽에 힘이 있는 나무',
+  fire: '생각과 마음을 밖으로 드러내는 쪽에 힘이 있는 불',
+  earth: '맡은 것을 지키고 챙기는 쪽에 힘이 있는 흙',
+  metal: '판단하고 정리하는 쪽에 힘이 있는 쇠',
+  water: '상황과 사람을 살피는 쪽에 힘이 있는 물',
 };
 
 /** 카드 원소와 가장 필요한 기운(용신)의 관계 — 쉬운 말. 필요한 기운은 무료 풀이와 같은 말('새로운 걸 배우고 시작해 보는 것')로 */
@@ -234,11 +234,11 @@ function sajuSummary(rels: Relation[], w: Who): string {
     const r = rels[0]!;
     if (r === 'same' || r === 'support') return `${w.to} 힘이 되는 카드예요`;
     if (r === 'test') return `${w.obj} 다듬어 주는, 조금 어려운 카드예요`;
-    return `움직일수록 뜻이 살아나는 카드예요`;
+    return `직접 움직일 때 뜻이 잘 드러나는 카드예요`;
   }
   if (help === n) return `${n}장 모두 ${w.to} 힘이 되는 카드예요`;
   if (help > 0) return `${n}장 가운데 ${help}장이 ${w.to} 힘이 되는 카드예요`;
-  if (act > 0) return `${n}장 가운데 ${act}장이 움직일수록 뜻이 살아나는 카드예요`;
+  if (act > 0) return `${n}장 가운데 ${act}장이 직접 움직일 때 뜻이 잘 드러나는 카드예요`;
   return `${n}장 모두 ${w.obj} 다듬어 주는 카드예요`;
 }
 
@@ -305,7 +305,7 @@ function pairLine(me: TarotPerson, partner: TarotPerson): string {
     case 'same':
       return `두 사람은 같은 기운을 타고나서 서로를 금방 알아봐요. 대신 고집이 맞설 때는 한 사람이 먼저 한발 물러서 주세요.`;
     case 'support':
-      return `${josa(p, '이', '가')} ${josa(m, '을', '를')} 받쳐 주는 사이예요. 받는 쪽이 고마움을 자주 말로 전하면 더 오래 따뜻해요.`;
+      return `${josa(p, '이', '가')} ${josa(m, '을', '를')} 받쳐 주는 사이예요. 받는 쪽이 고마움을 자주 말로 전하면 오래 편안하게 지낼 수 있어요.`;
     case 'express':
       return `${josa(m, '이', '가')} ${josa(p, '을', '를')} 받쳐 주는 사이예요. 주는 쪽이 지치지 않게 서로 챙겨 주세요.`;
     case 'manage':
@@ -369,19 +369,19 @@ function overviewParagraph(placed: TarotPlacedCardDto[], seed: string): string {
     const p = placed[0]!;
     parts.push(`${p.nameKo}${REV(p.orientation)} 한 장이 오늘의 메시지예요. ${p.meaning}.`);
   } else if (majors.length === 0) {
-    parts.push(pick([`${placed.length}장 모두 일상의 일을 뜻하는 카드예요. 큰 운명보다는 지금 내가 고르는 선택과 습관이 흐름을 만드는 때로 읽어요.`, `큰 흐름을 뜻하는 카드 없이, 일상의 일을 뜻하는 카드로만 펼쳐졌어요. 생활 속 작은 결정들이 이 고민의 열쇠라는 뜻으로 읽어요.`], seed));
+    parts.push(pick([`${placed.length}장 모두 일상의 일을 뜻하는 카드예요. 크게 바뀌는 일보다는 지금 내가 고르는 선택과 습관이 결과를 좌우하는 때로 읽어요.`, `큰 흐름을 뜻하는 카드 없이, 일상의 일을 뜻하는 카드로만 펼쳐졌어요. 생활 속 작은 결정들이 이 고민을 푸는 데 가장 중요하다는 뜻으로 읽어요.`], seed));
   } else if (majors.length === 1) {
-    parts.push(`${cj(majors[0]!.nameKo, '이', '가')} ${majors[0]!.position.label} 자리에서 중심을 잡고 있어요. 이 자리가 지금 고민에서 가장 무게가 실린 곳이에요.`);
+    parts.push(`큰 흐름을 뜻하는 메이저 카드 ${cj(majors[0]!.nameKo, '이', '가')} ${majors[0]!.position.label} 자리에 한 장 나왔어요. 이 자리가 지금 고민에서 가장 중요한 부분이라는 뜻으로 읽어요.`);
   } else {
     parts.push(`인생의 큰 흐름을 뜻하는 메이저 카드가 ${majors.length}장 나왔어요. 이 고민이 마음속에서 꽤 큰 자리를 차지하고 있다는 뜻으로 읽어요.`);
   }
   if (placed.length > 1) {
-    if (reversed === 0) parts.push('모두 정방향이라 기운이 바깥으로 자연스럽게 흐르는 편이에요.');
-    else if (reversed * 2 > placed.length) parts.push(`역방향이 ${reversed}장이라 아직 안에서 무르익는 마음이 많아요. 서두르기보다 정리할 시간을 먼저 가져 보세요.`);
+    if (reversed === 0) parts.push('모두 정방향이라 카드의 뜻이 그대로 드러나는 편이에요.');
+    else if (reversed * 2 > placed.length) parts.push(`역방향이 ${reversed}장이라 아직 정리되지 않은 마음이 많은 편이에요. 서두르기보다 생각을 정리할 시간을 먼저 가져 보세요.`);
     const counts = new Map<Element, number>();
     for (const p of placed) counts.set(p.element, (counts.get(p.element) ?? 0) + 1);
     const [topEl, n] = [...counts].sort((a, b) => b[1] - a[1])[0]!;
-    if (n >= 2) parts.push(`${EL_SHORT[topEl]}의 기운을 담은 카드가 ${n}장 겹쳐, ${ELEMENT_THEME[topEl]}에 무게가 실려 있어요.`);
+    if (n >= 2) parts.push(`${EL_SHORT[topEl]}의 기운을 담은 카드가 ${n}장이라, 이번 고민에서는 ${ELEMENT_THEME[topEl]}이 중요한 편이에요.`);
   }
   return parts.join(' ');
 }
@@ -409,7 +409,7 @@ function ruleStory(spread: TarotSpread, placed: TarotPlacedCardDto[], topic: Tar
   if (spread === 'choice' && options) {
     const [now, a, b] = placed as [TarotPlacedCardDto, TarotPlacedCardDto, TarotPlacedCardDto];
     return [
-      `${now.position.label} 자리의 ${cj(now.nameKo, '은', '는')} 지금 고민하는 마음을 비춰요. ${line(now)}`,
+      `${now.position.label} 자리의 ${cj(now.nameKo, '은', '는')} 지금 고민하는 마음을 보여 줘요. ${line(now)}`,
       `A(${options.a})를 고르면 ${cj(a.nameKo, '이', '가')} 이렇게 말해요. ${line(a)} B(${options.b})를 고르면 ${cj(b.nameKo, '이', '가')} 이렇게 말해요. ${line(b)}`,
       '두 카드는 어느 길이 맞다고 정해 주지 않아요. 각 길에서 기대할 수 있는 것과 챙겨야 할 것을 나란히 놓고, 지금의 나에게 더 중요한 기준이 무엇인지 먼저 정해 보세요.',
     ];
@@ -420,7 +420,7 @@ function ruleStory(spread: TarotSpread, placed: TarotPlacedCardDto[], topic: Tar
     const [present, cross, near, outcome] = [at('present'), at('cross'), at('near'), at('outcome')];
     return [
       `${present.position.label} 자리의 ${cj(present.nameKo, '이', '가')} 고민의 중심이고, 그 위를 ${cj(cross.nameKo, '이', '가')} 가로지르고 있어요. ${line(present)} ${line(cross)}`,
-      `바탕에는 ${at('root').nameKo}, 지나가는 자리에는 ${at('past').nameKo}, 다가오는 자리에는 ${cj(near.nameKo, '이', '가')} 놓였어요. 뿌리에서 가까운 앞날로 이어지는 흐름이에요. ${line(near)}`,
+      `바탕에는 ${at('root').nameKo}, 지나가는 자리에는 ${at('past').nameKo}, 다가오는 자리에는 ${cj(near.nameKo, '이', '가')} 놓였어요. 고민의 바탕에서 가까운 앞날로 이어지는 흐름이에요. ${line(near)}`,
       `바라는 것은 ${at('goal').nameKo}, 나의 태도는 ${at('attitude').nameKo}, 주변은 ${at('surroundings').nameKo}, 바람과 걱정은 ${at('hopes').nameKo} 카드로 읽혀요. ${line(at('attitude'))}`,
       `${outcome.position.label} 자리의 ${cj(outcome.nameKo, '은', '는')} 이렇게 말해요. ${line(outcome)} 정해진 결과가 아니라 지금 그대로 갈 때 이어지기 쉬운 방향이니, 나의 태도와 주변 자리에서 바꿀 수 있는 것부터 살펴보세요.`,
     ];
@@ -484,8 +484,8 @@ export function buildTarotReading(input: {
     const lean = leanOf(input.drawn[0]!);
     const who = `${p.orientation === 'reversed' ? '역방향으로 나온 ' : ''}${cj(p.nameKo, '은', '는')} 「${p.keywords[0]}」의 카드라`;
     const leanText: Record<TarotYesNoLean, string> = {
-      yes: `${who}, 이 질문에서는 '예' 쪽으로 기울어 있어요. 정해진 답이라기보다 지금 흐름이 그쪽으로 열려 있다는 뜻이에요.`,
-      maybe: `${who}, 지금은 어느 한쪽으로 정해지지 않은 조건부 흐름이에요. 아래 조건을 챙길수록 바라는 쪽으로 열리기 쉬워요.`,
+      yes: `${who}, 이 질문에서는 '예' 쪽으로 기울어 있어요. 정해진 답이라기보다 지금 상황이 그쪽에 가깝다는 뜻이에요.`,
+      maybe: `${who}, 지금은 어느 한쪽으로 정해지지 않은 조건부 흐름이에요. 아래 조건을 챙길수록 바라는 쪽으로 가기 쉬워요.`,
       no: `${who}, 지금은 '아니오' 쪽으로 기울어 있어요. 안 된다는 뜻이라기보다, 서두르기 전에 한 번 더 살펴보라는 신호로 읽어요.`,
     };
     const sections: ReadingSection[] = [
@@ -524,7 +524,7 @@ export function buildTarotReading(input: {
     const field = fieldFor(input.topic, p.position.key);
     const paragraphs = [o[field]];
     if (field !== 'general') paragraphs.push(o.general);
-    if (field !== 'advice') paragraphs.push(`${p.position.label} 자리에서 이 카드는 「${p.position.hint}」${particle(p.position.hint, '을', '를')} 비춰요. ${o.advice}`);
+    if (field !== 'advice') paragraphs.push(`${p.position.label} 자리에서 이 카드는 「${p.position.hint}」${particle(p.position.hint, '을', '를')} 보여 줘요. ${o.advice}`);
     const section: ReadingSection = { key: `pos-${p.position.key}`, title: `${p.position.label} · ${p.nameKo}${REV(p.orientation)}`, summary: p.line, keywords: p.keywords, paragraphs };
     sections.push(lock(section, !input.unlocked && i >= def.freeCards, productId));
   });
@@ -539,7 +539,7 @@ export function buildTarotReading(input: {
     options && placed.length === 3
       ? [advice(placed[0]!), `A를 고른다면 — ${advice(placed[1]!)}`, `B를 고른다면 — ${advice(placed[2]!)}`]
       : [...new Set([...placed].reverse().map(advice))].slice(0, 3);
-  sections.push(lock({ key: 'actions', title: '지금 해 볼 수 있는 행동', summary: '카드가 건네는 구체적인 한 걸음', paragraphs: actions }, !input.unlocked, productId));
+  sections.push(lock({ key: 'actions', title: '지금 해 볼 수 있는 행동', summary: '카드의 뜻에 맞춰 바로 해 볼 수 있는 일', paragraphs: actions }, !input.unlocked, productId));
 
   if (saju) {
     // 잠겨 있으면 용어 근거(basis)도 보내지 않는다 — 미리보기 첫 문단만

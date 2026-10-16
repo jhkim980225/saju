@@ -553,7 +553,7 @@ export const TAROT_SPREADS = {
       { key: 'me', label: '나의 마음', hint: '이 관계에서 내가 느끼는 것' },
       { key: 'outer', label: '겉으로 보이는 마음', hint: '말과 행동으로 드러나는 것' },
       { key: 'inner', label: '안에 있는 마음', hint: '쉽게 드러내지 않는 생각' },
-      { key: 'between', label: '둘 사이의 흐름', hint: '두 사람 사이에 흐르는 기운' },
+      { key: 'between', label: '둘 사이의 흐름', hint: '두 사람 사이의 분위기' },
       { key: 'help', label: '도움이 되는 것', hint: '관계를 위해 해 볼 수 있는 일' },
     ],
   },
@@ -602,7 +602,7 @@ export const TAROT_SPREADS = {
       { key: 'partner', label: '상대의 마음', hint: '상대가 이 관계에서 느끼는 것' },
       { key: 'bond', label: '서로 끌리는 점', hint: '두 사람을 이어 주는 것' },
       { key: 'friction', label: '조율할 점', hint: '부딪히기 쉬운 지점' },
-      { key: 'together', label: '함께 가꿀 것', hint: '관계를 위해 둘이 해 볼 수 있는 일' },
+      { key: 'together', label: '함께 챙길 것', hint: '관계를 위해 둘이 해 볼 수 있는 일' },
     ],
   },
   /** 켈틱 크로스 — 고전 10자리. 2번(가로막는 것)은 1번 위에 90° 돌려 놓는다 */
@@ -614,7 +614,7 @@ export const TAROT_SPREADS = {
     positions: [
       { key: 'present', label: '지금 상황', hint: '고민의 중심' },
       { key: 'cross', label: '가로막는 것', hint: '중심을 가로지르는 힘' },
-      { key: 'root', label: '바탕', hint: '상황의 뿌리' },
+      { key: 'root', label: '바탕', hint: '상황의 바탕이 된 일' },
       { key: 'past', label: '지나가는 것', hint: '가까운 과거' },
       { key: 'goal', label: '바라는 것', hint: '의식하고 있는 목표' },
       { key: 'near', label: '다가오는 것', hint: '가까운 앞날의 흐름' },

@@ -9,7 +9,7 @@ test('질문 타로 3장: 고른 자리의 카드로 결과가 나오고, 깊은
   await injectSession(page, tokens);
 
   await page.goto('/tarot');
-  await expect(page.getByRole('heading', { name: /생각을 비춰 주는 카드/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /지금 고민을 살펴봐요/ })).toBeVisible();
   await page.getByRole('link', { name: /이 길로 가도 괜찮을까요/ }).click();
   await expect(page).toHaveURL(/\/tarot\/ask\?topic=career$/);
   await page.getByLabel(/나의 질문/).fill('이직을 준비해도 될까요?');
@@ -32,7 +32,7 @@ test('질문 타로 3장: 고른 자리의 카드로 결과가 나오고, 깊은
   // 결과 — 카드·한 줄·총평은 무료, 자리별 풀이는 잠김
   await expect(page).toHaveURL(/\/tarot\/r\/[\w-]+$/);
   const readingId = page.url().split('/').pop()!;
-  await expect(page.getByText('카드가 건네는 한 줄')).toBeVisible();
+  await expect(page.getByText('카드의 한 줄 풀이')).toBeVisible();
   await expect(page.getByText('“이직을 준비해도 될까요?”')).toBeVisible();
   await expect(page.getByRole('heading', { name: '카드를 이어서 읽으면' })).toBeVisible();
   await expect(page.getByText('여기서부터는 깊은 풀이예요').first()).toBeVisible();
@@ -81,7 +81,7 @@ test('오늘의 카드: 뒷면을 펼치면 하루 한 장으로 고정되고, �
 
   await page.goto('/tarot/daily');
   await page.getByRole('button', { name: '오늘의 카드 뽑기' }).last().click();
-  await expect(page.getByText('카드가 건네는 한 줄')).toBeVisible();
+  await expect(page.getByText('카드의 한 줄 풀이')).toBeVisible();
   const daily = await apiCall<{ cards: { nameKo: string }[] }>(api, 'GET', '/tarot/daily', { token: tokens.accessToken });
   const name = daily.cards[0]!.nameKo;
 

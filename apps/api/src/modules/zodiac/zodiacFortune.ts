@@ -153,7 +153,7 @@ function luckyOf(animal: ZodiacAnimal, ev: ZodiacEvaluation, seed: string, when:
   const info = ELEMENT_INFO[el];
   const basis = combo
     ? `${animal.name}띠가 ${when}의 기운과 ${combo.kind === '육합' ? '짝을 이뤄' : '힘을 모아'} 만드는 ${EL_NAME[el]} 기운`
-    : `${animal.name}띠(${EL_NAME[animalEl]})를 키워 주는 ${EL_NAME[el]} 기운`;
+    : `${animal.name}띠(${EL_NAME[animalEl]})를 도와주는 ${EL_NAME[el]} 기운`;
   return { color: info.color, direction: info.direction, number: info.numbers[hashSeed(seed) % 2]!, basis };
 }
 
@@ -286,7 +286,7 @@ export function buildZodiacFortune(animal: ZodiacAnimal, period: FreeFortunePeri
   const reasons: FreeFortuneReasonDto[] = [
     {
       title: `${monthDay(firstDay)} ~ ${monthDay(lastDay)} 일진 7일`,
-      body: `${days.map((x) => `${weekdayOf(x.d).slice(0, 1)} ${ganzhi(x.p)}`).join(' · ')} — ${animal.name}띠와 손을 잡는 날 ${goods.length}일, 부딪치는 날 ${cautions.length}일이에요.`,
+      body: `${days.map((x) => `${weekdayOf(x.d).slice(0, 1)} ${ganzhi(x.p)}`).join(' · ')} — ${animal.name}띠와 잘 맞는 날 ${goods.length}일, 부딪치는 날 ${cautions.length}일이에요.`,
     },
     ...bondReasons(animal, bg, bgEv),
   ];
