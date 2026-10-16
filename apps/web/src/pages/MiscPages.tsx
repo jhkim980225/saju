@@ -3,7 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Page } from '@/components/AppShell';
-import { MoreMenu } from '@/components/MoreMenu';
+import { BasicsLink, MoreMenu } from '@/components/MoreMenu';
 import { TaekilEntryCard } from '@/components/TaekilEntryCard';
 import { Button, Card, EmptyState, IconButton, PageHeader, Spinner, TextInput } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -33,6 +33,7 @@ export function MenuPage() {
       <PageHeader title="전체 운세" width="medium" />
       <Page width="medium">
         <MoreMenu title="무엇을 볼까요?" className="mt-4" />
+        <BasicsLink className="mt-6" />
       </Page>
     </div>
   );

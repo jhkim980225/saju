@@ -1,4 +1,4 @@
-import { BookOpen, CalendarCheck, CalendarDays, CloudMoon, GalleryVerticalEnd, HeartHandshake, ScrollText, Star, Sun, type LucideIcon } from 'lucide-react';
+import { BookOpen, CalendarCheck, CalendarDays, ChevronRight, CloudMoon, GalleryVerticalEnd, GraduationCap, HeartHandshake, ScrollText, Star, Sun, type LucideIcon } from 'lucide-react';
 import { useId } from 'react';
 import { Link } from 'react-router';
 import { targetFortuneYear } from '@/lib/format';
@@ -16,6 +16,20 @@ const ITEMS: { to: string; label: string; icon: LucideIcon }[] = [
   { to: '/taekil', label: '좋은 날 고르기', icon: CalendarCheck },
   { to: '/manse', label: '만세력', icon: BookOpen },
 ];
+
+/** 사주가 처음인 사람을 위한 안내 화면(/basics) 바로가기 */
+export function BasicsLink({ className }: { className?: string }) {
+  return (
+    <Link to="/basics" className={cx('flex items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 transition-colors hover:border-line-strong', className)}>
+      <GraduationCap className="size-6 shrink-0 text-gold" strokeWidth={1.5} aria-hidden />
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-semibold">사주 기초</span>
+        <span className="block text-sm text-ink-2">사주가 처음이라면 여기부터 읽어 보세요</span>
+      </span>
+      <ChevronRight className="size-5 shrink-0 text-ink-3" aria-hidden />
+    </Link>
+  );
+}
 
 export function MoreMenu({ title = '다른 운세 보기', exclude, className }: { title?: string; exclude?: string; className?: string }) {
   const titleId = useId();

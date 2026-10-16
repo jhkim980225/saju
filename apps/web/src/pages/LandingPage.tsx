@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import { Page } from '@/components/AppShell';
-import { MoreMenu } from '@/components/MoreMenu';
+import { BasicsLink, MoreMenu } from '@/components/MoreMenu';
 import { MoonEmblem, Wordmark } from '@/components/Seal';
 import { cx } from '@/components/ui';
 import { t } from '@/lib/copy';
@@ -34,7 +34,10 @@ export function LandingPage() {
             <BirthForm variant="embedded" />
           </div>
 
-          <MoreMenu className="mt-10 lg:col-start-1 lg:row-start-2 lg:self-start" />
+          <div className="mt-10 lg:col-start-1 lg:row-start-2 lg:self-start">
+            <MoreMenu />
+            <BasicsLink className="mt-4" />
+          </div>
         </section>
 
         <footer className="mt-12 space-y-2 border-t border-line pt-6 text-xs leading-relaxed text-ink-3 lg:mt-20">

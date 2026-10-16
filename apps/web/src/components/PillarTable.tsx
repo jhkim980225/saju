@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { t } from '@/lib/copy';
 import { ELEMENT_META } from '@/lib/format';
+import { RELATIONS, ROWS, SHINSAL, STRENGTH_LEVELS, STRENGTH_PARTS, termFor, type RowKey, type Term } from '@/lib/sajuBasics';
+import { TermButton, TermSheet } from './TermSheet';
 import { cx } from './ui';
 
 type Pos = 'hour' | 'day' | 'month' | 'year';
@@ -49,12 +51,34 @@ function UnknownTile() {
 
 export function PillarTable({ chart, editHref }: { chart: SajuChart; editHref?: string }) {
   const [expert, setExpert] = useState(false);
+  // 누른 용어의 설명 — 줄 이름이나 값을 누르면 아래에서 올라온다
+  const [sheet, setSheet] = useState<{ term: Term; extra?: Term[] } | null>(null);
   const pillars = chart.pillars;
   const label = (p: Pos) => t(`result.pillarTable.${p}`);
   const col = (p: Pos): PillarDetail | null => pillars[p];
+  const open = (term: Term, extra?: Term[]) => setSheet({ term, extra });
 
-  // 기본은 처음 보는 사람용 — 여덟 글자만. 십성·천간/지지 이름표는 '전문가 보기'에서
-  const rowLabel = (text: string) => (expert ? <div className="self-center text-[11px] text-ink-3">{text}</div> : null);
+  // 기본은 처음 보는 사람용 — 여덟 글자만. 십성·천간/지지 이름표는 '전문가 보기'에서. 이름표를 누르면 무슨 줄인지 알려 준다
+  const rowLabel = (row: RowKey, text?: string) =>
+    expert ? (
+      <div className="self-center text-[11px] text-ink-3">
+        <TermButton label={ROWS[row].name} onClick={() => open(ROWS[row])}>
+          {text ?? ROWS[row].name}
+        </TermButton>
+      </div>
+    ) : null;
+  /** 표 안의 값 — 누르면 그 값의 뜻 */
+  const value = (row: RowKey, v: string, className?: string) =>
+    v ? (
+      <TermButton label={v} className={className} onClick={() => open(termFor(row, v))}>
+        {v}
+      </TermButton>
+    ) : null;
+  const strengthTerm = (): Term => ({
+    ...ROWS.strength,
+    short: `${chart.strength.level} · 점수 ${chart.strength.score}`,
+    body: `${STRENGTH_LEVELS[chart.strength.level] ?? ''} ${ROWS.strength.body}`.trim(),
+  });
 
   return (
     <div>
@@ -70,22 +94,22 @@ export function PillarTable({ chart, editHref }: { chart: SajuChart; editHref?: 
 
         {expert && (
           <>
-            {rowLabel(t('result.pillarTable.tenGods'))}
+            {rowLabel('tenGods', t('result.pillarTable.tenGods'))}
             {ORDER.map((p) => (
               <div key={p} className="text-xs text-ink-2">
-                {col(p) ? (p === 'day' ? '일간' : col(p)!.stem.tenGod) : ''}
+                {col(p) ? value('tenGods', p === 'day' ? '일간' : col(p)!.stem.tenGod) : ''}
               </div>
             ))}
           </>
         )}
 
-        {rowLabel(t('result.pillarTable.heavenlyStem'))}
+        {rowLabel('stem', t('result.pillarTable.heavenlyStem'))}
         {ORDER.map((p) => {
           const c = col(p);
           return c ? <Tile key={p} hanja={c.stem.hanja} hangul={c.stem.hangul} element={c.stem.element} yinYang={c.stem.yinYang} isMe={p === 'day'} kind="천간" position={label(p)} expert={expert} /> : <UnknownTile key={p} />;
         })}
 
-        {rowLabel(t('result.pillarTable.earthlyBranch'))}
+        {rowLabel('branch', t('result.pillarTable.earthlyBranch'))}
         {ORDER.map((p) => {
           const c = col(p);
           return c ? <Tile key={p} hanja={c.branch.hanja} hangul={c.branch.hangul} element={c.branch.element} yinYang={c.branch.yinYang} kind="지지" position={label(p)} expert={expert} /> : <UnknownTile key={p} />;
@@ -93,38 +117,45 @@ export function PillarTable({ chart, editHref }: { chart: SajuChart; editHref?: 
 
         {expert && (
           <>
-            {rowLabel(t('result.pillarTable.tenGods'))}
+            {rowLabel('tenGods', t('result.pillarTable.tenGods'))}
             {ORDER.map((p) => (
               <div key={p} className="text-xs text-ink-2">
-                {col(p)?.branch.tenGod ?? ''}
+                {value('tenGods', col(p)?.branch.tenGod ?? '')}
               </div>
             ))}
 
-            <div className="self-center text-[11px] text-ink-3">지장간</div>
+            {rowLabel('hidden')}
             {ORDER.map((p) => (
               <div key={p} className="font-serif text-xs text-ink-2">
-                {col(p)?.branch.hiddenStems.map((h) => h.hanja).join(' ') ?? ''}
+                {col(p) ? (
+                  <TermButton label="지장간" onClick={() => open(ROWS.hidden)}>
+                    {col(p)!.branch.hiddenStems.map((h) => h.hanja).join(' ')}
+                  </TermButton>
+                ) : null}
               </div>
             ))}
-            <div className="self-center text-[11px] text-ink-3">12운성</div>
+            {rowLabel('stage')}
             {ORDER.map((p) => (
               <div key={p} className="text-xs text-ink-2">
-                {col(p)?.branch.twelveStage ?? ''}
+                {value('stage', col(p)?.branch.twelveStage ?? '')}
               </div>
             ))}
-            <div className="self-center text-[11px] text-ink-3">납음</div>
+            {rowLabel('napeum')}
             {ORDER.map((p) => (
               <div key={p} className="text-[11px] text-ink-3">
-                {col(p)?.napeum.name ?? ''}
+                {value('napeum', col(p)?.napeum.name ?? '')}
               </div>
             ))}
-            <div className="self-center text-[11px] text-ink-3">신살</div>
+            {rowLabel('shinsal')}
             {ORDER.map((p) => (
-              <div key={p} className="text-[11px] leading-snug text-ink-3">
+              <div key={p} className="flex flex-wrap justify-center gap-x-1 text-[11px] leading-snug text-ink-3">
                 {chart.shinsal
                   .filter((s) => s.positions.includes(p))
-                  .map((s) => s.name.replace(/살$/, ''))
-                  .join(' ')}
+                  .map((s) => (
+                    <TermButton key={s.name} label={s.name} onClick={() => open(SHINSAL[s.name] ?? ROWS.shinsal)}>
+                      {s.name.replace(/살$/, '')}
+                    </TermButton>
+                  ))}
               </div>
             ))}
           </>
@@ -149,13 +180,43 @@ export function PillarTable({ chart, editHref }: { chart: SajuChart; editHref?: 
       </div>
       {expert && (chart.relations.length > 0 || chart.gongmang) && (
         <div className="mt-3 space-y-1 rounded-xl bg-subtle p-3 text-sm text-ink-2">
-          {chart.relations.length > 0 && <p>합·충: {chart.relations.map((r) => r.label).join(', ')}</p>}
-          <p>공망: {chart.gongmang.join('')}</p>
+          {chart.relations.length > 0 && (
+            <p>
+              <TermButton label="합·충" onClick={() => open(ROWS.relations)}>
+                합·충
+              </TermButton>
+              :{' '}
+              {chart.relations.map((r, i) => (
+                <span key={r.label}>
+                  {i > 0 && ', '}
+                  <TermButton label={r.label} onClick={() => open(RELATIONS[r.type] ?? ROWS.relations)}>
+                    {r.label}
+                  </TermButton>
+                </span>
+              ))}
+            </p>
+          )}
           <p>
-            신강약: {chart.strength.level} ({chart.strength.score}) · 득령 {chart.strength.deukryeong ? 'O' : 'X'} · 득지 {chart.strength.deukji ? 'O' : 'X'} · 득세 {chart.strength.deukse ? 'O' : 'X'}
+            <TermButton label="공망" onClick={() => open(ROWS.gongmang)}>
+              공망
+            </TermButton>
+            : {chart.gongmang.join('')}
+          </p>
+          <p>
+            <TermButton label="신강약" onClick={() => open(strengthTerm(), STRENGTH_PARTS)}>
+              신강약
+            </TermButton>
+            : {chart.strength.level} ({chart.strength.score}) · 득령 {chart.strength.deukryeong ? 'O' : 'X'} · 득지 {chart.strength.deukji ? 'O' : 'X'} · 득세 {chart.strength.deukse ? 'O' : 'X'}
           </p>
         </div>
       )}
+      {expert && <p className="mt-3 text-center text-xs text-ink-3 print:hidden">점선이 그어진 말을 누르면 뜻을 볼 수 있어요.</p>}
+      <p className="mt-2 text-center text-sm print:hidden">
+        <Link to="/basics" className="font-medium text-gold underline underline-offset-4">
+          사주가 처음이라면 — 사주 기초 보기
+        </Link>
+      </p>
+      <TermSheet term={sheet?.term ?? null} extra={sheet?.extra} onClose={() => setSheet(null)} />
     </div>
   );
 }

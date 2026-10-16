@@ -148,6 +148,7 @@ export function MyPage() {
               ['/my/reports', '내 리포트 보관함'],
               ['/my/payments', t('my.payments')],
               ['/store', '이용권 · 리포트 구매'],
+              ['/basics', '사주 기초'],
               ['/manse', '만세력'],
               ['/dream', '꿈해몽'],
               ['/zodiac', '띠별 운세'],

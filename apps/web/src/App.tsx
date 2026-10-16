@@ -22,6 +22,7 @@ const CompatibilityPage = lazyPage(() => import('./pages/CompatibilityPage'), 'C
 const ConfirmPage = lazyPage(() => import('./pages/ConfirmPage'), 'ConfirmPage');
 const LegalPage = lazyPage(() => import('./pages/MiscPages'), 'LegalPage');
 const MansePage = lazyPage(() => import('./pages/MiscPages'), 'MansePage');
+const BasicsPage = lazyPage(() => import('./pages/BasicsPage'), 'BasicsPage');
 const MenuPage = lazyPage(() => import('./pages/MiscPages'), 'MenuPage');
 const MyPage = lazyPage(() => import('./pages/MyPage'), 'MyPage');
 const MySajuPage = lazyPage(() => import('./pages/MySajuPage'), 'MySajuPage');
@@ -118,6 +119,7 @@ export const routes = [
       { path: '/payments/success', element: <PaymentSuccessPage /> },
       { path: '/payments/fail', element: <PaymentFailPage /> },
       { path: '/manse', element: <MansePage /> },
+      { path: '/basics', element: <BasicsPage /> },
       { path: '/legal/:doc', element: <LegalPage /> },
       { path: '/tarot/ask', element: <TarotAskPage /> },
       { path: '/tarot/draw', element: <TarotDrawPage /> },

@@ -1,12 +1,14 @@
 import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { t } from '@/lib/copy';
 
 /** 바텀시트 — ESC/배경 탭/닫기 버튼으로 닫힘, 최대 높이 90% (앱 뒤로가기는 native 계층에서 연결). 데스크톱은 가운데 대화상자 */
 export function BottomSheet({ open, onClose, title, children, footer }: { open: boolean; onClose: () => void; title?: ReactNode; children: ReactNode; footer?: ReactNode }) {
   const panel = useRef<HTMLDivElement>(null);
+  // 화면 읽기 프로그램이 시트 제목을 대화 상자 이름으로 읽게
+  const titleId = useId();
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -24,7 +26,7 @@ export function BottomSheet({ open, onClose, title, children, footer }: { open: 
   }, [open, onClose]);
   if (!open) return null;
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center lg:p-8" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center lg:p-8" role="dialog" aria-modal="true" aria-labelledby={title ? titleId : undefined}>
       <button type="button" aria-label={t('a11y.closeSheet')} className="animate-fade absolute inset-0 bg-[var(--scrim)]" onClick={onClose} />
       <div
         ref={panel}
@@ -33,7 +35,9 @@ export function BottomSheet({ open, onClose, title, children, footer }: { open: 
       >
         <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-line-strong lg:hidden" aria-hidden />
         <div className="flex items-start gap-2 px-5 pt-3 lg:pt-5">
-          <div className="flex-1 pt-1 text-lg font-semibold">{title}</div>
+          <div id={titleId} className="flex-1 pt-1 text-lg font-semibold">
+            {title}
+          </div>
           <button type="button" aria-label={t('a11y.closeSheet')} onClick={onClose} className="grid size-10 place-items-center rounded-full text-ink-3 hover:bg-subtle">
             <X className="size-5" />
           </button>
