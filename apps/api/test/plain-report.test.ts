@@ -6,7 +6,7 @@
 import { calculateCompatibility, calculateSaju, type BirthInput, type SajuChart } from '@saju/core';
 import type { ReadingSection } from '@saju/shared';
 import { describe, expect, it } from 'vitest';
-import { introducesJargon, PLAIN_JARGON } from '../src/modules/interpretation/plainGuard.js';
+import { introducesJargon } from '../src/modules/interpretation/plainGuard.js';
 import { buildBasicReading } from '../src/modules/interpretation/reading.js';
 import { buildCompatibilityReport, buildSajuAnalysis, buildYearlyReport, fillNames } from '../src/modules/interpretation/report.js';
 
@@ -35,7 +35,6 @@ const visible = (secs: ReadingSection[]) =>
 /** 문단 끝 괄호 속 신살 이름 '(천을귀인)'은 용어를 원하는 사람을 위한 꼬리표라 허용 */
 const stripTermTag = (t: string) => t.replace(/\s\([가-힣]+(귀인|살|망)\)$/, '');
 
-const STEMS = ['갑목', '을목', '병화', '정화', '무토', '기토', '경금', '신금', '임수', '계수'];
 const BROKEN = /undefined|NaN|null(?![가-힣])|\[object|\$\{|\{[AB][:}]|\s{2,}|\.\.|,,|\s[,.]|님님|이\(가\)|을\(를\)|은\(는\)|과\(와\)/;
 
 /** 받침 있는 글자 뒤 '를'·'와'·'예요', 받침 없는 글자 뒤 '을'·'이에요' — 조사 붙임이 틀린 곳 */
@@ -50,17 +49,16 @@ function josaErrors(line: string): string[] {
   return out;
 }
 
-/** 용어 목록은 AI 다듬기 지킴이와 같은 것을 쓴다(낱말 첫머리에서만 — 일상어는 걸리지 않게) */
-const JARGON_RE = new RegExp(`(^|[^가-힣])(${PLAIN_JARGON.join('|')})`);
+/** 2026-10-16 문체 기준 개정 — 정식 명리학 용어는 본문에 써도 된다. 여기서는 '당신'만 막는다 */
+const JARGON_RE = /(^|[^가-힣])(당신)/;
 
 function check(secs: ReadingSection[], where: string, opts: { noNameHonorific?: boolean } = {}) {
   const lines = visible(secs).map(stripTermTag);
   const errors: string[] = [];
   for (const line of lines) {
-    if (/[一-鿿]/.test(line)) errors.push(`한자 — ${line}`);
+    if (/[一-鿿]/.test(line.replace(/\([一-鿿·]+\)/g, ''))) errors.push(`한자 — ${line}`);
     const j = line.match(JARGON_RE);
     if (j) errors.push(`'${j[2]}' — ${line}`);
-    for (const s of STEMS) if (line.includes(s)) errors.push(`${s} — ${line}`);
     if (BROKEN.test(line)) errors.push(`깨진 이음새 — ${line}`);
     const jo = josaErrors(line);
     if (jo.length) errors.push(`조사 ${jo.join(',')} — ${line}`);

@@ -1,4 +1,4 @@
-import { CircleHelp } from 'lucide-react';
+import { CircleHelp, Info } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { Term } from '@/lib/sajuBasics';
@@ -22,6 +22,7 @@ export function TermSheet({ term, extra, onClose }: { term: Term | null; extra?:
         <div className="space-y-3">
           <p className="font-semibold">{term.short}</p>
           <p className="text-[15px] leading-relaxed text-ink-2">{term.body}</p>
+          {term.note && <ServiceNote>{term.note}</ServiceNote>}
           {extra && extra.length > 0 && (
             <dl className="space-y-2 rounded-xl bg-subtle p-3 text-sm">
               {extra.map((e) => (
@@ -52,5 +53,18 @@ export function TermButton({ children, onClick, label, className, icon = false }
       {children}
       {icon && <CircleHelp className="size-3 shrink-0 opacity-70" aria-hidden />}
     </button>
+  );
+}
+
+/** 달빛사주 자체 계산 기준 — 전통 명리학 개념과 구분해 보여 준다 */
+export function ServiceNote({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex gap-2 rounded-xl border border-line px-3 py-2.5 text-sm leading-relaxed text-ink-2">
+      <Info className="mt-0.5 size-4 shrink-0 text-gold" aria-hidden />
+      <p>
+        <span className="font-semibold text-ink">달빛사주 기준 </span>
+        {children}
+      </p>
+    </div>
   );
 }

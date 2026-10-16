@@ -45,6 +45,26 @@ export function figurativeProblems(text: string): string[] {
   return [...new Set([...text.matchAll(FIGURATIVE_RE)].map((m) => m[0]))];
 }
 
+/** 비유·관용구와 유아적인 표현을 함께 — 말투 검사용 */
+export function toneProblems(text: string): string[] {
+  return [...figurativeProblems(text), ...childishProblems(text)];
+}
+
+/**
+ * 유아적인 표현 — 성인 대상 전문 서비스 문체를 깨는 말(docs/PLAIN_KOREAN.md '문체' 4번).
+ * '눌러요'·'숨어 있어요'·'힘을 내요' 같은 말은 '극해요'·'담겨 있어요'·'힘을 얻어요'처럼 바꾼다.
+ */
+export const CHILDISH = [
+  '눌러요', '기운을 눌러', '누르는 (기운|관계|힘)', '숨어 있', '힘을 내', '쑥쑥', '무럭무럭', '반짝', '(^|[^가-힣])콕', '척척', '톡톡', '뚝딱', '알쏭달쏭', '두근',
+  '살랑', '방긋', '토닥', '깡충', '와르르', '말랑', '보들', '쏙쏙', '야호', '[가-힣]답니다',
+] as const;
+const CHILDISH_RE = new RegExp(CHILDISH.join('|'), 'g');
+
+/** 글에 들어 있는 유아적인 표현 — 중복 없이 */
+export function childishProblems(text: string): string[] {
+  return [...new Set([...text.matchAll(CHILDISH_RE)].map((m) => m[0].replace(/^[^가-힣]/, '')))];
+}
+
 /** AI 가 다듬은 섹션이 초안에 없던 비유·관용구를 새로 들였는가 */
 export function introducesFigurative(draft: Pick<ReadingSection, 'summary' | 'paragraphs'>, polished: Pick<ReadingSection, 'summary' | 'paragraphs'>): boolean {
   const had = new Set([draft.summary, ...draft.paragraphs].flatMap(figurativeProblems));

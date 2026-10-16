@@ -210,7 +210,7 @@ export function PillarTable({ chart, editHref }: { chart: SajuChart; editHref?: 
           </p>
         </div>
       )}
-      {expert && <p className="mt-3 text-center text-xs text-ink-3 print:hidden">점선이 그어진 말을 누르면 뜻을 볼 수 있어요.</p>}
+      {expert && <p className="mt-3 text-center text-xs text-ink-3 print:hidden">점선이 표시된 용어를 누르면 설명을 볼 수 있어요.</p>}
       <p className="mt-2 text-center text-sm print:hidden">
         <Link to="/basics" className="font-medium text-gold underline underline-offset-4">
           사주가 처음이라면 — 사주 기초 보기

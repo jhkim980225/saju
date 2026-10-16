@@ -1,5 +1,5 @@
 /**
- * 말투 — 비유·관용구·감성 문구가 없는지 콘텐츠 파일을 훑는다 (docs/PLAIN_KOREAN.md '말투').
+ * 문체 — 비유·관용구·감성 문구와 유아적인 표현이 없는지 콘텐츠 파일을 훑는다 (docs/PLAIN_KOREAN.md '문체').
  * 화면 글은 거의 모두 콘텐츠 파일의 문자열에서 오므로, 생성기를 돌리지 않고 원본 문자열을 직접 본다(잘 안 나오는 분기도 빠짐없이).
  * - 타로 카드 그림 설명(imagery)은 그림을 그대로 묘사하는 자리라 뺀다.
  * - 토정비결 총평의 첫 문장("…괘예요")은 옛 글귀가 그리는 장면이라 뺀다.
@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { figurativeProblems } from '../src/modules/interpretation/plainGuard.js';
+import { toneProblems } from '../src/modules/interpretation/plainGuard.js';
 
 const ROOT = path.resolve(__dirname, '../../..');
 const AREAS: Record<string, string[]> = {
@@ -40,7 +40,9 @@ const AREAS: Record<string, string[]> = {
     'apps/api/src/modules/interpretation/careerWealthReport.ts',
     'apps/api/src/modules/interpretation/topicReportKit.ts',
   ],
-  '타로·띠·별자리·택일': ['apps/api/src/modules/tarot', 'apps/api/src/modules/zodiac', 'apps/api/src/modules/taekil', 'apps/web/src/i18n/ko.json'],
+  '타로·띠·별자리·택일': ['apps/api/src/modules/tarot', 'apps/api/src/modules/zodiac', 'apps/api/src/modules/taekil'],
+  // 화면 문구 — 버튼·안내·빈 화면·사주 기초 용어 설명. 테스트 파일(__tests__)은 뺀다
+  '웹 화면 문구': ['apps/web/src/i18n/ko.json', 'apps/web/src/pages', 'apps/web/src/components', 'apps/web/src/lib', 'packages/shared/src/index.ts'],
   '토정비결 1~4': ['apps/api/src/modules/tojeong/content/gwae1.ts', 'apps/api/src/modules/tojeong/content/gwae2.ts', 'apps/api/src/modules/tojeong/content/gwae3.ts', 'apps/api/src/modules/tojeong/content/gwae4.ts'],
   '토정비결 5~8': [
     'apps/api/src/modules/tojeong/content/gwae5.ts',
@@ -55,7 +57,10 @@ function filesOf(rel: string): string[] {
   const abs = path.join(ROOT, rel);
   if (!fs.existsSync(abs)) return [];
   if (fs.statSync(abs).isFile()) return [abs];
-  return fs.readdirSync(abs, { recursive: true, encoding: 'utf8' }).filter((f) => /\.(ts|json)$/.test(f)).map((f) => path.join(abs, f));
+  return fs
+    .readdirSync(abs, { recursive: true, encoding: 'utf8' })
+    .filter((f) => /\.(tsx?|json)$/.test(f) && !/__tests__/.test(f))
+    .map((f) => path.join(abs, f));
 }
 
 /** 줄마다 문자열 속 비유를 찾는다 — 주석 줄·그림 설명·옛 글귀 장면·예외 표시는 뺀다 */
@@ -66,12 +71,12 @@ function scan(file: string): string[] {
     const t = line.trim();
     if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*') || /imagery\s*:/.test(t) || /\/\/ 말투 예외:/.test(t)) continue;
     const sentences = t.split(/(?<=[.!?])\s+/).filter((s) => !/괘예요\.?['"`,]*$/.test(s));
-    for (const s of sentences) for (const f of figurativeProblems(s)) out.push(`${path.relative(ROOT, file)}:${i + 1} '${f}' — ${t.slice(0, 120)}`);
+    for (const s of sentences) for (const f of toneProblems(s)) out.push(`${path.relative(ROOT, file)}:${i + 1} '${f}' — ${t.slice(0, 120)}`);
   }
   return out;
 }
 
-describe('말투 — 비유·관용구·감성 문구 없이 차분하게', () => {
+describe('문체 — 비유·관용구·유아적인 표현 없이 차분하게', () => {
   for (const [area, rels] of Object.entries(AREAS)) {
     it(area, () => {
       const files = rels.flatMap(filesOf);

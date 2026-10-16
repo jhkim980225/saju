@@ -16,14 +16,13 @@ const births: BirthInput[] = Array.from({ length: 12 }, (_, i) => {
 
 /** 낱말 첫머리에서만 — '상관없이' 같은 일상어는 걸리지 않게 */
 const word = (j: string) => new RegExp(`(^|[^가-힣])${j}`);
-const SAJU_JARGON = ['당신', '일간', '일지', '일주', '일진', '용신', '희신', '기신', '십신', '천간', '간지', '신강', '신약', '겁재', '비견', '식신', '상관(?!없)', '편재', '정재', '편관', '정관', '편인', '정인', '오행', '원소'];
-const TAEKIL_JARGON = ['황도', '흑도', '건제', '천을', '귀인', '천덕', '월덕', '천사일', '사리', '사절', '월파', '월기', '귀기', '팽조', '역마', '문창', '공망', '원진', '육합', '삼합', '천간합', '통서', '역법', '길일', '대길', '절입', '년지', '본명', '혼례'];
-/** 한 글자 용어는 낱말 하나로 떨어져 있을 때만 — '충분', '형편'은 통과 */
-const SINGLE = ['충', '형', '파', '직', '흉'].map((j) => [j, new RegExp(`(^|[\\s(·])${j}(\\)|[\\s,·.]|일|$)`)] as const);
+// 2026-10-16 문체 기준 개정 — 정식 명리학·택일 용어는 본문에 써도 된다(처음 나올 때 뜻을 붙인다). 여기서는 '당신'만 막는다.
+const SAJU_JARGON = ['당신'];
+const TAEKIL_JARGON: string[] = [];
 
 function expectPlain(lines: string[], where: string, extra: string[] = []) {
   for (const line of lines) {
-    expect(line, where).not.toMatch(/[一-鿿]/); // 한자는 한 글자도 보이지 않게
+    expect(line.replace(/\([一-鿿·]+\)/g, ''), where).not.toMatch(/[一-鿿]/); // 한자는 정의 자리의 괄호 한자만 허용
     for (const j of [...SAJU_JARGON, ...extra]) expect(word(j).test(line), `${where}: '${j}' — ${line}`).toBe(false);
     expect(line, where).not.toMatch(/undefined|null|NaN|\{|\}|\s{2,}|님님|이\(가\)|을\(를\)|은\(는\)/);
     expect(line.trim(), where).toBe(line);
@@ -71,7 +70,6 @@ describe('택일 — 날짜 이유와 풀이는 쉬운 말로, 용어는 접힌 
         for (const s of sections) lines.push(s.title, s.summary, ...s.paragraphs);
         for (const s of lockedSections(ctx, 'report_taekil')) lines.push(s.summary, ...s.paragraphs);
         expectPlain(lines, where, TAEKIL_JARGON);
-        for (const l of lines) for (const [j, re] of SINGLE) expect(re.test(l), `${where}: '${j}' — ${l}`).toBe(false);
         // 섹션 본문은 섹션끼리도 같은 문장을 되풀이하지 않는다
         expectNoRepeat(sections.flatMap((s) => s.paragraphs), where);
         // 근거(basis)에는 용어가 남아 있다 — 궁금한 사람은 펼쳐 본다

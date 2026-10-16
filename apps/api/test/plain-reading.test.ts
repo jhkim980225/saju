@@ -22,10 +22,8 @@ const visible = (s: ReadingSection) => [s.summary, ...s.paragraphs, ...(s.tips ?
 const stripTermTag = (t: string) => t.replace(/\s\([가-힣]+(귀인|살|망)\)$/, '');
 
 /** 낱말 첫머리에서만 — '번지지'·'상관없이' 같은 일상어는 걸리지 않게('지지'는 일상어와 겹쳐 뺐다) */
-const JARGON = ['당신', '일간', '일지', '용신', '희신', '십신', '12운성', '지장간', '신강', '신약', '중화', '천간', '겁재', '비견', '식신', '상관(?!없)', '편재', '정재', '편관', '정관', '편인', '정인', '순행', '역행'].map(
-  (j) => [j, new RegExp(`(^|[^가-힣])${j}`)] as const,
-);
-const STEMS = ['갑목', '을목', '병화', '정화', '무토', '기토', '경금', '신금', '임수', '계수'];
+// 2026-10-16 문체 기준 개정 — 정식 명리학 용어는 본문에 써도 된다(처음 나올 때 뜻을 붙인다). 여기서는 '당신'만 막는다.
+const JARGON = ['당신'].map((j) => [j, new RegExp(`(^|[^가-힣])${j}`)] as const);
 
 describe('무료 풀이 — 사람이 말하듯 쉬운 말', () => {
   for (const name of ['서윤', '']) {
@@ -40,9 +38,8 @@ describe('무료 풀이 — 사람이 말하듯 쉬운 말', () => {
         const lines = [r.headline, ...r.keyPoints!.map((k) => k.text), ...secs.filter((s) => s.key !== 'overview').flatMap(visible)].map(stripTermTag);
         const where = `${birth.year}-${birth.month}-${birth.day} ${name || '(이름 없음)'}`;
         for (const line of lines) {
-          expect(line, where).not.toMatch(/[一-鿿]{2,}/); // 한자 단어(괄호 속 한 글자 '火' 정도만 허용)
+          expect(line.replace(/\([一-鿿·]+\)/g, ''), where).not.toMatch(/[一-鿿]{2,}/); // 한자 단어(정의 자리의 괄호 한자는 허용)
           for (const [j, re] of JARGON) expect(re.test(line), `${where}: '${j}' — ${line}`).toBe(false);
-          for (const s of STEMS) expect(line.includes(`${s}은`) || line.includes(`${s}의`) || line.includes(`${s}에게`), `${where}: ${s} — ${line}`).toBe(false);
           expect(line, where).not.toMatch(/undefined|null|\{|\}|\s{2,}|님님/);
           if (!name) expect(line, where).not.toContain('님');
         }

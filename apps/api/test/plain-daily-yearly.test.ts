@@ -29,13 +29,8 @@ const dates = Array.from({ length: 36 }, (_, i) => {
 });
 
 /** 낱말 첫머리에서만 — '상관없이' 같은 일상어는 걸리지 않게 */
-const JARGON = [
-  '당신', '일간', '일지', '월지', '일진', '세운', '대운', '용신', '희신', '기신', '십신', '12운성', '지장간', '신강', '신약', '천간',
-  '겁재', '비견', '식신', '상관(?!없)', '편재', '정재', '편관', '정관', '편인', '정인', '순행', '역행', '오행',
-  '천을귀인', '문창귀인', '도화', '역마', '화개', '공망', '양인', '육합', '삼합', '반합', '원진', '상생', '상극', '배우자성', '칠살', '효신',
-  '대길', '개운법', '일주(?!일)', '간지', '만세력',
-].map((j) => [j, new RegExp(`(^|[^가-힣])${j}`)] as const);
-const STEMS = ['갑목', '을목', '병화', '정화', '무토', '기토', '경금', '신금', '임수', '계수'];
+// 2026-10-16 문체 기준 개정 — 정식 명리학 용어는 본문에 써도 된다(처음 나올 때 뜻을 붙인다). 여기서는 '당신'만 막는다.
+const JARGON = ['당신'].map((j) => [j, new RegExp(`(^|[^가-힣])${j}`)] as const);
 
 /** 받침 있는 글자 */
 const hasBatchim = (ch: string) => {
@@ -47,9 +42,8 @@ const hasBatchim = (ch: string) => {
 function problemsIn(lines: string[], where: string, opts: { named: boolean }): string[] {
   const out: string[] = [];
   for (const line of lines) {
-    if (/[一-鿿]/.test(line)) out.push(`${where}: 한자 — ${line}`);
+    if (/[一-鿿]/.test(line.replace(/\([一-鿿·]+\)/g, ''))) out.push(`${where}: 한자 — ${line}`);
     for (const [j, re] of JARGON) if (re.test(line)) out.push(`${where}: 용어 '${j}' — ${line}`);
-    for (const s of STEMS) if (new RegExp(`${s}(은|는|의|에게|이|가) `).test(line)) out.push(`${where}: ${s} — ${line}`);
     if (/undefined|null|NaN|\{|\}|\s{2,}|님님|나님|상대님|\(이\)|\(가\)|\(을\)|\(를\)|\(은\)|\(는\)/.test(line)) out.push(`${where}: 이음새 — ${line}`);
     if (line.trim() !== line) out.push(`${where}: 앞뒤 공백 — '${line}'`);
     // 이어 붙인 티 — '날예요'(받침 뒤 예요)·'해이에요'(받침 없는데 이에요)

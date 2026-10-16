@@ -16,13 +16,14 @@ vi.mock('../src/modules/chat/service.js', () => ({ chartSummary: () => '' }));
 const { composeRuleBased } = await import('../src/modules/dream/service.js');
 
 /** 낱말 첫머리에서만 — '상관없이'·'충분' 같은 일상어는 걸리지 않게 */
-const JARGON = ['당신', '일간', '일진', '월건', '올해 세운', '천간', '간지', '육합', '삼합', '원진', '오행', '십신', '용신', '비견', '겁재', '식신', '상관(?!없)', '편재', '정재', '편관', '정관', '편인(?! 한)', '정인', '하우스', '상괘', '중괘', '하괘', '괘'].map(
+// 2026-10-16 문체 기준 개정 — 정식 명리학 용어는 본문에 써도 된다. 서양 점성술의 '하우스'처럼 설명 없는 외래 용어와 '당신'만 막는다.
+const JARGON = ['당신', '하우스'].map(
   (j) => [j, new RegExp(`(^|[^가-힣])${j}`)] as const,
 );
 
 function assertPlain(lines: string[], where: string) {
   for (const line of lines) {
-    expect(line, where).not.toMatch(/[一-鿿]{2,}/); // 한자 단어(괄호 속 한 글자 '木' 정도만 허용)
+    expect(line.replace(/\([一-鿿·]+\)/g, ''), where).not.toMatch(/[一-鿿]{2,}/); // 한자 단어(정의 자리의 괄호 한자는 허용)
     expect(line, `${where}: 각도 — ${line}`).not.toMatch(/\d+°/);
     for (const [j, re] of JARGON) expect(re.test(line), `${where}: '${j}' — ${line}`).toBe(false);
     expect(line, where).not.toMatch(/undefined|null|NaN|\{|\}|\s{2,}|이\(가\)|을\(를\)/);
