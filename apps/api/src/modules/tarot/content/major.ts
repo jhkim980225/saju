@@ -46,9 +46,9 @@ export const MAJOR_ARCANA: TarotCardContent[] = [
     arcana: 'major',
     suit: null,
     number: 1,
-    nameKo: '마술사',
+    nameKo: '마법사',
     nameEn: 'The Magician',
-    imagery: '한 손은 하늘을, 한 손은 땅을 가리키는 마술사 앞 탁자에 네 원소의 도구가 놓여 있고, 머리 위엔 무한대 기호가 떠 있어요.',
+    imagery: '한 손은 하늘을, 한 손은 땅을 가리키는 마법사 앞 탁자에 네 원소의 도구가 놓여 있고, 머리 위엔 무한대 기호가 떠 있어요.',
     upright: {
       keywords: ['실행력', '재능', '집중', '의지', '창의성'],
       summary: '이미 가진 능력과 자원으로 원하는 일을 직접 해낼 수 있는 때예요',
