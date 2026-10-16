@@ -90,8 +90,8 @@
     "subtitle": "정확하게 넣을수록 풀이도 정확해져요.",
     "progress": "필수 {{current}}/{{total}}",
     "name": {
-      "label": "이름 또는 닉네임",
-      "placeholder": "예) 서윤",
+      "label": "이름",
+      "placeholder": "이름을 입력하세요",
       "helper": "사주는 태어난 날과 시간으로 봐요. 이름은 풀이에서 부를 때만 쓰니 별명도 괜찮아요."
     },
     "calendar": {
