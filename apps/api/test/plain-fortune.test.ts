@@ -131,9 +131,9 @@ describe('꿈해몽 기본 풀이 — 사람이 말하듯', () => {
       }
     }
     const snake = composeRuleBased(extractDreamSymbols(DREAMS[0]!, 6), false);
-    expect(snake.paragraphs[0]).toMatch(/^꿈 이야기에서 .*뱀.* 눈에 띄어요\./);
+    expect(snake.paragraphs[0]).toMatch(/^꿈 내용에서 .*뱀.* 주요 상징으로 보여요\./);
     expect(snake.paragraphs.some((p) => /^뱀에게 물리는 꿈이라면, /.test(p))).toBe(true);
     const three = composeRuleBased(extractDreamSymbols(DREAMS[4]!, 6), false);
-    if (three.paragraphs[0]!.includes('숫자 3')) expect(three.paragraphs[0]).toContain('숫자 3이 눈에 띄어요');
+    if (three.paragraphs[0]!.includes('숫자 3')) expect(three.paragraphs[0]).toContain('숫자 3이 주요 상징으로 보여요');
   });
 });

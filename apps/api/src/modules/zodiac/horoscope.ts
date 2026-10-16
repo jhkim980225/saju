@@ -1,6 +1,6 @@
 /**
  * 별자리 운세 생성 — @saju/core 의 간이 천문 계산(astro.ts)으로 달·태양·목성·토성이 지나는 별자리를 구하고,
- * 내 태양 별자리에서 몇 번째 자리(홀사인 하우스)인지와 각에 맞는 문구를 결정적으로 고른다.
+ * 내 태양 별자리에서 몇 번째 자리(태양 별자리를 1번으로 삼는 솔라 하우스)인지와 각에 맞는 문구를 결정적으로 고른다.
  */
 import { addDays, kstNoonUtc, nextSignChange, signAspect, signOfBody, solarHouse, weekDatesOf, zonedToUtc, type AspectKind, type SkyBody } from '@saju/core';
 import {

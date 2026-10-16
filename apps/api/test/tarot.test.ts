@@ -332,7 +332,7 @@ describe('2차 펼침 방식 정의', () => {
     expect(locked.sections.find((s) => s.key === 'pos-optionB')!.locked).toBe(true);
   });
 
-  it('궁합 타로 — 두 사람의 타고난 기운으로 쉽게 읽고, 일간·용신은 근거(basis)에만', () => {
+  it('궁합 타로 — 두 사람의 일간으로 읽고, 용어는 처음 나올 때 뜻을 붙이며 글자별 근거는 basis 에', () => {
     const me = { name: '민수', chart: calculateSaju(BIRTH) };
     const partner = { name: '지은', chart: calculateSaju({ ...BIRTH, year: 1992, month: 8, day: 20, gender: 'female' }) };
     const drawn = [3, 22, 40, 58, 70].map((index) => ({ index, orientation: 'upright' as const }));
@@ -340,12 +340,14 @@ describe('2차 펼침 방식 정의', () => {
     const saju = r.sections.find((s) => s.key === 'saju')!;
     expect(r.basis).toMatch(/^민수 일간 .+·용신 .+ · 지은 일간 .+·용신 .+ · 카드 원소/);
     expect(saju.basis).toBe(r.basis);
-    expect(saju.paragraphs[0]).toMatch(/^사주로 보면 민수님은 .+의 기운을, 지은님은 .+의 기운을 타고났어요\./);
-    expect(saju.paragraphs[1]).toMatch(/^'나의 마음' 자리의 .+ 민수님에게 .+이에요\.$/);
-    expect(saju.paragraphs[2]).toMatch(/^'상대의 마음' 자리의 .+ 지은님에게 .+이에요\.$/);
+    expect(saju.paragraphs[0]).toMatch(/^사주로 보면 민수님의 일간\(태어난 날의 천간으로, 나 자신을 나타내는 글자\)은 .+\(.+\), 지은님의 일간은 .+\(.+\)(이에요|예요)\./);
+    expect(saju.paragraphs[1]).toMatch(/^'나의 마음' 자리의 .+ 민수님의 일간.+ 오행이에요\.$/);
+    expect(saju.paragraphs[2]).toMatch(/^'상대의 마음' 자리의 .+ 지은님의 일간.+ 오행이에요\.$/);
     expect(saju.paragraphs[3]).toMatch(/민수님에게는 .+, 지은님에게는 .+이에요\./);
-    expect(saju.paragraphs.join(' ')).toMatch(/받쳐 주는 사이예요|이끌고 다잡아 주는 사이예요|같은 기운을 타고나서/);
-    expect(saju.paragraphs.join(' ')).not.toMatch(/일간|용신|[一-鿿]/);
+    expect(saju.paragraphs.join(' ')).toMatch(/받쳐 주는 사이로 봐요|이끌고 다잡아 주는 사이로 봐요|일간이 같은 오행이라/);
+    // 용어는 처음 한 번만 뜻을 붙이고, 한자는 정의 자리의 괄호 안에만
+    expect(saju.paragraphs.join(' ').match(/용신\(/g) ?? []).toHaveLength(1);
+    expect(saju.paragraphs.join(' ').replace(/\([一-鿿·]+\)/g, '')).not.toMatch(/[一-鿿]/);
     expect(r.sections[0]!.paragraphs[0]).toMatch(/^민수님과 지은님 사이를 다섯 장으로/);
     // 상대 자리는 '속마음' 문안, 함께 챙길 것은 '조언' 문안
     expect(DECK[22]!.upright.feelings.startsWith(r.cards[1]!.line)).toBe(true);

@@ -63,10 +63,10 @@ test('택일: 무료 미리보기 → 목업 결제 → 같은 결과의 상세�
   const detail = page.getByRole('dialog');
   await expect(detail.getByRole('heading', { name: '좋은 점' })).toBeVisible();
   await expect(detail.getByText('시작하기 좋은 시간')).toBeVisible();
-  // 용어(건제12신·황도)는 접혀 있다가 펼치면 보인다
-  await expect(detail.getByText(/건제12신/).first()).toBeHidden();
+  // 글자별 근거 줄(일진 乙未(을미) · 건제12신 성(成) …)은 접혀 있다가 펼치면 보인다 — 본문 이유에도 용어는 뜻과 함께 나온다
+  await expect(detail.getByText(/^일진 .+ · 건제12신 /).first()).toBeHidden();
   await detail.locator('summary', { hasText: '택일·사주 용어로 보면' }).click();
-  await expect(detail.getByText(/건제12신/).first()).toBeVisible();
+  await expect(detail.getByText(/^일진 .+ · 건제12신 /).first()).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(detail).toBeHidden();
 
