@@ -59,7 +59,7 @@ export function targetFortuneYear(now = new Date()): number {
 }
 
 export const DISCLAIMER =
-  '이 풀이는 명리학 이론을 바탕으로 한 참고용 콘텐츠예요. 삶의 방향은 언제나 스스로의 선택으로 만들어 가는 것이니, 중요한 결정은 충분히 고민한 뒤 내려 주세요.';
+  '이 풀이는 사주 이론을 바탕으로 한 참고용 콘텐츠예요. 중요한 결정은 풀이만 보고 정하지 말고, 충분히 고민한 뒤 내려 주세요.';
 
 export const EL_NAME: Record<Element, string> = { wood: '목(木)', fire: '화(火)', earth: '토(土)', metal: '금(金)', water: '수(水)' };
 export const EL_SHORT: Record<Element, string> = { wood: '나무', fire: '불', earth: '흙', metal: '쇠', water: '물' };
@@ -230,7 +230,7 @@ function shinsalSection(chart: SajuChart): ReadingSection {
   // 같은 신살이 기준(년지·일지)별로 두 번 잡힐 수 있어 이름으로 한 번만
   const all = chart.shinsal.filter((s, i, arr) => s.name !== '현침살' && arr.findIndex((x) => x.name === s.name) === i);
   if (all.length === 0) {
-    return { key: 'shinsal', title: '타고난 특별한 기운', summary: '크게 치우친 기운 없이 담백한 사주예요', paragraphs: ['특별히 튀는 기운이 없다는 건, 큰 기복 없이 내 노력만큼 길이 열린다는 뜻이기도 해요.'] };
+    return { key: 'shinsal', title: '타고난 특별한 기운', summary: '눈에 띄게 치우친 기운이 없는 사주예요', paragraphs: ['특별히 두드러진 기운이 없어서, 운의 기복보다 내가 들인 노력에 따라 결과가 달라지는 편이에요.'] };
   }
   // 도움이 되는 기운을 먼저, 조심할 기운은 하나만 — 첫 화면에서 겁주지 않게
   const ordered = [...all].sort((a, b) => SHINSAL_ORDER.indexOf(a.name) - SHINSAL_ORDER.indexOf(b.name));
@@ -258,8 +258,8 @@ function wealthSection(chart: SajuChart, name: string | null): ReadingSection {
   const dm = dayMasterContent(chart);
   const g = groupCount(chart);
   const p = [dmText(chart, dm.wealth, name)];
-  if (g.재성 >= 3) p.push('사주에 돈을 다루는 기운이 많아서, 돈이 어디로 흐르는지 읽고 기회를 알아채는 감각이 있어요. 다만 몸과 마음이 지치면 번 것도 새기 쉬우니, 컨디션 관리가 곧 재테크예요.');
-  else if (g.재성 === 0) p.push('사주에 돈을 다루는 기운이 겉으로 드러나지 않아요. 이런 사람은 돈을 좇을 때보다 실력과 이름을 쌓을 때 재물이 뒤따라와요. 한 분야의 전문가가 되는 것이 가장 확실한 길이에요.');
+  if (g.재성 >= 3) p.push('사주에 돈을 다루는 기운이 많아서, 돈 버는 일에 관심이 많고 기회도 자주 생기는 편이에요. 다만 일이 몰려 몸과 마음이 지치면 판단이 흐려져 손해를 보기 쉬우니, 컨디션 관리도 돈 관리만큼 챙겨 주세요.');
+  else if (g.재성 === 0) p.push('사주에 돈을 다루는 기운이 겉으로 드러나지 않아요. 그래서 돈을 직접 좇기보다 맡은 일에서 실력과 평판을 쌓을 때 수입이 따라오는 편이에요. 수입을 늘리고 싶다면 자격증이나 경력처럼 실력을 보여 줄 수 있는 것부터 쌓아 보세요.');
   else p.push('사주에 돈을 다루는 기운이 알맞게 있어서 꾸준히 벌고 모으는 힘이 있어요. 수입원을 하나 더 만드는 작은 실험이 좋은 결과로 이어질 수 있어요.');
   if (g.식상 >= 2) p.push('재능과 아이디어를 수입으로 바꾸는 힘도 있어요. 콘텐츠·기술·서비스처럼 "내가 만든 것"으로 버는 방식이 잘 맞아요.');
   if (g.비겁 >= 3) p.push('친구나 동료와 돈이 얽힐 일이 많은 편이라, 내 몫을 지키는 습관이 특히 중요해요. 동업이나 돈거래에서는 계약서와 기록을 꼼꼼히 남겨 두세요.');
@@ -267,7 +267,7 @@ function wealthSection(chart: SajuChart, name: string | null): ReadingSection {
   return {
     key: 'wealth',
     title: '재물운',
-    summary: g.재성 ? '흐름을 읽으면 재물이 쌓이는 사주예요' : '실력이 곧 재물이 되는 사주예요',
+    summary: g.재성 ? '돈이 들고 나는 흐름을 잘 읽는 편이에요' : '실력을 쌓을수록 수입이 늘어나는 사주예요',
     paragraphs: p,
     score,
     basis: `재성 ${g.재성} · 식상 ${g.식상} · 비겁 ${g.비겁} (여덟 글자 속 십성 개수)`,
@@ -282,10 +282,10 @@ function loveSection(chart: SajuChart, name: string | null): ReadingSection {
   const spouseGroup: TenGodGroup = male ? '재성' : '관성';
   const p = [dmText(chart, dm.love, name), dp.love];
   if (g[spouseGroup] === 0) p.push('사주에 짝을 뜻하는 기운이 드러나 있지 않아요. 그래서 인연은 흐름이 들어오는 때를 잘 잡는 게 중요해요. 해마다 바뀌는 흐름에서 이 기운이 들어오는 해에 좋은 만남이 이어지기 쉬워요.');
-  else if (g[spouseGroup] >= 3) p.push('사주에 짝을 뜻하는 기운이 넉넉해서 관심을 받기 쉬운 편이에요. 여러 인연 가운데 나를 편안하게 해 주는 사람을 알아보는 눈이 행복의 열쇠예요.');
+  else if (g[spouseGroup] >= 3) p.push('사주에 짝을 뜻하는 기운이 넉넉해서 관심을 받기 쉬운 편이에요. 여러 인연 가운데 나를 편안하게 해 주는 사람을 고르는 게 중요해요.');
   // 무료 '특별한 기운' 섹션과 같은 문장을 되풀이하지 않게 연애에 맞춘 말로
-  if (hasShinsal(chart, '도화살')) p.push('연애에서는 사람을 끄는 매력이 첫 만남부터 빛을 발해요. 관심을 많이 받는 만큼, 마음은 한 사람에게 진솔하게 표현해 주세요.');
-  if (hasShinsal(chart, '홍염살')) p.push('가까워질수록 은근한 매력이 더 깊게 느껴지는 사람이에요. 서두르지 않고 천천히 마음을 열어도 충분해요.');
+  if (hasShinsal(chart, '도화살')) p.push('연애에서는 첫 만남부터 호감을 얻기 쉬운 편이에요. 관심을 많이 받는 만큼, 마음은 한 사람에게 진솔하게 표현해 주세요.');
+  if (hasShinsal(chart, '홍염살')) p.push('처음보다 가까워질수록 매력이 더 잘 드러나는 편이에요. 서두르지 않고 천천히 마음을 열어도 충분해요.');
   const dayRel = chart.relations.filter((r) => r.positions.includes('day') && r.target === 'branch');
   const dayClash = dayRel.some((r) => r.type === '충');
   if (dayClash) p.push('가장 가까운 사람의 자리에 부딪히는 기운이 있어서, 관계에 변화가 생기기 쉬워요. 서로의 공간과 속도를 존중할수록 오래 가는 인연이 돼요.');
@@ -308,11 +308,11 @@ function careerSection(chart: SajuChart, name: string | null): ReadingSection {
   const dp = dayPillarContent(chart);
   const g = groupCount(chart);
   const p = [dmText(chart, dm.career, name), dp.career, `잘 어울리는 분야는 ${dm.jobs.join(', ')} 같은 쪽이에요.`];
-  if (g.관성 >= 2) p.push('책임지는 힘이 커서 조직과 제도 안에서 인정받기 좋아요. 공공기관, 큰 회사, 전문 자격이 필요한 분야에서 안정적으로 자라요.');
-  if (g.식상 >= 2) p.push('표현하는 힘이 강해서 자기표현과 창의력이 무기예요. 기획·창작·교육·프리랜서처럼 내 방식대로 일할 수 있는 자리가 잘 맞아요.');
+  if (g.관성 >= 2) p.push('책임지는 힘이 커서 조직과 제도 안에서 인정받기 좋아요. 공공기관, 큰 회사, 전문 자격이 필요한 분야에서 안정적으로 경력을 쌓기 좋아요.');
+  if (g.식상 >= 2) p.push('표현하는 힘이 강해서 자기표현과 창의력이 강점이에요. 기획·창작·교육·프리랜서처럼 내 방식대로 일할 수 있는 자리가 잘 맞아요.');
   if (g.인성 >= 2) p.push('배우는 힘이 강해서 깊이 공부하고 가르치는 일과 잘 맞아요. 연구·교육·상담처럼 자격이 필요한 일에서 깊이를 쌓으면 대신하기 어려운 사람이 돼요.');
   if (hasShinsal(chart, '역마살')) p.push('일에서도 자리를 옮기거나 밖으로 다니는 업무가 잘 맞아요. 출장이 잦거나 해외와 닿는 일을 눈여겨보세요.');
-  if (hasShinsal(chart, '문창귀인')) p.push('글과 말로 생각을 정리하는 재주가 일에서도 큰 무기예요. 기획서·보고서·강의처럼 머리를 쓰는 일에서 돋보여요.');
+  if (hasShinsal(chart, '문창귀인')) p.push('글과 말로 생각을 정리하는 재주가 일에서도 큰 강점이에요. 기획서·보고서·강의처럼 머리를 쓰는 일에서 돋보여요.');
   const score = Math.min(95, 58 + g.관성 * 5 + g.인성 * 3 + g.식상 * 3);
   return {
     key: 'career',
@@ -341,7 +341,7 @@ function healthSection(chart: SajuChart, name: string | null): ReadingSection {
   return {
     key: 'health',
     title: '건강',
-    summary: none.length ? `${plainNames(none)} 기운 쪽 컨디션을 챙겨 주면 좋아요` : '규칙적인 생활 리듬이 건강의 열쇠예요',
+    summary: none.length ? `${plainNames(none)} 기운 쪽 컨디션을 챙겨 주면 좋아요` : '규칙적인 생활 리듬이 가장 중요해요',
     paragraphs: p,
     basis: `오행 개수 ${ELEMENT_KEYS.map((k) => `${EL_NAME[k].slice(0, 1)}${chart.elements.count[k]}`).join(' ')}${many.length ? ` · 많은 오행 ${many.map((e) => EL_NAME[e]).join('·')}` : ''}${none.length ? ` · 없는 오행 ${none.map((e) => EL_NAME[e]).join('·')}` : ''}`,
   };
@@ -354,7 +354,7 @@ function daeunSection(chart: SajuChart, now = new Date(), name: string | null = 
   const periods = chart.daeun.periods.slice(0, 8);
   const current = periods.find((p) => year >= p.startYear && year <= p.endYear);
   const paragraphs: string[] = [
-    `사람의 운은 10년마다 계절처럼 바뀌어요. ${nameSubject(name, '의')}첫 번째 10년은 만 ${chart.daeun.startAge}세에 ${started ? '시작됐어요' : '시작돼요'}.`,
+    `운의 큰 흐름은 10년마다 바뀌어요. ${nameSubject(name, '의')}첫 번째 10년은 만 ${chart.daeun.startAge}세에 ${started ? '시작됐어요' : '시작돼요'}.`,
   ];
   // 같은 묶음의 10년이 두 번 이어지면(예: 나무 → 나무) 긴 풀이는 처음 한 번만
   const told = new Set<TenGodGroup>();
@@ -511,7 +511,7 @@ function luckLead(ev: FortuneEvaluation, when: string, unit: '날' | '해', gene
   const theme = TEN_GOD_PLAIN[ev.pillar.stemTenGod].theme;
   const isDay = unit === '날' ? '날이에요' : '해예요';
   if (ev.fit.stem === 'yongsin') {
-    return { text: `${when} ${nameSubject(name, '에게')}꼭 필요한 '${theme}'의 기운이 들어오는 ${isDay}. ${general}`, folded: ['yongsin_stem'] };
+    return { text: `${when} ${name ? `${name}님에게` : '나에게'} 꼭 필요한 '${theme}'의 기운이 들어오는 ${isDay}. ${general}`, folded: ['yongsin_stem'] };
   }
   if (ev.fit.stem === 'gisin') {
     const withWho = name ? `${name}님과는` : '나와는';
@@ -645,7 +645,7 @@ export function buildYearlyFortune(chart: SajuChart, year: number, unlocked: boo
     paragraphs: [
       lead.text,
       // 같은 십신이면 같은 말이 되므로 한 번만
-      ...(btg !== stg ? [`그 밑바탕에는 '${TEN_GOD_PLAIN[btg].theme}'의 기운도 함께 흘러요. ${bt.inLuck.general}`] : []),
+      ...(btg !== stg ? [`그 밑바탕에는 '${TEN_GOD_PLAIN[btg].theme}'의 기운도 함께 들어와요. ${bt.inLuck.general}`] : []),
       ...restHighlights(ev, lead.folded, 2, name, btg !== stg ? [stg, btg] : [stg]),
     ],
     basis: luckBasis(`${year}년`, ev),
@@ -694,7 +694,7 @@ export function buildYearlyFortune(chart: SajuChart, year: number, unlocked: boo
 // 궁합
 // ---------------------------------------------------------------------------
 
-export const COMPAT_GRADE_LABEL = { excellent: '천생연분', good: '좋은 인연', normal: '노력하면 좋은 인연', effort: '서로 배워가는 인연' } as const;
+export const COMPAT_GRADE_LABEL = { excellent: '아주 잘 맞는 사이', good: '잘 맞는 사이', normal: '맞춰 가면 좋은 사이', effort: '노력이 필요한 사이' } as const;
 
 /**
  * 궁합 섹션 — 무료: 두 사람이 어떤 사람인지 + 잘 맞는 점 두 가지까지 / 유료: 끌림·조심할 점·조언.
@@ -773,7 +773,7 @@ export function buildCompatibilitySections(a: SajuChart, b: SajuChart, r: Compat
       {
         key: 'strengths',
         title: '서로 끌리는 이유',
-        summary: pos.length >= 3 ? '잘 맞는 점이 많은 사이예요' : pos.length ? '잘 맞는 점이 분명한 사이예요' : '천천히 쌓아 가는 인연이에요',
+        summary: pos.length >= 3 ? '잘 맞는 점이 여러 가지 있어요' : pos.length ? '잘 맞는 점이 분명히 있어요' : '시간을 두고 가까워지는 사이예요',
         paragraphs: [COMPAT_CATEGORY_PLAIN.romance[band(r.categories.romance)], ...restPos.map((l) => l.text), COMPAT_CATEGORY_PLAIN.complement[band(r.categories.complement)]],
         ...(restPos.length ? { basis: terms(restPos) } : {}),
         toc: ['두 사람이 서로 끌리는 이유', '함께 있으면 좋은 점'],
