@@ -104,6 +104,7 @@ export function TodayPage() {
                   <Badge tone={d.evaluation.grade === 'great' || d.evaluation.grade === 'good' ? 'gold' : 'default'}>{d.gradeLabel}</Badge>
                   <span className="tabular text-sm text-ink-3">총운 {d.evaluation.scores.total}점</span>
                 </div>
+                <p className="mt-2 text-xs text-ink-3">점수와 등급은 오늘의 일진과 내 사주의 관계를 달빛사주 기준으로 환산한 서비스 자체 지표예요.</p>
                 <p className="prose-reading mt-4 text-[17px] leading-relaxed">{d.message}</p>
               </section>
 
@@ -125,7 +126,7 @@ export function TodayPage() {
 
               <Card className="mt-6">
                 <h3 className="font-semibold">{t('today.weekFlowTitle')}</h3>
-                <p className="mt-1 text-sm text-ink-3">동그라미가 클수록 운이 좋은 날이에요. 요일을 누르면 그날 운세로 바뀌어요.</p>
+                <p className="mt-1 text-sm text-ink-3">원이 클수록 총운 점수가 높은 날입니다. 요일을 누르면 그날의 운세를 볼 수 있어요.</p>
                 <ol className="mt-4 grid grid-cols-7 gap-1 text-center">
                   {dates.map((iso, i) => {
                     const w = week[i]?.data;
@@ -148,7 +149,7 @@ export function TodayPage() {
 
               <Card className="mt-4">
                 <h3 className="font-semibold">분야별 운</h3>
-                <p className="mt-1 text-sm text-ink-3">100점에 가까울수록 좋아요. 50점보다 낮은 분야는 오늘 조금 조심하면 돼요.</p>
+                <p className="mt-1 text-sm text-ink-3">100점에 가까울수록 흐름이 좋은 분야입니다. 50점보다 낮은 분야는 평소보다 신중하게 다루는 것이 좋아요.</p>
                 <ul className="mt-4 space-y-4">
                   {d.categories.map((c) => (
                     <li key={c.key}>
@@ -185,8 +186,8 @@ export function TodayPage() {
               </Card>
 
               <Card className="mt-4">
-                <h3 className="font-semibold">오늘이 이런 이유</h3>
-                <p className="mt-1 text-sm text-ink-3">날마다 들어오는 기운이 달라요. 오늘 기운이 나와 어떻게 만나는지 보고 하루 흐름을 읽어요.</p>
+                <h3 className="font-semibold">오늘 운세의 근거</h3>
+                <p className="mt-1 text-sm text-ink-3">날마다 그날의 간지(일진)가 바뀝니다. 오늘의 일진이 내 사주, 특히 일간(나를 나타내는 글자)과 어떤 관계인지를 보고 하루의 흐름을 해석해요.</p>
                 <div className="mt-3 space-y-2 text-[15px] leading-relaxed text-ink-2">
                   {(d.why ?? []).map((w) => (
                     <p key={w}>{w}</p>

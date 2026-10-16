@@ -88,7 +88,7 @@ test('재물·직업운 — 상점에서 프로필을 골라 결제하고, 산 �
   await expect(page).toHaveURL(/\/reports\/[\w-]+$/);
   await expect(page.getByRole('main').getByRole('heading', { level: 1, name: '도윤님의 재물·직업운 리포트' })).toBeVisible();
   await expect.poll(() => page.locator('section[id^="sec-"]').count()).toBe(12);
-  await expect(page.getByText('재물운은 투자 조언이 아니에요. 투자 결정은 본인의 판단과 전문가의 조언에 따라 주세요.')).toBeVisible();
+  await expect(page.getByText('재물운은 투자 조언이 아닙니다. 투자 결정은 본인의 판단과 전문가의 조언에 따라 주세요.')).toBeVisible();
 
   await page.getByRole('button', { name: 'PDF로 저장' }).last().click();
   await expect.poll(() => page.evaluate(() => (window as unknown as { __printed: number }).__printed)).toBe(1);

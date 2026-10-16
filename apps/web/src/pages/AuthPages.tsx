@@ -126,7 +126,7 @@ function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           </Field>
           {mode === 'signup' && (
             <>
-              <Field label="닉네임" htmlFor="nickname" helper="선택 — 비우면 이메일 앞부분을 써요.">
+              <Field label="닉네임" htmlFor="nickname" helper="선택 — 비워 두면 이메일 앞부분을 사용합니다.">
                 <TextInput id="nickname" maxLength={20} value={nickname} onChange={(e) => setNickname(e.target.value)} />
               </Field>
               <div className="space-y-2 text-[15px]">
@@ -141,12 +141,12 @@ function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
                     <Link to="/legal/privacy" className="underline">
                       개인정보 처리방침
                     </Link>
-                    에 동의해요
+                    에 동의합니다
                   </span>
                 </label>
                 <label className="flex items-start gap-2 text-ink-2">
                   <input type="checkbox" className="mt-1 size-5 accent-[var(--action)]" checked={marketing} onChange={(e) => setMarketing(e.target.checked)} />
-                  (선택) 이벤트·혜택 소식을 받을게요
+                  (선택) 이벤트·혜택 소식 수신에 동의합니다
                 </label>
               </div>
             </>

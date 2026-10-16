@@ -26,7 +26,7 @@ test('랜딩(바로 입력) → 확인 → 결과: 甲辰 일주 8글자와 잠�
   await expect(page.getByText('= 음력 1995년 2월 14일')).toBeVisible();
   await expect(page.getByText('14:30 · 서울특별시 · 여성')).toBeVisible();
   await expect(page.getByText('태어난 시간을 실제 해 시각 13:58 기준으로 계산해요')).toBeVisible();
-  await expect(page.getByText(/서울특별시에서는 해가 시계보다 32분쯤 늦게 지나가서, 그만큼 앞당겨 계산했어요/)).toBeVisible();
+  await expect(page.getByText(/서울특별시에서는 실제 태양 시각이 시계보다 32분가량 늦어, 그만큼 앞당겨 계산했어요/)).toBeVisible();
 
   await page.getByRole('button', { name: '사주 풀이 보기' }).click();
   await expect(page).toHaveURL(/\/result$/);

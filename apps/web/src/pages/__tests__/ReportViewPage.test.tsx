@@ -128,7 +128,7 @@ describe('주제별 리포트', () => {
     renderPage();
     await screen.findByText('규칙 기반 총운 문단이에요.');
     expect(screen.getByText('재물·직업운')).toBeInTheDocument();
-    expect(screen.getByText('재물운은 투자 조언이 아니에요. 투자 결정은 본인의 판단과 전문가의 조언에 따라 주세요.')).toBeInTheDocument();
+    expect(screen.getByText('재물운은 투자 조언이 아닙니다. 투자 결정은 본인의 판단과 전문가의 조언에 따라 주세요.')).toBeInTheDocument();
     expect(m.chart).toHaveBeenCalledWith({ profileId: 'p1' });
   });
 
@@ -137,7 +137,7 @@ describe('주제별 리포트', () => {
     renderPage();
     await screen.findByText('규칙 기반 총운 문단이에요.');
     expect(screen.getByText('연애·결혼운')).toBeInTheDocument();
-    expect(screen.queryByText(/투자 조언이 아니에요/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/투자 조언이 아닙니다/)).not.toBeInTheDocument();
   });
 });
 

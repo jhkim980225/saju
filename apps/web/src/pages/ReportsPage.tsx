@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Page } from '@/components/AppShell';
 import { DaeunTimeline } from '@/components/DaeunTimeline';
-import { ElementBars } from '@/components/ElementBars';
+import { ELEMENT_COUNT_NOTE, ElementBars } from '@/components/ElementBars';
 import { PillarTable } from '@/components/PillarTable';
 import { ReadingSectionCard } from '@/components/ReadingSection';
 import { toast } from '@/components/Toast';
@@ -158,7 +158,7 @@ function PolishingNotice({ progress }: { progress: ReportDto['progress'] }) {
       >
         <div className="h-full rounded-full bg-action transition-[width] duration-500" style={{ width: known ? `${Math.round((progress.done / progress.total) * 100)}%` : '0%' }} />
       </div>
-      <p className="mt-2 text-[13px] leading-relaxed text-ink-2">먼저 기본 풀이로 읽어 보세요. 다 다듬어지면 바로 바꿔 드려요.</p>
+      <p className="mt-2 text-[13px] leading-relaxed text-ink-2">먼저 기본 풀이를 읽어 보세요. 문장 정리가 끝나면 바로 바꿔 드려요.</p>
     </div>
   );
 }
@@ -280,16 +280,16 @@ export function ReportViewPage() {
             {chart.data && (
               <div className="mt-2 space-y-4">
                 <Card className="break-inside-avoid">
-                  <h2 className="mb-3 font-semibold">타고난 여덟 글자</h2>
+                  <h2 className="mb-3 font-semibold">사주 원국 — 타고난 여덟 글자</h2>
                   <PillarTable chart={chart.data} />
                 </Card>
                 <Card className="break-inside-avoid">
                   <h2 className="font-semibold">{t('result.ohaengChart.title')}</h2>
-                  <p className="mb-4 mt-1 text-sm text-ink-3">여덟 글자를 나무·불·흙·쇠·물, 다섯 가지 성질로 나눠 센 거예요.</p>
+                  <p className="mb-4 mt-1 text-sm text-ink-3">{ELEMENT_COUNT_NOTE}</p>
                   <ElementBars chart={chart.data} />
                 </Card>
                 <Card className="break-inside-avoid">
-                  <h2 className="mb-1 font-semibold">10년마다 바뀌는 흐름</h2>
+                  <h2 className="mb-1 font-semibold">대운 — 10년 단위로 바뀌는 흐름</h2>
                   <DaeunTimeline chart={chart.data} />
                 </Card>
               </div>

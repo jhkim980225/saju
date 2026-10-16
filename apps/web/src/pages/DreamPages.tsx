@@ -177,7 +177,7 @@ function AiDreamCard({ keyword }: { keyword?: DreamEntry }) {
         AI 꿈풀이
       </p>
       <p className="mt-2 font-serif text-lg font-semibold leading-snug">{keyword ? '내 꿈에 맞춰 더 자세히 풀어 볼까요?' : '내 꿈 이야기로 풀어 보기'}</p>
-      <p className="mt-1.5 text-sm leading-relaxed text-ink-2">꿈 내용을 적어 주시면 사전의 전통 해석을 바탕으로 AI가 풀어 드려요. 사주를 저장해 두었다면 함께 살펴봐요.</p>
+      <p className="mt-1.5 text-sm leading-relaxed text-ink-2">꿈 내용을 적어 주시면 사전의 전통 해석을 바탕으로 AI가 풀이해 드려요. 저장한 사주가 있으면 함께 참고합니다.</p>
       <Link to={to} className="mt-4 inline-flex h-11 items-center rounded-full bg-action px-5 text-sm font-semibold text-on-action">
         꿈 이야기 적기
       </Link>
@@ -251,7 +251,7 @@ export function DreamHomePage() {
           <aside className="mt-8 space-y-4 lg:mt-2">
             <AiDreamCard />
             <p className="rounded-2xl border border-line p-4 text-sm leading-relaxed text-ink-2">
-              <b className="font-semibold text-ink">길몽·흉몽은 이렇게 읽어요.</b> 전해 오는 해석의 결을 표시한 것이에요. 흉몽도 겁낼 일이 아니라, 마음을 한 번 살펴보라는 신호로 읽어 주세요.
+              <b className="font-semibold text-ink">길몽·흉몽 표시에 대해</b> 전해 오는 해석이 좋은 쪽인지 주의할 쪽인지를 표시한 것입니다. 흉몽이 곧 나쁜 일을 예고하는 것은 아니므로, 현재의 마음 상태를 돌아보는 계기로 읽어 주세요.
             </p>
           </aside>
         </div>
@@ -538,7 +538,7 @@ export function DreamAskPage() {
         <h2 className="mt-4 font-serif text-[22px] font-semibold leading-snug lg:text-[26px]">어떤 꿈을 꾸셨나요?</h2>
         <p className="mt-2 text-[15px] leading-relaxed text-ink-2">기억나는 장면과 그때의 느낌을 편하게 적어 주세요. 꿈에 나온 것들을 꿈해몽 사전에서 찾아, 전해 오는 풀이를 바탕으로 풀어 드려요.</p>
         <p className="mt-3 rounded-xl bg-subtle p-3 text-sm leading-relaxed text-ink-2">
-          {aiEnabled ? 'AI가 꿈 이야기와 사전의 전통 해석을 바탕으로 풀이를 써요. 한 번 풀 때마다 질문권 1회를 써요.' : '지금은 AI 꿈풀이를 준비하고 있어서, 사전의 전통 해석을 엮은 기본 풀이를 드려요. 질문권은 쓰지 않아요.'}
+          {aiEnabled ? 'AI가 꿈 이야기와 사전의 전통 해석을 바탕으로 풀이를 작성합니다. 한 번 풀이할 때마다 질문권 1회가 차감돼요.' : '현재 AI 꿈풀이를 준비 중이어서, 사전의 전통 해석을 엮은 기본 풀이를 드립니다. 질문권은 차감되지 않아요.'}
         </p>
 
         <form
@@ -575,7 +575,7 @@ export function DreamAskPage() {
           {aiEnabled && list.length > 0 && (
             <fieldset className="mt-5">
               <legend className="text-[15px] font-semibold">사주와 함께 보기</legend>
-              <p className="mt-1 text-sm text-ink-3">고른 사람의 타고난 성향에 맞춰, 풀이 끝에 한두 문장을 더해요.</p>
+              <p className="mt-1 text-sm text-ink-3">선택한 사람의 타고난 성향을 반영해 풀이 끝에 한두 문장을 덧붙입니다.</p>
               <div className="no-scrollbar -mx-5 mt-2 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:flex-wrap lg:px-0">
                 {list.map((p) => (
                   <Chip key={p.id} active={selected?.id === p.id} onClick={() => setChoice(p.id)}>

@@ -7,9 +7,9 @@
 import { createProfileViaApi, expect, guestViaApi, injectSession, test } from './support/fixtures';
 
 const h1 = (page: import('@playwright/test').Page) => page.getByRole('heading', { level: 1 });
-/** 띠 근거(간지·합충 용어)는 '왜 이런 풀이일까요?'에 접혀 있다 — 닫혀 있을 때만 펼친다 */
+/** 띠 근거(간지·합충 용어)는 '이렇게 풀이한 근거'에 접혀 있다 — 닫혀 있을 때만 펼친다 */
 const openReasons = async (page: import('@playwright/test').Page) => {
-  const box = page.locator('details', { hasText: '왜 이런 풀이일까요?' });
+  const box = page.locator('details', { hasText: '이렇게 풀이한 근거' });
   if (!(await box.evaluate((el) => (el as HTMLDetailsElement).open))) await box.locator('summary').click();
 };
 const periodTab = (page: import('@playwright/test').Page, name: string) => page.getByRole('navigation', { name: '기간' }).getByRole('link', { name, exact: true });
@@ -30,7 +30,7 @@ test('띠별 운세: 태어난 해로 띠 찾기 → 기간 전환 → 다른 �
   await expect(h1(page)).toHaveText('호랑이띠 오늘의 운세');
   await expect(page).toHaveTitle('호랑이띠 오늘의 운세 — 띠별 운세 | 달빛사주');
   await expect(periodTab(page, '오늘')).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByText('왜 이런 풀이일까요?')).toBeVisible();
+  await expect(page.getByText('이렇게 풀이한 근거')).toBeVisible();
   // 본문에는 간지 한자가 없고, 근거는 펼쳐야 보인다
   await expect(page.getByText(/^오늘 일진 [甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥] · /).first()).toBeHidden();
   await openReasons(page);
@@ -79,7 +79,7 @@ test('별자리 운세: 생일로 별자리 찾기 → 기간 전환 → 다른 
   await expect(page).toHaveURL(/\/horoscope\/leo\/today$/);
   await expect(h1(page)).toHaveText('사자자리 오늘의 운세');
   await expect(page).toHaveTitle('사자자리 오늘의 운세 — 별자리 운세 | 달빛사주');
-  await expect(page.getByText('하늘의 근거')).toBeVisible();
+  await expect(page.getByText('천체 위치로 본 근거')).toBeVisible();
   await expect(page.getByText(/^달 · .+자리/).first()).toBeVisible();
   await expect(page.getByText(/간이 천문 계산/).first()).toBeVisible();
 

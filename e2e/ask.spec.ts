@@ -14,13 +14,13 @@ test('물어보기: 추천 질문 → 규칙 기반 답변, 질문권은 차감�
   await expect(page.getByRole('heading', { name: '물어보기' })).toBeVisible();
   await expect(page.getByText('서윤님의 사주를 바탕으로 답해요')).toBeVisible();
   await expect(page.getByText('양력 1995.3.14생 · 돼지띠')).toBeVisible();
-  await expect(page.getByText(/AI 상담을 준비하고 있어서.*질문권은 쓰이지 않아요/)).toBeVisible();
+  await expect(page.getByText(/AI 상담을 준비 중이어서.*질문권은 차감되지 않아요/)).toBeVisible();
   // AI 미설정이면 질문권 배지(결제 유도)는 숨긴다
   await expect(page.getByRole('button', { name: /^질문권 \d+/ })).toHaveCount(0);
 
   await expect(page.getByText('이런 걸 물어볼 수 있어요')).toBeVisible();
   const sent = page.waitForResponse((r) => r.url().endsWith('/api/v1/chat') && r.request().method() === 'POST');
-  await page.getByRole('button', { name: '이직해도 괜찮은 시기일까?' }).click();
+  await page.getByRole('button', { name: '지금 이직해도 괜찮은 시기일까요?' }).click();
   const res = await sent;
   expect(res.status()).toBe(200);
   const body = (await res.json()) as { generator: string; creditsLeft: number };
@@ -29,7 +29,7 @@ test('물어보기: 추천 질문 → 규칙 기반 답변, 질문권은 차감�
 
   const bubbles = page.locator('ol[aria-live="polite"] > li');
   await expect(bubbles).toHaveCount(2);
-  await expect(bubbles.nth(0)).toHaveText('이직해도 괜찮은 시기일까?');
+  await expect(bubbles.nth(0)).toHaveText('지금 이직해도 괜찮은 시기일까요?');
   // 직업운은 유료(잠금) 주제 → 잠금 안내 후 무료인 성격 풀이로 답한다
   await expect(bubbles.nth(1)).toContainText('전체 풀이를 열면 볼 수 있어요');
   await expect(bubbles.nth(1)).toContainText('오늘 하나만 해 본다면, ');

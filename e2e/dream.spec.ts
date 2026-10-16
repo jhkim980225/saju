@@ -55,7 +55,7 @@ test('AI 꿈풀이(AI 키 없음): 사전 상징을 엮은 기본 풀이, 질문
   await expect(page.getByRole('heading', { level: 1, name: 'AI 꿈풀이' })).toBeVisible();
   const box = page.getByRole('textbox', { name: /꿈 내용/ });
   await expect(box).toHaveValue('뱀 꿈을 꿨어요. ');
-  await expect(page.getByText(/AI 꿈풀이를 준비하고 있어서.*질문권은 쓰지 않아요/)).toBeVisible();
+  await expect(page.getByText(/AI 꿈풀이를 준비 중이어서.*질문권은 차감되지 않아요/)).toBeVisible();
   // AI 미설정이면 질문권 배지(결제 유도)·사주 선택은 숨긴다
   await expect(page.getByRole('button', { name: /^질문권 \d+/ })).toHaveCount(0);
 

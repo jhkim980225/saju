@@ -54,7 +54,7 @@ export function MyPage() {
     await api.deleteMe();
     clear();
     qc.clear();
-    toast('탈퇴가 완료됐어요. 그동안 고마웠어요.');
+    toast('탈퇴가 완료되었습니다. 그동안 이용해 주셔서 감사합니다.');
     navigate('/', { replace: true });
   };
   const togglePush = async (on: boolean) => {
@@ -85,7 +85,7 @@ export function MyPage() {
             ) : (
               <div className="space-y-3">
                 <p className="font-semibold">로그인하면 저장한 사주와 구매 내역을 안전하게 보관해요</p>
-                <p className="text-sm text-ink-2">지금 쓰던 사주 정보는 그대로 이어져요.</p>
+                <p className="text-sm text-ink-2">지금까지 저장한 사주 정보는 그대로 유지됩니다.</p>
                 <div className="grid grid-cols-2 gap-2">
                   <Button onClick={() => navigate('/login?next=/my')}>로그인</Button>
                   <Button variant="secondary" onClick={() => navigate('/signup?next=/my')}>
@@ -239,7 +239,7 @@ export function MyPage() {
         }
       >
         <p className="text-[15px] leading-relaxed text-ink-2">{t('my.deleteConfirmBody')}</p>
-        <p className="mt-2 text-sm text-ink-3">결제 기록은 전자상거래법에 따라 5년간 익명으로 보관돼요.</p>
+        <p className="mt-2 text-sm text-ink-3">결제 기록은 전자상거래법에 따라 5년간 익명으로 보관됩니다.</p>
       </BottomSheet>
     </div>
   );

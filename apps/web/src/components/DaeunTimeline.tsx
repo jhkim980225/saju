@@ -26,7 +26,9 @@ export function DaeunTimeline({ chart }: { chart: SajuChart }) {
   const mood = (tg: string) => TEN_GOD_PLAIN_LABEL[tg] ?? tg;
   return (
     <div>
-      <p className="mb-3 text-sm text-ink-3">칸마다 그 10년이 시작하는 나이와 분위기를 한 단어로 적었어요. 글자 색은 나무·불·흙·쇠·물 기운이에요.</p>
+      <p className="mb-3 text-sm text-ink-3">
+        대운은 10년 단위로 바뀌는 운의 흐름이며, 시작 나이는 성별과 출생일에 따라 사람마다 다릅니다. 칸마다 시작 나이와 그 시기의 성격(대운 천간의 십성 기준)을 적었고, 글자 색은 오행을 나타냅니다.
+      </p>
       <ol ref={list} className="no-scrollbar -mx-5 flex snap-x gap-2 overflow-x-auto px-5 pb-2 print:mx-0 print:flex-wrap print:overflow-visible print:px-0" aria-label={t('result.sections.daeun.title')}>
         {chart.daeun.periods.map((p) => {
           const isNow = p === current;
@@ -54,7 +56,7 @@ export function DaeunTimeline({ chart }: { chart: SajuChart }) {
       </ol>
       {current && (
         <p className="mt-2 text-sm text-ink-2">
-          지금은 {current.startAge}~{current.endAge}세, '{mood(current.stemTenGod)}'의 10년이에요 · {t('result.daeunTimeline.remaining', { years: Math.max(0, current.endYear - year + 1) })}
+          지금은 {current.startAge}~{current.endAge}세, '{mood(current.stemTenGod)}'의 대운입니다 · {t('result.daeunTimeline.remaining', { years: Math.max(0, current.endYear - year + 1) })}
         </p>
       )}
     </div>

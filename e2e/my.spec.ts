@@ -85,7 +85,7 @@ test('회원 탈퇴 후에는 같은 계정으로 다시 로그인할 수 없다
   await page.getByRole('button', { name: '탈퇴하기' }).click();
   await page.getByRole('dialog').getByRole('button', { name: '탈퇴하기' }).click();
 
-  await expect(page.getByText('탈퇴가 완료됐어요. 그동안 고마웠어요.')).toBeVisible();
+  await expect(page.getByText('탈퇴가 완료되었습니다. 그동안 이용해 주셔서 감사합니다.')).toBeVisible();
   await expect(page).toHaveURL(/\/$/);
   expect(await page.evaluate(() => localStorage.getItem('yd.session'))).toBeNull();
 

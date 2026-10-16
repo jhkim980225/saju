@@ -65,7 +65,7 @@ test('택일: 무료 미리보기 → 목업 결제 → 같은 결과의 상세�
   await expect(detail.getByText('시작하기 좋은 시간')).toBeVisible();
   // 용어(건제12신·황도)는 접혀 있다가 펼치면 보인다
   await expect(detail.getByText(/건제12신/).first()).toBeHidden();
-  await detail.locator('summary', { hasText: '옛 달력·사주 용어로 보면' }).click();
+  await detail.locator('summary', { hasText: '택일·사주 용어로 보면' }).click();
   await expect(detail.getByText(/건제12신/).first()).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(detail).toBeHidden();

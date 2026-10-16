@@ -64,7 +64,7 @@ describe('그로블 결제 결과 — 웹훅 확정 대기', () => {
   it('주문이 paid 가 될 때까지 조회하고, 승인 API 는 부르지 않는다', async () => {
     m.order.mockResolvedValueOnce(order('pending')).mockResolvedValueOnce(order('pending')).mockResolvedValue(order('paid'));
     renderPage();
-    expect(await screen.findByText('결제 완료 알림을 받고 있어요. 보통 몇 초면 끝나요.')).toBeInTheDocument();
+    expect(await screen.findByText('결제 완료 여부를 확인하고 있어요. 보통 몇 초 안에 끝납니다.')).toBeInTheDocument();
     await vi.advanceTimersByTimeAsync(WEBHOOK_POLL_MS * 2);
     expect(await screen.findByRole('heading', { name: '결제가 완료됐어요' })).toBeInTheDocument();
     expect(m.order).toHaveBeenCalledWith(ORDER_ID);
@@ -75,13 +75,13 @@ describe('그로블 결제 결과 — 웹훅 확정 대기', () => {
   it('웹훅이 금액·상품 불일치로 실패 처리한 주문은 고객센터 안내', async () => {
     m.order.mockResolvedValue(order('failed'));
     renderPage();
-    expect(await screen.findByText(/주문 정보와 달라 자동으로 열지 못했어요/)).toBeInTheDocument();
+    expect(await screen.findByText(/주문 정보와 일치하지 않아 자동으로 열지 못했습니다/)).toBeInTheDocument();
   });
 
   it('시간 안에 확정되지 않으면 다시 확인할 수 있고, 그 사이 확정되면 완료로 바뀐다', async () => {
     m.order.mockResolvedValue(order('pending'));
     renderPage();
-    await screen.findByText('결제 완료 알림을 받고 있어요. 보통 몇 초면 끝나요.');
+    await screen.findByText('결제 완료 여부를 확인하고 있어요. 보통 몇 초 안에 끝납니다.');
     await vi.advanceTimersByTimeAsync(WEBHOOK_POLL_MS * 46);
     expect(await screen.findByRole('heading', { name: '결제 확인이 늦어지고 있어요' })).toBeInTheDocument();
     m.order.mockResolvedValue(order('paid'));

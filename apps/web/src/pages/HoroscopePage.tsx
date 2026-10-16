@@ -17,9 +17,9 @@ import { todayKst } from '@/lib/format';
 import { usePageMeta } from '@/lib/pageMeta';
 import { NotFoundPage } from './NotFoundPage';
 
-const UPSELL = '별자리 운세는 같은 별자리라면 모두에게 같아요. 사주로 보면 태어난 시간까지 담은 나만의 하루 흐름을 볼 수 있어요.';
-const BASIS_SHORT = '하늘을 열두 칸으로 나눠 내 별자리를 첫째 칸으로 세고, 오늘 달이 몇 번째 칸을 지나는지로 풀었어요. 칸마다 맡은 주제(돈·연애·일 …)가 달라요.';
-const DISCLAIMER = '별자리 운세는 서양 점성술을 바탕으로 한 재미와 참고용 콘텐츠예요.';
+const UPSELL = '별자리 운세는 같은 별자리라면 모두에게 같은 풀이입니다. 사주로 보면 태어난 시간까지 반영한 나만의 하루 흐름을 볼 수 있어요.';
+const BASIS_SHORT = '황도(태양이 지나는 길)를 열두 자리로 나눠 내 별자리를 첫 번째 자리로 세고, 오늘 달이 몇 번째 자리를 지나는지로 풀이했어요. 자리마다 담당하는 주제(재물·연애·일 등)가 다릅니다.';
+const DISCLAIMER = '별자리 운세는 서양 점성술을 바탕으로 한 재미와 참고용 콘텐츠입니다.';
 
 export function HoroscopeHubPage() {
   const own = useOwnSigns();
@@ -192,8 +192,8 @@ function HoroscopeDetail({ sign, period }: { sign: StarSign; period: FreeFortune
               <FortuneMain eyebrow={d.range.label} tone={d.tone} toneLabel={d.toneLabel} headline={d.headline} paragraphs={d.paragraphs} tip={d.tip} />
               <KeyDays days={d.keyDays} />
               <Card className="mt-6">
-                <h3 className="font-semibold">하늘의 근거</h3>
-                <p className="mt-1 text-sm leading-relaxed text-ink-3">내 별자리를 첫 번째 자리로 세어, 달·태양·행성이 지금 몇 번째 자리를 지나는지 적었어요. 자리마다 맡은 주제가 괄호 속에 있어요.</p>
+                <h3 className="font-semibold">천체 위치로 본 근거</h3>
+                <p className="mt-1 text-sm leading-relaxed text-ink-3">내 별자리를 첫 번째 자리로 세어 달·태양·행성이 지금 몇 번째 자리를 지나는지 적었어요. 자리마다 담당하는 주제는 괄호 안에 있습니다.</p>
                 <ul className="mt-3 space-y-3">
                   {d.sky.map((s, i) => (
                     <li key={`${s.body}-${s.signName}-${i}`}>

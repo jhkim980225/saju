@@ -77,7 +77,7 @@ test('양자택일: 두 선택지를 나란히 놓고(정답 표시 없음), 990
   await page.getByRole('button', { name: '카드 섞기' }).click();
 
   await page.getByRole('button', { name: '카드 고르기' }).click();
-  await page.getByRole('button', { name: '알아서 골라 주세요' }).click();
+  await page.getByRole('button', { name: '자동으로 고르기' }).click();
   await page.getByRole('button', { name: '카드 펼치기', exact: true }).click();
   await page.getByRole('button', { name: '한 번에 펼치기' }).click();
   await page.getByRole('button', { name: '풀이 읽기' }).click();
@@ -122,7 +122,7 @@ test('궁합 타로: 저장한 두 사람으로 뽑고, 결과에 두 사람과 
   await page.getByRole('button', { name: '카드 섞기' }).click();
   await page.getByRole('button', { name: '카드 고르기' }).click();
   await expect(page.getByRole('heading', { name: '카드 5장을 골라 주세요' })).toBeVisible();
-  await page.getByRole('button', { name: '알아서 골라 주세요' }).click();
+  await page.getByRole('button', { name: '자동으로 고르기' }).click();
   await page.getByRole('button', { name: '카드 펼치기', exact: true }).click();
   await page.getByRole('button', { name: '한 번에 펼치기' }).click();
   await page.getByRole('button', { name: '풀이 읽기' }).click();

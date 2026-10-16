@@ -9,7 +9,7 @@ import { t } from '@/lib/copy';
 import { won } from '@/lib/format';
 import { AdSlot } from './AdSlot';
 import { DaeunTimeline } from './DaeunTimeline';
-import { ElementBars } from './ElementBars';
+import { ELEMENT_COUNT_NOTE, ElementBars } from './ElementBars';
 import { OpenReportCard } from './OpenReportCard';
 import { PaywallSheet } from './PaywallSheet';
 import { PillarTable } from './PillarTable';
@@ -142,7 +142,7 @@ export function ReadingView({
         <Card className="mt-4 lg:mt-6">
           <div className="mb-4">
             <h2 className="font-semibold">{t('result.ohaengChart.title')}</h2>
-            <p className="mt-1 text-sm text-ink-3">여덟 글자를 나무·불·흙·쇠·물, 다섯 가지 성질로 나눠 본 거예요.</p>
+            <p className="mt-1 text-sm text-ink-3">{ELEMENT_COUNT_NOTE}</p>
           </div>
           <ElementBars chart={chart} />
         </Card>
@@ -172,7 +172,7 @@ export function ReadingView({
           <OpenReportCard
             dto={{ type: 'lifetime', profileId }}
             title={`${name}님의 사주분석서`}
-            body="타고난 여덟 글자와 다섯 가지 기운, 10년마다 바뀌는 흐름, 올해·내년 운세, 열두 달 흐름까지 한 권으로 묶었어요. A4 20쪽 안팎이고 PDF로 저장할 수 있어요."
+            body="사주 원국과 오행 분포, 대운(10년 단위의 흐름), 올해·내년 운세, 열두 달의 흐름을 한 권으로 정리했습니다. A4 20쪽 안팎이며 PDF로 저장할 수 있어요."
           />
         )}
 

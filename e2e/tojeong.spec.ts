@@ -7,7 +7,7 @@ import { createProfileViaApi, expect, guestViaApi, injectSession, test } from '.
 test('비회원: 양력 생년월일 입력 → 163괘 결과 → 새로고침해도 유지 → 음력 윤달로 다시 보기', async ({ page }) => {
   await page.goto('/tojeong');
   await expect(page).toHaveTitle(/2027 토정비결/);
-  await expect(page.getByRole('heading', { name: /2027년, 나의 한 해를 미리 읽어 봐요/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /2027년 토정비결로 보는 한 해의 흐름/ })).toBeVisible();
 
   // 형식 오류
   await page.getByRole('textbox', { name: '생년월일' }).fill('199005');

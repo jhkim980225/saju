@@ -121,13 +121,13 @@ export function FortuneMain({ eyebrow, tone, toneLabel, headline, paragraphs, ti
 }
 
 /** 풀이 근거 — 용어(간지·합충)가 들어 있어 기본은 접어 두고, 궁금한 사람만 펼쳐 본다 */
-export function ReasonCard({ title = '왜 이런 풀이일까요?', intro, reasons }: { title?: string; intro?: string; reasons: FreeFortuneReasonDto[] }) {
+export function ReasonCard({ title = '이렇게 풀이한 근거', intro, reasons }: { title?: string; intro?: string; reasons: FreeFortuneReasonDto[] }) {
   return (
     <details className="group mt-6 rounded-2xl border border-line bg-surface p-5">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
         <span>
           <span className="font-semibold">{title}</span>
-          <span className="ml-1.5 text-sm text-ink-3">· 궁금한 분만</span>
+          <span className="ml-1.5 text-sm text-ink-3">· 펼쳐 보기</span>
         </span>
         <ChevronDown className="size-5 shrink-0 text-ink-3 transition-transform group-open:rotate-180" aria-hidden />
       </summary>
@@ -178,7 +178,7 @@ export function PersonalUpsell({ body, hasProfile }: { body: string; hasProfile:
       <Link to={hasProfile ? '/today' : '/input'} className="mt-4 inline-flex h-12 w-full items-center justify-center rounded-full bg-action font-semibold text-on-action">
         {hasProfile ? '오늘의 운세 보기' : '내 사주 입력하기'}
       </Link>
-      <p className="mt-2 text-center text-xs text-ink-3">무료예요. 회원가입 없이 볼 수 있어요.</p>
+      <p className="mt-2 text-center text-xs text-ink-3">무료이며, 회원가입 없이 볼 수 있어요.</p>
     </Card>
   );
 }
@@ -199,7 +199,7 @@ export function MethodNote({ basis, disclaimer }: { basis: string; disclaimer: s
   return (
     <section className="mt-6 space-y-2 text-xs leading-relaxed text-ink-3" aria-label="계산 방법과 안내">
       <p>
-        <b className="font-semibold text-ink-2">이렇게 풀었어요 · </b>
+        <b className="font-semibold text-ink-2">풀이 기준 · </b>
         {basis}
       </p>
       <p>{disclaimer}</p>

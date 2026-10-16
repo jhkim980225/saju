@@ -28,16 +28,16 @@ export const TOPIC_REPORTS: TopicReport[] = [
     productId: 'report_love',
     title: '연애·결혼운 리포트',
     icon: Heart,
-    body: (name) => `${name}님이 사랑할 때 어떤 사람인지, 누구와 잘 맞는지 읽고, 앞으로 10년 가운데 새 인연이 들어오기 좋은 때를 짚어 드려요.`,
-    benefits: ['사랑할 때의 나, 끌리는 매력, 부딪히기 쉬운 지점', '성별이 아닌 기질로 본 나와 잘 맞는 사람', '앞으로 10년의 인연 흐름과 가까운 3년, 좋은 달까지'],
+    body: (name) => `${name}님의 연애 성향과 잘 맞는 사람을 사주로 살펴보고, 앞으로 10년 가운데 인연이 들어오기 쉬운 시기를 짚어 드립니다.`,
+    benefits: ['연애할 때의 성향, 상대에게 비치는 매력, 갈등이 생기기 쉬운 지점', '성별이 아닌 기질로 본 나와 잘 맞는 사람', '앞으로 10년의 인연 흐름과 가까운 3년, 좋은 달'],
   },
   {
     type: 'career_wealth',
     productId: 'report_career_wealth',
     title: '재물·직업운 리포트',
     icon: Coins,
-    body: (name) => `${name}님이 돈을 버는 방식과 잘 맞는 일을 읽고, 앞으로 10년 가운데 돈과 일이 잘 풀리는 해, 일이 바뀌기 쉬운 해를 짚어 드려요.`,
-    benefits: ['돈이 들어오는 방식, 버는 법과 지키는 법', '어울리는 일과 분야, 직장형·독립형 성향', '앞으로 10년의 흐름과 가까운 3년, 상황별 조언'],
+    body: (name) => `${name}님이 재물을 모으는 방식과 잘 맞는 일을 사주로 살펴보고, 앞으로 10년 가운데 재물과 일의 흐름이 좋은 해, 변화가 생기기 쉬운 해를 짚어 드립니다.`,
+    benefits: ['재물이 들어오는 방식, 버는 법과 지키는 법', '어울리는 일과 분야, 직장형·독립형 성향', '앞으로 10년의 흐름과 가까운 3년, 상황별 조언'],
   },
 ];
 
@@ -115,7 +115,7 @@ export function TopicReportCards({
       <h2 id={headingId} className="font-semibold">
         {heading}
       </h2>
-      <p className="mt-1 text-sm leading-relaxed text-ink-3">궁금한 주제 하나를 {name}님의 사주로 깊게 풀어요. 한 번 사면 보관함에서 다시 보고 PDF로 저장할 수 있어요.</p>
+      <p className="mt-1 text-sm leading-relaxed text-ink-3">관심 있는 주제 하나를 {name}님의 사주로 깊이 있게 풀이합니다. 한 번 구매하면 보관함에서 다시 보고 PDF로 저장할 수 있어요.</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {items.map((r) => {
           const Icon = r.icon;
@@ -155,7 +155,7 @@ export function TopicReportCards({
         onClose={() => setPaywall(null)}
         productIds={paywallIds}
         title={paywall ? `${name}님의 ${paywall.title}` : undefined}
-        subtitle="사주를 몰라도 읽히게, 결론부터 쉬운 말로 쓴 리포트예요. 결제하면 바로 만들어 보관함에 넣어 드려요."
+        subtitle="사주를 처음 접하는 분도 이해할 수 있도록 결론부터 정리한 리포트입니다. 결제하면 바로 생성되어 보관함에 저장됩니다."
         benefits={paywall?.benefits}
         onPurchase={onPurchase}
       />

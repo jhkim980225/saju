@@ -88,7 +88,7 @@ export function AskPage() {
         {gate.failed && <SessionGateError onRetry={gate.retry} />}
         {profiles.isLoading && <Spinner />}
         {profiles.isFetched && list.length === 0 && (
-          <EmptyState title={t('today.noProfileTitle')} body="내 사주를 저장하면, 사주를 기준으로 고민을 함께 정리해 드려요." action={<Button onClick={() => navigate('/profiles/new?save=1&relation=self&next=/ask')}>{t('today.noProfileCta')}</Button>} />
+          <EmptyState title={t('today.noProfileTitle')} body="내 사주를 저장하면 사주 풀이를 바탕으로 고민에 답변해 드려요." action={<Button onClick={() => navigate('/profiles/new?save=1&relation=self&next=/ask')}>{t('today.noProfileCta')}</Button>} />
         )}
         {profile && (
           <>
@@ -170,7 +170,7 @@ export function AskPage() {
           </div>
         </form>
       )}
-      <PaywallSheet open={paywall} onClose={() => setPaywall(false)} productIds={['chat_pack_30', 'chat_pack_10']} subtitle="내 사주를 아는 AI 상담가에게 물어보세요. 질문권은 유효기간이 없어요." onPurchase={onPurchase} />
+      <PaywallSheet open={paywall} onClose={() => setPaywall(false)} productIds={['chat_pack_30', 'chat_pack_10']} subtitle="저장한 사주의 계산 결과를 바탕으로 AI가 답변합니다. 질문권은 유효기간이 없어요." onPurchase={onPurchase} />
     </div>
   );
 }

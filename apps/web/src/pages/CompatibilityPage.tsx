@@ -19,7 +19,7 @@ import { t } from '@/lib/copy';
 import { won } from '@/lib/format';
 
 const RELATIONS = ['lover', 'crush', 'friend', 'family', 'coworker'] as const;
-const CAT_LABEL = { personality: '성격', romance: '끌림·애정', stability: '안정·생활', complement: '서로 채워줌' } as const;
+const CAT_LABEL = { personality: '성격', romance: '끌림·애정', stability: '안정·생활', complement: '상호 보완' } as const;
 
 export function CompatibilityPage() {
   const navigate = useNavigate();
@@ -109,7 +109,7 @@ export function CompatibilityPage() {
             {list.length > 0 && !b && (
               <div className="mt-10 rounded-2xl border border-dashed border-line-strong p-6 text-center lg:mt-2 lg:p-10">
                 <p className="font-serif text-lg">두 사람이 얼마나 잘 맞는지 볼까요?</p>
-                <p className="mt-2 text-sm text-ink-2">상대를 고르면 태어난 날과 시간으로 궁합 점수와 잘 맞는 점을 바로 보여 드려요. 상대는 마이에서 추가할 수 있어요.</p>
+                <p className="mt-2 text-sm text-ink-2">상대를 선택하면 두 사람의 사주를 비교해 궁합 점수와 잘 맞는 점을 보여 드립니다. 상대는 마이에서 추가할 수 있어요.</p>
                 <Button className="mt-4" onClick={() => setPicking('b')}>
                   {t('compatibility.pickPerson')}
                 </Button>
@@ -126,8 +126,8 @@ export function CompatibilityPage() {
                   <p className="tabular mt-3 font-serif text-6xl font-semibold">{r.result.score}</p>
                   <p className="mt-1 text-sm font-semibold text-gold">{r.gradeLabel}</p>
                   <p className="mt-4 font-serif text-lg leading-snug">{r.headline}</p>
-                  <p className="mt-2 text-xs text-ink-3">두 사람이 태어난 날과 시간으로 본 점수예요(100점 만점).</p>
-                  <p className="mt-6 text-left text-sm text-ink-3">나눠서 보면 이래요. 막대가 길수록 잘 맞아요.</p>
+                  <p className="mt-2 text-xs text-ink-3">두 사람의 태어난 날 글자(일간·일지)와 띠의 관계, 오행의 보완 정도를 달빛사주 기준으로 환산한 점수예요(100점 만점, 서비스 자체 지표).</p>
+                  <p className="mt-6 text-left text-sm text-ink-3">항목별 점수 — 막대가 길수록 잘 맞는 편입니다.</p>
                   <ul className="mt-3 space-y-3 text-left">
                     {(Object.keys(CAT_LABEL) as (keyof typeof CAT_LABEL)[]).map((k) => (
                       <li key={k}>
@@ -146,7 +146,7 @@ export function CompatibilityPage() {
                   <OpenReportCard
                     dto={{ type: 'compatibility', profileId: a, partnerProfileId: b }}
                     title="궁합 리포트 전체"
-                    body="타고난 성향과 다섯 가지 기운의 균형, 끌림과 조심할 점, 대화·다툼 방식, 서로를 대하는 방법, 올해·내년 흐름까지 담은 리포트예요."
+                    body="두 사람의 타고난 성향과 오행의 균형, 끌림과 주의할 점, 대화·갈등 방식, 서로를 대하는 방법, 올해·내년의 흐름까지 담은 리포트입니다."
                   />
                 )}
                 <Button variant="secondary" block className="mt-2" onClick={() => setShareOpen(true)}>

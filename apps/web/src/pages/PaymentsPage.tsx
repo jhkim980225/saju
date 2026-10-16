@@ -33,7 +33,7 @@ export function PaymentsPage() {
             <p className="text-sm text-ink-3">AI 상담 질문권</p>
             <p className="tabular mt-1 text-3xl font-bold">{wallet.data.credits}회</p>
             <p className="mt-1 text-xs text-ink-3">
-              유상 {wallet.data.paidCredits} · 무상 {wallet.data.freeCredits} — 무상분부터 먼저 사용돼요. 유효기간은 없어요.
+              유상 {wallet.data.paidCredits} · 무상 {wallet.data.freeCredits} — 무상분부터 먼저 차감되며, 유효기간은 없습니다.
             </p>
             {wallet.data.ledger.length > 0 && (
               <ul className="mt-4 divide-y divide-line text-sm">
@@ -70,7 +70,7 @@ export function PaymentsPage() {
           </Card>
         )}
         <p className="text-xs leading-relaxed text-ink-3">
-          {t('payment.receiptNote')} 디지털 콘텐츠 특성상 열람한 리포트는 청약철회가 제한될 수 있어요. 환불 문의는 고객센터로 연락해 주세요.
+          {t('payment.receiptNote')} 디지털 콘텐츠 특성상 열람한 리포트는 청약철회가 제한될 수 있습니다. 환불 문의는 고객센터로 연락해 주세요.
         </p>
       </Page>
     </div>

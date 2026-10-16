@@ -33,7 +33,7 @@ test('오늘의 운세: 사주 저장 → 오늘 탭 → 주간 흐름 7일 → 
   // 처음 보는 사람 기준: 이름으로 부르고, 맨 위 요약 카드, 용어는 '사주로 보면'에 접어 둔다
   await expect(page.getByText(/^서윤님, 오늘/)).toBeVisible();
   await expect(page.getByRole('heading', { name: '한눈에 보는 오늘' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '오늘이 이런 이유' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '오늘 운세의 근거' })).toBeVisible();
   await expect(page.getByText('사주로 보면')).toBeVisible();
   await expect(page.getByRole('heading', { level: 1 })).not.toContainText(/[一-鿿]/);
 

@@ -17,8 +17,8 @@ import { todayKst } from '@/lib/format';
 import { usePageMeta } from '@/lib/pageMeta';
 import { NotFoundPage } from './NotFoundPage';
 
-const UPSELL = '띠별 운세는 같은 해에 태어난 모두에게 같아요. 태어난 날과 시간까지 넣으면 나에게만 맞춘 오늘의 운세를 매일 볼 수 있어요.';
-const BASIS_SHORT = '옛 달력에서는 날마다 열두 띠 가운데 하나가 돌아가며 붙어요. 오늘 날의 띠가 내 띠와 손을 잡는지, 부딪치는지를 보고 풀었어요.';
+const UPSELL = '띠별 운세는 같은 띠라면 모두에게 같은 풀이입니다. 태어난 날과 시간까지 입력하면 내 사주에 맞춘 오늘의 운세를 매일 볼 수 있어요.';
+const BASIS_SHORT = '날마다 그날의 지지(열두 띠에 해당하는 글자)가 차례로 바뀝니다. 오늘의 지지와 내 띠가 합(조화)·충(대립) 등 어떤 관계인지를 보고 풀이했어요.';
 
 export function ZodiacHubPage() {
   const own = useOwnSigns();
@@ -84,7 +84,7 @@ export function ZodiacHubPage() {
               <YearFinder />
             </div>
             <CrossLink to="/horoscope" title="별자리 운세" body="생일로 찾는 열두 별자리의 오늘" />
-            <MethodNote basis={BASIS_SHORT} disclaimer="띠별 운세는 같은 띠라면 모두에게 같은 풀이예요. 재미와 참고로 읽어 주세요." />
+            <MethodNote basis={BASIS_SHORT} disclaimer="띠별 운세는 같은 띠라면 모두에게 같은 풀이입니다. 재미와 참고용으로 읽어 주세요." />
           </aside>
         </div>
       </Page>
@@ -113,7 +113,7 @@ function YearFinder() {
             {year}년생은 <b>{animal.name}띠</b>({animal.hanja})예요.
           </p>
           <p className="mt-1 text-sm text-ink-3">
-            입춘(2월 4일 무렵) 전에 태어났다면 앞 해의 {prev.name}띠예요.
+            사주에서는 입춘을 한 해의 시작으로 보므로, 입춘(2월 4일 무렵) 전에 태어났다면 앞 해의 {prev.name}띠예요.
           </p>
           <Link to={zodiacPath(animal.slug)} className="mt-3 inline-flex h-10 items-center rounded-full bg-action-2 px-4 text-sm font-semibold">
             {animal.name}띠 운세 보기
@@ -168,8 +168,8 @@ function ZodiacDetail({ animal, period }: { animal: ZodiacAnimal; period: FreeFo
           <div className="animate-fade lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-10">
             <div>
               <FortuneMain eyebrow={d.range.label} tone={d.tone} toneLabel={d.toneLabel} headline={d.headline} paragraphs={d.paragraphs} tip={d.tip} />
-              <KeyDays days={d.keyDays} note={`옛 달력에서는 날마다 열두 띠 동물이 돌아가며 붙어요. ${animal.name}띠와 잘 맞는 날과 부딪치는 날을 골랐어요.`} />
-              <ReasonCard reasons={d.reasons} intro={`옛 달력에서 그 기간에 붙는 두 글자(간지)와 ${animal.name}띠 글자(${animal.hanja})가 어떤 관계인지 적었어요.`} />
+              <KeyDays days={d.keyDays} note={`날마다 그날의 지지(띠 글자)가 바뀝니다. ${animal.name}띠와 조화를 이루는 날(합 등)과 대립하는 날(충 등)을 골랐어요.`} />
+              <ReasonCard reasons={d.reasons} intro={`그 기간의 간지와 ${animal.name}띠 글자(${animal.hanja})가 어떤 관계인지 정리했어요.`} />
               <div className="mt-6">
                 <AdSlot placement="web_content_mid" />
               </div>
@@ -178,7 +178,7 @@ function ZodiacDetail({ animal, period }: { animal: ZodiacAnimal; period: FreeFo
                   년생별 {animal.name}띠 운세
                 </h3>
                 <p className="mt-1 text-sm text-ink-3">
-                  {d.pillar ? `같은 ${animal.name}띠라도 태어난 해마다 기운이 조금씩 달라서, 해마다 한 줄씩 따로 풀었어요.` : `같은 ${animal.name}띠라도 태어난 해마다 이번 주에 잘 맞는 요일이 달라요.`}
+                  {d.pillar ? `같은 ${animal.name}띠라도 태어난 해의 천간이 달라 해마다 간지가 다르므로, 해마다 한 줄씩 따로 풀이했어요.` : `같은 ${animal.name}띠라도 태어난 해마다 이번 주에 잘 맞는 요일이 달라요.`}
                 </p>
                 <ul className="mt-3 divide-y divide-line border-y border-line">
                   {d.years.map((y) => (

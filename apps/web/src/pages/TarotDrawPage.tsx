@@ -23,7 +23,7 @@ const STEPS: { key: Step; label: string }[] = [
 ];
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-/** 남은 자리 중 무작위 n개 (알아서 골라 주세요) */
+/** 남은 자리 중 무작위 n개 (자동으로 고르기) */
 function randomPicks(taken: number[], n: number, size: number): number[] {
   const free = Array.from({ length: size }, (_, i) => i).filter((i) => !taken.includes(i));
   const out: number[] = [];

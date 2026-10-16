@@ -206,7 +206,7 @@ export function PillarTable({ chart, editHref }: { chart: SajuChart; editHref?: 
             <TermButton label="신강약" onClick={() => open(strengthTerm(), STRENGTH_PARTS)}>
               신강약
             </TermButton>
-            : {chart.strength.level} ({chart.strength.score}) · 득령 {chart.strength.deukryeong ? 'O' : 'X'} · 득지 {chart.strength.deukji ? 'O' : 'X'} · 득세 {chart.strength.deukse ? 'O' : 'X'}
+            : {chart.strength.level} ({chart.strength.score}점·달빛사주 지표) · 득령 {chart.strength.deukryeong ? 'O' : 'X'} · 득지 {chart.strength.deukji ? 'O' : 'X'} · 득세 {chart.strength.deukse ? 'O' : 'X'}
           </p>
         </div>
       )}

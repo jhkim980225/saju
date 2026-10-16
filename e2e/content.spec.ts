@@ -39,12 +39,12 @@ test('만세력: 날짜별 간지와 그 해의 24절기', async ({ page }) => {
   await date.fill('2000-01-01');
   await expect(page.getByText('양력 2000-01-01 · 음력 1999.11.25')).toBeVisible();
   // 고른 날을 먼저 문장으로, 한자 아래에는 읽는 법 — 입춘 전이라 아직 지난해(己卯)로 센다는 안내
-  await expect(page.getByText('사주로는 기묘년(누런 토끼의 해) 병자월 무오일이에요.')).toBeVisible();
-  await expect(page.getByText(/입춘\(2월 4일 무렵\)부터 새해로/)).toBeVisible();
+  await expect(page.getByText('간지로는 기묘년(누런 토끼의 해) 병자월 무오일입니다.')).toBeVisible();
+  await expect(page.getByText(/입춘\(2월 4일 무렵\)을 한 해의 시작으로/)).toBeVisible();
   const pillar = (k: string) => page.getByText(k, { exact: true }).locator('..');
-  await expect(pillar('해')).toContainText('己卯기묘');
-  await expect(pillar('달')).toContainText('丙子병자');
-  await expect(pillar('날')).toContainText('戊午무오');
+  await expect(pillar('연주')).toContainText('己卯기묘');
+  await expect(pillar('월주')).toContainText('丙子병자');
+  await expect(pillar('일주')).toContainText('戊午무오');
 
   await expect(page.getByRole('heading', { name: '2000년 24절기' })).toBeVisible();
   const terms = page.getByRole('heading', { name: '2000년 24절기' }).locator('..').getByRole('listitem');
@@ -55,7 +55,7 @@ test('만세력: 날짜별 간지와 그 해의 24절기', async ({ page }) => {
   // 다른 해로 바꾸면 그 해 절기로 갱신
   await date.fill('2024-06-01');
   await expect(page.getByRole('heading', { name: '2024년 24절기' })).toBeVisible();
-  await expect(page.getByText(/입춘\(2월 4일 무렵\)부터 새해로/)).toHaveCount(0);
+  await expect(page.getByText(/입춘\(2월 4일 무렵\)을 한 해의 시작으로/)).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '2024년 24절기' }).locator('..').getByRole('listitem')).toHaveCount(24);
   await expect(page.getByRole('heading', { name: '2024년 24절기' }).locator('..').getByRole('listitem').filter({ hasText: '입춘' })).toContainText('2. 4. 17:27');
 });

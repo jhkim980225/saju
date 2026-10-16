@@ -31,7 +31,7 @@ test('궁합: 상대 추가 → 점수와 잠금 → 번들 결제 → 1회권�
   await expect(page.getByText(/^서윤님은 .+ 사람이고, 지훈님은 .+ 사람이에요\.$/)).toBeVisible();
   const score = page.locator('p.tabular.font-serif');
   await expect(score).toHaveText(/^\d{1,3}$/);
-  for (const label of ['성격', '끌림·애정', '안정·생활', '서로 채워줌']) await expect(page.getByLabel(new RegExp(`^${label} \\d+점$`))).toBeVisible();
+  for (const label of ['성격', '끌림·애정', '안정·생활', '상호 보완'])await expect(page.getByLabel(new RegExp(`^${label} \\d+점$`))).toBeVisible();
   const lockedCount = await lockedSections(page).count();
   expect(lockedCount).toBeGreaterThan(0);
 
