@@ -27,30 +27,30 @@ export { choseong, createDreamIndex, normalizeDreamQuery, type DreamIndex, type 
 // ---------------------------------------------------------------------------
 
 export const DREAM_CATEGORY_META: Record<DreamCategory, { label: string; description: string }> = {
-  animal: { label: '동물', description: '뱀·돼지·호랑이처럼 꿈에 자주 찾아오는 동물' },
-  person: { label: '사람', description: '가족·연인·낯선 사람, 꿈에서 만난 얼굴들' },
-  nature: { label: '자연', description: '해와 달, 물과 불, 하늘과 땅의 풍경' },
-  object: { label: '물건', description: '돈·반지·열쇠처럼 손에 쥐어지는 것들' },
-  action: { label: '행동', description: '날고, 떨어지고, 쫓기는 꿈속의 몸짓' },
-  body: { label: '신체', description: '이가 빠지거나 피가 나는, 몸에 관한 꿈' },
-  place: { label: '장소', description: '집·학교·화장실, 꿈의 무대가 된 곳' },
-  colorNumber: { label: '색·숫자', description: '유난히 또렷했던 색과 숫자' },
-  food: { label: '음식', description: '밥·떡·과일, 꿈속 식탁에 오른 것들' },
-  event: { label: '사건·상황', description: '결혼·시험·이사처럼 꿈에서 겪은 일' },
-  kind: { label: '꿈의 종류', description: '태몽·예지몽·악몽, 꿈을 부르는 이름들' },
+  animal: { label: '동물', description: '뱀·돼지·호랑이 등 꿈에 자주 나오는 동물' },
+  person: { label: '사람', description: '가족·연인·낯선 사람 등 꿈에 나온 인물' },
+  nature: { label: '자연', description: '해·달·물·불·비·눈 등 자연 현상과 풍경' },
+  object: { label: '물건', description: '돈·반지·열쇠 등 꿈에 나온 물건' },
+  action: { label: '행동', description: '날거나 떨어지거나 쫓기는 등 꿈속의 행동' },
+  body: { label: '신체', description: '이가 빠지거나 피가 나는 등 몸에 관한 꿈' },
+  place: { label: '장소', description: '집·학교·화장실 등 꿈의 배경이 된 장소' },
+  colorNumber: { label: '색·숫자', description: '꿈에서 또렷하게 기억나는 색과 숫자' },
+  food: { label: '음식', description: '밥·떡·과일 등 꿈에 나온 음식' },
+  event: { label: '사건·상황', description: '결혼·시험·이사 등 꿈에서 겪은 일' },
+  kind: { label: '꿈의 종류', description: '태몽·예지몽·악몽 등 꿈의 종류를 이르는 말' },
 };
 
 export const DREAM_TONE_LABEL: Record<DreamTone, string> = { good: '길몽', bad: '흉몽', neutral: '중립' };
 export const DREAM_TONE_HINT: Record<DreamTone, string> = {
-  good: '좋은 기운으로 풀이해 온 꿈',
-  bad: '조심하라는 신호로 풀이해 온 꿈',
-  neutral: '상황에 따라 다르게 읽는 꿈',
+  good: '전통적으로 좋은 징조로 풀이해 온 꿈',
+  bad: '전통적으로 조심하라는 뜻으로 풀이해 온 꿈',
+  neutral: '상황에 따라 해석이 달라지는 꿈',
 };
 
 /** 사전·꿈풀이 공통 고지 — 꿈은 예언이 아니다 */
-export const DREAM_DISCLAIMER = '꿈은 앞날을 알려 주는 예언이 아니에요. 전해 오는 해석을 참고해 지금의 마음을 돌아보는 이야기로 가볍게 읽어 주세요.';
+export const DREAM_DISCLAIMER = '꿈은 앞날을 알려 주는 예언이 아니에요. 전통적으로 전해 오는 해석이므로 참고로만 읽어 주세요.';
 /** 사전 문안 출처 표기 — 가공 인물 없이 */
-export const DREAM_SOURCE_NOTE = '전해 오는 민속 해석을 바탕으로 달빛사주 콘텐츠팀이 새로 쓴 풀이예요.';
+export const DREAM_SOURCE_NOTE = '전해 오는 민속 해석을 바탕으로 달빛사주 콘텐츠팀이 정리한 풀이입니다.';
 
 const toSlug = (keyword: string) => keyword.trim().replace(/\s+/g, '-');
 
@@ -90,7 +90,7 @@ export const DREAM_TEXT_MIN = 5;
 export const DREAM_TEXT_MAX = 500;
 
 export const dreamInterpretSchema = z.object({
-  text: z.string().trim().min(DREAM_TEXT_MIN, '꿈 내용을 조금만 더 적어 주세요.').max(DREAM_TEXT_MAX, `꿈 내용은 ${DREAM_TEXT_MAX}자까지 적을 수 있어요.`),
+  text: z.string().trim().min(DREAM_TEXT_MIN, '꿈 내용을 조금 더 자세히 적어 주세요.').max(DREAM_TEXT_MAX, `꿈 내용은 ${DREAM_TEXT_MAX}자까지 적을 수 있어요.`),
   /** 사주를 함께 볼 프로필 — 없으면 대표 프로필(있을 때) */
   profileId: z.string().optional(),
   /** true 면 사주 없이 꿈만 본다 */
