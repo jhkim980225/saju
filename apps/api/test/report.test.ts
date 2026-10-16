@@ -84,7 +84,7 @@ describe('신년운세 리포트', () => {
 
 describe('궁합 리포트', () => {
   const secs = buildCompatibilityReport(a, b, calculateCompatibility(a, b), { a: '서윤', b: '도현' }, NOW);
-  it('기질·본성·오행·끌림·조율·대화·갈등·사용설명서·시기·조언', () => {
+  it('기질·본성·오행·끌림·조율·대화·갈등·서로를 대하는 방법·시기·조언', () => {
     expect(secs.map((s) => s.key)).toEqual(['summary', 'persons', 'stemRelation', 'balance', 'strengths', 'cautions', 'categories', 'communication', 'conflict', 'loveStyle', 'manual', 'together', 'timing', 'advice']);
   });
   it('공백 뺀 3천 3백 자 이상', () => {
