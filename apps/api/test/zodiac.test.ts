@@ -40,8 +40,8 @@ describe('띠별 운세 API', () => {
     expect(d.animal).toMatchObject({ slug: 'tiger', name: '호랑이', hanja: '寅' });
     expect(d.pillar).toEqual({ label: '오늘 일진', hanja: '壬戌', hangul: '임술' });
     expect(d.tone).toBe('good');
-    expect(d.reasons[0].title).toBe('오늘 일진 壬戌 · 寅戌 삼합(불의 무리)');
-    expect(d.reasons.at(-1).title).toContain('壬(물) → 띠 글자 寅(나무)');
+    expect(d.reasons[0].title).toBe('오늘 일진 壬戌 · 寅戌 삼합(화 기운)');
+    expect(d.reasons.at(-1).title).toContain('壬(수) → 띠 글자 寅(목)');
     expect(d.range).toMatchObject({ start: DATE, end: DATE });
     expect(d.basisNote).toContain('입춘');
     // 년생별: 2010 庚寅 … 1938 戊寅 (7개, 어린 순)
@@ -61,7 +61,7 @@ describe('띠별 운세 API', () => {
     const d = (await get(`/zodiac/tiger?period=tomorrow&date=${DATE}`)).body;
     expect(d.pillar.hanja).toBe('癸亥');
     expect(d.range.start).toBe('2026-10-16');
-    expect(d.reasons.map((x: { title: string }) => x.title).join('|')).toMatch(/寅亥 육합\(나무\).*寅亥 파/);
+    expect(d.reasons.map((x: { title: string }) => x.title).join('|')).toMatch(/寅亥 육합\(목 기운\).*寅亥 파/);
     expect(d.tone).toBe('mixed');
   });
 

@@ -41,31 +41,38 @@ const TOPICS: { keys: string[]; section: string }[] = [
   { keys: ['성격', '나는', '장점', '단점', '기질'], section: 'personality' },
 ];
 
-/** 규칙 기반 답변의 마지막 한 가지 — 가장 필요한 기운(용신)을 생활 속 행동으로 */
+/** 규칙 기반 답변의 마지막 한 가지 — 용신(사주의 균형을 맞추는 데 가장 필요하다고 보는 오행)을 생활 속 행동으로 */
 const TODAY_ACTION: Record<Element, string> = {
-  wood: '새로운 걸 하나 배워 보거나, 미뤄 둔 일을 작게라도 시작해 보세요.',
+  wood: '새로운 것을 하나 배우거나, 미뤄 둔 일을 작게라도 시작해 보세요.',
   fire: '고마운 사람에게 마음을 한마디 표현해 보세요.',
-  earth: '정해진 시간에 자고 먹는 것부터 지켜 보세요.',
-  metal: '할 일 목록에서 하나를 과감히 지워 보세요.',
-  water: '잠깐 멈춰서 생각을 글로 정리하는 시간을 가져 보세요.',
+  earth: '정해진 시간에 자고 먹는 생활 리듬부터 지켜 보세요.',
+  metal: '할 일 목록에서 덜 중요한 일 하나를 과감히 지워 보세요.',
+  water: '잠시 멈춰서 생각을 글로 정리하는 시간을 가져 보세요.',
 };
+/** 채팅에는 없는 화면 위치('아래 …에서')를 가리키는 문장 — 풀이 섹션을 옮겨 쓸 때 뺀다 */
+const POINTS_ELSEWHERE = /아래 ['「‘]|아래에서|위에서 본/;
+const dropPointers = (p: string) =>
+  p
+    .split(/(?<=[.!?])\s+/)
+    .filter((x) => !POINTS_ELSEWHERE.test(x))
+    .join(' ');
 
 /**
  * 규칙 기반 답변 — 사용자의 열람 권한(access) 안에서 공개된 섹션만 사용한다(유료 본문 우회 노출 방지).
- * 말투는 docs/PLAIN_KOREAN.md — 결론 먼저, 이름으로 부르고, 용어 없이.
+ * 말투는 docs/PLAIN_KOREAN.md — 결론 먼저, 이름으로 부르고, 용어는 풀이 섹션의 표현(처음 나올 때 뜻을 붙인)을 그대로 쓴다.
  */
 export function ruleBasedAnswer(chart: SajuChart, message: string, access: ReadingAccess, name: string | null): string {
   const reading = buildBasicReading(chart, { access, name });
   const topic = TOPICS.find((t) => t.keys.some((k) => message.includes(k)))?.section ?? 'overview';
   const wanted = reading.sections.find((s) => s.key === topic);
   const sec = wanted && !wanted.locked ? wanted : (reading.sections.find((s) => s.key === 'personality' && !s.locked) ?? reading.sections[0]!);
-  const lockedNote = wanted?.locked ? `${wanted.title} 이야기는 전체 풀이를 열면 볼 수 있어요. 대신 타고난 성격으로 먼저 이야기해 볼게요.` : null;
+  const lockedNote = wanted?.locked ? `${wanted.title} 풀이는 전체 풀이를 열면 볼 수 있어요. 여기서는 공개된 타고난 성격 풀이를 바탕으로 답변드릴게요.` : null;
   const lead = sec.summary.trim() ? `${sec.summary.trim().replace(/[.!?]$/, '')}.` : null;
   return [
     ...(lockedNote ? [lockedNote] : []),
     ...(lead ? [lead] : []),
-    ...sec.paragraphs.slice(0, 2),
-    `오늘 하나만 해 본다면, ${TODAY_ACTION[chart.yongsin.yongsin]}`,
+    ...sec.paragraphs.slice(0, 2).map(dropPointers).filter(Boolean),
+    `오늘 실천할 한 가지를 고른다면, ${TODAY_ACTION[chart.yongsin.yongsin]}`,
   ].join('\n\n');
 }
 

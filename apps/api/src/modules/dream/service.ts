@@ -44,15 +44,15 @@ function overallTone(matches: DreamMatch[]): DreamTone {
 
 /** 머리말 — 상징이 하나뿐이면 '많은·여러' 같은 말을 쓰지 않는다 */
 const HEADLINE: Record<DreamTone, [one: string, many: string]> = {
-  good: ['좋은 기운으로 풀이해 온 꿈이에요', '좋은 기운으로 풀이해 온 상징이 많은 꿈이에요'],
-  bad: ['마음을 한 번 살펴보라는 신호로 읽히는 꿈이에요', '마음을 한 번 살펴보라는 신호로 읽히는 꿈이에요'],
-  neutral: ['지금의 마음을 비추는 꿈이에요', '여러 상징이 섞여 지금의 마음을 비추는 꿈이에요'],
+  good: ['예부터 길몽으로 풀이해 온 꿈이에요', '예부터 길몽으로 풀이해 온 상징이 많은 꿈이에요'],
+  bad: ['주의를 당부하는 뜻으로 풀이해 온 꿈이에요', '주의를 당부하는 뜻으로 풀이해 온 상징이 있는 꿈이에요'],
+  neutral: ['지금의 마음 상태를 보여 주는 꿈이에요', '여러 상징이 섞여 지금의 마음 상태를 보여 주는 꿈이에요'],
 };
 
 const CLOSING: Record<DreamTone, string> = {
-  good: '좋은 꿈이라도 결과를 정해 주지는 않아요. 마음이 가볍게 열린 오늘, 미뤄 둔 일 하나를 시작해 보는 계기로 삼아 보세요.',
-  bad: '조심하라는 꿈은 겁을 주려는 게 아니라 지친 마음을 알아차리라는 신호로 읽어요. 오늘은 일정을 하나 덜고 푹 쉬어 보세요.',
-  neutral: '꿈에서 깨어났을 때 가장 크게 남은 느낌을 한 줄로 적어 보세요. 지금 마음이 어디에 머물러 있는지 보이기 시작할 거예요.',
+  good: '길몽이라도 결과를 정해 주지는 않아요. 기분 좋은 꿈을 꾼 오늘, 미뤄 둔 일 하나를 시작하는 계기로 삼아 보세요.',
+  bad: '흉몽으로 풀이하는 꿈도 실제로 나쁜 일이 생긴다는 뜻은 아니에요. 피로나 걱정이 쌓였다는 신호로 읽는 경우가 많으니, 오늘은 일정을 하나 줄이고 충분히 쉬어 보세요.',
+  neutral: '꿈에서 깨어났을 때 가장 크게 남은 느낌을 한 줄로 적어 보세요. 지금 마음이 어디에 쏠려 있는지 파악하는 데 도움이 돼요.',
 };
 
 /** 0~9 를 읽을 때 받침이 있는가 — 영·일·이·삼·사·오·육·칠·팔·구 */
@@ -69,11 +69,11 @@ export function composeRuleBased(matches: DreamMatch[], crisis: boolean): { head
   const lead = crisis ? [CRISIS_LINE] : [];
   if (matches.length === 0) {
     return {
-      headline: '사전에서 딱 맞는 상징을 찾지 못했어요',
+      headline: '꿈해몽 사전에서 일치하는 상징을 찾지 못했어요',
       paragraphs: [
         ...lead,
         '꿈에 나온 사람·동물·물건·장소를 한두 낱말로 더 적어 주시면, 사전에 정리한 풀이를 이어서 보여 드릴게요.',
-        '꿈은 하루 동안 쌓인 생각과 감정이 이리저리 섞여 나오기도 해요. 깨어났을 때 남은 느낌이 편안했는지, 불안했는지 떠올려 보면 지금의 마음을 읽는 데 도움이 돼요.',
+        '꿈에는 하루 동안 쌓인 생각과 감정이 뒤섞여 나타나기도 해요. 깨어났을 때 남은 느낌이 편안했는지, 불안했는지 떠올려 보면 지금의 마음을 살피는 데 도움이 돼요.',
       ],
     };
   }
@@ -83,7 +83,7 @@ export function composeRuleBased(matches: DreamMatch[], crisis: boolean): { head
     headline: HEADLINE[tone][matches.length > 1 ? 1 : 0],
     paragraphs: [
       ...lead,
-      `꿈 이야기에서 ${subjectJosa(matches.map((m) => m.entry.keyword).join(', '))} 눈에 띄어요. 옛날부터 전해 오는 풀이로 하나씩 읽어 볼게요.`,
+      `꿈 내용에서 ${subjectJosa(matches.map((m) => m.entry.keyword).join(', '))} 주요 상징으로 보여요. 예부터 전해 오는 해몽을 바탕으로 하나씩 풀이할게요.`,
       // 상황이 맞는 항목은 '…꿈이라면, …', 아니면 사전 본문(주어가 이미 상징 이름으로 시작한다)
       ...top.map((m) => (m.variation ? `${m.variation.title}이라면, ${m.variation.text}` : m.entry.meaning)),
       CLOSING[tone],

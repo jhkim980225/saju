@@ -60,8 +60,11 @@ import {
   type StemKey,
 } from './content/zodiacText.js';
 
-/** 오행 이름 — 문장 안 표기('나무'). 한자는 근거 카드 제목에만 */
-const EL_NAME: Record<Element, string> = { wood: '나무', fire: '불', earth: '흙', metal: '쇠', water: '물' };
+/** 오행 이름 — 근거 카드 제목은 정식 이름('목'), 문장 안은 쉬운 이름을 붙여 '목(나무)'. 한 화면에서 같은 표기를 쓴다 */
+const EL_NAME: Record<Element, string> = { wood: '목', fire: '화', earth: '토', metal: '금', water: '수' };
+const EL_FULL: Record<Element, string> = { wood: '목(나무)', fire: '화(불)', earth: '토(흙)', metal: '금(쇠)', water: '수(물)' };
+/** 정식 이름 뒤 목적격 조사 — '목을', '화를' */
+const EL_OBJ: Record<Element, string> = { wood: '을', fire: '를', earth: '를', metal: '을', water: '를' };
 /** '오늘' → '오늘은', '올해' → '올해는' */
 const topic = (w: string) => w + (/[가-힣]$/.test(w) && (w.charCodeAt(w.length - 1) - 0xac00) % 28 !== 0 ? '은' : '는');
 const animalName = (branch: number) => BRANCHES[mod(branch, 12)]!.animal;
@@ -78,7 +81,7 @@ const stemPairName = (a: number, b: number) => (mod(a, 10) <= mod(b, 10) ? stemH
 function bondTitle(animal: number, other: number, bond: BranchBondInfo): string {
   if (bond.kind === '동일') return `같은 글자 ${branchHanja(animal)}`;
   if (bond.kind === '자형') return `${branchHanja(animal)}${branchHanja(animal)} 자형`;
-  const el = bond.element ? `(${bond.kind === '삼합' ? `${EL_NAME[bond.element]}의 무리` : EL_NAME[bond.element]})` : '';
+  const el = bond.element ? `(${EL_NAME[bond.element]} 기운)` : '';
   return `${pairName(animal, other)} ${bond.kind}${el}`;
 }
 
@@ -152,8 +155,8 @@ function luckyOf(animal: ZodiacAnimal, ev: ZodiacEvaluation, seed: string, when:
   const el = combo?.element ?? generatedBy(animalEl);
   const info = ELEMENT_INFO[el];
   const basis = combo
-    ? `${animal.name}띠가 ${when}의 기운과 ${combo.kind === '육합' ? '짝을 이뤄' : '힘을 모아'} 만드는 ${EL_NAME[el]} 기운`
-    : `${animal.name}띠(${EL_NAME[animalEl]})를 도와주는 ${EL_NAME[el]} 기운`;
+    ? `${animal.name}띠가 ${when}의 기운과 ${combo.kind === '육합' ? '짝을 이뤄' : '힘을 모아'} 만드는 ${EL_FULL[el]} 기운`
+    : `${animal.name}띠의 오행인 ${EL_FULL[animalEl]}${EL_OBJ[animalEl]} 생하는 ${EL_FULL[el]} 기운`;
   return { color: info.color, direction: info.direction, number: info.numbers[hashSeed(seed) % 2]!, basis };
 }
 
@@ -163,7 +166,7 @@ function stemKeyOf(birthStem: number, periodStem: number): StemKey {
 }
 
 function stemRelLabel(birthStem: number, periodStem: number, key: StemKey): string {
-  if (key === '합') return `${stemPairName(birthStem, periodStem)}합(${EL_NAME[stemBond(birthStem, periodStem).combine!]}의 기운으로 묶임)`;
+  if (key === '합') return `${stemPairName(birthStem, periodStem)}합(${EL_NAME[stemBond(birthStem, periodStem).combine!]} 기운으로 묶임)`;
   if (key === '충') return `${stemPairName(birthStem, periodStem)}충`;
   return `${key}(${TEN_GOD_PLAIN[key]})`;
 }
@@ -235,8 +238,8 @@ export function buildZodiacFortune(animal: ZodiacAnimal, period: FreeFortunePeri
     const flowSentence = pick(FLOW_TEXT[ev.flow], `${seedBase}|flow`)({
       when: topic(pillar.short),
       animal: animal.name,
-      stemEl: EL_NAME[STEMS[pillar.stem]!.element],
-      animalEl: EL_NAME[BRANCHES[animal.branch]!.element],
+      stemEl: EL_FULL[STEMS[pillar.stem]!.element],
+      animalEl: EL_FULL[BRANCHES[animal.branch]!.element],
     });
     const paragraphs = [text.body, flowSentence];
     if (ev.tone === 'mixed') paragraphs.push(pick(MIXED_NOTE, `${seedBase}|mixed`));

@@ -32,7 +32,7 @@ test('물어보기: 추천 질문 → 규칙 기반 답변, 질문권은 차감�
   await expect(bubbles.nth(0)).toHaveText('이직해도 괜찮은 시기일까?');
   // 직업운은 유료(잠금) 주제 → 잠금 안내 후 무료인 성격 풀이로 답한다
   await expect(bubbles.nth(1)).toContainText('전체 풀이를 열면 볼 수 있어요');
-  await expect(bubbles.nth(1)).toContainText('오늘 하나만 해 본다면, ');
+  await expect(bubbles.nth(1)).toContainText('오늘 실천할 한 가지를 고른다면, ');
   await expect(bubbles.nth(1)).not.toContainText('당신');
   await expect(page.getByText('이런 걸 물어볼 수 있어요')).toHaveCount(0);
 
@@ -40,7 +40,7 @@ test('물어보기: 추천 질문 → 규칙 기반 답변, 질문권은 차감�
   await page.getByRole('textbox', { name: '어떤 고민이든 편하게 적어 주세요' }).fill('올해 돈 관리는 어떻게 할까요?');
   await page.getByRole('button', { name: '보내기' }).click();
   await expect(bubbles).toHaveCount(4);
-  await expect(bubbles.nth(3)).toContainText('오늘 하나만 해 본다면, ');
+  await expect(bubbles.nth(3)).toContainText('오늘 실천할 한 가지를 고른다면, ');
 
   // 질문권 미차감 — 서버 지갑과 마이 화면 모두 10회
   expect((await walletViaApi(api, tokens.accessToken)).credits).toBe(10);

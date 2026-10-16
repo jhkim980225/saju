@@ -1,9 +1,11 @@
 /**
  * 택일 문장 — 엔진(@saju/core taekil)의 요인 코드를 읽는 문장으로 바꾼다(규칙 기반).
- * 보이스: docs/PLAIN_KOREAN.md — 사주·옛 달력을 모르는 사람도 읽히게.
- * - 화면에 보이는 이름(label)과 문장(text)은 쉬운 말로만 쓴다. 건제12신·황도·천을귀인·일지 충 같은 용어와 한자는
- *   이유마다 term, 날짜마다 basis 에만 둔다(화면에서는 '옛 달력·사주 용어로 보면'으로 접어 둔다).
- * - 날짜의 성격은 그날의 띠 동물(쥐날·말날)처럼 바로 떠오르는 말로 설명한다.
+ * 문체: docs/PLAIN_KOREAN.md — 택일을 처음 접하는 성인도 이해할 수 있는 차분한 설명체.
+ * - 짧은 이름(label)은 쉬운 말로, 문장(text)에는 건제12신·12천신·일진·일지·충 같은 정식 용어를 쓰되
+ *   날짜 하나(화면 하나)에서 처음 나올 때만 뜻을 붙인다. 한자는 정의 자리의 괄호에만.
+ * - 글자별 근거(일진 庚辰 · 건제12신 파(破) …)는 이유마다 term, 날짜마다 basis 에 둔다('옛 달력·사주 용어로 보면'에 접힘).
+ * - 등급·점수는 전통 요소를 더해 매긴 달빛사주 기준임을 안내문에서 밝힌다.
+ * - 날짜의 성격은 그날의 띠 동물(쥐날·말날)처럼 바로 떠오르는 말로도 함께 설명한다.
  */
 import {
   BRANCHES,
@@ -26,7 +28,8 @@ import {
 } from '@saju/core';
 import type { ReadingSection, TaekilDayDto, TaekilReasonDto } from '@saju/shared';
 
-export const TAEKIL_DISCLAIMER = '택일은 옛 달력과 사주 계산을 바탕으로 한 참고 정보예요. 날짜는 실제 일정과 사정을 함께 살펴 편하게 정해 주세요.';
+export const TAEKIL_DISCLAIMER =
+  '택일은 옛 달력(통서)과 사주를 바탕으로 날짜를 견주어 보는 참고 정보입니다. 날짜별 등급과 점수는 전통 택일 요소를 더해 매긴 달빛사주 기준이에요. 실제 일정과 사정을 함께 살펴 정해 주세요.';
 
 const WEEK = ['일', '월', '화', '수', '목', '금', '토'];
 export const weekdayKo = (weekday: number) => WEEK[weekday]!;
@@ -72,6 +75,34 @@ const OFFICER_PLAIN: Record<DayOfficer, string> = {
   폐: '닫히고 막히는 날',
 };
 
+/** 용어의 짧은 뜻 — 날짜 하나(또는 섹션 하나)에서 처음 나올 때만 괄호로 붙인다 */
+const GLOSS = {
+  건제12신: '옛 달력이 날마다 붙이는 열두 가지 성격',
+  '12천신': '날마다 차례로 드는 열두 신',
+  일진: '그날의 간지',
+  일지: '태어난 날의 지지',
+  일간: '태어난 날의 천간',
+  일주: '태어난 날의 간지',
+  충: '정면으로 대립하는 관계',
+  형: '서로 마찰을 일으키는 관계',
+  자형: '같은 지지가 겹쳐 생기는 형',
+  원진: '서로 꺼리는 관계',
+  파: '결합을 깨뜨리는 관계',
+  해: '서로 방해하는 관계',
+  육합: '두 지지가 짝을 이뤄 결합하는 관계',
+  삼합: '세 지지가 모여 한 오행을 이루는 관계',
+  천간합: '두 천간이 결합하는 관계',
+  천간충: '두 천간이 대립하는 관계',
+  천극지충: '천간은 극하고 지지는 충하는 관계',
+  천을귀인: '귀인의 도움을 뜻하는 대표적인 길신',
+  공망: '기운이 온전히 작용하지 않는다고 보는 지지',
+  용신: '사주의 균형을 맞추는 데 가장 필요하다고 보는 오행',
+  기신: '용신을 극하는 오행',
+  문창귀인: '학문과 문장에 관련된 길신',
+  역마: '이동과 변화를 뜻하는 신살',
+} as const;
+type GlossTerm = keyof typeof GLOSS;
+
 /** 화면에 보이는 이유 한 줄 — short: 목록·요약에 쓰는 짧은 이름, text: 풀어 쓴 문장 */
 interface Plain {
   short: string;
@@ -86,44 +117,63 @@ export interface ReasonContext {
   /** 내 사주 — 내 띠를 부를 때 */
   chart?: SajuChart | null;
   partnerName?: string | null;
+  /** 이미 뜻을 붙인 용어 — 같은 날짜 안에서 두 번째부터는 용어만 쓴다 */
+  explained?: Set<string>;
 }
 
-function officerPlain(f: TaekilFactor, purpose: TaekilPurpose): Plain {
+/** 용어 — 처음이면 '충(정면으로 대립하는 관계)', 이미 설명했으면 '충' */
+function term(ctx: ReasonContext, name: GlossTerm): string {
+  if (ctx.explained?.has(name)) return name;
+  ctx.explained?.add(name);
+  return `${name}(${GLOSS[name]})`;
+}
+
+function officerPlain(f: TaekilFactor, purpose: TaekilPurpose, ctx: ReasonContext): Plain {
   const name = f.label.slice(0, 1) as DayOfficer;
   const kind = OFFICER_PLAIN[name] ?? f.label;
-  if (name === '파') return { short: kind, text: "옛 달력에서 '그달의 기운과 정면으로 부딪히는 날'로 봐서, 큰일은 하지 않는 날이에요." };
+  const label = f.label.replace(/일$/, ''); // '정(定)'
+  const head = `${term(ctx, '건제12신')}으로는`;
+  if (name === '파')
+    return { short: kind, text: `${head} 파(破)일이에요. 그날의 지지가 그달의 지지와 정면으로 대립하는 월파일이라, 옛 달력에서 큰일을 하지 않는 날로 봐요.` };
   const noun = PURPOSE_NOUN[purpose];
   const w = OFFICER_WEIGHT[purpose][name];
-  const lead = `옛 달력에서는 '${kind}'로 봐요.`;
+  const lead = `${head} '${kind}'인 ${label}일이에요.`;
   // 이름이 좋게 들리는데 목적에는 꺼리거나, 조심스럽게 들리는데 목적에는 좋은 날 — '다만/그래도'로 이어 읽히게
   const sounds = ['건', '제', '만', '정', '성', '개'].includes(name) ? 'good' : ['위', '폐'].includes(name) ? 'bad' : 'plain';
-  if (w >= 3) return { short: `${noun}에 좋은 날`, text: `${lead} ${sounds === 'bad' ? `그래도 ${noun}에는 좋다고 꼽아요.` : `${noun}에 좋다고 꼽는 날이에요.`}` };
+  if (w >= 3) return { short: `${noun}에 좋은 날`, text: `${lead} ${sounds === 'bad' ? `그래도 ${noun}에는 좋다고 꼽아요.` : `${noun}에 좋다고 꼽는 날입니다.`}` };
   if (w > 0) return { short: `${noun}에 무난한 날`, text: `${lead} ${sounds === 'bad' ? `그래도 ${noun}에는 무난한 편이에요.` : `${noun}에도 무난한 편이에요.`}` };
-  if (w <= -3) return { short: `${noun}에는 꺼리는 날`, text: `${lead} ${sounds === 'good' ? `다만 ${noun}에는 꺼려요.` : `${noun}에는 꺼리는 날이에요.`}` };
+  if (w <= -3) return { short: `${noun}에는 꺼리는 날`, text: `${lead} ${sounds === 'good' ? `다만 ${noun}에는 꺼리는 날로 봐요.` : `${noun}에는 꺼리는 날로 봐요.`}` };
   if (w < 0) return { short: `${josa(noun, '과', '와')} 잘 안 맞는 날`, text: `${lead} ${sounds === 'good' ? `다만 ${noun}에는 썩 잘 맞지 않아요.` : `${noun}에는 썩 잘 맞지 않는 편이에요.`}` };
-  return { short: kind, text: `${lead} ${noun}에는 좋지도 나쁘지도 않아요.` };
+  return { short: kind, text: `${lead} ${noun}에는 좋지도 나쁘지도 않은 날이에요.` };
 }
 
-/** 목적별 사주 요인(십신) — 엔진의 detail 문구로 갈래를 나눠 쉬운 말로 */
-function tenGodPlain(f: TaekilFactor, purpose: TaekilPurpose): Plain {
+/** 목적별 사주 요인(십성) — 엔진의 detail 문구로 갈래를 나눠, 그날 천간의 십성과 그 뜻을 함께 말한다 */
+function tenGodPlain(f: TaekilFactor, purpose: TaekilPurpose, ctx: ReasonContext): Plain {
   const d = f.detail ?? '';
   const noun = PURPOSE_NOUN[purpose];
-  if (d.includes('평가·조직')) return { short: '평가받는 일에 힘이 실리는 날', text: '사람들 앞에서 평가받는 일에 힘이 실리는 날이라 면접·시험에 도움이 돼요.' };
-  if (d.includes('공부·문서')) return { short: '공부와 서류에 힘이 실리는 날', text: '배운 것을 잘 꺼내 쓰고 서류 일이 순조로운 날이에요.' };
-  if (d.includes('말이 앞서')) return { short: '말이 앞서기 쉬운 날', text: '말이 생각보다 앞서기 쉬운 날이에요. 면접이라면 한 번 더 생각하고 답해 보세요.' };
-  if (d.includes('정당한 거래')) return { short: '정직한 거래에 좋은 날', text: '정당하게 주고받는 거래에 힘이 실리는 날이라 계약과 잘 맞아요.' };
-  if (d.includes('문서·도장')) return { short: '서류와 도장에 좋은 날', text: '서류를 쓰고 도장을 찍는 일에 힘이 실리는 날이에요.' };
-  if (d.includes('재물이 나뉘거나')) return { short: '돈 문제로 다투기 쉬운 날', text: '돈이 나뉘거나 다툼이 생기기 쉬운 날이에요. 금액과 조건을 한 번 더 확인해 주세요.' };
-  if (d.includes('손님과 일거리')) return { short: '손님과 일거리가 생기는 날', text: '손님과 일거리가 생기기 쉬운 날이라 가게 문을 열기에 좋아요.' };
-  if (d.includes('돈이 들어오는')) return { short: '돈이 들어오는 날', text: '돈이 들어오는 흐름이 있는 날이라 개업에 힘이 돼요.' };
-  if (d.includes('배우자 자리')) return { short: '배우자 인연이 약해지는 날', text: '사주로 보면 배우자 인연을 누르는 기운이 드는 날이라, 결혼식 날로는 한 번 더 살펴요.' };
-  if (d.includes('배우자를 뜻하는')) return { short: '배우자 인연이 닿는 날', text: '사주로 보면 배우자 인연을 뜻하는 기운이 드는 날이라 결혼식에 힘이 돼요.' };
-  if (d.includes('인연을 뜻하는')) return { short: '인연의 기운이 드는 날', text: '사주로 보면 좋은 인연을 뜻하는 기운이 드는 날이에요.' };
-  if (d.includes('집과 문서')) return { short: '집과 서류 일에 좋은 날', text: '집과 서류에 힘이 실리는 날이라 이사에 도움이 돼요.' };
-  return f.weight > 0 ? { short: `${noun}에 힘이 되는 날`, text: `사주로 보면 ${noun}에 힘이 되는 기운이 드는 날이에요.` } : { short: `${noun}에 아쉬운 날`, text: `사주로 보면 ${noun}에는 조금 아쉬운 기운이 드는 날이에요.` };
+  const tg = f.label.replace(/일$/, ''); // '정재'
+  const is = (gloss: string) => `이날의 천간은 내 ${term(ctx, '일간')} 기준으로 ${tg}(${gloss})에 해당해요.`;
+  if (d.includes('평가·조직')) return { short: '평가받는 일에 힘이 실리는 날', text: `${is('직장과 평가를 뜻하는 관성')} 면접·시험처럼 평가받는 일에 힘이 실린다고 봐요.` };
+  if (d.includes('공부·문서')) return { short: '공부와 서류에 힘이 실리는 날', text: `${is('학업과 문서를 뜻하는 인성')} 배운 것을 잘 꺼내 쓰고 서류 일을 처리하기 좋다고 봐요.` };
+  if (d.includes('말이 앞서')) return { short: '말이 앞서기 쉬운 날', text: `${is('표현과 언변을 뜻하는 십성')} 말이 생각보다 앞서기 쉬우니, 면접이라면 한 번 더 생각하고 답하는 편이 좋아요.` };
+  if (d.includes('정당한 거래')) return { short: '정직한 거래에 좋은 날', text: `${is('정당한 거래와 고정 수입을 뜻하는 십성')} 계약과 잘 맞는다고 봐요.` };
+  if (d.includes('문서·도장')) return { short: '서류와 도장에 좋은 날', text: `${is('문서와 도장을 뜻하는 십성')} 서류를 쓰고 도장을 찍는 일에 힘이 실린다고 봐요.` };
+  if (d.includes('재물이 나뉘거나')) return { short: '돈 문제로 다투기 쉬운 날', text: `${is('재물을 나누거나 다투는 일과 연결되는 십성')} 금액과 조건을 한 번 더 확인해 두세요.` };
+  if (d.includes('손님과 일거리')) return { short: '손님과 일거리가 생기는 날', text: `${is('일거리와 의식주의 여유를 뜻하는 십성')} 손님과 일거리가 생기기 쉬워 가게 문을 열기에 좋다고 봐요.` };
+  if (d.includes('돈이 들어오는')) return { short: '돈이 들어오는 날', text: `${is('재물을 뜻하는 재성')} 돈이 들어오는 흐름으로 보아 개업에 힘이 돼요.` };
+  if (d.includes('배우자 자리')) {
+    const spouse = tg === '겁재' ? '배우자를 뜻하는 재성을 극하는 십성' : '배우자를 뜻하는 관성을 극하는 십성';
+    return { short: '결혼식에는 덜 맞는 날', text: `${is(spouse)} 결혼식 날로는 한 번 더 살펴보는 편이 좋다고 봐요.` };
+  }
+  if (d.includes('배우자를 뜻하는')) return { short: '배우자 인연이 닿는 날', text: `${is(d.startsWith('남성') ? '남성에게 배우자를 뜻하는 십성' : '여성에게 배우자를 뜻하는 십성')} 결혼식에 힘이 된다고 봐요.` };
+  if (d.includes('인연을 뜻하는')) return { short: '인연의 기운이 드는 날', text: `${is(d.startsWith('남성') ? '남성에게 이성 인연을 뜻하는 십성' : '여성에게 이성 인연을 뜻하는 십성')} 좋은 인연의 기운이 드는 날로 봐요.` };
+  if (d.includes('집과 문서')) return { short: '집과 서류 일에 좋은 날', text: `${is('집과 문서를 뜻하는 십성')} 이사에 도움이 된다고 봐요.` };
+  return f.weight > 0
+    ? { short: `${noun}에 힘이 되는 날`, text: `이날의 천간이 내 사주에서 ${noun}에 힘이 되는 십성에 해당해요.` }
+    : { short: `${noun}에 아쉬운 날`, text: `이날의 천간이 내 사주에서 ${noun}에는 조금 아쉬운 십성에 해당해요.` };
 }
 
-/** 요인 하나 → 화면에 보이는 짧은 이름과 문장 (용어·한자 없이) */
+/** 요인 하나 → 화면에 보이는 짧은 이름과 문장. 용어는 처음 나올 때 뜻을 붙이고, 한자는 정의 자리의 괄호에만 */
 export function plainReason(f: TaekilFactor, purpose: TaekilPurpose, ctx: ReasonContext = {}): Plain {
   const partner = ctx.partnerName ? `${ctx.partnerName}님` : '상대';
   const dA = ctx.dayBranch !== undefined ? animalDay(ctx.dayBranch) : '이날';
@@ -132,82 +182,89 @@ export function plainReason(f: TaekilFactor, purpose: TaekilPurpose, ctx: Reason
   const pB = BRANCHES.find((b) => b.hanja === (f.detail ?? '').trim().slice(-1));
   const pA = pB ? `${pB.animal}띠인 ${partner}` : `${partner}의 띠`;
   const dayAnimalLead = ctx.dayBranch !== undefined ? `${dA}이라` : '이날은';
-  const map: Partial<Record<TaekilFactorCode, Plain>> = {
-    yellow_road: { short: '옛 달력의 좋은 날', text: '옛 달력은 날마다 좋은 날과 덜 좋은 날을 번갈아 정해 두는데, 이날은 좋은 쪽이에요. 일을 시작하기에 무난해요.' },
-    black_road: { short: '옛 달력의 덜 좋은 날', text: '옛 달력에서 일을 시작하기에 덜 좋은 쪽으로 정해 둔 날이에요. 큰일이라면 이날 가운데 좋은 시간에 맞춰 시작해 보세요.' },
-    cheonsa: { short: '한 해에 몇 번 없는 좋은 날', text: '옛 달력에서 지난 잘못을 용서받는 날이라고 해서, 새로 시작하는 일에 두루 좋다고 봐요.' },
-    cheondeok: { short: '도움이 따르는 날', text: '일이 막히지 않고 도와주는 사람이 생긴다고 보는 날이에요.' },
-    woldeok: { short: '일이 무난하게 진행되는 날', text: '다툼이 줄고 일이 무난하게 진행된다고 보는 날이에요.' },
-    sari: { short: '계절이 바뀌기 바로 전날', text: `${ieyo(f.detail ?? '계절이 바뀌기 전날')} 계절이 바뀌기 직전이라 옛 달력에서 큰일은 피해요. 하루만 미뤄도 괜찮아져요.` },
-    sajeol: { short: '계절이 바뀌기 바로 전날', text: `${ieyo(f.detail ?? '계절이 바뀌기 전날')} 계절이 바뀌기 직전이라 옛 달력에서 큰일은 피해요. 하루만 미뤄도 괜찮아져요.` },
-    month_start: (() => {
-      const term = f.label.replace(/\s*절입일$/, '');
-      return { short: `${josa(term, '이', '가')} 시작되는 날`, text: `절기 ${josa(term, '이', '가')} 시작되는 날이에요. 옛 달력은 이날부터 새 달로 쳐요.` };
-    })(),
-    wolgi: { short: '예부터 큰일을 피한 날', text: `${ieyo(f.detail ?? '음력 5·14·23일')} 음력 5일·14일·23일은 예부터 큰일을 피해 온 날이에요.` },
-    son_free: { short: '손 없는 날', text: `${f.detail ? `${f.detail}이라, ` : ''}이사를 방해한다는 귀신(손)이 어디에도 없는 날이에요. 이삿날로 가장 많이 골라요.` },
-    son_direction: (() => {
+  /** 12천신 이름 — label '황도일(청룡)' */
+  const god = /\((.+)\)/.exec(f.label)?.[1] ?? '';
+  // 용어는 문장을 만들 때 처음 쓰는 순서대로 뜻을 붙이므로, 요인마다 필요할 때만 만든다
+  const make: Partial<Record<TaekilFactorCode, () => Plain>> = {
+    yellow_road: () => ({ short: '옛 달력의 길한 날', text: `${term(ctx, '12천신')} 가운데 길한 황도에 해당하는 ${josa(god, '이', '가')} 드는 날이에요. 일을 시작하기에 무난하다고 봐요.` }),
+    black_road: () => ({ short: '옛 달력의 덜 좋은 날', text: `${term(ctx, '12천신')} 가운데 흑도에 해당하는 ${josa(god, '이', '가')} 드는 날이에요. 큰일이라면 이날 가운데 길한 시간(황도시)에 맞춰 시작하는 방법이 있어요.` }),
+    cheonsa: () => ({ short: '한 해에 몇 번 없는 길일', text: '하늘이 허물을 용서한다는 천사일(天赦日)이에요. 계절마다 정해진 간지의 날에만 들어, 새로 시작하는 일에 두루 좋은 길일로 꼽아요.' }),
+    cheondeok: () => ({ short: '하늘의 덕이 드는 날', text: '그달에 하늘의 덕이 드는 천덕일이에요. 흉한 기운을 덜어 주어 여러 일에 두루 길하다고 봐요.' }),
+    woldeok: () => ({ short: '달의 덕이 드는 날', text: '그달의 덕이 드는 월덕일이에요. 다툼이 줄고 일이 원만하게 진행된다고 봐요.' }),
+    sari: () => ({ short: `${f.detail ?? '춘분·하지·추분·동지 전날'}(사리일)`, text: `${ieyo(f.detail ?? '절기 전날')} 춘분·하지·추분·동지의 전날을 사리일(四離日)이라 해서, 옛 달력에서 큰일을 피해요. 하루만 미뤄도 이 조건에서 벗어나요.` }),
+    sajeol: () => ({ short: `${f.detail ?? '입춘·입하·입추·입동 전날'}(사절일)`, text: `${ieyo(f.detail ?? '절기 전날')} 계절이 바뀌는 입춘·입하·입추·입동의 전날을 사절일(四絶日)이라 해서, 옛 달력에서 큰일을 피해요. 하루만 미뤄도 이 조건에서 벗어나요.` }),
+    month_start: () => {
+      const t = f.label.replace(/\s*절입일$/, '');
+      return { short: `${josa(t, '이', '가')} 드는 날`, text: `절기 ${josa(t, '이', '가')} 드는 날이에요. 명리학과 옛 달력에서는 이날부터 새 달로 봐요.` };
+    },
+    wolgi: () => ({ short: '예부터 큰일을 피한 날', text: `${ieyo(f.detail ?? '음력 5·14·23일')} 음력 5일·14일·23일은 월기일(月忌日)로, 예부터 큰일을 피해 왔어요.` }),
+    son_free: () => ({ short: '손 없는 날', text: `${f.detail ? `${f.detail}이라, ` : ''}이사를 방해한다는 귀신(손)이 어느 방향에도 없는 날이에요. 이삿날로 가장 많이 선택해요.` }),
+    son_direction: () => {
       const dir = f.label.replace(/^손\s*/, '');
       return {
         short: `손이 ${dir}에 있는 날`,
         text: `이사를 방해한다는 귀신(손)이 ${dir}에 있는 날이에요. ${purpose === 'travel' ? '그쪽으로 길을 떠난다면' : '지금 집에서 그쪽으로 옮긴다면'} 꺼리는 풍습이 있어요.`,
       };
-    })(),
-    gwigi: { short: '이사를 꺼려 온 날', text: '집을 옮기거나 먼 길에서 돌아오는 일을 예부터 꺼려 온 날이에요.' },
-    leap_month:
+    },
+    gwigi: () => ({ short: '이사를 꺼려 온 날', text: '예부터 이사하거나 먼 길에서 돌아오는 일을 꺼려 온 귀기일(歸忌日)이에요.' }),
+    leap_month: () =>
       purpose === 'wedding'
-        ? { short: '윤달', text: '요즘은 윤달 결혼을 꺼리는 편이라 점수를 조금 낮췄어요. 옛 책에는 오히려 결혼하기 좋은 달로 적혀 있기도 해요.' }
+        ? { short: '윤달', text: '요즘 풍습에서는 윤달 결혼을 꺼리는 편이라 달빛사주 기준으로 점수를 조금 낮췄어요. 다만 옛 세시 기록(동국세시기)에는 윤달을 혼인하기 좋은 달로 적고 있어요.' }
         : { short: '윤달', text: '윤달은 탈이 없는 달이라 해서, 예부터 이사나 집수리를 이때 하기도 했어요.' },
-    pengzu:
+    pengzu: () =>
       purpose === 'wedding'
-        ? { short: '예부터 결혼을 피한 날', text: '돼지날에는 결혼식을 올리지 않는다는 오래된 금기가 있어요.' }
-        : { short: '예부터 먼 길을 피한 날', text: '뱀날에는 먼 길을 떠나지 않는다는 오래된 금기가 있어요.' },
-    day_clash: { short: '나와 정면으로 부딪히는 날', text: '이날의 기운이 타고난 나와 정면으로 부딪혀요. 나 자신이나 가까운 사람과의 일이 흔들리기 쉬워서, 좋은 날을 고를 때 가장 먼저 빼요.' },
-    day_punish: { short: '마찰이 생기기 쉬운 날', text: '이날의 기운이 나와 조금 껄끄러워요. 마찰이나 번거로운 일이 생기기 쉬워요.' },
-    day_wonjin: { short: '괜히 서운해지기 쉬운 날', text: '이날의 기운이 나와 잘 맞지 않아요. 괜히 서운하고 마음이 어긋나기 쉬워요.' },
-    day_break: { short: '약속이 틀어지기 쉬운 날', text: '이날의 기운이 나와 살짝 어긋나요. 약속이 틀어지지 않게 한 번 더 확인해 주세요.' },
-    day_harm: { short: '작은 오해가 생기기 쉬운 날', text: '이날의 기운이 나와 조금 엇갈려요. 사소한 오해만 조심하면 돼요.' },
-    day_six: { short: '나와 잘 맞는 날', text: '이날의 기운이 나와 짝을 이뤄요. 사람 사이도 일도 무난하게 진행되기 쉬워요.' },
-    day_half: { short: '나에게 힘을 보태는 날', text: '이날의 기운이 나와 같은 편으로 묶여 힘을 보태 줘요.' },
-    year_clash: { short: '내 띠와 부딪히는 날', text: `${dayAnimalLead} ${josa(myA, '과', '와')} 부딪혀요. 큰일에는 덜 쓰는 편이에요.` },
-    year_punish: { short: '내 띠와 껄끄러운 날', text: `${dayAnimalLead} ${josa(myA, '과', '와')} 조금 껄끄러워요. 일정이 번거로워지기 쉬워요.` },
-    year_wonjin: { short: '내 띠와 잘 안 맞는 날', text: `${dayAnimalLead} ${josa(myA, '과', '와')} 잘 맞지 않아요. 마음이 어긋나기 쉬워요.` },
-    year_break: { short: '내 띠와 살짝 어긋나는 날', text: `${dayAnimalLead} ${josa(myA, '과', '와')} 살짝 어긋나요. 서두르지 않으면 괜찮아요.` },
-    year_harm: { short: '내 띠와 조금 엇갈리는 날', text: `${dayAnimalLead} ${josa(myA, '과', '와')} 조금 엇갈려요. 작은 일은 한 번 더 확인해 주세요.` },
-    year_six: { short: '내 띠와 잘 맞는 날', text: `${dayAnimalLead} ${josa(myA, '과', '와')} 짝이 잘 맞아요. 주변의 도움을 받기 쉬워요.` },
-    year_half: { short: '내 띠와 한편이 되는 날', text: `${dayAnimalLead} ${josa(myA, '과', '와')} 같은 편이에요. 힘을 보태 줘요.` },
-    stem_combine: { short: '나와 잘 어울리는 날', text: '이날의 기운이 타고난 나와 잘 어울려요. 사람을 만나거나 일을 맞춰 가기 편해요.' },
-    stem_clash: { short: '마음이 급해지기 쉬운 날', text: '이날의 기운이 타고난 나와 부딪혀요. 마음이 급해지기 쉬우니 결정은 조금 늦춰 보세요.' },
-    full_clash: { short: '나와 크게 부딪히는 날', text: '이날의 기운이 위아래로 모두 나와 부딪혀요. 큰일은 피하는 게 좋아요.' },
-    cheoneul: { short: '도와주는 사람이 나타나는 날', text: '힘들 때 도와주는 사람을 만나기 쉬운 날이에요.' },
-    gongmang: { short: '애쓴 만큼 남지 않기 쉬운 날', text: '힘을 쏟아도 결과가 덜 남기 쉬운 날이에요. 중요한 마무리는 다른 날로 미뤄 보세요.' },
-    yongsin: { short: '나에게 필요한 기운이 드는 날', text: '내 사주에 모자란 기운이 채워지는 날이에요. 평소보다 힘을 덜 들이고 일을 진행하기 쉬워요.' },
-    gisin: { short: '이미 넘치는 기운이 더해지는 날', text: '내 사주에 이미 많은 기운이 더해지는 날이에요. 무리하지 않게 일정을 넉넉히 잡아 주세요.' },
-    munchang: { short: '글과 말이 잘 풀리는 날', text: '공부와 시험, 글쓰기에 힘이 실린다고 보는 날이에요.' },
-    yeokma: { short: '움직임에 힘이 실리는 날', text: '움직이고 옮기는 일에 힘이 실리는 날이에요.' },
-    partner_clash: { short: `${josa(partner, '과', '와')} 부딪히는 날`, text: `이날의 기운이 ${josa(partner, '과', '와')} 정면으로 부딪혀요. 두 사람이 함께하는 날로는 피하는 게 좋아요.` },
-    partner_punish: { short: `${partner}에게 마찰이 생기기 쉬운 날`, text: `이날의 기운이 ${josa(partner, '과', '와')} 조금 껄끄러워요. 작은 마찰만 조심하면 돼요.` },
-    partner_wonjin: { short: `${josa(partner, '이', '가')} 서운해지기 쉬운 날`, text: `이날의 기운이 ${josa(partner, '과', '와')} 잘 맞지 않아요. 서로 서운한 일이 없게 마음을 한 번 더 살펴 주세요.` },
-    partner_six: { short: `${josa(partner, '과', '와')}도 잘 맞는 날`, text: `이날의 기운이 ${josa(partner, '과', '와')}도 짝을 이뤄요. 두 사람 모두에게 무난한 날이에요.` },
-    partner_year_clash: { short: `${partner}의 띠와 부딪히는 날`, text: `${dayAnimalLead} ${josa(pA, '과', '와')} 부딪혀요. 큰일에는 덜 쓰는 편이에요.` },
-    partner_year_six: { short: `${partner}의 띠와 잘 맞는 날`, text: `${dayAnimalLead} ${josa(pA, '과', '와')} 잘 맞아요. 두 사람에게 무난한 날이에요.` },
-    partner_cheoneul: { short: `${josa(partner, '을', '를')} 돕는 사람이 나타나는 날`, text: `${partner}에게 힘이 되어 주는 사람이 나타나기 쉬운 날이에요.` },
+        ? { short: '예부터 결혼을 피한 날', text: "날마다 피할 일을 적은 옛 금기 목록인 팽조백기에 '돼지날(해일)에는 혼례를 하지 않는다'는 항목이 있어요." }
+        : { short: '예부터 먼 길을 피한 날', text: "날마다 피할 일을 적은 옛 금기 목록인 팽조백기에 '뱀날(사일)에는 먼 길을 떠나지 않는다'는 항목이 있어요." },
+    day_clash: () => ({ short: '나와 정면으로 부딪히는 날', text: `이날의 ${term(ctx, '일진')}이 내 ${term(ctx, '일지')}와 ${term(ctx, '충')}을 이뤄요. 일지는 나 자신과 배우자의 자리로 보기 때문에, 좋은 날을 고를 때 가장 먼저 빼는 날이에요.` }),
+    day_punish: () => ({ short: '마찰이 생기기 쉬운 날', text: `이날의 ${term(ctx, '일진')}이 내 ${term(ctx, '일지')}와 ${term(ctx, f.label.includes('자형') ? '자형' : '형')}을 이뤄요. 마찰이나 번거로운 일이 생기기 쉽다고 봐요.` }),
+    day_wonjin: () => ({ short: '괜히 서운해지기 쉬운 날', text: `이날의 ${term(ctx, '일진')}이 내 ${term(ctx, '일지')}와 ${term(ctx, '원진')}이에요. 괜히 서운하고 마음이 어긋나기 쉽다고 봐요.` }),
+    day_break: () => ({ short: '약속이 틀어지기 쉬운 날', text: `이날의 ${term(ctx, '일진')}이 내 ${term(ctx, '일지')}와 ${term(ctx, '파')}예요. 약속이 틀어지지 않게 한 번 더 확인해 두세요.` }),
+    day_harm: () => ({ short: '작은 오해가 생기기 쉬운 날', text: `이날의 ${term(ctx, '일진')}이 내 ${term(ctx, '일지')}와 ${term(ctx, '해')}예요. 사소한 오해에만 주의하면 돼요.` }),
+    day_six: () => ({ short: '나와 잘 맞는 날', text: `이날의 ${term(ctx, '일진')}이 내 ${term(ctx, '일지')}와 ${term(ctx, '육합')}을 이뤄요. 사람 사이도 일도 무난하게 진행되기 쉬워요.` }),
+    day_half: () => ({ short: '나에게 힘을 보태는 날', text: `이날의 ${term(ctx, '일진')}이 내 ${term(ctx, '일지')}와 ${term(ctx, '삼합')}의 짝을 이뤄요. 같은 방향으로 힘이 모인다고 봐요.` }),
+    year_clash: () => ({ short: '내 띠와 부딪히는 날', text: `${dayAnimalLead} ${josa(myA, '과', '와')} ${term(ctx, '충')}을 이뤄요. 큰일에는 덜 쓰는 편이에요.` }),
+    year_punish: () => ({ short: '내 띠와 껄끄러운 날', text: `${dayAnimalLead} ${josa(myA, '과', '와')} ${term(ctx, f.label.includes('자형') ? '자형' : '형')}을 이뤄요. 일정이 번거로워지기 쉬워요.` }),
+    year_wonjin: () => ({ short: '내 띠와 잘 안 맞는 날', text: `${dayAnimalLead} ${josa(myA, '과', '와')} ${term(ctx, '원진')}이에요. 마음이 어긋나기 쉬워요.` }),
+    year_break: () => ({ short: '내 띠와 살짝 어긋나는 날', text: `${dayAnimalLead} ${josa(myA, '과', '와')} ${term(ctx, '파')}예요. 서두르지 않으면 큰 문제는 없어요.` }),
+    year_harm: () => ({ short: '내 띠와 조금 엇갈리는 날', text: `${dayAnimalLead} ${josa(myA, '과', '와')} ${term(ctx, '해')}예요. 작은 일은 한 번 더 확인해 두세요.` }),
+    year_six: () => ({ short: '내 띠와 잘 맞는 날', text: `${dayAnimalLead} ${josa(myA, '과', '와')} ${term(ctx, '육합')}을 이뤄요. 주변의 도움을 받기 쉬워요.` }),
+    year_half: () => ({ short: '내 띠와 한편이 되는 날', text: `${dayAnimalLead} ${josa(myA, '과', '와')} ${term(ctx, '삼합')}의 짝을 이뤄요. 힘을 보태 주는 날로 봐요.` }),
+    stem_combine: () => ({ short: '나와 잘 어울리는 날', text: `이날의 천간이 내 ${term(ctx, '일간')}과 ${term(ctx, '천간합')}을 이뤄요. 사람을 만나거나 일을 맞춰 가기 편하다고 봐요.` }),
+    stem_clash: () => ({ short: '마음이 급해지기 쉬운 날', text: `이날의 천간이 내 ${term(ctx, '일간')}과 ${term(ctx, '천간충')}을 이뤄요. 마음이 급해지기 쉬우니 결정은 조금 늦추는 편이 좋아요.` }),
+    full_clash: () => ({ short: '나와 크게 부딪히는 날', text: `이날의 ${term(ctx, '일진')}이 내 ${term(ctx, '일주')}와 천간·지지 모두 부딪히는 ${term(ctx, '천극지충')}이에요. 큰일은 피하는 편이 좋아요.` }),
+    cheoneul: () => ({ short: '도와주는 사람이 나타나는 날', text: `이날의 지지가 내 ${term(ctx, '일간')}의 ${term(ctx, '천을귀인')}에 해당해요. 힘들 때 도와주는 사람을 만나기 쉽다고 봐요.` }),
+    gongmang: () => ({ short: '애쓴 만큼 남지 않기 쉬운 날', text: `이날의 지지가 내 ${term(ctx, '일주')}의 ${term(ctx, '공망')}에 해당해요. 힘을 쏟아도 결과가 덜 남기 쉬워, 중요한 마무리는 다른 날로 미루는 편이 좋아요.` }),
+    yongsin: () => ({ short: '나에게 필요한 기운이 드는 날', text: `이날의 ${term(ctx, '일진')}에 내 ${term(ctx, '용신')}이나 용신을 돕는 오행의 기운이 들어 있어요. 평소보다 일을 수월하게 진행하기 쉽다고 봐요.` }),
+    gisin: () => ({ short: '나와 덜 맞는 기운이 드는 날', text: `이날의 ${term(ctx, '일진')}에 내 ${term(ctx, '기신')}의 기운이 들어 있어요. 나쁜 날이라는 뜻은 아니지만 일이 더디게 느껴질 수 있으니, 일정을 넉넉히 잡아 두세요.` }),
+    munchang: () => ({ short: '글과 말이 잘 풀리는 날', text: `이날의 지지가 내 ${term(ctx, '일간')}의 ${term(ctx, '문창귀인')}에 해당해요. 공부와 시험, 글쓰기에 힘이 실린다고 봐요.` }),
+    yeokma: () => ({ short: '움직임에 힘이 실리는 날', text: `${term(ctx, '역마')}가 드는 날이에요. 움직이고 옮기는 일에 힘이 실린다고 봐요.` }),
+    partner_clash: () => ({ short: `${josa(partner, '과', '와')} 부딪히는 날`, text: `이날의 ${term(ctx, '일진')}이 ${partner}의 ${term(ctx, '일지')}와 ${term(ctx, '충')}을 이뤄요. 두 사람이 함께하는 날로는 피하는 편이 좋아요.` }),
+    partner_punish: () => ({ short: `${partner}에게 마찰이 생기기 쉬운 날`, text: `이날의 ${term(ctx, '일진')}이 ${partner}의 ${term(ctx, '일지')}와 ${term(ctx, '형')}을 이뤄요. 작은 마찰에만 주의하면 돼요.` }),
+    partner_wonjin: () => ({ short: `${josa(partner, '이', '가')} 서운해지기 쉬운 날`, text: `이날의 ${term(ctx, '일진')}이 ${partner}의 ${term(ctx, '일지')}와 ${term(ctx, '원진')}이에요. 서로 서운한 일이 없게 마음을 한 번 더 살펴 주세요.` }),
+    partner_six: () => ({ short: `${josa(partner, '과', '와')}도 잘 맞는 날`, text: `이날의 ${term(ctx, '일진')}이 ${partner}의 ${term(ctx, '일지')}와도 ${term(ctx, '육합')}을 이뤄요. 두 사람 모두에게 무난한 날이에요.` }),
+    partner_year_clash: () => ({ short: `${partner}의 띠와 부딪히는 날`, text: `${dayAnimalLead} ${josa(pA, '과', '와')} ${term(ctx, '충')}을 이뤄요. 두 사람이 함께하는 큰일에는 덜 쓰는 편이에요.` }),
+    partner_year_six: () => ({ short: `${partner}의 띠와 잘 맞는 날`, text: `${dayAnimalLead} ${josa(pA, '과', '와')} ${term(ctx, '육합')}을 이뤄요. 두 사람에게 무난한 날이에요.` }),
+    partner_cheoneul: () => ({ short: `${josa(partner, '을', '를')} 돕는 사람이 나타나는 날`, text: `이날의 지지가 ${partner}의 ${term(ctx, '일간')}에 대한 ${term(ctx, '천을귀인')}에 해당해요. ${partner}에게 힘이 되어 주는 사람이 나타나기 쉽다고 봐요.` }),
   };
-  if (f.code === 'officer') return officerPlain(f, purpose);
-  if (f.code === 'ten_god') return tenGodPlain(f, purpose);
-  const plain = map[f.code] ?? { short: f.label, text: f.label };
-  // 짝이 맞는 관계(육합·삼합)와 어긋나는 관계가 한날에 겹치면, 어긋나는 쪽을 '다만'으로 이어 앞뒤가 맞게
+  if (f.code === 'officer') return officerPlain(f, purpose, ctx);
+  if (f.code === 'ten_god') return tenGodPlain(f, purpose, ctx);
+  // 짝이 맞는 관계(육합·삼합)와 어긋나는 관계가 한날에 겹치면, 어긋나는 쪽을 '짝을 이루는 날이지만'으로 이어 앞뒤가 맞게
   const m = /^(day|year|partner)_(punish|wonjin|break|harm)$/.exec(f.code);
   if (m && ctx.siblings?.some((c) => c === `${m[1]}_six` || c === `${m[1]}_half`)) {
     const base = m[1] as 'day' | 'year' | 'partner';
-    const who = base === 'day' ? '나와' : base === 'year' ? josa(myA, '과', '와') : josa(partner, '과', '와');
-    const but = { punish: '조금 껄끄러운 면도 있어요', wonjin: '괜히 서운해지는 면도 있어요', break: '작은 약속은 살짝 엇갈리기 쉬워요', harm: '사소한 오해가 생길 수 있어요' }[m[2] as 'punish' | 'wonjin' | 'break' | 'harm'];
-    const tip = { day: '중요한 일은 한 번 더 확인해 주세요.', year: '일정을 넉넉히 잡아 두면 괜찮아요.', partner: '두 사람의 일정만 한 번 더 맞춰 보세요.' }[base];
+    const kind = m[2] as 'punish' | 'wonjin' | 'break' | 'harm';
+    const who = base === 'day' ? '내 일지와' : base === 'year' ? josa(myA, '과', '와') : `${partner}의 일지와`;
+    // 관계 용어의 뜻을 먼저 붙인 뒤 짧은 이름만 가져온다(make 의 본문은 쓰지 않는다)
+    const rel = term(ctx, ({ punish: f.label.includes('자형') ? '자형' : '형', wonjin: '원진', break: '파', harm: '해' } as const)[kind]);
+    const plain = make[f.code]!();
+    const but = { punish: '조금 껄끄러운 면도 있어요', wonjin: '괜히 서운해지는 면도 있어요', break: '작은 약속은 엇갈리기 쉬워요', harm: '사소한 오해가 생길 수 있어요' }[kind];
+    const tip = { day: '중요한 일은 한 번 더 확인해 두세요.', year: '일정을 넉넉히 잡아 두면 괜찮아요.', partner: '두 사람의 일정만 한 번 더 맞춰 보세요.' }[base];
     // 같은 상대와 어긋나는 요인이 둘(巳申: 형·파)이면 당부는 처음 한 번만
     const firstBad = ctx.siblings.find((c) => new RegExp(`^${base}_(punish|wonjin|break|harm)$`).test(c));
-    return { short: plain.short, text: f.code === firstBad ? `${who} 짝이 맞는 날이지만, ${but}. ${tip}` : `${who} 짝이 맞는 날이지만, ${but}.` };
+    const text = `${who} 짝을 이루는 날이지만 ${rel}도 함께 있어, ${but}.`;
+    return { short: plain.short, text: f.code === firstBad ? `${text} ${tip}` : text };
   }
-  return plain;
+  return make[f.code]?.() ?? { short: f.label, text: f.label };
 }
 
 /** 요인의 전통 용어 — '사주로 보면'·'옛 달력 용어로 보면'에만 */
@@ -221,10 +278,14 @@ export function reasonText(f: TaekilFactor, purpose: TaekilPurpose, ctx: ReasonC
   return plainReason(f, purpose, ctx).text;
 }
 
+/** 날짜 하나의 이유 목록 — 화면은 좋은 점 → 조심할 점 → 참고 순으로 묶어 보이므로, 그 순서로 용어의 뜻을 처음 한 번만 붙인다 */
 export function reasonsOf(d: TaekilDay, purpose: TaekilPurpose, ctx: Omit<ReasonContext, 'dayBranch'> = {}): TaekilReasonDto[] {
-  const rc: ReasonContext = { ...ctx, dayBranch: d.almanac.ganzhi.branch, siblings: d.factors.map((f) => f.code) };
+  const rc: ReasonContext = { ...ctx, dayBranch: d.almanac.ganzhi.branch, siblings: d.factors.map((f) => f.code), explained: new Set() };
+  const TONE_ORDER = { good: 0, bad: 1, info: 2 } as const;
+  const shown = [...d.factors].sort((a, b) => TONE_ORDER[a.tone] - TONE_ORDER[b.tone]);
+  const plain = new Map(shown.map((f) => [f, plainReason(f, purpose, rc)] as const));
   return d.factors.map((f) => {
-    const p = plainReason(f, purpose, rc);
+    const p = plain.get(f)!;
     return { tone: f.tone, label: p.short, text: p.text, term: termOf(f), weight: f.weight, excludes: Boolean(f.excludes) };
   });
 }
@@ -233,15 +294,15 @@ const goods = (d: TaekilDay) => d.factors.filter((f) => f.weight > 0).sort((a, b
 const bads = (d: TaekilDay) => d.factors.filter((f) => f.weight < 0).sort((a, b) => a.weight - b.weight);
 const excluder = (d: TaekilDay) => d.factors.find((f) => f.excludes) ?? null;
 
-/** 처음부터 후보에서 빼는 까닭 — 쉬운 말 */
+/** 처음부터 후보에서 빼는 까닭 — 쉬운 말에 용어를 괄호로 */
 const EXCLUDE_WHY: Partial<Record<TaekilFactorCode, string>> = {
-  officer: '그달의 기운과 정면으로 부딪히는 날이라 큰일은 하지 않아요.',
-  sari: '계절이 바뀌기 바로 전날이라 큰일은 피해요.',
-  sajeol: '계절이 바뀌기 바로 전날이라 큰일은 피해요.',
-  day_clash: '타고난 나와 정면으로 부딪히는 날이라 피해요.',
+  officer: '그달의 기운과 정면으로 부딪히는 날(월파일)이라 큰일은 하지 않는 날로 봐요.',
+  sari: '춘분·하지·추분·동지의 전날(사리일)이라 큰일은 피하는 날로 봐요.',
+  sajeol: '계절이 바뀌는 입춘·입하·입추·입동의 전날(사절일)이라 큰일은 피하는 날로 봐요.',
+  day_clash: '타고난 나와 정면으로 부딪히는 날(일지 충)이라 피하는 날로 봐요.',
 };
 
-/** 짧은 이름 둘을 잇기 — '손 없는 날이면서 옛 달력의 좋은 날' */
+/** 짧은 이름 둘을 잇기 — '손 없는 날이면서 옛 달력의 길한 날' */
 const both = (a: string, b?: string, link: 'and' | 'with' = 'with') => (b ? `${josa(a, link === 'with' ? '이면서' : '이고,', link === 'with' ? '면서' : '고,')} ${b}` : a);
 
 /** 하루를 한 줄로 (쉬운 말) */
@@ -261,14 +322,14 @@ export function daySummary(d: TaekilDay, purpose: TaekilPurpose = 'move', ctx: O
     case 'caution':
       return b[0] ? `조심할 점이 있어요. ${ieyo(both(b[0], b[1], 'and'))}` : '조심할 점이 있는 날이에요.';
     default:
-      return b[0] ? `조심할 점이 겹쳐 피하는 게 좋아요. ${ieyo(both(b[0], b[1], 'and'))}` : '조심할 점이 겹쳐 피하는 게 좋아요.';
+      return b[0] ? `조심할 점이 겹쳐 피하는 편이 좋아요. ${ieyo(both(b[0], b[1], 'and'))}` : '조심할 점이 겹쳐 피하는 편이 좋아요.';
   }
 }
 
 /** Top 3 에 들지 못한 까닭 (쉬운 말) */
 export function dropReasonOf(d: TaekilDay, cutoff: TaekilDay | null, purpose: TaekilPurpose = 'move', ctx: Omit<ReasonContext, 'dayBranch'> = {}): string {
   const ex = excluder(d);
-  if (ex) return `${EXCLUDE_WHY[ex.code] ?? '피하는 날이에요.'} 이런 날은 처음부터 후보에서 빼요.`;
+  if (ex) return `${EXCLUDE_WHY[ex.code] ?? '피하는 날이에요.'} 이런 날은 점수와 관계없이 처음부터 후보에서 빼요.`;
   const rc: ReasonContext = { ...ctx, dayBranch: d.almanac.ganzhi.branch };
   const short = (f: TaekilFactor) => plainReason(f, purpose, rc).short;
   const worst = bads(d)[0];
@@ -408,17 +469,19 @@ function overviewSection(ctx: TaekilTextContext): ReadingSection {
   const yearClashDay = animalDay(pat.yearClash);
   const yearLine =
     pat.yearClash === pat.dayClash
-      ? ` ${josa(clashDay, '은', '는')} ${who}의 띠인 ${myAnimal}띠와도 부딪혀요.`
+      ? ` ${josa(clashDay, '은', '는')} ${who}의 띠인 ${myAnimal}띠와도 충을 이뤄요.`
       : pat.friends.includes(pat.yearClash)
-        ? ` 다만 ${josa(yearClashDay, '은', '는')} ${who}의 띠인 ${myAnimal}띠와 부딪혀서 큰일에는 덜 써요.`
-        : ` ${who}의 띠인 ${myAnimal}띠와 부딪히는 ${yearClashDay}도 큰일에는 덜 써요.`;
-  paragraphs.push(`옛 달력에서는 날마다 열두 띠 동물이 하나씩 돌아가며 붙어요. ${who}에게는 ${josa(friendDays, '이', '가')} 잘 맞고, ${josa(clashDay, '은', '는')} ${josa(who, '과', '와')} 정면으로 부딪혀서 피하는 게 좋아요.${yearLine}`);
+        ? ` 다만 ${josa(yearClashDay, '은', '는')} ${who}의 띠인 ${myAnimal}띠와 충을 이뤄 큰일에는 덜 써요.`
+        : ` ${who}의 띠인 ${myAnimal}띠와 충을 이루는 ${yearClashDay}도 큰일에는 덜 써요.`;
+  paragraphs.push(
+    `날마다 바뀌는 일진(그날의 간지)의 지지는 열두 띠와 같은 글자라, 날마다 띠 동물이 하나씩 차례로 돌아와요. ${who}에게는 일지(태어난 날의 지지)와 짝을 이루는(육합·삼합) ${josa(friendDays, '이', '가')} 잘 맞고, 일지와 충(정면으로 대립하는 관계)을 이루는 ${josa(clashDay, '은', '는')} 피하는 편이 좋아요.${yearLine}`,
+  );
   const cause = (code: TaekilFactorCode) => sel.days.filter((d) => d.excluded && d.factors.some((f) => f.excludes && f.code === code)).length;
   const pa = cause('officer');
   const dc = cause('day_clash');
   const ss = cause('sari') + cause('sajeol');
   if (pa + dc + ss > 0) {
-    const parts = [pa && `그달의 기운과 부딪히는 날 ${pa}일`, dc && `${who}과 정면으로 부딪히는 날 ${dc}일`, ss && `계절이 바뀌기 바로 전날 ${ss}일`].filter(Boolean);
+    const parts = [pa && `월파일(그달의 기운과 정면으로 부딪히는 날) ${pa}일`, dc && `${who}의 일지와 충을 이루는 날 ${dc}일`, ss && `사리·사절일(춘분·하지·추분·동지와 입춘·입하·입추·입동의 전날) ${ss}일`].filter(Boolean);
     paragraphs.push(`처음부터 후보에서 뺀 날도 있어요. ${parts.join(', ')}이에요. 옛 달력과 사주에서 큰일을 하지 않는 날로 보는 날들이에요.`);
   }
   if (purpose === 'move') {
@@ -473,7 +536,7 @@ function adviceSection(ctx: TaekilTextContext): ReadingSection {
         opening: '첫 손님을 맞는 시간을 이 안에 잡아 보세요.',
         travel: '집을 나서는 시간을 이 안에 잡아 보세요.',
       }[purpose];
-      paragraphs.push(`${dayLabel(best)}에 시작하기 좋은 시간은 ${ieyo(join(hours))} ${how}`);
+      paragraphs.push(`${dayLabel(best)}에 시작하기 좋은 시간은 ${ieyo(join(hours))} 그날 길한 신이 드는 시간(황도시) 중에서 낮 시간을 골랐어요. ${how}`);
       basis.push(`${dayLabel(best)} 황도시 ${goodHourBranches(best).map(hz).join('·')}시`);
     }
   }
@@ -492,7 +555,7 @@ function adviceSection(ctx: TaekilTextContext): ReadingSection {
         }
       }
       if (sel.days.some((d) => has(d, 'gwigi'))) {
-        paragraphs.push('예부터 이사를 꺼려 온 날은 점수를 낮춰 두었어요.');
+        paragraphs.push('예부터 이사를 꺼려 온 귀기일은 점수를 낮춰 두었어요.');
         basis.push('귀기일(歸忌日) 감점');
       }
       break;
@@ -500,12 +563,12 @@ function adviceSection(ctx: TaekilTextContext): ReadingSection {
     case 'contract': {
       const pens = tops.filter((d) => d.factors.some((f) => f.code === 'ten_god' && f.weight > 0));
       if (pens.length) {
-        paragraphs.push(`${josa(join(pens.map(dayLabel)), '은', '는')} 정당한 거래와 서류에 힘이 실리는 날이라 계약과 잘 맞아요.`);
+        paragraphs.push(`${josa(join(pens.map(dayLabel)), '은', '는')} 그날의 천간이 정재(정당한 거래)나 정인(문서와 도장)에 해당해 계약과 잘 맞는다고 봐요.`);
         basis.push(`${join(pens.map((d) => `${dayLabel(d)} ${d.tenGod}`))} — 정재·정인일`);
       }
       const officers = officerDays(['정', '성']);
       if (officers.length) {
-        paragraphs.push(`${josa(join(officers.map(dayLabel)), '은', '는')} 옛 달력에서 ${officerKinds(officers)}로 봐서, 계약서를 쓰기 좋다고 꼽아요.`);
+        paragraphs.push(`${josa(join(officers.map(dayLabel)), '은', '는')} 건제12신(옛 달력이 날마다 붙이는 열두 가지 성격)으로 ${officerKinds(officers)}에 해당해, 계약서를 쓰기 좋은 날로 꼽아요.`);
         basis.push(`${join(officers.map((d) => `${dayLabel(d)} ${d.almanac.officer.name}(${d.almanac.officer.hanja})일`))} — 통서 立券·交易에 길`);
       }
       break;
@@ -513,15 +576,15 @@ function adviceSection(ctx: TaekilTextContext): ReadingSection {
     case 'exam': {
       const mc = sel.days.filter((d) => has(d, 'munchang') && !d.excluded);
       if (mc.length) {
-        paragraphs.push(`${josa(join(mc.slice(0, 4).map(dayLabel)), '은', '는')} 글과 말이 잘 풀리는 날이에요. 원서 접수나 자기소개서 제출처럼 직접 고를 수 있는 일에 써 보세요.`);
+        paragraphs.push(`${josa(join(mc.slice(0, 4).map(dayLabel)), '은', '는')} 문창귀인(학문과 문장에 관련된 길신)이 드는 날이에요. 원서 접수나 자기소개서 제출처럼 날짜를 직접 고를 수 있는 일에 활용해 보세요.`);
         basis.push('문창귀인일');
       }
       break;
     }
     case 'wedding': {
-      if (sel.days.some((d) => d.almanac.leapMonth)) paragraphs.push('기간 안에 윤달이 있어요. 요즘은 윤달 결혼을 꺼리는 편이라 그 날들은 점수를 조금 낮췄어요. 가족과 상의해 정하면 돼요.');
+      if (sel.days.some((d) => d.almanac.leapMonth)) paragraphs.push('기간 안에 윤달이 있어요. 요즘 풍습에서는 윤달 결혼을 꺼리는 편이라 그 날들의 점수를 조금 낮췄지만, 옛 기록에는 혼인하기 좋은 달로 적힌 경우도 있으니 가족과 상의해 정하면 돼요.');
       if (sel.days.some((d) => has(d, 'pengzu'))) {
-        paragraphs.push('돼지날은 결혼식을 올리지 않는다는 오래된 금기가 있어 점수를 낮췄어요.');
+        paragraphs.push('옛 금기 목록인 팽조백기에 돼지날(해일)에는 혼례를 하지 않는다는 항목이 있어, 그 날들의 점수를 낮췄어요.');
         basis.push('팽조백기 亥不嫁娶 — 해일(亥日) 감점');
       }
       break;
@@ -529,7 +592,7 @@ function adviceSection(ctx: TaekilTextContext): ReadingSection {
     case 'opening': {
       const good = officerDays(['개', '성', '만']);
       if (good.length) {
-        paragraphs.push(`${josa(join(good.map(dayLabel)), '은', '는')} 옛 달력에서 ${officerKinds(good)}로 봐서, 가게 문을 열기 좋다고 꼽아요.`);
+        paragraphs.push(`${josa(join(good.map(dayLabel)), '은', '는')} 건제12신(옛 달력이 날마다 붙이는 열두 가지 성격)으로 ${officerKinds(good)}에 해당해, 가게 문을 열기 좋은 날로 꼽아요.`);
         basis.push(`${join(good.map((d) => `${dayLabel(d)} ${d.almanac.officer.name}(${d.almanac.officer.hanja})일`))} — 통서 開市에 길`);
       }
       break;
@@ -537,11 +600,11 @@ function adviceSection(ctx: TaekilTextContext): ReadingSection {
     case 'travel': {
       const ym = sel.days.filter((d) => has(d, 'yeokma') && !d.excluded);
       if (ym.length) {
-        paragraphs.push(`${josa(join(ym.slice(0, 4).map(dayLabel)), '은', '는')} 움직임에 힘이 실리는 날이에요.`);
+        paragraphs.push(`${josa(join(ym.slice(0, 4).map(dayLabel)), '은', '는')} 역마(이동과 변화를 뜻하는 신살)가 드는 날이라 움직임에 힘이 실린다고 봐요.`);
         basis.push('역마일');
       }
       if (sel.days.some((d) => has(d, 'pengzu'))) {
-        paragraphs.push('뱀날은 먼 길을 떠나지 않는다는 오래된 금기가 있어 점수를 낮췄어요.');
+        paragraphs.push('옛 금기 목록인 팽조백기에 뱀날(사일)에는 먼 길을 떠나지 않는다는 항목이 있어, 그 날들의 점수를 낮췄어요.');
         basis.push('팽조백기 巳不遠行 — 사일(巳日) 감점');
       }
       break;
@@ -561,26 +624,26 @@ function turnSection(ctx: TaekilTextContext): ReadingSection {
   const { sel, purpose } = ctx;
   const count = (pred: (d: TaekilDay) => boolean) => sel.days.filter(pred).length;
   const has = (code: TaekilFactorCode) => (d: TaekilDay) => d.factors.some((f) => f.code === code);
-  const paragraphs = ['정해진 일정이 하필 피할 날이라면 날짜를 억지로 바꾸기보다, 그날 조심할 점을 알고 대비하는 쪽이 현실적이에요.'];
+  const paragraphs = ['정해진 일정이 피할 날에 해당한다면, 날짜를 무리하게 바꾸기보다 그날 주의할 점을 알고 대비하는 편이 현실적입니다.'];
   const basis: string[] = [];
   if (count(has('day_clash'))) {
-    paragraphs.push('나와 정면으로 부딪히는 날에는 가까운 사람과도 부딪히기 쉬워요. 그날은 결정을 서두르지 말고, 예민한 대화는 하루 이틀 앞뒤로 옮겨 보세요.');
+    paragraphs.push('그날의 지지가 내 일지(태어난 날의 지지)와 충(정면으로 대립하는 관계)을 이루는 날에는 가까운 사람과도 부딪히기 쉽다고 봐요. 그날은 결정을 서두르지 말고, 예민한 대화는 하루 이틀 앞뒤로 옮겨 보세요.');
     basis.push('일지 충');
   }
   if (count((d) => d.almanac.officer.name === '파')) {
     const how = purpose === 'move' ? '이사라면 짐 정리와 청소를 이날 하고, 입주는 다른 날로 나누는 방법도 있어요.' : '새로 벌이는 일 대신 준비와 정리를 이날 하고, 시작은 다음 좋은 날로 넘겨 보세요.';
-    paragraphs.push(`그달의 기운과 부딪히는 날에는 새로 시작하기보다 정리와 마무리에 힘을 쓰는 게 좋아요. ${how}`);
+    paragraphs.push(`월파일(그달의 기운과 정면으로 부딪히는 날)에는 새로 시작하기보다 정리와 마무리에 힘을 쓰는 편이 좋아요. ${how}`);
     basis.push('월파(月破)일');
   }
   if (count((d) => Boolean(d.almanac.sari || d.almanac.sajeol))) {
-    paragraphs.push('계절이 바뀌기 바로 전날이라면 하루만 미뤄 보세요. 다음 날부터는 새 계절이 시작돼요.');
+    paragraphs.push('사리·사절일(춘분·하지·추분·동지와 입춘·입하·입추·입동의 전날)이라면 하루만 미뤄 보세요. 다음 날이면 이 조건에서 벗어나요.');
     basis.push('사리·사절일');
   }
   if (count((d) => !d.almanac.tianShen.yellow)) {
-    paragraphs.push('옛 달력의 덜 좋은 날이라도, 그날 가운데 좋은 시간에 맞춰 시작하면 괜찮다고 봐요.');
+    paragraphs.push('12천신 가운데 흉한 신이 드는 흑도일이라도, 그날 가운데 길한 시간(황도시)에 맞춰 시작하면 괜찮다고 봐요.');
     basis.push('흑도일은 황도시에 시작');
   }
-  paragraphs.push('택일은 더 좋은 날을 고르는 참고예요. 어떤 날이든 준비를 꼼꼼히 해 두는 것이 결과에 가장 크게 작용해요.');
+  paragraphs.push('택일은 더 나은 날을 고르기 위한 참고입니다. 어떤 날이든 준비를 꼼꼼히 해 두는 것이 결과에 가장 크게 작용해요.');
   return { key: SECTION_KEYS.turn, title: '날짜를 바꿀 수 없을 때', summary: '좋지 않은 날에 해야 할 때 대비하는 방법', paragraphs, ...(basis.length ? { basis: basis.join(' · ') } : {}) };
 }
 
@@ -588,7 +651,7 @@ function droppedSection(ctx: TaekilTextContext): ReadingSection {
   const { sel } = ctx;
   const notTop = sel.days.filter((d) => !sel.top.includes(d.almanac.date));
   const groups = new Map<string, TaekilDay[]>();
-  const K = { pa: '그달의 기운과 부딪히는 날', clash: '나와 정면으로 부딪히는 날', season: '계절이 바뀌기 바로 전날', bad: '조심할 점이 겹친 날', low: '점수가 추천 세 날보다 낮은 날' };
+  const K = { pa: '그달의 기운과 정면으로 부딪히는 날(월파일)', clash: '타고난 나와 정면으로 부딪히는 날(일지 충)', season: '절기가 바뀌기 바로 전날(사리·사절일)', bad: '조심할 점이 겹친 날', low: '점수가 추천 세 날보다 낮은 날' };
   for (const d of notTop) {
     const ex = excluder(d);
     const key = ex ? (ex.code === 'officer' ? K.pa : ex.code === 'day_clash' ? K.clash : K.season) : d.grade === 'avoid' ? K.bad : K.low;

@@ -109,7 +109,7 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
       .orderBy(desc(tarotReadings.createdAt))
       .all();
     if (used.length >= TAROT_YESNO_DAILY_FREE) {
-      throw new AppError(429, ERROR_CODES.RATE_LIMITED, `예·아니오 카드는 하루 ${TAROT_YESNO_DAILY_FREE}번 무료로 볼 수 있어요. 내일 다시 물어봐 주세요.`, { readingId: used[0]!.id, limit: TAROT_YESNO_DAILY_FREE });
+      throw new AppError(429, ERROR_CODES.RATE_LIMITED, `예·아니오 카드는 하루 ${TAROT_YESNO_DAILY_FREE}번까지 무료로 볼 수 있어요. 내일 다시 이용해 주세요.`, { readingId: used[0]!.id, limit: TAROT_YESNO_DAILY_FREE });
     }
   };
 
@@ -204,14 +204,14 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
       if (dto.picks.length !== need) throw badRequest(`카드를 ${need}장 골라 주세요.`);
       if (new Set(dto.picks).size !== dto.picks.length) throw badRequest('같은 카드를 두 번 고를 수 없어요.');
       const seed = readDeckToken(secret, userId, dto.deckToken);
-      if (!seed) throw badRequest('카드를 섞은 지 오래됐어요. 다시 섞어 주세요.');
+      if (!seed) throw badRequest('카드를 섞은 뒤 시간이 오래 지났어요. 카드를 다시 섞어 주세요.');
       const fingerprint = deckTokenFingerprint(dto.deckToken);
       const dateKey = todayKey();
       const qKey = questionKey(spread, topic, dto.question, extra);
       const prev = existing(userId, dateKey, qKey);
-      if (prev) throw conflict('오늘 같은 질문으로 이미 카드를 뽑았어요. 그 결과로 이어서 읽어 볼게요.', { readingId: prev.id });
+      if (prev) throw conflict('오늘 같은 질문으로 이미 카드를 뽑았어요. 앞서 뽑은 결과를 보여 드릴게요.', { readingId: prev.id });
       if (db.select({ id: tarotReadings.id }).from(tarotReadings).where(eq(tarotReadings.deckFingerprint, fingerprint)).get()) {
-        throw conflict('이미 사용한 카드 묶음이에요. 다시 섞어 주세요.');
+        throw conflict('이미 사용한 카드 묶음이에요. 카드를 다시 섞어 주세요.');
       }
       if (spread === 'yesno') assertYesNoQuota(userId, dateKey);
       const owner = chartFor(userId, dto.profileId ?? null);
@@ -243,7 +243,7 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
         // 같은 질문·같은 덱 토큰으로 동시에 들어온 요청 — 먼저 저장된 리딩으로 안내
         if (!String((e as Error).message).includes('UNIQUE')) throw e;
         const won = existing(userId, dateKey, qKey);
-        throw conflict('오늘 같은 질문으로 이미 카드를 뽑았어요. 그 결과로 이어서 읽어 볼게요.', won ? { readingId: won.id } : undefined);
+        throw conflict('오늘 같은 질문으로 이미 카드를 뽑았어요. 앞서 뽑은 결과를 보여 드릴게요.', won ? { readingId: won.id } : undefined);
       }
       return view(userId, ownedRow(userId, id));
     },

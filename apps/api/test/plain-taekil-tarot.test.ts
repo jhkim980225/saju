@@ -1,6 +1,7 @@
 /**
- * 택일 이유·타로의 사주 결합 문장 — 사주를 모르는 사람이 읽어도 이해되는 쉬운 말인지 회귀 검사(docs/PLAIN_KOREAN.md).
- * 화면에 그대로 보이는 글만 모은다. 용어·한자는 basis·term('사주로 보면'·'옛 달력·사주 용어로 보면' 접힘)에만 있어야 한다.
+ * 택일 이유·타로의 사주 결합 문장 — 처음 접하는 성인도 읽히는 글인지 회귀 검사(docs/PLAIN_KOREAN.md).
+ * 화면에 그대로 보이는 글만 모은다. 정식 용어는 써도 되지만(처음 나올 때 뜻을 붙인다) 한자는 정의 자리의 괄호에만,
+ * 글자별 근거는 basis·term('사주로 보면'·'옛 달력·사주 용어로 보면' 접힘)에 있어야 한다.
  */
 import { calculateSaju, parseYmd, selectTaekilDays, taekilDateRange, ymdKey, type BirthInput, type TaekilPurpose } from '@saju/core';
 import { describe, expect, it } from 'vitest';
@@ -40,7 +41,7 @@ function expectNoRepeat(lines: string[], where: string) {
 
 const PURPOSES: TaekilPurpose[] = ['move', 'contract', 'exam', 'wedding', 'opening', 'travel'];
 
-describe('택일 — 날짜 이유와 풀이는 쉬운 말로, 용어는 접힌 근거에만', () => {
+describe('택일 — 날짜 이유와 풀이는 뜻을 붙인 용어로, 글자별 근거는 접힌 term·basis 에', () => {
   for (const purpose of PURPOSES) {
     it(`${purpose} — 8가지 사주 × 2달`, { timeout: 60_000 }, () => {
       const dates = taekilDateRange('2026-11-01', '2026-12-30').map(ymdKey);
@@ -79,7 +80,7 @@ describe('택일 — 날짜 이유와 풀이는 쉬운 말로, 용어는 접힌 
   }
 });
 
-describe('타로 — 사주로 본 카드는 쉬운 말로, 일간·용신은 basis 에만', () => {
+describe('타로 — 사주로 본 카드는 일간·오행·용신을 뜻과 함께, 글자별 근거는 basis 에', () => {
   const SPREADS = [
     { spread: 'daily', topic: null, n: 1 },
     { spread: 'yesno', topic: 'yesno', n: 1 },
@@ -111,9 +112,13 @@ describe('타로 — 사주로 본 카드는 쉬운 말로, 일간·용신은 ba
             // 같은 카드를 주어로 두 문장 연달아 쓰지 않는다
             const subjects = saju.paragraphs.map((p) => p.match(/^(.+?)(은|는) /)?.[1] ?? '');
             subjects.forEach((s, i) => i > 0 && s && expect(s, `${where}: ${saju.paragraphs[i]}`).not.toBe(subjects[i - 1]));
-            // 총평에도 타로·사주 용어 없이
+            // 총평 — 메이저·마이너 아르카나는 정식 용어로 쓰되 처음 나올 때 뜻을 붙이고, 사주 용어(오행)는 섞지 않는다
             const overview = r.sections.find((s) => s.key === 'overview');
-            if (overview) expectPlain(overview.paragraphs, where, ['메이저 아르카나', '마이너 아르카나']);
+            if (overview) {
+              expectPlain(overview.paragraphs, where, ['오행', '일간', '용신']);
+              const text = overview.paragraphs.join(' ');
+              if (text.includes('메이저 아르카나')) expect(text, where).toMatch(/아르카나\((78장 가운데 )?(인생|일상)/);
+            }
           }
         }
       });
@@ -157,7 +162,7 @@ describe('AI 상담 규칙 기반 답변 — 결론 먼저, 이름으로, 용어
           const where = `${birth.year}-${birth.month}-${birth.day} ${m}`;
           expectPlain(paras, where);
           expect(text).not.toMatch(/관점에서 말씀드릴게요|\.\./);
-          expect(paras.at(-1)).toMatch(/^오늘 하나만 해 본다면, .+요\.$/);
+          expect(paras.at(-1)).toMatch(/^오늘 실천할 한 가지를 고른다면, .+요\.$/);
           if (name === '나') expect(text).not.toContain('님');
         }
       }
