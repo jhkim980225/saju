@@ -46,7 +46,7 @@ const SAMPLE: TojeongDto = {
     label: `음력 ${i + 1}월`,
     period: '2.7 ~ 3.7',
     flow: (['rise', 'even', 'care'] as const)[i % 3]!,
-    flowLabel: ['힘이 붙는 달', '무난한 달', '살피는 달'][i % 3]!,
+    flowLabel: ['좋은 달', '무난한 달', '조심할 달'][i % 3]!,
     text: `${i + 1}월의 흐름을 적은 문장이에요.`,
   })),
   basis: {
