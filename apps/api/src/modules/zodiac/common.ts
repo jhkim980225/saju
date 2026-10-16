@@ -57,5 +57,5 @@ export const houseLabel = (n: number) => `${ORDINAL[n - 1] ?? n} 번째 자리`;
 export function keyDaySummary(keyDays: { weekday: string; kind: 'good' | 'caution' }[]): string {
   const of = (kind: 'good' | 'caution') => keyDays.filter((k) => k.kind === kind).map((k) => k.weekday.slice(0, 1)).join('·');
   const parts = [of('good') && `좋은 날 ${of('good')}`, of('caution') && `살필 날 ${of('caution')}`].filter(Boolean);
-  return parts.length ? parts.join(' · ') : '크게 엇갈리는 날 없이 잔잔해요';
+  return parts.length ? parts.join(' · ') : '크게 엇갈리는 날 없이 무난해요';
 }

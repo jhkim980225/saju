@@ -1,7 +1,7 @@
 /**
  * 시나리오 12 — 타로 2차 펼침 방식
  *  - 예·아니오(무료): 질문 필수 → 한 장 → 기울기 막대(잠금 없음) → 하루 무료 횟수를 넘으면 오늘 본 카드로 안내
- *  - 양자택일(990원): 선택지 A·B → 두 갈래 나란히(정답 표시 없음) → 목업 결제로 깊은 풀이
+ *  - 양자택일(990원): 선택지 A·B → 두 선택지 나란히(정답 표시 없음) → 목업 결제로 깊은 풀이
  *  - 궁합 타로(2,900원): 저장한 두 사람 → 두 사람 이름·결제 시트 가격
  *  - 켈틱 크로스(4,900원): 10자리 · 가로지르는 2번 카드 → 목업 결제 → 질문권 3회
  */
@@ -38,7 +38,7 @@ test('예·아니오: 무료 한 장으로 기울기를 보여 주고, 하루 �
   const readingId = page.url().split('/').pop()!;
   await expect(page.getByRole('heading', { name: '예·아니오 타로' })).toBeVisible();
   await expect(page.getByRole('img', { name: /^카드의 기울기: (예 쪽|조건부|아니오 쪽)$/ })).toBeVisible();
-  await expect(page.getByText(/^('예' 쪽으로 기울어 있어요|아직 어느 쪽으로도 열려 있어요|'아니오' 쪽으로 기울어 있어요)$/)).toBeVisible();
+  await expect(page.getByText(/^('예' 쪽으로 기울어 있어요|아직 어느 쪽으로도 정해지지 않았어요|'아니오' 쪽으로 기울어 있어요)$/)).toBeVisible();
   await expect(page.getByText('마지막 선택은 서윤님의 몫이에요', { exact: false })).toBeVisible();
   await expect(page.getByText('여기서부터는 깊은 풀이예요')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /깊은 풀이 열기/ })).toHaveCount(0);
@@ -85,7 +85,7 @@ test('양자택일: 두 선택지를 나란히 놓고(정답 표시 없음), 990
   await expect(page).toHaveURL(/\/tarot\/r\/[\w-]+$/);
   const readingId = page.url().split('/').pop()!;
   await expect(page.getByRole('heading', { name: '양자택일 타로' })).toBeVisible();
-  const compare = page.getByRole('region', { name: '두 갈래 나란히 보기' });
+  const compare = page.getByRole('region', { name: '두 선택지 나란히 보기' });
   await expect(compare.getByRole('listitem')).toHaveCount(2);
   await expect(compare.getByRole('listitem').nth(0)).toContainText('A · 지금 회사에 남기 쪽');
   await expect(compare.getByRole('listitem').nth(1)).toContainText('B · 새 회사로 옮기기 쪽');

@@ -145,7 +145,7 @@ export function buildHoroscope(sign: StarSign, period: FreeFortunePeriod, base: 
     const sunHouse = solarHouse(sign.index, sunSign);
     const paragraphs = [
       text.body,
-      `이번 주 바탕에는 태양이 ${signName(sunSign)}에 있어, 내 별자리에서 ${houseLabel(sunHouse)}(${HOUSES[sunHouse - 1]!.theme})에 빛이 들어요.`,
+      `이번 주에는 태양이 ${signName(sunSign)}에 있어요. 내 별자리에서 ${houseLabel(sunHouse)}(${HOUSES[sunHouse - 1]!.theme})라서 이쪽 일에 관심이 가기 쉬워요.`,
       styleOf(sign, tone),
     ];
     // 달이 지나는 별자리마다 근거 한 줄
@@ -223,7 +223,7 @@ export function buildHoroscope(sign: StarSign, period: FreeFortunePeriod, base: 
     jNote = `${at.year}년 ${at.month}월 무렵 ${signName(jNext.to)}로 옮겨요.`;
     if (jNext.utcMs < yearEnd) {
       const h = solarHouse(sign.index, jNext.to);
-      paragraphs.push(`${at.month}월 무렵 목성이 ${signName(jNext.to)}로 옮기면 기회의 무대가 ${houseLabel(h)}(${HOUSES[h - 1]!.theme})로 옮겨 가요.`);
+      paragraphs.push(`${at.month}월 무렵 목성이 ${signName(jNext.to)}로 옮기면 기회가 많은 쪽이 ${houseLabel(h)}(${HOUSES[h - 1]!.theme})로 바뀌어요.`);
     }
   }
   paragraphs.push(styleOf(sign, tone));
@@ -234,7 +234,7 @@ export function buildHoroscope(sign: StarSign, period: FreeFortunePeriod, base: 
     range: range(start, end, `${base.year}년 (${monthDay(base)} 기준 하늘)`),
     tone,
     toneLabel: FREE_FORTUNE_TONE_LABEL[tone],
-    headline: `${jText.focus}에서 기회가 넓어지는 해예요`,
+    headline: `${jText.focus} 쪽에서 기회가 늘어나는 해예요`,
     paragraphs,
     tip: jText.yearTip,
     sky: [skyItem(sign, 'jupiter', jSign, jNote), skyItem(sign, 'saturn', sSign, '')],

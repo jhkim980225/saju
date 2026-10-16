@@ -55,7 +55,7 @@ test('택일: 무료 미리보기 → 목업 결제 → 같은 결과의 상세�
   // 같은 결과가 열린다
   await expect(page).toHaveURL(new RegExp(`/taekil/r/${id}$`));
   await expect(page.getByRole('heading', { name: '이사 맞춤 조언' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '위기를 기회로' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '날짜를 바꿀 수 없을 때' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '빠진 날짜와 이유' })).toBeVisible();
   await expect(page.getByRole('button', { name: /상세 풀이 열기/ })).toHaveCount(0);
 

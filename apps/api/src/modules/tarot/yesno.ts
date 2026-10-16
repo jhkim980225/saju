@@ -19,7 +19,7 @@ import type { DrawnCard } from './deck.js';
 
 export const YES_NO_LABEL: Record<TarotYesNoLean, string> = {
   yes: "'예' 쪽으로 기울어 있어요",
-  maybe: '조건부예요. 아직 어느 쪽으로도 열려 있어요',
+  maybe: '조건부예요. 아직 어느 쪽으로도 정해지지 않았어요',
   no: "'아니오' 쪽으로 기울어 있어요",
 };
 

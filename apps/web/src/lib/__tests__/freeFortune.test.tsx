@@ -55,14 +55,14 @@ const FIXTURE: ZodiacFortuneDto = {
   pillar: null,
   tone: 'mixed',
   toneLabel: '좋고 궂음이 섞여요',
-  trait: '시작하는 힘이 크고, 앞장서는 자리에서 빛나는 편이에요. 계절로는 이른 봄, 다섯 기운 가운데 나무(木)에 속해요.',
-  headline: '사람 사이의 온도 차가 큰 한 주예요',
-  paragraphs: ['반가운 만남과 엇갈림이 번갈아 오기 쉬운 흐름이에요.', '이번 주가 속한 이번 달의 기운은 호랑이띠와 힘을 모으는 흐름이에요.'],
+  trait: '새 일을 시작하는 힘이 크고, 앞장서서 이끄는 자리가 잘 맞는 편이에요. 계절로는 이른 봄, 다섯 기운 가운데 나무(木)에 속해요.',
+  headline: '사람 사이의 분위기가 날마다 다른 한 주예요',
+  paragraphs: ['반가운 만남과 오해가 번갈아 생기기 쉬운 주예요.', '이번 주가 속한 이번 달의 기운은 호랑이띠와 힘을 모으는 흐름이에요.'],
   tip: '중요한 대화는 좋은 날에 꺼내 보세요.',
   reasons: [{ title: '이번 달 월건 戊戌 · 寅戌 삼합(불의 무리)', body: '한편이 되는 띠끼리 만나 힘을 모으는 관계예요.' }],
   keyDays: [
     { date: '2026-10-13', weekday: '화요일', marker: '원숭이의 날', kind: 'caution', reason: '정면으로 부딪치는 날이라 일정 변경과 말다툼을 조심해요.' },
-    { date: '2026-10-16', weekday: '금요일', marker: '돼지의 날', kind: 'good', reason: '서로 끌어당기는 날이라 약속과 협력에 좋아요.' },
+    { date: '2026-10-16', weekday: '금요일', marker: '돼지의 날', kind: 'good', reason: '띠와 짝을 이루는 날이라 약속과 협력에 좋아요.' },
   ],
   lucky: { color: '적색·분홍', direction: '남쪽', number: 2, basis: '호랑이띠와 한편이 된 기운이 함께 만드는 불 기운' },
   years: [{ year: 1986, ganzhi: '丙寅', text: '이번 주에는 수요일이 가장 잘 맞아요.', reason: '태어난 해 천간 丙 · 수요일(辛酉일) 천간 辛 → 丙辛합(물의 기운으로 묶임)' }],
@@ -82,7 +82,7 @@ describe('띠 상세 화면', () => {
     mocks.zodiac.mockResolvedValue(FIXTURE);
     await renderAt('/zodiac/tiger/week');
     expect(screen.getByRole('heading', { level: 1, name: '호랑이띠 이번 주 운세' })).toBeInTheDocument();
-    expect(await screen.findByRole('heading', { name: '사람 사이의 온도 차가 큰 한 주예요' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '사람 사이의 분위기가 날마다 다른 한 주예요' })).toBeInTheDocument();
     expect(mocks.zodiac).toHaveBeenCalledWith('tiger', 'week', expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
 
     const tabs = screen.getByRole('navigation', { name: '기간' });
@@ -111,7 +111,7 @@ describe('띠 상세 화면', () => {
     const me: Partial<ProfileDto> = { id: 'p1', name: '서윤', isPrimary: true, zodiac: '호랑이', birth: { calendar: 'solar', year: 1986, month: 8, day: 20 } as ProfileDto['birth'] };
     mocks.profiles = [me];
     await renderAt('/zodiac/rat/week');
-    await screen.findByRole('heading', { name: '사람 사이의 온도 차가 큰 한 주예요' });
+    await screen.findByRole('heading', { name: '사람 사이의 분위기가 날마다 다른 한 주예요' });
     const picker = screen.getByRole('navigation', { name: '띠 고르기' });
     const tiger = picker.querySelector('a[href="/zodiac/tiger/week"]');
     expect(tiger?.textContent).toContain('내 띠');
