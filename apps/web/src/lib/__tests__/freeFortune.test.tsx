@@ -59,7 +59,7 @@ const FIXTURE: ZodiacFortuneDto = {
   headline: '사람 사이의 분위기가 날마다 다른 한 주예요',
   paragraphs: ['반가운 만남과 오해가 번갈아 생기기 쉬운 주예요.', '이번 주가 속한 이번 달의 기운은 호랑이띠와 힘을 모으는 흐름이에요.'],
   tip: '중요한 대화는 좋은 날에 꺼내 보세요.',
-  reasons: [{ title: '이번 달 월건 戊戌 · 寅戌 삼합(불의 무리)', body: '한편이 되는 띠끼리 만나 힘을 모으는 관계예요.' }],
+  reasons: [{ title: '이번 달 월건 戊戌 · 寅戌 삼합(화 기운)', body: '한편이 되는 띠끼리 만나 힘을 모으는 관계예요.' }],
   keyDays: [
     { date: '2026-10-13', weekday: '화요일', marker: '원숭이의 날', kind: 'caution', reason: '정면으로 부딪치는 날이라 일정 변경과 말다툼을 조심해요.' },
     { date: '2026-10-16', weekday: '금요일', marker: '돼지의 날', kind: 'good', reason: '띠와 짝을 이루는 날이라 약속과 협력에 좋아요.' },
@@ -93,7 +93,7 @@ describe('띠 상세 화면', () => {
     expect(screen.getByText(/^정면으로 부딪치는 날이라/)).toBeInTheDocument();
     expect(screen.getByText('· 원숭이의 날')).toBeInTheDocument();
     // 용어가 든 근거는 접혀 있다(궁금한 사람만 펼침)
-    const reason = screen.getByText('이번 달 월건 戊戌 · 寅戌 삼합(불의 무리)');
+    const reason = screen.getByText('이번 달 월건 戊戌 · 寅戌 삼합(화 기운)');
     expect(reason.closest('details')?.open).toBe(false);
     expect(screen.getByText('1986년생')).toBeInTheDocument();
     expect(screen.getByText(/태어난 해마다 이번 주에 잘 맞는 요일이 달라요/)).toBeInTheDocument();
