@@ -41,7 +41,7 @@ export const ELEMENT_TRAIT: Record<Element, string> = {
 /** 그 기운이 지나칠 때 상대가 느끼는 모습 */
 const ELEMENT_EXCESS: Record<Element, string> = {
   wood: '이것저것 벌이는 성향',
-  fire: '뜨겁고 빠른 표현',
+  fire: '감정을 크고 빠르게 드러내는 성향',
   earth: '쉽게 움직이지 않는 성향',
   metal: '딱 잘라 말하는 성향',
   water: '생각이 많은 성향',
@@ -58,8 +58,8 @@ export function yearNickname(stem: number, branch: number): string {
 export const LOVE_STYLE: string[] = [
   '좋아하는 사람이 생기면 돌려 말하지 않고 진심을 보여 주는 편이에요. 다만 표현이 투박할 수 있으니, 고마운 마음은 말로 자주 전해 주세요.',
   '상대에게 부드럽게 맞춰 주며 관계를 이어 가는 편이에요. 다만 서운한 걸 참고 넘기기 쉬우니, 원하는 걸 솔직하게 말해 주세요.',
-  '좋으면 좋다고 숨김없이 표현하는 편이에요. 다만 마음이 금방 뜨거워졌다 식을 수 있으니, 꾸준한 관심을 챙겨 주세요.',
-  '가까운 사람을 세심하게, 오래 챙기는 편이에요. 다만 속으로 삭이다 지치기 쉬우니, 힘들 땐 상대에게 기대 보세요.',
+  '연애에서도 계산하지 않고 마음을 바로 표현하는 편이에요. 다만 관심이 빨리 생긴 만큼 빨리 식을 수 있으니, 꾸준히 연락하고 챙겨 주세요.',
+  '연애할 때는 상대의 컨디션과 기분을 먼저 알아채고 조용히 챙기는 편이에요. 다만 서운한 걸 속으로 삭이다 지치기 쉬우니, 힘들 땐 상대에게 기대 보세요.',
   '화려하진 않아도 한결같은 사랑을 주는 편이에요. 다만 표현이 적어 상대가 불안해할 수 있으니, "고마워", "좋아해" 같은 말을 자주 해 주세요.',
   '상대를 살뜰히 챙기고 생활을 함께 꾸려 가는 데 강해요. 다만 걱정이 잔소리처럼 들릴 수 있으니, 응원하는 말을 먼저 건네 보세요.',
   '마음이 정해지면 의리 있게 곁을 지키는 편이에요. 다만 말이 직설적으로 들릴 수 있으니, 한 번 부드럽게 다듬어 말해 보세요.',
@@ -81,18 +81,18 @@ export const COMPAT_CATEGORY_PLAIN: Record<'romance' | 'stability' | 'complement
     low: '함께 지내는 데 맞춰 갈 부분이 꽤 있어요. 미리 알고 있으면 훨씬 덜 부딪혀요.',
   },
   complement: {
-    high: '서로에게 없는 부분을 잘 채워 주는 사이라, 함께 있을 때 더 단단해져요.',
+    high: '서로에게 없는 부분을 잘 채워 주는 사이라, 함께 있을 때 서로 의지가 돼요.',
     mid: '서로 채워 주는 부분과 각자 챙겨야 할 부분이 고르게 섞여 있어요.',
     low: '둘 다 비슷한 부분이 모자라서, 부족한 건 함께 채워 가면 좋아요.',
   },
 };
 
-/** 궁합 조언 섹션의 요약 — 화면 위 등급 이름('좋은 인연')과 겹치지 않게 */
+/** 궁합 조언 섹션의 요약 — 화면 위 등급 이름('잘 맞는 사이')과 겹치지 않게 */
 export const COMPAT_ADVICE_SUMMARY: Record<'excellent' | 'good' | 'normal' | 'effort', string> = {
-  excellent: '고마운 마음을 말로 전할수록 더 단단해져요',
+  excellent: '표현을 아끼지 않을수록 오래가요',
   good: '함께하는 목표 하나가 사이를 더 깊게 해요',
   normal: '서로의 방식을 이해할수록 편해져요',
-  effort: '차분한 대화가 두 사람의 열쇠예요',
+  effort: '감정이 가라앉은 뒤에 대화하면 좋아요',
 };
 
 /** 조사 — 받침 유무로. '나'+이/가 는 '내가' */
@@ -127,26 +127,26 @@ export function compatFactorPlain(f: CompatibilityFactor, p: CompatPeople): { te
   if (key === 'stem_same') return { text: '두 사람은 타고난 성향이 비슷해서 가치관이 잘 통해요. 다만 둘 다 고집을 부리면 쉽게 물러서지 않으니, 번갈아 양보해 보세요.', term: '같은 오행의 일간' };
   if (key === 'stem_generate') {
     const [from, to] = rel === 1 ? [a, b] : [b, a];
-    return { text: `${이(from)} ${을(to)} 북돋아 주는 사이예요. 함께 있으면 ${이(to)} 더 힘을 내요.`, term: '일간 상생' };
+    return { text: `${이(from)} ${을(to)} 북돋아 주는 사이예요. 함께 있으면 ${이(to)} 더 힘을 내는 편이에요.`, term: '일간 상생' };
   }
   if (key === 'stem_control') {
     const [from, to] = rel === 2 ? [a, b] : [b, a];
     return { text: `${이(from)} ${을(to)} 이끌려는 쪽이 되기 쉬워요. 좋은 뜻이어도 ${은(to)} 간섭으로 느낄 수 있으니, 중요한 일은 함께 정해 보세요.`, term: '일간 상극' };
   }
   if (key === 'day_branch_combine') return { text: '함께 지낼수록 편안해지는 사이예요. 생활 리듬과 습관이 잘 맞아요.', term: '일지 육합' };
-  if (key === 'day_branch_half') return { text: '함께 무언가를 할 때 손발이 잘 맞아요. 같이 세운 계획이 잘 굴러가요.', term: '일지 반합' };
+  if (key === 'day_branch_half') return { text: '함께 무언가를 할 때 역할을 잘 나눠 맡는 편이에요. 같이 세운 계획을 끝까지 해내기 쉬워요.', term: '일지 반합' };
   if (key === 'day_branch_clash') return { text: '생활 방식이 꽤 달라서 같이 지내다 보면 부딪힐 때가 있어요. 각자의 공간과 시간을 정해 두면 훨씬 편해져요.', term: '일지 충' };
   if (key === 'day_branch_punish') return { text: '사소한 일로 말다툼이 생기기 쉬워요. 서운한 건 그때그때 가볍게 말하면 크게 번지지 않아요.', term: '일지 형' };
   if (key === 'day_branch_harm') return { text: '말하지 않은 서운함이 조금씩 쌓이기 쉬워요. 일주일에 한 번쯤 서로 마음을 물어보는 시간을 가져 보세요.', term: '일지 해·파' };
   if (key === 'day_branch_wonjin') return { text: '끌리면서도 묘하게 서운한 마음이 생길 수 있어요. 바라는 걸 말로 분명히 해 두면 오해가 줄어요.', term: '일지 원진' };
   if (key === 'zodiac_combine') return { text: `${animalA}띠와 ${animalB}띠는 서로 잘 어울리는 띠예요. 함께 있으면 분위기가 금방 편해져요.`, term: '띠 육합' };
-  if (key === 'zodiac_trine') return { text: `${animalA}띠와 ${animalB}띠는 손발이 잘 맞는 띠예요. 같이 하는 일에 속도가 붙어요.`, term: '띠 삼합' };
+  if (key === 'zodiac_trine') return { text: `${animalA}띠와 ${animalB}띠는 함께 일할 때 잘 맞는 띠예요. 같이 하는 일이 빠르게 진행돼요.`, term: '띠 삼합' };
   if (key === 'zodiac_clash') return { text: `${animalA}띠와 ${animalB}띠는 서로 속도가 다른 편이에요. 서두르지 말고 상대의 속도에 맞춰 주면 좋아요.`, term: '띠 충' };
   if (key === 'zodiac_wonjin') return { text: `${animalA}띠와 ${animalB}띠는 작은 말에도 오해가 생기기 쉬운 띠예요. 짐작하기보다 물어보는 습관이 도움이 돼요.`, term: '띠 원진' };
   if (key === 'yongsin_a' || key === 'yongsin_b') {
     const [needer, giver, giverChart] = key === 'yongsin_a' ? [a, b, cb] : [b, a, ca];
     const el = giverChart.elements.dominant;
-    return { text: `${needer}에게 꼭 필요한 ${을(ELEMENT_TRAIT[el])} ${이(giver)} 넉넉히 가지고 있어요. 함께 있으면 일이 더 잘 풀려요.`, term: `용신 보완 ${EL_TERM[el]}` };
+    return { text: `${needer}에게 꼭 필요한 ${을(ELEMENT_TRAIT[el])} ${이(giver)} 넉넉히 가지고 있어요. 함께 있으면 부족한 부분을 채우기 쉬워요.`, term: `용신 보완 ${EL_TERM[el]}` };
   }
   if (key === 'gisin_a' || key === 'gisin_b') {
     const [feeler, other, otherChart] = key === 'gisin_a' ? [a, b, cb] : [b, a, ca];
