@@ -4,8 +4,8 @@ import { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { t } from '@/lib/copy';
 
-/** 바텀시트 — ESC/배경 탭/닫기 버튼으로 닫힘, 최대 높이 90% (앱 뒤로가기는 native 계층에서 연결). 데스크톱은 가운데 대화상자 */
-export function BottomSheet({ open, onClose, title, children, footer }: { open: boolean; onClose: () => void; title?: ReactNode; children: ReactNode; footer?: ReactNode }) {
+/** 바텀시트 — ESC/배경 탭/닫기 버튼으로 닫힘. size="wide" 는 PC 에서 긴 글을 읽는 넓은 팝업, 최대 높이 90% (앱 뒤로가기는 native 계층에서 연결). 데스크톱은 가운데 대화상자 */
+export function BottomSheet({ open, onClose, title, children, footer, size = 'default' }: { open: boolean; onClose: () => void; title?: ReactNode; children: ReactNode; footer?: ReactNode; size?: 'default' | 'wide' }) {
   const panel = useRef<HTMLDivElement>(null);
   // 화면 읽기 프로그램이 시트 제목을 대화 상자 이름으로 읽게
   const titleId = useId();
@@ -31,7 +31,7 @@ export function BottomSheet({ open, onClose, title, children, footer }: { open: 
       <div
         ref={panel}
         tabIndex={-1}
-        className="animate-sheet safe-bottom relative flex max-h-[90dvh] w-full max-w-xl flex-col rounded-t-3xl bg-surface shadow-[0_-8px_24px_rgba(31,29,26,0.08)] outline-none lg:max-h-[80dvh] lg:max-w-lg lg:rounded-3xl lg:pb-2 lg:shadow-[0_16px_48px_rgba(31,29,26,0.16)] lg:[animation-name:fade-in]"
+        className={`animate-sheet safe-bottom relative flex max-h-[90dvh] w-full max-w-xl flex-col rounded-t-3xl bg-surface shadow-[0_-8px_24px_rgba(31,29,26,0.08)] outline-none lg:rounded-3xl lg:pb-2 lg:shadow-[0_16px_48px_rgba(31,29,26,0.16)] lg:[animation-name:fade-in] ${size === 'wide' ? 'lg:max-h-[88dvh] lg:max-w-2xl' : 'lg:max-h-[80dvh] lg:max-w-lg'}`}
       >
         <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-line-strong lg:hidden" aria-hidden />
         <div className="flex items-start gap-2 px-5 pt-3 lg:pt-5">

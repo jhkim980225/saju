@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { Page } from '@/components/AppShell';
+import { BasicsDialog } from '@/components/BasicsDialog';
 import { ChevronRight } from 'lucide-react';
 import { MoreMenu } from '@/components/MoreMenu';
 import { MoonEmblem, Wordmark } from '@/components/Seal';
@@ -14,6 +16,7 @@ import { BirthForm } from './BirthFormPage';
  * 밤하늘 패널에 '사주가 처음이라면' 짧은 안내를 둬서, 사주를 모르는 사람이 입력 전에 기본 개념을 보고 사주 기초로 넘어가게 한다.
  */
 export function LandingPage() {
+  const [basics, setBasics] = useState(false);
   return (
     <div className="min-h-page pb-12 lg:pb-20">
       <div className="night-sky pb-14 lg:hidden">
@@ -25,10 +28,10 @@ export function LandingPage() {
         </header>
         <Hero className="mx-auto max-w-xl px-5 pt-2 text-center" />
         <div className="mt-4 flex justify-center px-5">
-          <Link to="/basics" className="inline-flex items-center gap-1 rounded-full border border-[#e8c47c]/40 px-4 py-2 text-sm font-medium text-[#f4ecd9]">
+          <button type="button" onClick={() => setBasics(true)} className="inline-flex items-center gap-1 rounded-full border border-[#e8c47c]/40 px-4 py-2 text-sm font-medium text-[#f4ecd9]">
             사주가 처음이라면 — 사주 기초 보기
             <ChevronRight className="size-4 text-[#e8c47c]" aria-hidden />
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -36,7 +39,7 @@ export function LandingPage() {
         <section className="lg:grid lg:grid-cols-[minmax(0,1fr)_440px] lg:grid-rows-[auto_1fr] lg:gap-x-12 lg:pt-12">
           <div className="night-sky hidden rounded-3xl px-10 pb-8 pt-6 lg:col-start-1 lg:row-start-1 lg:block">
             <Hero />
-            <Primer />
+            <Primer onOpen={() => setBasics(true)} />
           </div>
 
           <div className="relative -mt-8 rounded-3xl border border-line bg-surface p-5 shadow-[0_12px_40px_rgba(3,6,18,0.18)] lg:self-start lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0 lg:p-7">
@@ -58,6 +61,7 @@ export function LandingPage() {
           </p>
         </footer>
       </Page>
+      <BasicsDialog open={basics} onClose={() => setBasics(false)} />
     </div>
   );
 }
@@ -88,17 +92,17 @@ const PRIMER: { term: string; desc: string }[] = [
   { term: '오행', desc: '목·화·토·금·수 다섯 기운의 균형으로 기질을 살펴봅니다.' },
 ];
 
-function Primer() {
+function Primer({ onOpen }: { onOpen: () => void }) {
   return (
     <section aria-labelledby="primer-title" className="mt-8 border-t border-[#e8c47c]/20 pt-6">
       <div className="flex items-baseline justify-between gap-4">
         <h2 id="primer-title" className="text-sm font-semibold text-[#e8c47c]">
           사주가 처음이라면
         </h2>
-        <Link to="/basics" className="inline-flex items-center gap-0.5 text-sm font-medium text-[#f4ecd9] underline-offset-4 hover:underline">
+        <button type="button" onClick={onOpen} className="inline-flex items-center gap-0.5 text-sm font-medium text-[#f4ecd9] underline-offset-4 hover:underline">
           사주 기초 자세히 보기
           <ChevronRight className="size-4 text-[#e8c47c]" aria-hidden />
-        </Link>
+        </button>
       </div>
       <dl className="mt-3 grid grid-cols-3 gap-3">
         {PRIMER.map((p) => (

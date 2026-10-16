@@ -1,7 +1,7 @@
 /**
  * 사주 기초 — 사주를 처음 보는 사람이 '전문가 보기' 표를 읽을 수 있게
  *  - 표의 줄 이름·값을 누르면 뜻이 뜬다
- *  - /basics 안내 화면: 마이·전체 운세·결과 화면에서 들어간다
+ *  - 사주 기초는 첫 화면·결과 화면에서 팝업으로 열린다(보던 화면을 떠나지 않게). 마이·전체 운세에서는 /basics 화면으로 간다
  */
 import { expect, goToResult, test } from './support/fixtures';
 
@@ -26,24 +26,40 @@ test('전문가 보기 표의 용어를 누르면 뜻이 뜨고, 사주 기초 �
   // 신강약 — 득령·득지·득세까지 함께
   await page.getByRole('button', { name: '신강약 설명 보기' }).click();
   await expect(sheet.getByRole('term').filter({ hasText: /^득령 / })).toBeVisible();
-  await sheet.getByRole('link', { name: '사주 기초 전체 보기' }).click();
-  await expect(page).toHaveURL(/\/basics$/);
-  await expect(page.getByRole('heading', { level: 1, name: '사주 기초' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '사주는 여덟 글자로 이루어져 있어요' })).toBeVisible();
+  // 용어 시트의 '사주 기초 전체 보기' → 결과 화면 위에 사주 기초 팝업
+  await sheet.getByRole('button', { name: '사주 기초 전체 보기' }).click();
+  const basics = page.getByRole('dialog', { name: '사주 기초' });
+  await expect(basics.getByRole('heading', { name: '사주는 여덟 글자로 이루어져 있어요' })).toBeVisible();
+  await expect(page).toHaveURL(/\/result$/);
 
   // 접힌 목록을 펼치면 열 가지 십성이 모두 있다
-  await page.getByText('십성 열 가지 보기').click();
+  await basics.getByText('십성 열 가지 보기').click();
   for (const name of ['비견', '겁재', '식신', '상관', '편재', '정재', '편관', '정관', '편인', '정인']) {
-    await expect(page.getByRole('term').filter({ hasText: new RegExp(`^${name} `) })).toBeVisible();
+    await expect(basics.getByRole('term').filter({ hasText: new RegExp(`^${name} `) })).toBeVisible();
   }
+  await page.keyboard.press('Escape');
+  await expect(basics).toBeHidden();
+
+  // 표 아래 '사주가 처음이라면'도 같은 팝업
+  await page.getByRole('button', { name: '사주가 처음이라면 — 사주 기초 보기' }).click();
+  await expect(page.getByRole('dialog', { name: '사주 기초' })).toBeVisible();
 });
 
-test('전체 운세 화면과 첫 화면에서 사주 기초로 들어간다', async ({ page }) => {
+test('첫 화면에서는 사주 기초가 팝업으로 열리고, 전체 운세에서는 화면으로 간다', async ({ page }) => {
+  await page.goto('/');
+  // 입력하던 값이 그대로 남아 있어야 한다
+  await page.locator('#name').fill('서윤');
+  await page.getByRole('button', { name: /사주 기초 (자세히 )?보기/ }).click();
+  const basics = page.getByRole('dialog', { name: '사주 기초' });
+  await expect(basics.getByRole('heading', { name: "사주를 해석하는 기준은 일간이에요" })).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+  await basics.getByRole('button', { name: '시트 닫기' }).last().click();
+  await expect(basics).toBeHidden();
+  await expect(page.locator('#name')).toHaveValue('서윤');
+
   await page.goto('/menu');
   await page.getByRole('link', { name: /사주 기초/ }).click();
   await expect(page).toHaveURL(/\/basics$/);
-  await page.goto('/');
-  await expect(page.getByRole('link', { name: /사주 기초/ })).toBeVisible();
 });
 
 test('달빛사주 자체 계산 기준은 전통 개념과 따로 표시한다', async ({ page }) => {

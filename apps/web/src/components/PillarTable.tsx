@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import { t } from '@/lib/copy';
 import { ELEMENT_META } from '@/lib/format';
 import { RELATIONS, ROWS, SHINSAL, STRENGTH_LEVELS, STRENGTH_PARTS, termFor, type RowKey, type Term } from '@/lib/sajuBasics';
+import { BasicsDialog } from './BasicsDialog';
 import { TermButton, TermSheet } from './TermSheet';
 import { cx } from './ui';
 
@@ -53,6 +54,8 @@ export function PillarTable({ chart, editHref }: { chart: SajuChart; editHref?: 
   const [expert, setExpert] = useState(false);
   // 누른 용어의 설명 — 줄 이름이나 값을 누르면 아래에서 올라온다
   const [sheet, setSheet] = useState<{ term: Term; extra?: Term[] } | null>(null);
+  // '사주 기초' 팝업 — 결과 화면을 떠나지 않고 읽게
+  const [basics, setBasics] = useState(false);
   const pillars = chart.pillars;
   const label = (p: Pos) => t(`result.pillarTable.${p}`);
   const col = (p: Pos): PillarDetail | null => pillars[p];
@@ -212,11 +215,20 @@ export function PillarTable({ chart, editHref }: { chart: SajuChart; editHref?: 
       )}
       {expert && <p className="mt-3 text-center text-xs text-ink-3 print:hidden">점선이 표시된 용어를 누르면 설명을 볼 수 있어요.</p>}
       <p className="mt-2 text-center text-sm print:hidden">
-        <Link to="/basics" className="font-medium text-gold underline underline-offset-4">
+        <button type="button" onClick={() => setBasics(true)} className="font-medium text-gold underline underline-offset-4">
           사주가 처음이라면 — 사주 기초 보기
-        </Link>
+        </button>
       </p>
-      <TermSheet term={sheet?.term ?? null} extra={sheet?.extra} onClose={() => setSheet(null)} />
+      <TermSheet
+        term={sheet?.term ?? null}
+        extra={sheet?.extra}
+        onClose={() => setSheet(null)}
+        onOpenBasics={() => {
+          setSheet(null);
+          setBasics(true);
+        }}
+      />
+      <BasicsDialog open={basics} onClose={() => setBasics(false)} />
     </div>
   );
 }

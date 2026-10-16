@@ -6,16 +6,22 @@ import { BottomSheet } from './BottomSheet';
 import { cx } from './ui';
 
 /** 용어 설명 시트 — '전문가 보기' 표에서 줄 이름이나 값을 누르면 뜬다 */
-export function TermSheet({ term, extra, onClose }: { term: Term | null; extra?: Term[]; onClose: () => void }) {
+export function TermSheet({ term, extra, onClose, onOpenBasics }: { term: Term | null; extra?: Term[]; onClose: () => void; onOpenBasics?: () => void }) {
   return (
     <BottomSheet
       open={Boolean(term)}
       onClose={onClose}
       title={term?.name}
       footer={
-        <Link to="/basics" onClick={onClose} className="block text-center text-sm font-semibold text-gold underline underline-offset-4">
-          사주 기초 전체 보기
-        </Link>
+        onOpenBasics ? (
+          <button type="button" onClick={onOpenBasics} className="block w-full text-center text-sm font-semibold text-gold underline underline-offset-4">
+            사주 기초 전체 보기
+          </button>
+        ) : (
+          <Link to="/basics" onClick={onClose} className="block text-center text-sm font-semibold text-gold underline underline-offset-4">
+            사주 기초 전체 보기
+          </Link>
+        )
       }
     >
       {term && (
