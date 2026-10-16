@@ -157,6 +157,8 @@ function reasonSentences(ys: LoveYear[], k: 'love' | 'bond', told?: Map<number, 
   const plain: number[] = [];
   const plainTold: number[] = [];
   const used = new Set<LoveYearSignal>();
+  /** 바로 앞 문장에서 말한 이유 — 같은 이유가 이어지면 "○○년도 마찬가지예요"로 줄인다 */
+  let last: LoveYearSignal[] = [];
   for (const y of ys) {
     const before = told?.get(y.year);
     const all = reasonsOf(y, k).filter((s) => !(k === 'bond' && before?.includes(s)));
@@ -170,9 +172,10 @@ function reasonSentences(ys: LoveYear[], k: 'love' | 'bond', told?: Map<number, 
       else plain.push(y.year);
       continue;
     }
-    out.push(`${y.year}년${k === 'love' ? '에는' : '은'} ${clauses(rs)}.`);
+    out.push(!fresh.length && last.includes(rs[0]!) ? `${y.year}년도 마찬가지예요.` : `${y.year}년${k === 'love' ? '에는' : '은'} ${clauses(rs)}.`);
+    last = rs;
   }
-  if (plain.length) out.push(`${pp(yearsText(plain), '은', '는')} 그해의 흐름이 사주와 잘 맞아 마음에 여유가 생기기 쉬워요.`);
+  if (plain.length) out.push(`${pp(yearsText(plain), '은', '는')} 그해 들어오는 기운이 사주와 잘 맞아서 마음에 여유가 생기기 쉬워요.`);
   if (plainTold.length) out.push(`${pp(yearsText(plainTold), '은', '는')} 마음에 여유가 있는 만큼 앞날을 차분히 이야기하기에도 좋아요.`);
   return out.join(' ');
 }
@@ -337,7 +340,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
   const attraction: ReadingSection = {
     key: 'attraction',
     title: '끌림과 매력',
-    summary: hasDohwa || hasHongyeom ? '사람을 끄는 매력이 뚜렷해요' : '알수록 깊어지는 잔잔한 매력이에요',
+    summary: hasDohwa || hasHongyeom ? '처음 만난 사람에게도 호감을 사기 쉬워요' : '오래 볼수록 호감을 사는 편이에요',
     paragraphs: [
       ...(charmParas.length ? [...charmParas, C.attraction.tip] : [C.attraction.quiet]),
       `${C.attraction.firstImpression[dmEl]} ${C.attraction.moment[dmEl]}`,
@@ -374,8 +377,8 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
       C.partnerStrength[level],
       // 손발이 맞는 기질이 지치게 하는 기질과 같은 기운이면 서로 어긋나 보이니 말하지 않는다
       ...(comboBranch && comboBranch.element !== y.gisin ? [`특히 ${C.combineTemperament[comboBranch.element]} 사람과는 함께 있을 때 자연스럽게 손발이 맞기 쉬워요.`] : []),
-      ...(lacking.length ? [`나와 다른 사람에게 끌리는 것도 자연스러워요. ${listPp(lacking.map((el) => C.complement[el]), '을', '를')} 가진 사람 곁에서는 그 힘을 자연스럽게 배우기 쉬워요.`] : []),
-      `반대로 ${C.partnerCaution[y.gisin]}에서는 마음이 빨리 지치는 편이에요. 사람이 나빠서라기보다 서로 방향이 달라서라, 이런 장면이 되풀이되면 속도와 거리를 조절해 보세요.`,
+      ...(lacking.length ? [`나와 다른 사람에게 끌리는 것도 자연스러운 일이에요. ${listPp(lacking.map((el) => C.complement[el]), '을', '를')} 가진 사람 곁에서는 그 점을 보고 배우기 쉬워요.`] : []),
+      `반대로 ${C.partnerCaution[y.gisin]}에서는 마음이 빨리 지치는 편이에요. 사람이 나빠서가 아니라 서로 편한 방식이 달라서 그래요. 이런 일이 되풀이되면 만나는 횟수와 거리를 조절해 보세요.`,
       C.partnerNote,
     ],
     basis: [
@@ -417,9 +420,12 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
   const frictionParas: string[] = [];
   if (rels.length) {
     frictionParas.push(`${pp(places, '과', '와')} 사랑 사이를 조금 더 챙기면 좋아요. ${C.friction.intro}`);
+    let prevWhere = '';
     for (const r of rels) {
       const where = whereOf(r.positions);
-      frictionParas.push(`${pp(where, '과', '와')} 사랑 사이에는 ${C.friction.branch[r.type].text}`);
+      // 같은 자리가 이어지면 "또"로 잇는다 — "가족과 사랑 사이에는 … 가족과 사랑 사이에는 …" 되풀이를 줄인다
+      frictionParas.push(`${pp(where, '과', '와')} 사랑 사이에는 ${where === prevWhere ? '또 ' : ''}${C.friction.branch[r.type].text}`);
+      prevWhere = where;
     }
   } else {
     frictionParas.push(C.friction.calm);
@@ -432,7 +438,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
   const friction: ReadingSection = {
     key: 'friction',
     title: '부딪히기 쉬운 지점',
-    summary: rels.length ? `${pp(places, '과', '와')} 사랑 사이에 힘이 몰려요` : C.friction.calmSummary,
+    summary: rels.length ? `${pp(places, '과', '와')} 사랑이 서로 영향을 주기 쉬워요` : C.friction.calmSummary,
     paragraphs: frictionParas,
     tips: rels.length ? rels.map((r) => C.friction.branch[r.type].tip).filter((v, i, a) => a.indexOf(v) === i) : undefined,
     basis: [
@@ -494,7 +500,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
   const actionSeen = new Map<TenGodGroup, number>();
   const shownSignals = new Set<LoveYearSignal>();
   const bestThree = topBy(three, 'love', 1)[0]!;
-  const threeParas: string[] = [`가까운 3년 가운데 마음을 열기 가장 좋은 해는 ${bestThree.year}년이에요. 한 해씩 짚어 볼게요.`];
+  const threeParas: string[] = [`가까운 3년 가운데 새 인연을 만나기 가장 좋은 해는 ${bestThree.year}년이에요. 한 해씩 짚어 볼게요.`];
   const threeTips: string[] = [];
   for (const x of three) {
     const b = scoreBand(x.love);
@@ -557,9 +563,9 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
   // ── 12. 마무리 ───────────────────────────────────────────
   const closing: ReadingSection = {
     key: 'closing',
-    title: '마무리 — 나다운 사랑을 위해',
+    title: '마무리',
     summary: C.closing.summary,
-    paragraphs: [C.closing.intro, `${name ? `${name}님에게` : '마지막으로'} 건네고 싶은 한마디가 있어요. ${stem.oneLine}`, C.closing.choice, C.closing.together, C.closing.note, C.closing.reread],
+    paragraphs: [C.closing.intro, `${name ? `${name}님에게 마지막으로` : '마지막으로'} 한 가지만 덧붙일게요. ${stem.oneLine}`, C.closing.choice, C.closing.together, C.closing.note, C.closing.reread],
   };
 
   return [summary, loveNature, spousePalace, tenGodBalance, attraction, idealPartner, pattern, friction, decade, threeYears, advice, closing];
