@@ -245,7 +245,7 @@ describe('재물·직업운 — 근거는 basis 에, 본문은 쉬운 말로', (
   it('투자 조언이 아니라는 안내와 참고용 안내를 담는다', () => {
     for (const { chart, label } of charts) {
       const secs = buildCareerWealthReport(chart, NOW, '서윤');
-      expect(text(secs), label).toMatch(/투자 조언이 아니/);
+      expect(text(secs), label).toMatch(/투자 조언이 아(니|닙니다)/);
       expect(sectionText(secs, 'closing'), label).toMatch(/참고/);
     }
   });

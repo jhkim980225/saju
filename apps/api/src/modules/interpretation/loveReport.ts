@@ -1,10 +1,10 @@
 /**
  * 연애·결혼운 리포트 생성기 — 프로필 한 사람의 사주로 본 사랑의 방식과 인연의 흐름.
  *
- * 쉬운 말 기준(docs/PLAIN_KOREAN.md): 사주를 한 번도 본 적 없는 사람이 막힘없이 읽게 쓴다.
- * - 장마다 결론을 먼저 말하고, 용어·간지·점수는 basis('사주로 보면' 접힘)에만 둔다.
+ * 문체 기준(docs/PLAIN_KOREAN.md): 사주를 처음 접하는 성인이 읽는 전문 서비스의 글.
+ * - 장마다 결론을 먼저 말한다. 정식 명리학 용어를 쓰되 처음 나올 때 뜻을 붙이고(termTracker), 한자·간지·점수는 basis('사주로 보면')에 둔다.
  * - 이름이 있으면 "○○님은"으로 부르고, 없으면 주어를 뺀다("당신"은 쓰지 않는다).
- * - 시기는 "2029년 가을쯤"처럼 생활어로, 점수는 '아주 좋음 / 좋음 / 보통 / 잔잔함'으로 말한다.
+ * - 시기는 "2029년 가을쯤"처럼, 점수는 '아주 좋음 / 좋음 / 보통 / 잔잔함'(달빛사주 기준)으로 말한다.
  *
  * 구성(12장): 요약 → 사랑할 때의 나(일간) → 가까운 사이에서의 나(일지) → 관계를 움직이는 마음(십성)
  *   → 끌림과 매력(도화·홍염) → 나에게 맞는 사람(용신·희신·신강도·일지 육합) → 가까워지는 속도
@@ -12,9 +12,10 @@
  * 분량 목표: 공백 제외 약 8천 자. 규칙 기반 초안이 사실을 모두 담고(근거는 basis), AI 는 문장만 다듬는다.
  *
  * 성별 중립:
- * - 전통 명리는 성별에 따라 재성/관성 가운데 하나를 배우자의 별로 읽지만, 여기서는 둘 다 인연으로 함께 읽는다.
+ * - 전통 명리는 성별에 따라 재성/관성 가운데 하나를 배우자를 뜻하는 글자로 읽지만, 여기서는 둘 다 인연으로 함께 읽고 본문에서 그 점을 밝힌다.
  * - chart.input.gender 와 엔진의 scores.love(성별로 계산한다)는 쓰지 않고, 인연·약속 점수를 따로 매긴다.
  * - 대운은 성별로 방향이 바뀌므로 요약(summary)과 10년 흐름(decade) 장에서만 쓴다. 나머지 장은 성별과 무관하게 같다.
+ *   그래서 10년 흐름 장의 대운 문장은 용어 기록을 갈라(fork) 써서, 뒤 장에서 용어 뜻을 붙일지가 성별에 따라 달라지지 않게 한다.
  */
 import {
   BRANCHES,
@@ -35,10 +36,10 @@ import type { ReadingSection } from '@saju/shared';
 import { LOVE_REPORT as C, type DayBranchRelation, type LoveYearSignal } from './content/loveReport.js';
 import { displayName, nameSubject } from './content/plain.js';
 import { targetFortuneYear } from './reading.js';
-import { EL_TERM, EL_WORD, GROUPS, gradeWord, groupCount, listPp, monthsText, pp, prt, scoreBand, seasonOf, stemTerm, yearsText } from './topicReportKit.js';
+import { EL_NAME, EL_TERM, GROUPS, gradeWord, groupCount, listPp, monthsText, pp, prt, ro, scoreBand, seasonOf, stemName, stemTerm, termTracker, yearsText } from './topicReportKit.js';
 
 const POSITION_TERM: Record<PillarPosition, string> = { year: '년주', month: '월주', day: '일주', hour: '시주' };
-/** 관계를 차분히 다음 단계로 옮기기 좋은 12운성 */
+/** 관계를 차분히 다음 단계로 옮기기 좋은 12운성(달빛사주 기준) */
 const STEADY: TwelveStage[] = ['관대', '건록', '제왕', '쇠'];
 const SIGNAL_ORDER: LoveYearSignal[] = ['combine', 'stemCombine', 'dohwa', 'half', 'trine', 'jae', 'gwan', 'proper', 'siksang', 'steady', 'clash', 'punish', 'wonjin', 'harmBreak'];
 const POSITIVE: LoveYearSignal[] = ['combine', 'half', 'trine', 'stemCombine', 'dohwa', 'jae', 'gwan', 'proper', 'siksang', 'steady'];
@@ -62,7 +63,7 @@ interface LoveYear {
   branchTenGod: TenGod;
   stage: TwelveStage;
   total: number;
-  /** 그해 천간이 균형을 흔드는 기운(기신)인가 — 마음이 쉽게 지치는 해 */
+  /** 그해 천간이 용신을 극하는 기운(기신)인가 — 마음이 쉽게 지치는 해 */
   gisin: boolean;
   signals: LoveYearSignal[];
   /** 인연 — 새 만남·설렘·관계가 깊어지는 기운 */
@@ -71,7 +72,7 @@ interface LoveYear {
   bond: number;
 }
 
-/** 한 해의 인연·약속 점수 — 성별을 쓰지 않는다(엔진의 scores.love 대신 총운 + 일지·일간 관계 + 인연의 별) */
+/** 한 해의 인연·약속 점수(달빛사주 기준) — 성별을 쓰지 않는다(엔진의 scores.love 대신 총운 + 일지·일간 관계 + 재성·관성) */
 function loveYear(chart: SajuChart, year: number): LoveYear {
   const ev = evaluateFortune(chart, yearPillarOf(year), `love-${year}`);
   const p = ev.pillar;
@@ -197,8 +198,11 @@ function dayBranchRelations(chart: SajuChart): { type: DayBranchRelation; positi
 
 export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: string | null): ReadingSection[] {
   const name = displayName(rawName);
+  /** 용어 — 리포트에서 처음 부를 때만 뜻을 붙인다 */
+  const t = termTracker();
+  const el = (e: keyof typeof EL_NAME, a?: string, b?: string) => t(EL_NAME[e], a, b);
   const stem = C.stem[chart.dayMaster.index]!;
-  const stemName = stemTerm(chart);
+  const stemTermText = stemTerm(chart);
   const day = chart.pillars.day;
   const db = day.branch;
   const dbEl = db.element;
@@ -229,7 +233,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
   const seasonMonth = (bestMonths.find((m) => m.year === best.year) ?? bestMonths[0]!).month;
   const daeunNow = chart.daeun.periods.find((p) => start >= p.startYear && start <= p.endYear);
 
-  // ── 1. 요약 ────────────────────────────────────────────────
+  // ── 1. 요약 — 한눈에 보는 카드라 용어 없이 쓴다(용어는 각 장에서 처음 나올 때 풀이) ──
   const partner = C.partner[y.yongsin];
   const timing =
     best.year === bestBond.year
@@ -242,21 +246,21 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
     keywords: [stem.chip, partner.chip, `새 인연 ${best.year}년`, `관계 다지기 ${bestBond.year}년`],
     paragraphs: [
       `${nameSubject(name, '은')}${stem.lead}`,
-      `${nameSubject(name, '에게')}잘 맞는 사람은 ${pp(partner.short, '이에요', '예요')}. 성별이나 조건이 아니라 이런 기질을 가진 사람 곁에서 마음이 편해져요.`,
-      `${timing}${daeunNow ? ` 10년마다 바뀌는 큰 흐름으로 보면, 지금은 ${pp(C.decade.daeunShort[TEN_GOD_GROUP[daeunNow.stemTenGod]], '이에요', '예요')}.` : ''}`,
-      `조심하면 좋은 점은 하나예요. ${stem.caution[0]} ${stem.caution[1]}`,
+      `${nameSubject(name, '에게')}잘 맞는 사람은 ${pp(partner.short, '이에요', '예요')}. 성별이나 조건이 아니라 기질을 기준으로 본 결과입니다.`,
+      `${timing}${daeunNow ? ` 10년 단위의 큰 흐름으로 보면, 지금은 ${pp(C.decade.daeunShort[TEN_GOD_GROUP[daeunNow.stemTenGod]], '이에요', '예요')}.` : ''}`,
+      `관계에서 유의할 점을 하나 꼽자면 이렇습니다. ${stem.caution[0]} ${stem.caution[1]}`,
       C.howToRead,
       C.whereToStart,
     ],
     basis: [
-      `일간 ${stemName}`,
+      `일간 ${stemTermText}`,
       `일지(배우자 자리) ${db.hanja} ${db.tenGod}`,
       `인연의 별 재성 ${g.재성}·관성 ${g.관성}`,
       `용신 ${EL_TERM[y.yongsin]}`,
       `인연 최고 ${best.year} ${best.hanja}(${best.love}점)`,
       `약속 최고 ${bestBond.year} ${bestBond.hanja}(${bestBond.bond}점)`,
       ...(daeunNow ? [`지금 대운 ${daeunNow.ganzhi.hanja}(${daeunNow.stemTenGod})`] : []),
-      '전통 명리는 성별에 따라 재성·관성 가운데 하나를 배우자의 별로 읽지만, 이 리포트는 둘 다 인연으로 함께 읽어요',
+      '점수는 달빛사주 기준 · 전통 명리는 성별에 따라 재성·관성 가운데 하나를 배우자의 별로 읽지만, 이 리포트는 둘 다 인연으로 함께 읽어요',
     ].join(' · '),
   };
 
@@ -266,7 +270,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
     title: '사랑할 때의 나',
     summary: stem.headline,
     paragraphs: [
-      `${nameSubject(name, '은')}${stem.style}`,
+      `${t('일간', '이', '가')} ${stemName(chart)}인 ${name ? `${name}님은` : '사람은'} ${stem.style}`,
       stem.attracted,
       `${stem.expression} ${stem.scene}`,
       stem.dateStyle,
@@ -276,7 +280,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
       stem.growth,
       `가까운 사람이 알아 두면 좋은 점도 있어요. ${stem.partnerNote}`,
     ],
-    basis: `일간 ${stemName} · ${chart.dayMaster.yinYang === 'yang' ? '양간 — 먼저 다가가는 쪽' : '음간 — 반응을 살피며 다가가는 쪽'}`,
+    basis: `일간 ${stemTermText} · ${chart.dayMaster.yinYang === 'yang' ? '양간 — 먼저 다가가는 쪽' : '음간 — 반응을 살피며 다가가는 쪽'}`,
   };
 
   // ── 3. 가까운 사이에서의 나 ──────────────────────────────
@@ -286,7 +290,8 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
     title: '가까운 사이에서의 나',
     summary: palace.headline,
     paragraphs: [
-      `${nameSubject(name, '은')}가까운 사이가 되면 ${palace.text} ${palace.hurt}`,
+      `${t('일지', '은', '는')} 전통적으로 '배우자 자리'라고 부르는 곳으로, 이 리포트에서는 연인과 배우자를 가리지 않고 가까운 관계에서의 모습으로 읽어요. ${nameSubject(name, '의')}일지에는 ${t(db.tenGod, '이', '가')} 놓여 있어요.`,
+      `가까운 사이가 되면 ${palace.text} ${palace.hurt}`,
       C.palace.element[dbEl],
       C.palace.branch[db.index]!,
       C.palace.stage[db.twelveStage],
@@ -298,28 +303,42 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
   };
 
   // ── 4. 관계를 움직이는 마음 ──────────────────────────────
-  const absent = GROUPS.filter((k) => g[k] === 0 && k !== dominant);
+  // 재성·관성이 없는 것은 인연 문단(starText)이 말하므로 '없는 무리' 목록에서 뺀다
+  const absent = GROUPS.filter((k) => g[k] === 0 && k !== dominant && k !== '재성' && k !== '관성');
   const second = GROUPS.filter((k) => k !== dominant).reduce((b, k) => (g[k] > g[b] ? k : b), GROUPS.find((k) => k !== dominant)!);
   /** 인연의 별(재성·관성)이 천간이나 지지에 놓인 기둥 */
-  const isStar = (t: string) => t !== '일간' && (TEN_GOD_GROUP[t as TenGod] === '재성' || TEN_GOD_GROUP[t as TenGod] === '관성');
+  const isStar = (tg: string) => tg !== '일간' && (TEN_GOD_GROUP[tg as TenGod] === '재성' || TEN_GOD_GROUP[tg as TenGod] === '관성');
   const starPositions = (['year', 'month', 'day', 'hour'] as const).filter((pos) => {
     const p = chart.pillars[pos];
     return p !== null && (isStar(p.stem.tenGod) || isStar(p.branch.tenGod));
   });
-  const starText = stars >= 4 ? C.stars.many : g.재성 > 0 && g.관성 > 0 ? C.stars.both : g.재성 > 0 ? C.stars.jaeOnly : g.관성 > 0 ? C.stars.gwanOnly : C.stars.none;
+  const groupName = C.group[dominant].name;
+  const tenGodBalanceParas = [
+    `${t('십성', '을', '를')} 다섯 무리로 묶어 보면, ${nameSubject(name, '의')}사주에서 가장 많은 것은 ${t(dominant)}입니다. 연애에서는 '${ro(`${groupName}'`)} 나타난다고 봐요. ${C.group[dominant].strong}`,
+    C.group[dominant].overdo,
+    // 두 번째 무리가 재성·관성이면 아래 인연 이야기와 겹치니 말하지 않는다
+    ...(g[second] > 0 && second !== '재성' && second !== '관성' ? [`두 번째로 많은 무리는 ${t(second)}입니다. ${C.group[second].support}`] : []),
+  ];
+  const starText =
+    stars >= 4
+      ? C.stars.many
+      : g.재성 > 0 && g.관성 > 0
+        ? C.stars.both
+        : g.재성 > 0
+          ? `${C.stars.jaeOnly} ${C.group.관성.absent}`
+          : g.관성 > 0
+            ? `${C.stars.gwanOnly} ${C.group.재성.absent}`
+            : C.stars.none;
+  tenGodBalanceParas.push(
+    `전통 명리학에서는 성별에 따라 ${t('재성', '이나', '나')} ${t('관성', '을', '를')} 배우자를 뜻하는 글자로 봅니다. 이 리포트는 성별을 정하지 않고 두 무리를 함께 인연의 기운으로 읽어요. ${starText}`,
+    ...(starPositions.length >= 3 ? [C.starEverywhere] : starPositions.length ? [`재성·관성이 놓인 기둥으로 보면, 인연은 ${starPositions.map((p) => C.starPosition[p]).join(', 또는 ')} 닿기 쉬워요.`] : []),
+    ...absent.slice(0, 2).map((k, i) => (i === 0 ? `반대로 ${t(k, '이', '가')} 없어 ${C.group[k].absent}` : `${t(k, '도', '도')} 없어 ${C.group[k].absent}`)),
+  );
   const tenGodBalance: ReadingSection = {
     key: 'tenGodBalance',
     title: '관계를 움직이는 마음',
-    summary: `'${C.group[dominant].name}'${prt(C.group[dominant].name, '이', '가')} 관계를 이끌어요`,
-    paragraphs: [
-      `${nameSubject(name, '의')}관계를 가장 크게 움직이는 건 '${C.group[dominant].name}'이에요. ${C.group[dominant].strong}`,
-      C.group[dominant].overdo,
-      // 두 번째 마음이 인연의 별(재성·관성)이면 아래 인연 이야기와 겹치니 말하지 않는다
-      ...(g[second] > 0 && second !== '재성' && second !== '관성' ? [C.group[second].support] : []),
-      starText,
-      ...(starPositions.length >= 3 ? [C.starEverywhere] : starPositions.length ? [`인연은 ${starPositions.map((p) => C.starPosition[p]).join(', 또는 ')} 닿기 쉬워요.`] : []),
-      ...absent.slice(0, 2).map((k, i) => (i === 0 ? `반대로 ${C.group[k].absent}` : C.group[k].absent)),
-    ],
+    summary: `'${groupName}'${prt(groupName, '이', '가')} 관계를 이끌어요`,
+    paragraphs: tenGodBalanceParas,
     tips: [C.group[dominant].tip],
     basis: `십성 ${groupsTerm} · 인연의 별(재성·관성) ${stars}개${starPositions.length ? `, 놓인 자리 ${starPositions.map((p) => POSITION_TERM[p]).join('·')}` : ''}`,
   };
@@ -330,10 +349,13 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
   const charmParas: string[] = [];
   if (hasDohwa) {
     const ps = (['year', 'month', 'day', 'hour'] as const).filter((p) => shinsal.get('도화살')!.has(p));
-    charmParas.push(`${C.attraction.dohwa} ${C.attraction.dohwaAt[ps[0]!]}`);
+    charmParas.push(`사주에 ${t('도화', '이', '가')} 있어요. ${C.attraction.dohwa} 특히 도화가 ${C.attraction.dohwaAt[ps[0]!]}`);
   }
-  if (hasHongyeom) charmParas.push(C.attraction.hongyeom);
+  if (hasHongyeom) charmParas.push(`${hasDohwa ? t('홍염', '도', '도') : `사주에 ${t('홍염', '이', '가')}`} 있어요. ${C.attraction.hongyeom}`);
   if (hasDohwa && hasHongyeom) charmParas.push(C.attraction.both);
+  // 매력 신살이 있으면 끝의 안내 문단이 신살이 무엇인지 말한다
+  const charmIntro = charmParas.length ? [...charmParas, C.attraction.tip] : [`도화·홍염처럼 매력과 관련된 ${t('신살', '은', '는')} 사주에 없어요. ${C.attraction.quiet}`];
+  if (charmParas.length) t.mark('신살');
   const dohwaYears = years.filter((x) => x.signals.includes('dohwa'));
   const dmEl = chart.dayMaster.element;
   const domEl = chart.elements.dominant;
@@ -342,13 +364,13 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
     title: '끌림과 매력',
     summary: hasDohwa || hasHongyeom ? '처음 만난 사람에게도 호감을 사기 쉬워요' : '오래 볼수록 호감을 사는 편이에요',
     paragraphs: [
-      ...(charmParas.length ? [...charmParas, C.attraction.tip] : [C.attraction.quiet]),
-      `${C.attraction.firstImpression[dmEl]} ${C.attraction.moment[dmEl]}`,
+      ...charmIntro,
+      `일간의 오행이 ${el(dmEl, '이라', '라')} ${C.attraction.firstImpression[dmEl]} ${C.attraction.moment[dmEl]}`,
       // 첫인상과 같은 기운이면 같은 말을 되풀이하지 않고 살리는 법만
-      domEl === dmEl ? C.attraction.charmTip[domEl] : `${C.attraction.charm[domEl]} ${C.attraction.charmTip[domEl]}`,
+      domEl === dmEl ? C.attraction.charmTip[domEl] : `사주에서 가장 강한 오행은 ${el(domEl, '이에요', '예요')}. ${C.attraction.charm[domEl]} ${C.attraction.charmTip[domEl]}`,
       `${C.attraction.fire[fireBand]} ${C.attraction.siksang[g.식상 >= 3 ? 'many' : g.식상 > 0 ? 'some' : 'none']}`,
       C.attraction.style[y.yongsin],
-      ...(dohwaYears.length ? [`앞으로 10년 가운데 ${yearsText(dohwaYears.map((x) => x.year))}에는 ${C.attraction.dohwaYears}`] : []),
+      ...(dohwaYears.length ? [`앞으로 10년 가운데 ${yearsText(dohwaYears.map((x) => x.year))}에는 그해의 운에 ${t('도화', '이', '가')} 들어와 ${C.attraction.dohwaYears}`] : []),
     ],
     basis: [
       hasDohwa ? `도화살(${[...shinsal.get('도화살')!].map((p) => POSITION_TERM[p]).join('·')})` : '도화살 없음',
@@ -363,22 +385,25 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
 
   // ── 6. 나에게 맞는 사람 ──────────────────────────────────
   const comboBranch = BRANCHES.find((b) => b.index !== db.index && sixCombine(db.index, b.index) !== null);
-  const lacking = chart.elements.lacking.filter((el) => el !== y.yongsin);
+  const lacking = chart.elements.lacking.filter((e) => e !== y.yongsin);
+  const ys = EL_NAME[y.yongsin];
   const idealPartner: ReadingSection = {
     key: 'idealPartner',
     title: '나에게 맞는 사람',
     summary: `${partner.chip} 곁에서 힘이 나요`,
     paragraphs: [
-      `${nameSubject(name, '에게')}힘이 되는 사람은 ${pp(partner.temperament, '이에요', '예요')}. ${partner.why} 사주에서는 이런 사람을 '${EL_WORD[y.yongsin]} 기운'이 살아 있는 사람이라고 해요.`,
-      `처음 만났을 때 알아보는 법도 있어요. ${partner.spot}`,
+      `${nameSubject(name, '의')}${t('용신', '은', '는')} ${el(y.yongsin)}입니다. 그래서 ${ys}의 성향을 지닌 사람, 곧 ${pp(partner.temperament, '이', '가')} 힘이 된다고 봐요. ${partner.why}`,
+      `이런 사람은 처음 만났을 때도 알아볼 수 있어요. ${partner.spot}`,
       `${partner.together} ${C.partnerGive[dmEl]}`,
       `주로 ${partner.meet}`,
-      C.heesin[y.heesin],
-      C.partnerStrength[level],
+      `${t('희신')}인 ${el(y.heesin)}의 성향으로 보면, ${C.heesin[y.heesin]}`,
+      `${t('신강·신약', '으로')} 보면 ${level}에 해당해요. 이 단계는 달빛사주가 일간을 돕는 기운의 비중으로 나눈 것입니다. ${C.partnerStrength[level]}`,
       // 손발이 맞는 기질이 지치게 하는 기질과 같은 기운이면 서로 어긋나 보이니 말하지 않는다
-      ...(comboBranch && comboBranch.element !== y.gisin ? [`특히 ${C.combineTemperament[comboBranch.element]} 사람과는 함께 있을 때 자연스럽게 손발이 맞기 쉬워요.`] : []),
-      ...(lacking.length ? [`나와 다른 사람에게 끌리는 것도 자연스러운 일이에요. ${listPp(lacking.map((el) => C.complement[el]), '을', '를')} 가진 사람 곁에서는 그 점을 보고 배우기 쉬워요.`] : []),
-      `반대로 ${C.partnerCaution[y.gisin]}에서는 마음이 빨리 지치는 편이에요. 사람이 나빠서가 아니라 서로 편한 방식이 달라서 그래요. 이런 일이 되풀이되면 만나는 횟수와 거리를 조절해 보세요.`,
+      ...(comboBranch && comboBranch.element !== y.gisin ? [`일지와 ${t('육합', '을', '를')} 이루는 글자의 오행으로 보면, 특히 ${C.combineTemperament[comboBranch.element]} 사람과는 자연스럽게 손발이 맞기 쉬워요.`] : []),
+      ...(lacking.length
+        ? [`나와 다른 사람에게 끌리는 것도 자연스러운 일이에요. 사주 글자에 없는 오행인 ${lacking.map((e) => el(e)).join('·')}의 성향, 곧 ${listPp(lacking.map((e) => C.complement[e]), '을', '를')} 가진 사람 곁에서는 그 점을 보고 배우기 쉬워요.`]
+        : []),
+      `반대로 ${t('기신')}인 ${el(y.gisin)}의 기운이 지나친 관계에서는 쉽게 지칠 수 있다고 봐요. 예를 들면 ${pp(C.partnerCaution[y.gisin], '이에요', '예요')}. 상대가 잘못해서라기보다 서로 편한 방식이 다르기 때문이니, 이런 일이 되풀이되면 만나는 횟수와 거리를 조절하는 것도 방법입니다.`,
       C.partnerNote,
     ],
     basis: [
@@ -387,7 +412,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
       `기신 ${EL_TERM[y.gisin]}`,
       `일간의 힘 ${level}`,
       ...(comboBranch ? [`일지 ${db.hanja}(${db.hangul})${prt(db.hangul, '과', '와')} 육합하는 ${comboBranch.hanja}(${comboBranch.hangul}, ${EL_TERM[comboBranch.element]})`] : []),
-      ...(lacking.length ? [`원국에 없는 오행 ${lacking.map((el) => EL_TERM[el]).join('·')}`] : []),
+      ...(lacking.length ? [`원국에 없는 오행 ${lacking.map((e) => EL_TERM[e]).join('·')}`] : []),
     ].join(' · '),
   };
 
@@ -407,7 +432,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
       C.rhythm[dbEl],
       give >= receive + 2 ? C.giveReceive.give : receive >= give + 2 ? C.giveReceive.receive : C.giveReceive.even,
     ],
-    basis: `일간의 힘 ${level}(돕는 기운 ${Math.round(chart.strength.score)}%) · 가장 많은 십성 ${dominant} · 일지 오행 ${EL_TERM[dbEl]} · 주는 기운(식상+재성) ${give} · 받는 기운(인성) ${receive}`,
+    basis: `일간의 힘 ${level}(돕는 기운 ${Math.round(chart.strength.score)}%, 달빛사주 기준) · 가장 많은 십성 ${dominant} · 일지 오행 ${EL_TERM[dbEl]} · 주는 기운(식상+재성) ${give} · 받는 기운(인성) ${receive}`,
   };
 
   // ── 8. 부딪히기 쉬운 지점 ────────────────────────────────
@@ -419,26 +444,27 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
   const tiredYears = years.filter((x) => x.gisin);
   const frictionParas: string[] = [];
   if (rels.length) {
-    frictionParas.push(`${pp(places, '과', '와')} 사랑 사이를 조금 더 챙기면 좋아요. ${C.friction.intro}`);
-    let prevWhere = '';
+    frictionParas.push(C.friction.intro);
+    let prevPos = '';
     for (const r of rels) {
-      const where = whereOf(r.positions);
-      // 같은 자리가 이어지면 "또"로 잇는다 — "가족과 사랑 사이에는 … 가족과 사랑 사이에는 …" 되풀이를 줄인다
-      frictionParas.push(`${pp(where, '과', '와')} 사랑 사이에는 ${where === prevWhere ? '또 ' : ''}${C.friction.branch[r.type].text}`);
-      prevWhere = where;
+      const pos = r.positions.map((p) => POSITION_TERM[p]).join('·');
+      // 같은 기둥이 이어지면 "…와는 ○○도 이뤄요"로 잇는다
+      const head = pos === prevPos ? `${pos}와는 ${t(r.type, '도', '도')} 이뤄요.` : `${pos}와는 ${t(r.type, '을', '를')} 이뤄요.`;
+      frictionParas.push(`${head} ${pp(whereOf(r.positions), '과', '와')} 연애 사이에서 ${C.friction.branch[r.type].text}`);
+      prevPos = pos;
     }
   } else {
     frictionParas.push(C.friction.calm);
   }
-  if (stemRels.some((r) => r.type === '천간합')) frictionParas.push(C.friction.stemCombine);
-  if (stemRels.some((r) => r.type === '천간충')) frictionParas.push(C.friction.stemClash);
-  if (shinsal.has('귀문관살')) frictionParas.push(C.friction.gwimun);
+  if (stemRels.some((r) => r.type === '천간합')) frictionParas.push(`일간이 다른 천간과 ${t('천간합', '을', '를')} 이뤄, ${C.friction.stemCombine}`);
+  if (stemRels.some((r) => r.type === '천간충')) frictionParas.push(`일간이 다른 천간과 ${t('천간충', '을', '를')} 이뤄, ${C.friction.stemClash}`);
+  if (shinsal.has('귀문관살')) frictionParas.push(`${t('귀문관살', '이', '가')} 있어 ${C.friction.gwimun}`);
   frictionParas.push(C.friction.seed[dominant], C.friction.repair[dmEl], C.friction.recover[level]);
-  if (tiredYears.length) frictionParas.push(`앞으로 10년 가운데 ${yearsText(tiredYears.map((x) => x.year))}에는 ${C.friction.tired}`);
+  if (tiredYears.length) frictionParas.push(`앞으로 10년 가운데 ${yearsText(tiredYears.map((x) => x.year))}에는 그해의 운에 ${t('기신')}의 기운이 들어와 ${C.friction.tired}`);
   const friction: ReadingSection = {
     key: 'friction',
     title: '부딪히기 쉬운 지점',
-    summary: rels.length ? `${pp(places, '과', '와')} 사랑이 서로 영향을 주기 쉬워요` : C.friction.calmSummary,
+    summary: rels.length ? `${pp(places, '과', '와')} 연애가 서로 영향을 주고받기 쉬워요` : C.friction.calmSummary,
     paragraphs: frictionParas,
     tips: rels.length ? rels.map((r) => C.friction.branch[r.type].tip).filter((v, i, a) => a.indexOf(v) === i) : undefined,
     basis: [
@@ -452,6 +478,10 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
   };
 
   // ── 9. 앞으로 10년 ───────────────────────────────────────
+  // 장 첫 문단(C.decade.intro)이 세운·대운의 뜻을 말한다 — 성별과 무관한 고정 문장이라 바로 기록한다
+  t.mark('세운', '대운');
+  // 대운 문단은 성별에 따라 달라지므로 갈라 쓴 기록으로 — 뒤 장의 글이 성별에 따라 바뀌지 않게
+  const td = t.fork();
   // 해·파는 작은 어긋남이라 '변화가 생기는 해' 목록에는 넣지 않는다(목록 줄과 근거에만)
   const told = new Map<number, LoveYearSignal[]>();
   const changeYears = years.filter((x) => x.signals.some((s) => CHANGE.includes(s) && s !== 'harmBreak'));
@@ -474,23 +504,29 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
     summary: `새 인연은 ${topLove.map((x) => x.year).join('·')}년, 관계 다지기는 ${topBond.map((x) => x.year).join('·')}년이 좋아요`,
     keywords: [...topLove.map((x) => `새 인연 ${x.year}`), ...topBond.map((x) => `관계 다지기 ${x.year}`)],
     paragraphs: [
+      C.decade.intro,
       `새로운 인연이나 설렘이 커지기 쉬운 해는 ${yearsText(topLove.map((x) => x.year))}이에요. ${reasonSentences(topLove, 'love', told)} 가장 좋은 ${best.year}년에는 ${monthsText(best.year, bestMonths)} 무렵을 특히 눈여겨보세요.`,
       `결혼이나 함께 사는 약속처럼 관계를 한 단계 진지하게 생각한다면, ${yearsText(topBond.map((x) => x.year))}에 이야기를 꺼내 보기 좋아요. ${reasonSentences(topBond, 'bond', told)}`,
-      C.decade.intro,
       ...years.map(yearLine),
-      ...(changeYears.length ? [`${yearsText(changeYears.map((x) => x.year))}에는 가까운 관계에 작은 변화가 생기기 쉬워요. ${C.decade.change}`] : []),
+      ...(changeYears.length
+        ? [`${yearsText(changeYears.map((x) => x.year))}에는 그해의 지지가 일지와 대립하거나 마찰을 일으키는 관계(충·형·원진)를 이뤄, 가까운 관계에 작은 변화가 생기기 쉬워요. ${C.decade.change}`]
+        : []),
       `${pp(yearsText(lowLove.map((x) => x.year)), '은', '는')} 새 인연의 흐름이 잔잔한 해예요. ${C.decade.low}`,
       ...periods.map((p, i) => {
         const grp = TEN_GOD_GROUP[p.stemTenGod];
-        const head = i === 0 ? `10년마다 바뀌는 큰 흐름으로 보면, ${p.startYear}년부터 ${p.endYear}년까지는` : `${p.startYear}년부터 ${p.endYear}년까지는`;
+        const head = i === 0 ? `대운으로 보면, ${p.startYear}년부터 ${p.endYear}년까지는` : `${p.startYear}년부터 ${p.endYear}년까지는`;
         // 이어지는 두 흐름이 같은 무리면 설명은 한 번만
-        return sameGroupAsPrev(i) ? `${head} 앞의 10년과 비슷한 흐름이 이어져요.` : `${head} ${C.decade.daeun[grp]} ${C.decade.daeunSingle[grp]} ${C.decade.daeunTip[grp]}`;
+        return sameGroupAsPrev(i)
+          ? `${head} 앞의 10년과 비슷한 흐름이 이어져요.`
+          : `${head} 대운의 천간이 ${td(grp, '에', '에')} 해당해, ${C.decade.daeun[grp]} ${C.decade.daeunSingle[grp]} ${C.decade.daeunTip[grp]}`;
       }),
-      ...(shift && !sameGroupAsPrev(periods.indexOf(shift)) ? [`${shift.startYear}년에 이 큰 흐름이 바뀌어요. ${C.decade.shift}`] : []),
+      ...(shift && !sameGroupAsPrev(periods.indexOf(shift)) ? [`${shift.startYear}년에 대운이 바뀌어요. ${C.decade.shift}`] : []),
+      ...(periods.length ? [C.decade.daeunNote] : []),
     ],
     basis: [
       ...years.map((x) => `${x.year} ${x.hanja} 인연 ${x.love}·약속 ${x.bond}${x.signals.length ? `(${x.signals.map((s) => SIGNAL_TERM[s]).join(', ')})` : ''}`),
       ...periods.map((p) => `대운 ${p.startYear}~${p.endYear} ${p.ganzhi.hanja}(${p.stemTenGod}·${p.branchTenGod})`),
+      '인연·약속 점수와 등급은 달빛사주 기준',
     ].join(' · '),
   };
 
@@ -500,7 +536,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
   const actionSeen = new Map<TenGodGroup, number>();
   const shownSignals = new Set<LoveYearSignal>();
   const bestThree = topBy(three, 'love', 1)[0]!;
-  const threeParas: string[] = [`가까운 3년 가운데 새 인연을 만나기 가장 좋은 해는 ${bestThree.year}년이에요. 한 해씩 짚어 볼게요.`];
+  const threeParas: string[] = [`가까운 3년 가운데 새 인연을 만나기 가장 좋은 해는 ${bestThree.year}년이에요. 해마다 세운의 천간에 들어오는 십성을 중심으로 한 해씩 살펴볼게요.`];
   const threeTips: string[] = [];
   for (const x of three) {
     const b = scoreBand(x.love);
@@ -515,7 +551,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
     actionSeen.set(grp, actionIdx + 1);
     threeParas.push(
       `${x.year}년 · 새 인연 ${word(x.love)} · 관계 다지기 ${word(x.bond)}`,
-      `${x.year}년은 ${C.yearLove[x.stemTenGod]}`,
+      `${x.year}년은 세운의 천간이 ${t(x.stemTenGod, '이라', '라')} ${C.yearLove[x.stemTenGod]}`,
       ...(x.branchTenGod !== x.stemTenGod ? [`생활 속에서는 ${C.yearBase[x.branchTenGod]}`] : []),
       ...(texts.length ? [texts.map((s) => C.signal[s].text).join(' ')] : []),
       `${x.year}년 안에서는 ${monthsText(x.year, bestLoveMonths(chart, x.year))} 무렵에 마음을 전하거나 중요한 이야기를 꺼내기 좋아요.`,
@@ -546,7 +582,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
     title: '관계를 위한 실천',
     summary: C.advice.summary[y.yongsin],
     paragraphs: [
-      `${nameSubject(name, '에게')}잘 맞는 데이트는 ${C.advice.date[y.yongsin]}`,
+      `용신인 ${ys}의 성향을 살리면, ${nameSubject(name, '에게')}잘 맞는 데이트는 ${C.advice.date[y.yongsin]}`,
       `${C.advice.bySituation[y.yongsin].single} ${C.advice.bySituation[y.yongsin].dating} ${C.advice.bySituation[y.yongsin].committed}`,
       C.advice.strength[level],
       C.advice.communication[dominant],
@@ -554,7 +590,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
       C.advice.ritual[dominant],
       C.advice.selfCare[y.yongsin],
       `내가 지쳤다는 신호도 알아 두세요. ${C.advice.tired[dmEl]} 이런 신호가 보이면 "요즘 좀 지쳤어"라고 먼저 알려 주세요. 상대가 내 상태를 알면 오해 대신 배려가 돌아와요.`,
-      `데이트 장소나 선물을 고를 때는 ${C.advice.color[y.yongsin]} 계열을 가볍게 곁들여 보세요. 이번 달에 해 볼 일 세 가지도 골라 두었어요.`,
+      `오행에는 저마다 상징하는 색이 있어, 용신인 ${pp(ys, '에는', '에는')} ${C.advice.color[y.yongsin]} 계열이 어울려요. 데이트 장소나 선물을 고를 때 가볍게 참고해 보세요. 이번 달에 실천할 일 세 가지는 아래에 정리했습니다.`,
     ],
     tips: ['고마운 점을 하루 한 가지씩 말로 전하기', C.advice.action[y.yongsin], '서운한 일은 일주일을 넘기지 않고 부드럽게 꺼내기'],
     basis: `용신 ${EL_TERM[y.yongsin]} · 일간의 힘 ${level} · 가장 많은 십성 ${dominant} · 일간 오행 ${EL_TERM[dmEl]}`,
@@ -570,4 +606,3 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
 
   return [summary, loveNature, spousePalace, tenGodBalance, attraction, idealPartner, pattern, friction, decade, threeYears, advice, closing];
 }
-
