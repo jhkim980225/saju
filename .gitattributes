@@ -1,0 +1,4 @@
+# 서버(Linux)에서 실행되는 파일은 항상 LF
+*.sh text eol=lf
+deploy/Caddyfile text eol=lf
+deploy/*.Dockerfile text eol=lf
