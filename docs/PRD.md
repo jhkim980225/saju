@@ -76,4 +76,4 @@
 - [ ] AdMob 실제 앱 ID·광고 단위로 교체 (현재 Google 테스트 ID)
 - [ ] 키 발급 후 실연동 확인: 카드 인증까지 실결제 1건, 소셜 로그인 4종, 푸시 수신, 보상형 광고 SSV 콜백
 - [ ] 타로: 스토어 소모성 상품 등록(`kr.dalbitsaju.tarot.question3`·`kr.dalbitsaju.tarot.love5`·`kr.dalbitsaju.tarot.choice3`·`kr.dalbitsaju.tarot.compat5`·`kr.dalbitsaju.tarot.celtic10`, Play 는 서버 ID 와 같은 `tarot_*`), KIPRIS 상표 확인('Rider-Waite' 미사용 유지), AI 생성 이미지·풀이 고지 문구 법무 확인
-- [ ] 띠·별자리 SEO: 웹은 SPA(서버 렌더링·사전 렌더링 없음)라 화면별 `<title>`·설명·canonical 은 JS 실행 후에만 바뀐다. 구글은 렌더링해 색인하지만 JS 를 덜 실행하는 크롤러(네이버 등)는 index.html 기본값만 볼 수 있다 → 출시 전 `/zodiac/*`·`/horoscope/*` 120개 URL 사전 렌더링(빌드 시 정적 HTML) 또는 nginx 봇 분기, `sitemap.xml`·`robots.txt`(운영 도메인 확정 후), 네이버 서치어드바이저 등록 검토. AdSense `web_content_mid` 슬롯 키(`VITE_ADSENSE_SLOT_CONTENT_MID`·`VITE_ADFIT_UNIT_CONTENT_MID`) 발급
+- [x] 띠·별자리·꿈해몽 SEO (2026-10-19): 빌드 뒤 `apps/web/scripts/prerender.mts` 가 466개 화면(띠 60·별자리 60·꿈 337·안내 9)의 제목·설명·canonical·og 가 든 정적 `dist/<경로>/index.html` 과 `sitemap.xml`·`robots.txt` 를 만든다(주소 기준 `PUBLIC_WEB_URL`, docker-compose 빌드 인자). 본문은 JS 가 그린다. 남은 것: 운영 도메인 확정 후 네이버 서치어드바이저·구글 서치콘솔에 sitemap 등록. AdSense `web_content_mid` 슬롯 키(`VITE_ADSENSE_SLOT_CONTENT_MID`·`VITE_ADFIT_UNIT_CONTENT_MID`) 발급

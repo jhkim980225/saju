@@ -13,7 +13,11 @@ services:
     volumes: [api-data:/data]
     restart: unless-stopped
   web:
-    build: { context: ., dockerfile: deploy/web.Dockerfile }
+    build:
+      context: .
+      dockerfile: deploy/web.Dockerfile
+      # 사전 렌더링·sitemap 의 대표 주소 — api 의 PUBLIC_WEB_URL 과 같은 값
+      args: { PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-http://localhost:8080} }
     ports: ["8080:80"]
     depends_on: [api]
     restart: unless-stopped
