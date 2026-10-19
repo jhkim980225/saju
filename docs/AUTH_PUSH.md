@@ -180,6 +180,16 @@ VITE_FIREBASE_VAPID_KEY=        # 클라우드 메시징 → 웹 푸시 인증�
    - **같은 이메일을 쓰는 다른 계정**이 있으면 새 소셜 계정의 이메일을 비워 둡니다. 계정을 자동으로 합치지 않습니다.
    - 게스트 토큰 없이 로그인하면 새 회원이 만들어집니다.
 
+### 이메일 계정의 비밀번호 재설정 · 변경
+
+이메일로 가입한 계정(`provider=email`)만 해당하며, 소셜·게스트 계정은 변경 API 가 400 을 돌려줍니다. 메일은 Resend HTTPS API 를 fetch 로 호출하고(`apps/api/src/modules/mail/service.ts`), `RESEND_API_KEY`·`MAIL_FROM` 이 없으면 `POST /auth/password/forgot` 가 501 을 돌려주므로 웹은 `GET /config` 의 `features.mail=false` 를 보고 폼 대신 `supportEmail` 문의 안내를 보여 줍니다.
+
+1. **찾기** — 로그인 화면의 "비밀번호를 잊으셨나요?" → `/password/forgot` 에서 이메일 입력 → `POST /auth/password/forgot { email }`. 서버는 **가입 여부와 관계없이 200** 을 돌려주고(계정 유무 비노출), 이메일 계정일 때만 32바이트 난수 토큰을 만들어 sha256 해시를 `password_resets` 에 저장(만료 30분, 같은 사용자의 이전 미사용 토큰은 삭제)한 뒤 `{PUBLIC_WEB_URL}/password/reset?token=…` 링크를 메일로 보냅니다. 제목은 "달빛사주 비밀번호 재설정"이고, 본문은 30분 안에 링크를 누르라는 안내와 본인이 요청하지 않았으면 무시하라는 문장을 담습니다.
+2. **재설정** — `/password/reset?token=` 에서 새 비밀번호 입력 → `POST /auth/password/reset { token, password }`. 유효·미만료·미사용 토큰이면 비밀번호 해시를 바꾸고 토큰에 `usedAt` 을 기록하며, **그 사용자의 refresh token 을 모두 폐기**해 다른 기기의 로그인도 끊습니다(이미 발급된 access token 은 만료까지 유효). 그 밖에는 400 "링크가 만료됐거나 이미 사용됐습니다. 다시 요청해 주세요."
+3. **변경** — 마이 > 비밀번호 변경(이메일 계정에만 보임) → `POST /auth/password/change { currentPassword, newPassword }`(로그인 필요). 현재 비밀번호를 확인한 뒤 바꾸고, 현재 세션은 그대로 둡니다.
+
+세 경로 모두 `AUTH_RATE_LIMIT_PER_MIN` 의 엄격 제한을 받습니다. 테스트 환경(`NODE_ENV=test`)에서는 메일을 보내지 않고 `mail.outbox` 에 쌓아 두므로 테스트가 본문에서 토큰을 읽습니다(`apps/api/test/password.test.ts`).
+
 ---
 
 ## 6. 푸시 알림 (FCM HTTP v1)

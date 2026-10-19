@@ -119,6 +119,24 @@ export type LoginDto = z.input<typeof loginSchema>;
 export const guestSchema = z.object({ deviceId: z.string().min(8).max(128).optional() });
 export const refreshSchema = z.object({ refreshToken: z.string().min(10) });
 
+/** 비밀번호 재설정 메일 요청 — 가입 여부와 관계없이 200 */
+export const forgotPasswordSchema = z.object({ email: z.email('올바른 이메일 주소를 입력해 주세요.').max(120) });
+export type ForgotPasswordDto = z.input<typeof forgotPasswordSchema>;
+
+/** 메일 링크의 토큰으로 새 비밀번호 설정 (규칙은 signupSchema 와 같게 8자 이상) */
+export const resetPasswordSchema = z.object({
+  token: z.string().min(16).max(256),
+  password: z.string().min(8, '비밀번호는 8자 이상이어야 해요.').max(72),
+});
+export type ResetPasswordDto = z.input<typeof resetPasswordSchema>;
+
+/** 로그인 상태에서 비밀번호 변경 (이메일 계정만) */
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, '현재 비밀번호를 입력해 주세요.'),
+  newPassword: z.string().min(8, '비밀번호는 8자 이상이어야 해요.').max(72),
+});
+export type ChangePasswordDto = z.input<typeof changePasswordSchema>;
+
 export const SOCIAL_PROVIDERS = ['kakao', 'naver', 'google', 'apple'] as const;
 export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number];
 export const oauthCallbackSchema = z.object({
@@ -755,6 +773,8 @@ export interface PublicConfigDto {
   ai: { enabled: boolean };
   ads: { enabled: boolean; provider: 'adsense' | 'adfit' | 'admob' | 'none' };
   features: Record<string, boolean>;
+  /** 고객 문의 주소 — 비밀번호 재설정 메일이 꺼져 있을 때 안내. 설정이 없으면 null */
+  supportEmail: string | null;
   notices: { id: string; title: string; body: string }[];
 }
 

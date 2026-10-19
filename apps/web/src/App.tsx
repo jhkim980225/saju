@@ -17,6 +17,8 @@ const AskPage = lazyPage(() => import('./pages/AskPage'), 'AskPage');
 const LoginPage = lazyPage(() => import('./pages/AuthPages'), 'LoginPage');
 const SignupPage = lazyPage(() => import('./pages/AuthPages'), 'SignupPage');
 const OAuthCallbackPage = lazyPage(() => import('./pages/AuthPages'), 'OAuthCallbackPage');
+const ForgotPasswordPage = lazyPage(() => import('./pages/PasswordPages'), 'ForgotPasswordPage');
+const ResetPasswordPage = lazyPage(() => import('./pages/PasswordPages'), 'ResetPasswordPage');
 const BirthFormPage = lazyPage(() => import('./pages/BirthFormPage'), 'BirthFormPage');
 const CompatibilityPage = lazyPage(() => import('./pages/CompatibilityPage'), 'CompatibilityPage');
 const ConfirmPage = lazyPage(() => import('./pages/ConfirmPage'), 'ConfirmPage');
@@ -115,6 +117,8 @@ export const routes = [
       { path: '/store', element: <StorePage /> },
       { path: '/login', element: <LoginPage /> },
       { path: '/signup', element: <SignupPage /> },
+      { path: '/password/forgot', element: <ForgotPasswordPage /> },
+      { path: '/password/reset', element: <ResetPasswordPage /> },
       { path: '/auth/callback/:provider', element: <OAuthCallbackPage /> },
       { path: '/payments/success', element: <PaymentSuccessPage /> },
       { path: '/payments/fail', element: <PaymentFailPage /> },

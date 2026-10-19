@@ -22,7 +22,7 @@ const schema = z.object({
   APP_NAME: z.string().default('달빛사주'),
   /** CORS 허용 오리진(콤마 구분). Capacitor 앱 오리진도 포함 */
   CORS_ORIGINS: z.string().default('http://localhost:5173,capacitor://localhost,http://localhost,https://localhost'),
-  /** 결제·소셜로그인 리다이렉트 기준이 되는 웹 주소 */
+  /** 결제·소셜로그인 리다이렉트, 비밀번호 재설정 메일 링크의 기준이 되는 웹 주소 */
   PUBLIC_WEB_URL: z.string().default('http://localhost:5173'),
   DATABASE_PATH: z.string().default('./data/saju.db'),
   JWT_ACCESS_SECRET: opt.transform((v) => v ?? 'dev-access-secret-change-me-please-32chars'),
@@ -110,6 +110,13 @@ const schema = z.object({
   /** 매일 08:00 KST 오늘의 운세 푸시 발송 (단일 인스턴스에서만 true) */
   DAILY_PUSH_ENABLED: bool,
 
+  // 메일 (Resend HTTPS API) — 비밀번호 재설정 링크 발송
+  RESEND_API_KEY: opt,
+  /** 발신자. 예: `달빛사주 <no-reply@dalbitsaju.kr>` (Resend 에 도메인 인증 필요) */
+  MAIL_FROM: opt,
+  /** 고객 문의 주소 — 메일 연동이 없을 때 비밀번호 찾기 화면에 안내 */
+  SUPPORT_EMAIL: opt,
+
   // 광고 (서버 주도 노출 제어)
   ADS_ENABLED: bool,
   ADS_PROVIDER: z.enum(['adsense', 'adfit', 'admob', 'none']).default('none'),
@@ -140,6 +147,8 @@ export type AppConfig = z.infer<typeof schema> & {
     google: boolean;
     apple: boolean;
     push: boolean;
+    /** 메일(Resend) — 비밀번호 재설정 링크 */
+    mail: boolean;
   };
 };
 
@@ -185,6 +194,7 @@ export function loadConfig(overrides: Record<string, string | undefined> = {}): 
       google: Boolean(c.GOOGLE_CLIENT_ID && c.GOOGLE_CLIENT_SECRET),
       apple: Boolean(c.APPLE_CLIENT_ID && c.APPLE_TEAM_ID && c.APPLE_KEY_ID && c.APPLE_PRIVATE_KEY),
       push: Boolean(c.FCM_PROJECT_ID && c.FCM_CLIENT_EMAIL && c.FCM_PRIVATE_KEY),
+      mail: Boolean(c.RESEND_API_KEY && c.MAIL_FROM),
     },
   };
 }

@@ -57,6 +57,10 @@ export default defineConfig({
         PUBLIC_WEB_URL: WEB_ORIGIN,
         PAYMENT_PROVIDER: 'mock',
         ANTHROPIC_API_KEY: '',
+        // 메일 연동 없음 → 비밀번호 찾기는 문의 안내 화면 (재설정 메일 흐름은 API 단위 테스트가 검증)
+        RESEND_API_KEY: '',
+        MAIL_FROM: '',
+        SUPPORT_EMAIL: 'help@dalbitsaju.test',
         // 테스트마다 게스트·회원을 새로 만들므로 같은 IP(localhost)의 요청 제한을 사실상 끈다
         RATE_LIMIT_PER_MIN: '100000',
         AUTH_RATE_LIMIT_PER_MIN: '100000',

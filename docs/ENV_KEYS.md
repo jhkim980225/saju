@@ -13,7 +13,7 @@
 |---|---|---|---|---|
 | `JWT_ACCESS_SECRET` | api | 액세스 토큰 서명 | `openssl rand -base64 48` (32자 이상) | 개발용 기본값 사용, **운영에서는 기동 실패** |
 | `JWT_REFRESH_SECRET` | api | 리프레시 토큰 | 위와 동일(다른 값) | 위와 동일 |
-| `PUBLIC_WEB_URL` | api | 결제·소셜로그인 리다이렉트 기준 주소 | 운영 웹 도메인 (https) | `http://localhost:5173` |
+| `PUBLIC_WEB_URL` | api | 결제·소셜로그인 리다이렉트, 비밀번호 재설정 메일 링크의 기준 주소 | 운영 웹 도메인 (https) | `http://localhost:5173` |
 | `CORS_ORIGINS` | api | 허용 오리진 | 웹 도메인 + `capacitor://localhost,https://localhost` | 로컬 기본값 |
 | `PAYMENT_PROVIDER` | api | 결제사 선택 | **`groble`**(2026-10-15 결정). 대안 `toss`·`portone` | `mock` — **운영에서는 기동 실패** |
 | `VITE_API_BASE_URL` | web | API 주소 | 운영 API 절대 주소 (앱 빌드는 필수) | 같은 출처 `/api/v1` |
@@ -68,7 +68,17 @@
 | `DAILY_PUSH_ENABLED` | api | 매일 08:00 KST 오늘의 운세 발송 (서버 1대에서만 true) | — |
 | `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`, `VITE_FIREBASE_VAPID_KEY` | web | 웹 푸시 토큰 발급 | Firebase 콘솔 > 웹 앱 / Cloud Messaging > 웹 푸시 인증서 |
 
-## 6. 광고 · 분석 · 공유 (마케팅·광고팀)
+## 6. 메일 — 비밀번호 재설정 (Resend)
+
+| 키 | 위치 | 용도 | 발급처 | 없으면 |
+|---|---|---|---|---|
+| `RESEND_API_KEY` | api | 비밀번호 재설정 링크 메일 발송(`POST https://api.resend.com/emails`, 새 의존성 없이 fetch) | [Resend](https://resend.com) > API Keys | `POST /auth/password/forgot` 501, 웹 "비밀번호 찾기"는 **문의 안내**로 대체 |
+| `MAIL_FROM` | api | 발신자. 예: `달빛사주 <no-reply@dalbitsaju.kr>` | Resend > Domains 에서 **발신 도메인 인증(DNS: SPF·DKIM)** 뒤 그 도메인의 주소. 인증 전에는 `onboarding@resend.dev` 로 본인 계정 메일에만 시험 발송 가능 | 위와 동일 (두 키가 모두 있어야 `features.mail=true`) |
+| `SUPPORT_EMAIL` | api | 고객 문의 주소 — 메일 연동이 없을 때 "비밀번호 찾기" 화면에 "{주소}로 가입한 이메일을 적어 문의해 주세요" 안내. `GET /config` 의 `supportEmail` | — | 주소 없이 '문의하기' 문구만 |
+
+동작: 가입 여부와 관계없이 200(계정 유무 비노출) → 이메일 계정이면 32바이트 토큰을 만들어 sha256 해시만 `password_resets` 에 저장(30분 만료, 1회 사용, 이전 미사용 링크는 무효화) → `{PUBLIC_WEB_URL}/password/reset?token=…` 링크 발송. 재설정에 성공하면 그 사용자의 refresh token 을 모두 폐기한다. 흐름 설명: [`docs/AUTH_PUSH.md`](./AUTH_PUSH.md) 5절.
+
+## 7. 광고 · 분석 · 공유 (마케팅·광고팀)
 
 | 키 | 위치 | 용도 | 발급처 |
 |---|---|---|---|
@@ -87,7 +97,7 @@
 
 광고 정책(노출 위치·금지 위치·프리미엄 제외): [`docs/ADS_ANALYTICS.md`](./ADS_ANALYTICS.md)
 
-## 7. 운영 기타
+## 8. 운영 기타
 
 | 키 | 위치 | 용도 | 기본값 |
 |---|---|---|---|
