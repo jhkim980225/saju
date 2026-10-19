@@ -107,6 +107,7 @@ apps/web/src
 - API: `npm run build -w @saju/api` → `node apps/api/dist/server.js` (마이그레이션·상품 시드는 기동 시 자동). 단일 인스턴스에서 `DAILY_PUSH_ENABLED=true`.
 - Web: `npm run build -w @saju/web` → `apps/web/dist` 를 정적 호스팅(SPA fallback: 모든 경로 → `index.html`).
 - 앱: [`docs/APP_PORTING.md`](./APP_PORTING.md)
+- **운영 서버(HTTPS 포함) 절차: [`docs/DEPLOY.md`](./DEPLOY.md)** — `deploy/docker-compose.prod.yml`(Caddy 가 Let's Encrypt 인증서 자동 발급 → nginx → api), `deploy/api.prod.env.example`, 매일 백업 `deploy/backup.sh`.
 - Docker (✅ 빌드·운영 모드 기동 검증 완료): `deploy/api.Dockerfile`, `deploy/web.Dockerfile`(nginx — SPA fallback + `/api` 프록시), `docker-compose.yml` → `API_ENV_FILE=<운영 env 파일> docker compose up --build` 후 http://localhost:8080 (리버스 프록시 뒤라 `TRUST_PROXY_HOPS=1` 이 compose 에 지정됨).
   운영 모드(`NODE_ENV=production`)이므로 `apps/api/.env` 에 JWT 시크릿(32자+)과 `PAYMENT_PROVIDER=toss|portone` + 결제 키가 있어야 기동됩니다(목업 결제는 운영 모드에서 차단).
 

@@ -1,0 +1,44 @@
+# 운영 실행 — Caddy(HTTPS 자동 발급) → web(nginx: 정적 파일 + /api 프록시) → api
+#
+#   cp deploy/api.prod.env.example deploy/api.prod.env   # 값 채우기
+#   export DOMAIN=dalbitsaju.kr                            # 실제 도메인 (DNS A 레코드가 이 서버를 가리켜야 함)
+#   docker compose -f deploy/docker-compose.prod.yml up -d --build
+#
+# 절차 전체: docs/DEPLOY.md
+services:
+  api:
+    build: { context: .., dockerfile: deploy/api.Dockerfile }
+    env_file: api.prod.env
+    environment:
+      NODE_ENV: production
+      # Caddy → nginx → api 두 단계 프록시
+      TRUST_PROXY_HOPS: "2"
+      DATABASE_PATH: /data/saju.db
+      PUBLIC_WEB_URL: https://${DOMAIN:?DOMAIN 을 지정하세요}
+      CORS_ORIGINS: https://${DOMAIN},capacitor://localhost,https://localhost
+    volumes: [api-data:/data]
+    restart: unless-stopped
+    logging: { driver: json-file, options: { max-size: "20m", max-file: "5" } }
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+      args:
+        PUBLIC_WEB_URL: https://${DOMAIN}
+    depends_on: [api]
+    restart: unless-stopped
+  caddy:
+    image: caddy:2-alpine
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [web]
+    restart: unless-stopped
+volumes:
+  api-data:
+  caddy-data:
+  caddy-config:
