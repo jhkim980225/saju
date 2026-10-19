@@ -55,6 +55,20 @@ export const refreshTokens = sqliteTable(
   (t) => [uniqueIndex('refresh_tokens_hash_uq').on(t.tokenHash), index('refresh_tokens_user_idx').on(t.userId)],
 );
 
+/** 비밀번호 재설정 링크 토큰 — 원문은 메일로만 보내고 DB 에는 sha256 해시만 둔다. 30분 만료, 1회 사용 */
+export const passwordResets = sqliteTable(
+  'password_resets',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: integer('expires_at').notNull(),
+    usedAt: integer('used_at'),
+    createdAt: integer('created_at').notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [uniqueIndex('password_resets_hash_uq').on(t.tokenHash), index('password_resets_user_idx').on(t.userId)],
+);
+
 export const profiles = sqliteTable(
   'profiles',
   {

@@ -19,6 +19,9 @@
 | POST | `/auth/login` | - | 이메일 로그인 |
 | POST | `/auth/refresh` | - | 토큰 회전 `{ refreshToken }` (재사용 탐지 시 전 세션 폐기) |
 | POST | `/auth/logout` | - | refresh token 폐기 |
+| POST | `/auth/password/forgot` | - | 재설정 메일 요청 `{ email }` → 가입 여부와 관계없이 `{ ok }` (메일 미설정이면 501). 링크 30분 유효, 이전 링크 무효화 |
+| POST | `/auth/password/reset` | - | 메일 링크 토큰으로 새 비밀번호 `{ token, password }` → 그 사용자의 refresh token 전부 폐기. 만료·사용됨은 400 |
+| POST | `/auth/password/change` | ✓ | `{ currentPassword, newPassword }` (이메일 계정만, 현재 세션 유지) |
 | GET | `/auth/oauth/:provider/authorize?redirectUri&state` | - | 소셜 로그인 URL (kakao·naver·google·apple) |
 | POST | `/auth/oauth/:provider/callback` | opt | `{ code, state, redirectUri?, idToken?, name? }` → 토큰 (게스트 전환 지원) |
 | POST | `/auth/oauth/apple/form-post` | - | Apple form_post 수신 → 웹 콜백으로 302 |

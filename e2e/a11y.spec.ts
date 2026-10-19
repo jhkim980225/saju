@@ -70,6 +70,8 @@ test('비회원 화면: 랜딩·입력(시트 포함)·확인·결과·로그인
   for (const [path, screen] of [
     ['/login', '로그인'],
     ['/signup', '가입'],
+    ['/password/forgot', '비밀번호 찾기'],
+    ['/password/reset?token=bad', '비밀번호 재설정'],
     ['/manse', '만세력'],
     ['/store', '상점'],
     ['/legal/terms', '이용약관'],

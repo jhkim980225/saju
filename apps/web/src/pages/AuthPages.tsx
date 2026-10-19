@@ -123,6 +123,13 @@ function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           </Field>
           <Field label="비밀번호" htmlFor="password" helper={mode === 'signup' ? '8자 이상으로 입력해 주세요.' : undefined}>
             <TextInput id="password" type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+            {mode === 'login' && (
+              <p className="text-right text-sm text-ink-2">
+                <Link to="/password/forgot" className="underline">
+                  비밀번호를 잊으셨나요?
+                </Link>
+              </p>
+            )}
           </Field>
           {mode === 'signup' && (
             <>

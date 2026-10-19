@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { SOCIAL_PROVIDERS, guestSchema, loginSchema, oauthCallbackSchema, refreshSchema, signupSchema, updateMeSchema } from '@saju/shared';
+import { SOCIAL_PROVIDERS, changePasswordSchema, forgotPasswordSchema, guestSchema, loginSchema, oauthCallbackSchema, refreshSchema, resetPasswordSchema, signupSchema, updateMeSchema } from '@saju/shared';
 import { requireUser } from '../../app.js';
 import { unauthorized } from '../../lib/errors.js';
 import { hashPassword, verifyPassword } from '../../lib/password.js';
@@ -53,6 +53,28 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const body = parse(refreshSchema, req.body);
     auth.logout(body.refreshToken);
     reply.status(204);
+  });
+
+  // ── 비밀번호 재설정(메일 링크) · 변경 ─────────────────────────
+  /** 재설정 메일 요청 — 계정 유무와 관계없이 200 (계정 존재 여부 노출 금지). 메일 미설정이면 501 */
+  app.post('/password/forgot', strict, async (req) => {
+    const body = parse(forgotPasswordSchema, req.body);
+    await auth.requestPasswordReset(body.email);
+    return { ok: true };
+  });
+
+  /** 메일 링크의 토큰으로 새 비밀번호 설정 — 성공 시 그 사용자의 모든 로그인이 끊긴다 */
+  app.post('/password/reset', strict, async (req) => {
+    const body = parse(resetPasswordSchema, req.body);
+    await auth.resetPassword(body.token, body.password);
+    return { ok: true };
+  });
+
+  /** 로그인 상태에서 비밀번호 변경 (이메일 계정만, 현재 비밀번호 확인) */
+  app.post('/password/change', { ...strict, preHandler: app.authenticate }, async (req) => {
+    const body = parse(changePasswordSchema, req.body);
+    await auth.changePassword(requireUser(req).id, body.currentPassword, body.newPassword);
+    return { ok: true };
   });
 
   // ── 소셜 로그인 ───────────────────────────────────────────────

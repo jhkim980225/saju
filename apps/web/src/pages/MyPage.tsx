@@ -1,15 +1,15 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, Pencil, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { RELATION_LABEL } from '@saju/shared';
 import { Page } from '@/components/AppShell';
 import { BottomSheet } from '@/components/BottomSheet';
 import { toast } from '@/components/Toast';
-import { Badge, Button, Card, PageHeader, Segmented, Toggle } from '@/components/ui';
+import { Badge, Button, Card, Field, PageHeader, Segmented, TextInput, Toggle } from '@/components/ui';
 import { qk, useProfiles, useWallet } from '@/hooks/queries';
 import { SessionGateError, useSessionGate } from '@/hooks/useSessionGate';
-import { api } from '@/lib/api';
+import { ApiError, api } from '@/lib/api';
 import { t } from '@/lib/copy';
 import { native, nativePlatform } from '@/lib/platform';
 import { storage } from '@/lib/storage';
@@ -29,6 +29,8 @@ export function MyPage() {
   const profiles = useProfiles();
   const wallet = useWallet();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [changePassword, setChangePassword] = useState(false);
+  const closeChangePassword = useCallback(() => setChangePassword(false), []);
   const [pushOn, setPushOn] = useState(true);
 
   const removeProfile = useMutation({
@@ -197,6 +199,17 @@ export function MyPage() {
                 ]}
               />
             </div>
+            {user?.provider === 'email' && (
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium">비밀번호</p>
+                  <p className="text-sm text-ink-3">이메일 계정의 비밀번호를 바꿉니다</p>
+                </div>
+                <Button variant="secondary" size="sm" onClick={() => setChangePassword(true)}>
+                  비밀번호 변경
+                </Button>
+              </div>
+            )}
           </Card>
 
           <Card className="divide-y divide-line p-0 text-[15px]">
@@ -241,6 +254,76 @@ export function MyPage() {
         <p className="text-[15px] leading-relaxed text-ink-2">{t('my.deleteConfirmBody')}</p>
         <p className="mt-2 text-sm text-ink-3">결제 기록은 전자상거래법에 따라 5년간 익명으로 보관됩니다.</p>
       </BottomSheet>
+      <PasswordChangeSheet open={changePassword} onClose={closeChangePassword} />
     </div>
+  );
+}
+
+/** 이메일 계정의 비밀번호 변경 — 현재 비밀번호를 확인하고 바꾼다. 현재 기기의 로그인은 유지된다 */
+function PasswordChangeSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // BottomSheet 가 onClose 가 바뀔 때마다 포커스를 옮기므로 입력 중 재생성되지 않게 고정
+  const close = useCallback(() => {
+    setCurrent('');
+    setNext('');
+    setConfirm('');
+    setError(null);
+    onClose();
+  }, [onClose]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (next !== confirm) return setError('새 비밀번호가 서로 다릅니다. 같은 비밀번호를 입력해 주세요.');
+    if (next === current) return setError('현재 비밀번호와 다른 비밀번호를 입력해 주세요.');
+    setBusy(true);
+    try {
+      await api.changePassword({ currentPassword: current, newPassword: next });
+      toast('비밀번호를 바꿨어요.');
+      close();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('error.server.title'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <BottomSheet
+      open={open}
+      onClose={close}
+      title="비밀번호 변경"
+      footer={
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="secondary" onClick={close}>
+            {t('common.cancel')}
+          </Button>
+          <Button type="submit" form="password-change-form" loading={busy} disabled={!current || next.length < 8 || confirm.length < 8}>
+            바꾸기
+          </Button>
+        </div>
+      }
+    >
+      <form id="password-change-form" onSubmit={submit} className="space-y-4" noValidate>
+        <Field label="현재 비밀번호" htmlFor="pw-current">
+          <TextInput id="pw-current" type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} required />
+        </Field>
+        <Field label="새 비밀번호" htmlFor="pw-next" helper="8자 이상으로 입력해 주세요.">
+          <TextInput id="pw-next" type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} required minLength={8} />
+        </Field>
+        <Field label="새 비밀번호 확인" htmlFor="pw-confirm">
+          <TextInput id="pw-confirm" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required minLength={8} />
+        </Field>
+        {error && (
+          <p role="alert" className="rounded-xl bg-subtle p-3 text-sm text-danger">
+            {error}
+          </p>
+        )}
+      </form>
+    </BottomSheet>
   );
 }

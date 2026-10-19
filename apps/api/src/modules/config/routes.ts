@@ -21,7 +21,10 @@ export const configRoutes: FastifyPluginAsync = async (app) => {
         push: c.features.push,
         iapApple: c.features.appleIap || (c.PAYMENT_PROVIDER === 'mock' && !c.isProd),
         iapGoogle: c.features.googleIap || (c.PAYMENT_PROVIDER === 'mock' && !c.isProd),
+        /** 비밀번호 재설정 메일(Resend) — false 면 웹이 문의 안내로 대체 */
+        mail: c.features.mail,
       },
+      supportEmail: c.SUPPORT_EMAIL ?? null,
       notices: [],
     };
   });

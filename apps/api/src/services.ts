@@ -9,6 +9,7 @@ import { createOAuthService } from './modules/auth/oauth.js';
 import { createChatService } from './modules/chat/service.js';
 import { createGateways, type GatewayDeps } from './modules/commerce/providers/index.js';
 import { createCommerceService } from './modules/commerce/service.js';
+import { createMailService } from './modules/mail/service.js';
 import { createProfileService } from './modules/profiles/service.js';
 import { createPushService } from './modules/push/service.js';
 import { createReportService } from './modules/reports/service.js';
@@ -24,7 +25,8 @@ export interface ServiceDeps {
 
 export function createServices(config: AppConfig, db: Db, deps: ServiceDeps = {}) {
   const users = createUserService(config, db);
-  const auth = createAuthService(config, db, users);
+  const mail = createMailService(config);
+  const auth = createAuthService(config, db, users, mail);
   const oauth = createOAuthService(config);
   const profiles = createProfileService(db);
   const gateways = createGateways(config, deps.gateways);
@@ -40,7 +42,7 @@ export function createServices(config: AppConfig, db: Db, deps: ServiceDeps = {}
   commerce.setGrantReadingCheck('taekil:reading', taekil.assertPurchasable);
   // 결제가 확정되면 산 리포트를 바로 만들기 시작한다(처음 열 때 기다리지 않게)
   commerce.setFulfilledListener((e) => reports.prewarm(e));
-  return { users, auth, oauth, profiles, gateways, commerce, ai, reports, chat, push, rewards, tarot, taekil };
+  return { users, mail, auth, oauth, profiles, gateways, commerce, ai, reports, chat, push, rewards, tarot, taekil };
 }
 
 export type Services = ReturnType<typeof createServices>;
