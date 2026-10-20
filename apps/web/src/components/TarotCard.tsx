@@ -2,8 +2,8 @@ import type { TarotCardDto } from '@saju/shared';
 import { t } from '@/lib/copy';
 import { cx } from './ui';
 
-/** 카드 비율 2:3 — 그림은 public/tarot (생성형 AI 수묵화, 검수본) */
-const FRAME = 'aspect-[2/3] overflow-hidden rounded-xl border border-line-strong bg-surface shadow-[0_2px_8px_rgba(31,29,26,0.08)]';
+/** 카드 비율 11:19(원판 카드 비율) — 앞면은 1909년 웨이트-스미스 덱 원판 스캔(패멀라 콜먼 스미스, 공개 저작물), 뒷면은 달빛사주 디자인. 출처·변환: docs/TAROT_ART.md */
+const FRAME = 'aspect-[11/19] overflow-hidden rounded-xl border border-line-strong bg-surface shadow-[0_2px_8px_rgba(31,29,26,0.08)]';
 
 export const orientationLabel = (o: TarotCardDto['orientation']) => (o === 'reversed' ? t('tarot.reveal.reversed') : t('tarot.reveal.upright'));
 
@@ -34,7 +34,7 @@ export function TarotCardBack({ className }: { className?: string }) {
 /** 뒤집히는 카드 — 앞면 정보가 없으면 뒷면만 */
 export function FlipCard({ card, flipped, className }: { card: TarotCardDto | null; flipped: boolean; className?: string }) {
   return (
-    <div className={cx('flip aspect-[2/3]', className)}>
+    <div className={cx('flip aspect-[11/19]', className)}>
       <div className="flip-inner" data-flipped={flipped && Boolean(card)}>
         <TarotCardBack className="flip-face flip-back" />
         {card && <TarotCardFace card={card} eager className="flip-face flip-front" />}

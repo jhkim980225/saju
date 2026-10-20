@@ -176,7 +176,7 @@ export function TarotDrawPage() {
             <h2 className="font-serif text-[22px] font-semibold">{shuffling ? t('tarot.shuffle.title') : t('tarot.shuffle.done')}</h2>
             <p className="mt-2 text-[15px] text-ink-2">{t('tarot.shuffle.hint')}</p>
             {draft.question && <p className="mt-4 font-serif text-lg">“{draft.question}”</p>}
-            <div className="relative mx-auto mt-10 h-56 w-36" aria-label={shuffling ? t('tarot.a11y.shuffling') : t('tarot.a11y.shuffled')} role="img">
+            <div className="relative mx-auto mt-10 aspect-[11/19] w-36" aria-label={shuffling ? t('tarot.a11y.shuffling') : t('tarot.a11y.shuffled')} role="img">
               {[0, 1, 2, 3, 4].map((i) => (
                 <div
                   key={`${i}-${shuffling}`}
@@ -244,7 +244,7 @@ export function TarotDrawPage() {
                 if (i < picks.length) return <TarotCardBack />;
                 return (
                   <div
-                    className={cx('aspect-[2/3] rounded-xl border-2 border-dashed bg-canvas', i === nextSlot && step === 'pick' ? 'border-focus' : 'border-line-strong')}
+                    className={cx('aspect-[11/19] rounded-xl border-2 border-dashed bg-canvas', i === nextSlot && step === 'pick' ? 'border-focus' : 'border-line-strong')}
                     aria-label={t('tarot.a11y.slotEmpty', { position: p.label })}
                   />
                 );

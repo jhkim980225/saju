@@ -75,7 +75,7 @@ function CelticCross({ renderCard, caption, className, label }: { renderCard: (i
               <>
                 {/* 2번 — 1번 위를 가로지르는 카드 */}
                 <div className="absolute inset-0 grid place-items-center" data-crossing>
-                  <div className="w-full rotate-90 scale-[0.8]">{renderCard(1)}</div>
+                  <div className="w-full rotate-90 scale-[0.7]">{renderCard(1)}</div>
                 </div>
                 <Num n={2} className="-bottom-1.5 -right-1.5" />
               </>
