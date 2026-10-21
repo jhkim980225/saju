@@ -23,8 +23,8 @@ export function msUntilNextRun(now = Date.now(), hourKst = HOUR_KST): number {
 export async function runDailyPush(services: Services, log?: FastifyBaseLogger) {
   const t = utcToZoned(Date.now(), 'Asia/Seoul');
   const date = { year: t.year, month: t.month, day: t.day };
-  const result = await services.push.sendDailyFortuneDigest((userId) => {
-    const profile = services.profiles.primary(userId);
+  const result = await services.push.sendDailyFortuneDigest(async (userId) => {
+    const profile = await services.profiles.primary(userId);
     if (!profile) return null;
     const daily = buildDailyFortune(services.profiles.chartOf(profile), date, profile.id);
     const name = displayName(profile.name);

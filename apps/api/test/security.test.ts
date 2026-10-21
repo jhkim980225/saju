@@ -15,8 +15,8 @@ const OTHER = { calendar: 'solar', year: 1975, month: 11, day: 2, hour: 6, minut
 beforeAll(async () => {
   const config = loadConfig({ __SKIP_ENV_FILE: '1', NODE_ENV: 'test', PAYMENT_PROVIDER: 'mock', ANTHROPIC_API_KEY: '', ADMIN_API_TOKEN: 'admin-secret' });
   const { db } = createDb(':memory:');
-  runMigrations(db);
-  seedProducts(db);
+  await runMigrations(db);
+  await seedProducts(db);
   app = await buildApp({ config, db, logger: false });
 });
 afterAll(() => app.close());

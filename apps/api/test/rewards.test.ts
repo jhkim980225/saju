@@ -21,10 +21,10 @@ describe('AdMob 보상형 광고 SSV', () => {
   const config = loadConfig({ __SKIP_ENV_FILE: '1', NODE_ENV: 'test', REWARDED_AD_DAILY_LIMIT: '3' });
   const { db } = createDb(':memory:');
   let rewards: ReturnType<typeof createRewardsService>;
-  beforeAll(() => {
-    runMigrations(db);
-    seedProducts(db);
-    db.insert(users).values({ id: 'u1', nickname: '테스트', provider: 'email' }).run();
+  beforeAll(async () => {
+    await runMigrations(db);
+    await seedProducts(db);
+    await db.insert(users).values({ id: 'u1', nickname: '테스트', provider: 'email' });
     const commerce = createCommerceService(config, db, createGateways(config));
     rewards = createRewardsService(config, db, commerce, { fetchKeys: async () => new Map([['3335741209', pem]]) });
   });
@@ -42,7 +42,7 @@ describe('AdMob 보상형 광고 SSV', () => {
   it('하루 3회 한도', async () => {
     await rewards.handleAdmobSsv(signedQuery({ ...base, transaction_id: 'tx-3' }));
     await rewards.handleAdmobSsv(signedQuery({ ...base, transaction_id: 'tx-4' }));
-    expect(rewards.todayCount('u1')).toBe(3);
+    expect(await rewards.todayCount('u1')).toBe(3);
     expect(await rewards.handleAdmobSsv(signedQuery({ ...base, transaction_id: 'tx-5' }))).toEqual({ granted: false, reason: 'DAILY_LIMIT' });
   });
 });
@@ -51,9 +51,9 @@ describe('AdMob SSV — 광고 단위 허용 목록', () => {
   it('허용 목록에 없는 광고 단위는 지급하지 않는다', async () => {
     const config = loadConfig({ __SKIP_ENV_FILE: '1', NODE_ENV: 'test', ADMOB_REWARDED_AD_UNITS: 'ca-app-pub-1/9999999999' });
     const { db } = createDb(':memory:');
-    runMigrations(db);
-    seedProducts(db);
-    db.insert(users).values({ id: 'u9', nickname: '테스트', provider: 'email' }).run();
+    await runMigrations(db);
+    await seedProducts(db);
+    await db.insert(users).values({ id: 'u9', nickname: '테스트', provider: 'email' });
     const rewards = createRewardsService(config, db, createCommerceService(config, db, createGateways(config)), { fetchKeys: async () => new Map([['3335741209', pem]]) });
     const params = { ad_network: '1', reward_amount: '1', reward_item: 'credit', timestamp: '1', user_id: 'u9' };
     expect(await rewards.handleAdmobSsv(signedQuery({ ...params, ad_unit: '1234567890', transaction_id: 'a-1' }))).toEqual({ granted: false, reason: 'AD_UNIT_NOT_ALLOWED' });

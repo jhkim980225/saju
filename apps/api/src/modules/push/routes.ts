@@ -10,13 +10,13 @@ export const pushRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/tokens', async (req, reply) => {
     const body = parse(pushRegisterSchema, req.body);
-    push.register(requireUser(req).id, body.token, body.platform);
+    await push.register(requireUser(req).id, body.token, body.platform);
     reply.status(204);
   });
 
   app.delete('/tokens', async (req, reply) => {
     const body = parse(z.object({ token: z.string() }), req.body);
-    push.unregister(body.token);
+    await push.unregister(body.token);
     reply.status(204);
   });
 };

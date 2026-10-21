@@ -97,7 +97,7 @@ describe('키 미설정', () => {
 
   it('푸시 발송은 NOT_CONFIGURED(501)', async () => {
     const { db } = createDb(':memory:');
-    runMigrations(db);
+    await runMigrations(db);
     const push = createPushService(config(), db);
     expect(push.enabled).toBe(false);
     await expectAppError(push.sendToUser('u', { title: 't', body: 'b' }), 501, 'NOT_CONFIGURED');
@@ -400,16 +400,14 @@ describe('FCM 푸시 발송', () => {
     };
   });
 
-  function setup(opts: { now?: () => number } = {}) {
+  async function setup(opts: { now?: () => number } = {}) {
     const { db } = createDb(':memory:');
-    runMigrations(db);
-    db.insert(users)
-      .values([
-        { id: 'u1', nickname: '하나', provider: 'kakao' },
-        { id: 'u2', nickname: '둘', provider: 'guest', pushEnabled: false },
-        { id: 'u3', nickname: '셋', provider: 'google' },
-      ])
-      .run();
+    await runMigrations(db);
+    await db.insert(users).values([
+      { id: 'u1', nickname: '하나', provider: 'kakao' },
+      { id: 'u2', nickname: '둘', provider: 'guest', pushEnabled: false },
+      { id: 'u3', nickname: '셋', provider: 'google' },
+    ]);
     const sentMessages: Array<{ token: string; message: Record<string, any> }> = [];
     const assertions: string[] = [];
     const { fetch, calls } = mockFetch({
@@ -436,18 +434,18 @@ describe('FCM 푸시 발송', () => {
     return { db, push, calls, sentMessages, assertions };
   }
 
-  const tokensOf = (db: ReturnType<typeof setup>['db']) => db.select({ token: pushTokens.token }).from(pushTokens).all().map((r) => r.token).sort();
+  const tokensOf = async (db: Awaited<ReturnType<typeof setup>>['db']) => (await db.select({ token: pushTokens.token }).from(pushTokens)).map((r) => r.token).sort();
 
   it('발송 + UNREGISTERED 토큰 정리 + 메시지 형식', async () => {
-    const { db, push, calls, sentMessages, assertions } = setup();
+    const { db, push, calls, sentMessages, assertions } = await setup();
     expect(push.enabled).toBe(true);
-    push.register('u1', 'alive-token-0001', 'android');
-    push.register('u1', 'dead-token-0002', 'ios');
+    await push.register('u1', 'alive-token-0001', 'android');
+    await push.register('u1', 'dead-token-0002', 'ios');
 
     const message: PushMessage = { title: '오늘의 운세', body: '좋은 기운이 들어와요', link: '/fortune/today', data: { kind: 'daily' } };
     const result = await push.sendToUser('u1', message);
     expect(result).toEqual({ sent: 1, failed: 0, removed: 1 });
-    expect(tokensOf(db)).toEqual(['alive-token-0001']);
+    expect(await tokensOf(db)).toEqual(['alive-token-0001']);
 
     // 액세스 토큰 assertion: 서비스 계정 키로 RS256 서명, scope = firebase.messaging
     expect(assertions).toHaveLength(1);
@@ -466,9 +464,9 @@ describe('FCM 푸시 발송', () => {
 
   it('액세스 토큰 메모리 캐시 — 만료 전 재사용, 만료 임박 시 재발급', async () => {
     let clock = Date.UTC(2026, 9, 12, 0, 0, 0);
-    const { push, assertions } = setup({ now: () => clock });
-    push.register('u1', 'alive-token-0001', 'web');
-    push.register('u3', 'alive-token-0003', 'web');
+    const { push, assertions } = await setup({ now: () => clock });
+    await push.register('u1', 'alive-token-0001', 'web');
+    await push.register('u3', 'alive-token-0003', 'web');
 
     // 동시 요청도 토큰 발급은 한 번만
     await Promise.all([push.sendToUser('u1', { title: 't', body: 'b' }), push.sendToUser('u3', { title: 't', body: 'b' })]);
@@ -482,21 +480,21 @@ describe('FCM 푸시 발송', () => {
   });
 
   it('푸시 수신 거부(pushEnabled=false) 사용자에게는 보내지 않음', async () => {
-    const { push, calls } = setup();
-    push.register('u2', 'alive-token-optout', 'web');
+    const { push, calls } = await setup();
+    await push.register('u2', 'alive-token-optout', 'web');
     expect(await push.sendToUser('u2', { title: 't', body: 'b' })).toEqual({ sent: 0, failed: 0, removed: 0 });
     expect(await push.sendToUser('nobody', { title: 't', body: 'b' })).toEqual({ sent: 0, failed: 0, removed: 0 });
     expect(calls).toHaveLength(0);
   });
 
   it('sendDailyFortuneDigest — 수신 동의 사용자만, null 은 건너뜀, 일시 오류 토큰은 유지', async () => {
-    const { db, push, sentMessages } = setup();
-    push.register('u1', 'alive-token-0001', 'android');
-    push.register('u1', 'dead-token-0002', 'ios');
-    push.register('u2', 'alive-token-optout', 'web');
-    push.register('u3', 'flaky-token-0003', 'web');
-    db.insert(users).values({ id: 'u4', nickname: '넷', provider: 'naver' }).run();
-    push.register('u4', 'alive-token-0004', 'web');
+    const { db, push, sentMessages } = await setup();
+    await push.register('u1', 'alive-token-0001', 'android');
+    await push.register('u1', 'dead-token-0002', 'ios');
+    await push.register('u2', 'alive-token-optout', 'web');
+    await push.register('u3', 'flaky-token-0003', 'web');
+    await db.insert(users).values({ id: 'u4', nickname: '넷', provider: 'naver' });
+    await push.register('u4', 'alive-token-0004', 'web');
 
     const build = vi.fn((userId: string): PushMessage | null => (userId === 'u4' ? null : { title: `${userId} 오늘의 운세`, body: '확인해 보세요', link: '/fortune/today' }));
     const result = await push.sendDailyFortuneDigest(build);
@@ -504,7 +502,7 @@ describe('FCM 푸시 발송', () => {
     expect(build.mock.calls.map(([id]) => id).sort()).toEqual(['u1', 'u3', 'u4']);
     expect(result).toEqual({ users: 2, skipped: 1, sent: 1, failed: 1, removed: 1 });
     expect(sentMessages.map((m) => m.token).sort()).toEqual(['alive-token-0001', 'dead-token-0002', 'flaky-token-0003']);
-    expect(tokensOf(db)).toEqual(['alive-token-0001', 'alive-token-0004', 'alive-token-optout', 'flaky-token-0003']);
-    expect(db.select().from(pushTokens).where(eq(pushTokens.token, 'dead-token-0002')).get()).toBeUndefined();
+    expect(await tokensOf(db)).toEqual(['alive-token-0001', 'alive-token-0004', 'alive-token-optout', 'flaky-token-0003']);
+    expect((await db.select().from(pushTokens).where(eq(pushTokens.token, 'dead-token-0002')))[0]).toBeUndefined();
   });
 });

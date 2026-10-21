@@ -106,5 +106,5 @@
 | `RATE_LIMIT_PER_MIN` | api | IP 당 분당 요청 제한 | 120 |
 | `AUTH_RATE_LIMIT_PER_MIN` | api | 로그인·가입·게스트·토큰 갱신 경로의 분당 제한(무차별 대입 방지) | 10 |
 | `TRUST_PROXY_HOPS` | api | 앞단 리버스 프록시 수(nginx 1대 = 1). 0 이면 `X-Forwarded-For` 무시 → IP 위조로 rate limit 우회 불가 | 0 (docker-compose 는 1) |
-| `DATABASE_PATH` | api | SQLite 파일 경로 (운영 PostgreSQL 전환은 `docs/ARCHITECTURE.md`) | `./data/saju.db` |
+| `DATABASE_URL` | api | 운영: PostgreSQL 주소 `postgres://…`(Supabase 는 트랜잭션 풀러 6543). 개발: PGlite 데이터 폴더. 운영 모드는 postgres:// 필수 | `./data/pglite` |
 | `ACCESS_TOKEN_TTL_SEC` / `REFRESH_TOKEN_TTL_DAYS` | api | 토큰 수명 | 3600 / 30 |

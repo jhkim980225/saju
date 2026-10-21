@@ -188,8 +188,8 @@ const client =
 async function makeApp(withKey: boolean) {
   const config = loadConfig({ __SKIP_ENV_FILE: '1', NODE_ENV: 'test', PAYMENT_PROVIDER: 'mock', ANTHROPIC_API_KEY: withKey ? 'sk-ant-test-not-real' : '', SIGNUP_BONUS_CREDITS: '0' });
   const { db } = createDb(':memory:');
-  runMigrations(db);
-  seedProducts(db);
+  await runMigrations(db);
+  await seedProducts(db);
   const app = await buildApp({ config, db, logger: false });
   return { app, api: client(app) };
 }
@@ -197,7 +197,7 @@ async function makeApp(withKey: boolean) {
 async function signup(api: Api, credits: number, app: FastifyInstance) {
   const r = await api('POST', '/auth/signup', { body: { email: `dream-${Math.random().toString(36).slice(2)}@example.com`, password: 'password1234', nickname: '꿈꾸는이' } });
   expect(r.status).toBe(201);
-  if (credits > 0) app.ctx.services.commerce.grantFreeCredits(r.body.user.id, credits, '테스트 지급');
+  if (credits > 0) await app.ctx.services.commerce.grantFreeCredits(r.body.user.id, credits, '테스트 지급');
   return r.body.accessToken as string;
 }
 

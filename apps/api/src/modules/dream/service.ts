@@ -93,17 +93,17 @@ export function composeRuleBased(matches: DreamMatch[], crisis: boolean): { head
 
 export function createDreamService(config: AppConfig, profiles: ProfileService, commerce: CommerceService, ai: AiService) {
   /** 사주를 함께 볼 원국 — 지정 프로필(없으면 대표 프로필). 사주 없이 보기를 고르면 null */
-  const chartFor = (userId: string, dto: DreamInterpretDto): { chart: SajuChart; name: string } | null => {
+  const chartFor = async (userId: string, dto: DreamInterpretDto): Promise<{ chart: SajuChart; name: string } | null> => {
     if (dto.withoutSaju) return null;
     if (dto.profileId) {
       try {
-        const p = profiles.getOwned(userId, dto.profileId);
+        const p = await profiles.getOwned(userId, dto.profileId);
         return { chart: profiles.chartOf(p), name: p.name };
       } catch {
         throw badRequest('사주를 함께 볼 프로필을 다시 선택해 주세요.');
       }
     }
-    const p = profiles.primary(userId);
+    const p = await profiles.primary(userId);
     return p ? { chart: profiles.chartOf(p), name: p.name } : null;
   };
 
@@ -112,10 +112,10 @@ export function createDreamService(config: AppConfig, profiles: ProfileService, 
       const text = dto.text.trim();
       const matches = extractDreamSymbols(text, 6);
       const crisis = DREAM_CRISIS_PATTERN.test(text);
-      const owner = chartFor(userId, dto);
+      const owner = await chartFor(userId, dto);
       const cost = config.AI_CHAT_CREDIT_COST;
       // AI 호출 전에 질문권을 먼저 차감(동시 요청으로 AI 비용을 부풀리는 것 방지) — 실패하면 무상으로 돌려준다
-      if (ai.enabled && cost > 0) commerce.consumeCredits(userId, cost, 'AI 꿈풀이', newId());
+      if (ai.enabled && cost > 0) await commerce.consumeCredits(userId, cost, 'AI 꿈풀이', newId());
       const aiOut = ai.enabled
         ? await ai.dreamInterpret({
             dream: text,
@@ -129,7 +129,7 @@ export function createDreamService(config: AppConfig, profiles: ProfileService, 
             saju: owner ? { profileName: owner.name, summary: chartSummary(owner.chart) } : null,
           })
         : null;
-      if (ai.enabled && cost > 0 && !aiOut) commerce.grantFreeCredits(userId, cost, 'AI 꿈풀이 실패 환급');
+      if (ai.enabled && cost > 0 && !aiOut) await commerce.grantFreeCredits(userId, cost, 'AI 꿈풀이 실패 환급');
       const out = aiOut ?? composeRuleBased(matches, crisis);
       return {
         symbols: matches.map(toDreamSymbolDto),
@@ -137,7 +137,7 @@ export function createDreamService(config: AppConfig, profiles: ProfileService, 
         paragraphs: out.paragraphs,
         generator: aiOut ? 'ai' : 'rule',
         creditsCharged: aiOut ? cost : 0,
-        creditsLeft: commerce.wallet(userId).credits,
+        creditsLeft: (await commerce.wallet(userId)).credits,
         profileName: aiOut && owner ? owner.name : null,
         crisis,
         notice: aiOut ? DREAM_NOTICE.ai : DREAM_NOTICE.rule,

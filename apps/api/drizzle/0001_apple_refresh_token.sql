@@ -1,1 +1,0 @@
-ALTER TABLE `users` ADD `provider_refresh_token` text;

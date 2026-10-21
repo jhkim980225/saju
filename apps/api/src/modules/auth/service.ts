@@ -48,34 +48,41 @@ export function createAuthService(config: AppConfig, db: Db, users: UserService,
   const issue = async (user: User, userAgent?: string): Promise<AuthTokensDto> => {
     const accessToken = await signAccessToken({ sub: user.id, role: user.role === 'admin' ? 'admin' : 'user', provider: user.provider }, config.JWT_ACCESS_SECRET, config.ACCESS_TOKEN_TTL_SEC);
     const refreshToken = randomToken(48);
-    db.insert(refreshTokens)
-      .values({ id: newId(), userId: user.id, tokenHash: hashToken(refreshToken), expiresAt: Date.now() + config.REFRESH_TOKEN_TTL_DAYS * DAY, userAgent: userAgent?.slice(0, 200) ?? null })
-      .run();
+    await db
+      .insert(refreshTokens)
+      .values({ id: newId(), userId: user.id, tokenHash: hashToken(refreshToken), expiresAt: Date.now() + config.REFRESH_TOKEN_TTL_DAYS * DAY, userAgent: userAgent?.slice(0, 200) ?? null });
     return { accessToken, refreshToken, expiresIn: config.ACCESS_TOKEN_TTL_SEC, user: users.toDto(user) };
   };
 
   /** 사용자의 모든 refresh 토큰 폐기 — 비밀번호가 바뀌면 다른 기기의 로그인도 끊는다 */
-  const revokeAllSessions = (userId: string) => {
-    db.update(refreshTokens).set({ revokedAt: Date.now() }).where(and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt))).run();
+  const revokeAllSessions = async (userId: string) => {
+    await db.update(refreshTokens).set({ revokedAt: Date.now() }).where(and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt)));
   };
 
   return {
     issue,
     /** refresh token 회전. 이미 폐기된 토큰이 재사용되면 탈취로 보고 전체 세션을 폐기한다 */
     async refresh(refreshToken: string, userAgent?: string): Promise<AuthTokensDto> {
-      const row = db.select().from(refreshTokens).where(eq(refreshTokens.tokenHash, hashToken(refreshToken))).get();
+      const [row] = await db.select().from(refreshTokens).where(eq(refreshTokens.tokenHash, hashToken(refreshToken)));
       if (!row) throw unauthorized('다시 로그인해 주세요.');
-      if (row.revokedAt) {
-        revokeAllSessions(row.userId);
-        throw unauthorized('보안을 위해 다시 로그인해 주세요.');
-      }
+      const reused = async () => {
+        await revokeAllSessions(row.userId);
+        return unauthorized('보안을 위해 다시 로그인해 주세요.');
+      };
+      if (row.revokedAt) throw await reused();
       if (row.expiresAt < Date.now()) throw unauthorized('로그인이 만료되었어요. 다시 로그인해 주세요.');
-      if (!users.isActive(row.userId)) throw unauthorized('탈퇴했거나 존재하지 않는 계정이에요.');
-      db.update(refreshTokens).set({ revokedAt: Date.now() }).where(eq(refreshTokens.id, row.id)).run();
-      return issue(users.get(row.userId), userAgent);
+      if (!(await users.isActive(row.userId))) throw unauthorized('탈퇴했거나 존재하지 않는 계정이에요.');
+      // 아직 폐기되지 않았을 때만 폐기 — 같은 토큰이 동시에 두 번 쓰이면 뒤의 요청은 재사용으로 본다
+      const rotated = await db
+        .update(refreshTokens)
+        .set({ revokedAt: Date.now() })
+        .where(and(eq(refreshTokens.id, row.id), isNull(refreshTokens.revokedAt)))
+        .returning({ id: refreshTokens.id });
+      if (rotated.length !== 1) throw await reused();
+      return issue(await users.get(row.userId), userAgent);
     },
-    logout(refreshToken: string) {
-      db.update(refreshTokens).set({ revokedAt: Date.now() }).where(eq(refreshTokens.tokenHash, hashToken(refreshToken))).run();
+    async logout(refreshToken: string) {
+      await db.update(refreshTokens).set({ revokedAt: Date.now() }).where(eq(refreshTokens.tokenHash, hashToken(refreshToken)));
     },
 
     // ── 비밀번호 재설정 · 변경 ─────────────────────────────────
@@ -85,34 +92,40 @@ export function createAuthService(config: AppConfig, db: Db, users: UserService,
      */
     async requestPasswordReset(email: string): Promise<void> {
       if (!mail.enabled) throw notConfigured('비밀번호 재설정 메일(Resend)', MAIL_ENV_KEYS);
-      const user = users.findByEmail(email);
+      const user = await users.findByEmail(email);
       if (!user || user.provider !== 'email' || !user.passwordHash) return;
       const token = randomToken(32);
-      db.transaction((tx) => {
+      await db.transaction(async (tx) => {
         // 같은 사용자의 이전 미사용 토큰은 무효화 — 가장 최근 링크만 유효
-        tx.delete(passwordResets).where(and(eq(passwordResets.userId, user.id), isNull(passwordResets.usedAt))).run();
-        tx.insert(passwordResets).values({ id: newId(), userId: user.id, tokenHash: hashToken(token), expiresAt: Date.now() + PASSWORD_RESET_TTL_MS }).run();
+        await tx.delete(passwordResets).where(and(eq(passwordResets.userId, user.id), isNull(passwordResets.usedAt)));
+        await tx.insert(passwordResets).values({ id: newId(), userId: user.id, tokenHash: hashToken(token), expiresAt: Date.now() + PASSWORD_RESET_TTL_MS });
       });
       const link = `${config.PUBLIC_WEB_URL.replace(/\/$/, '')}/password/reset?token=${encodeURIComponent(token)}`;
       await mail.send({ to: user.email!, ...buildPasswordResetMail(link, config.APP_NAME) });
     },
     /** 메일 링크의 토큰으로 비밀번호를 바꾸고, 그 사용자의 모든 세션을 끊는다 */
     async resetPassword(token: string, password: string): Promise<void> {
-      const row = db.select().from(passwordResets).where(eq(passwordResets.tokenHash, hashToken(token))).get();
-      if (!row || row.usedAt || row.expiresAt < Date.now() || !users.isActive(row.userId)) throw badRequest(PASSWORD_RESET_INVALID);
+      const [row] = await db.select().from(passwordResets).where(eq(passwordResets.tokenHash, hashToken(token)));
+      if (!row || row.usedAt || row.expiresAt < Date.now() || !(await users.isActive(row.userId))) throw badRequest(PASSWORD_RESET_INVALID);
       const passwordHash = await hashPassword(password);
-      db.transaction((tx) => {
-        tx.update(passwordResets).set({ usedAt: Date.now() }).where(eq(passwordResets.id, row.id)).run();
-        tx.update(usersTable).set({ passwordHash, updatedAt: Date.now() }).where(eq(usersTable.id, row.userId)).run();
+      await db.transaction(async (tx) => {
+        // 아직 쓰지 않은 토큰일 때만 — 같은 링크가 동시에 두 번 쓰이지 않게
+        const used = await tx
+          .update(passwordResets)
+          .set({ usedAt: Date.now() })
+          .where(and(eq(passwordResets.id, row.id), isNull(passwordResets.usedAt)))
+          .returning({ id: passwordResets.id });
+        if (used.length !== 1) throw badRequest(PASSWORD_RESET_INVALID);
+        await tx.update(usersTable).set({ passwordHash, updatedAt: Date.now() }).where(eq(usersTable.id, row.userId));
       });
-      revokeAllSessions(row.userId);
+      await revokeAllSessions(row.userId);
     },
     /** 로그인 상태에서 현재 비밀번호를 확인하고 변경 (이메일 계정만). 현재 세션은 유지한다 */
     async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
-      const user = users.get(userId);
+      const user = await users.get(userId);
       if (user.provider !== 'email' || !user.passwordHash) throw badRequest('이메일로 가입한 계정만 비밀번호를 바꿀 수 있어요.');
       if (!(await verifyPassword(currentPassword, user.passwordHash))) throw badRequest('현재 비밀번호가 일치하지 않아요.');
-      db.update(usersTable).set({ passwordHash: await hashPassword(newPassword), updatedAt: Date.now() }).where(eq(usersTable.id, user.id)).run();
+      await db.update(usersTable).set({ passwordHash: await hashPassword(newPassword), updatedAt: Date.now() }).where(eq(usersTable.id, user.id));
     },
   };
 }

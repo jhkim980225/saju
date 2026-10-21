@@ -17,13 +17,13 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   /** 게스트(비회원) 시작 — 앱 첫 실행 시 기기 ID 로 호출 */
   app.post('/guest', strict, async (req) => {
     const body = parse(guestSchema, req.body ?? {});
-    const user = users.createGuest(body.deviceId);
+    const user = await users.createGuest(body.deviceId);
     return auth.issue(user, ua(req.headers['user-agent']));
   });
 
   app.post('/signup', { ...strict, preHandler: app.optionalAuth }, async (req, reply) => {
     const body = parse(signupSchema, req.body);
-    const user = users.createEmailUser({
+    const user = await users.createEmailUser({
       email: body.email,
       passwordHash: await hashPassword(body.password),
       nickname: body.nickname,
@@ -36,11 +36,11 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/login', { ...strict, preHandler: app.optionalAuth }, async (req) => {
     const body = parse(loginSchema, req.body);
-    const user = users.findByEmail(body.email);
+    const user = await users.findByEmail(body.email);
     if (!user?.passwordHash || !(await verifyPassword(body.password, user.passwordHash))) {
       throw unauthorized('이메일 또는 비밀번호가 일치하지 않아요.');
     }
-    users.mergeGuestInto(req.user?.id, user.id);
+    await users.mergeGuestInto(req.user?.id, user.id);
     return auth.issue(user, ua(req.headers['user-agent']));
   });
 
@@ -51,7 +51,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/logout', async (req, reply) => {
     const body = parse(refreshSchema, req.body);
-    auth.logout(body.refreshToken);
+    await auth.logout(body.refreshToken);
     reply.status(204);
   });
 
@@ -89,8 +89,8 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const body = parse(oauthCallbackSchema, req.body);
     const redirectUri = body.redirectUri ?? `${app.ctx.config.PUBLIC_WEB_URL}/auth/callback/${provider}`;
     const profile = await oauth.exchangeCode(provider, { code: body.code, redirectUri, state: body.state, idToken: body.idToken, name: body.name });
-    const { user, created } = users.upsertSocialUser({ provider, ...profile, guestUserId: req.user?.id });
-    if (!created) users.mergeGuestInto(req.user?.id, user.id);
+    const { user, created } = await users.upsertSocialUser({ provider, ...profile, guestUserId: req.user?.id });
+    if (!created) await users.mergeGuestInto(req.user?.id, user.id);
     return auth.issue(user, ua(req.headers['user-agent']));
   });
 
@@ -122,19 +122,19 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // ── 내 정보 ──────────────────────────────────────────────────
-  app.get('/me', { preHandler: app.authenticate }, async (req) => users.toDto(users.get(requireUser(req).id)));
+  app.get('/me', { preHandler: app.authenticate }, async (req) => users.toDto(await users.get(requireUser(req).id)));
 
   app.patch('/me', { preHandler: app.authenticate }, async (req) => {
     const body = parse(updateMeSchema, req.body);
-    return users.toDto(users.update(requireUser(req).id, body));
+    return users.toDto(await users.update(requireUser(req).id, body));
   });
 
   /** 회원 탈퇴 (앱스토어 정책상 앱 내 탈퇴 기능 필수) */
   app.delete('/me', { preHandler: app.authenticate }, async (req, reply) => {
-    const me = users.get(requireUser(req).id);
+    const me = await users.get(requireUser(req).id);
     // Apple 로그인 회원은 탈퇴 시 토큰 철회 요청(App Store 심사 요건). 실패해도 탈퇴는 진행
     if (me.providerRefreshToken) await oauth.revoke(me.provider, me.providerRefreshToken);
-    users.deleteAccount(me.id);
+    await users.deleteAccount(me.id);
     reply.status(204);
   });
 };

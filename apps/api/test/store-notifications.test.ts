@@ -203,8 +203,8 @@ describe('스토어 알림 엔드포인트', () => {
 
   beforeAll(async () => {
     const { db } = createDb(':memory:');
-    runMigrations(db);
-    seedProducts(db);
+    await runMigrations(db);
+    await seedProducts(db);
     const jwk = { ...(await exportJWK(rsa.publicKey)), kid: 'google-test-kid', alg: 'RS256', use: 'sig' };
     app = await buildApp({
       config: cfg(storeEnv),
@@ -236,13 +236,13 @@ describe('스토어 알림 엔드포인트', () => {
     return { status: res.statusCode, body: res.body ? (JSON.parse(res.body) as any) : null };
   }
   const wallet = async () => (await api('GET', '/wallet', { token })).body;
-  const orderOf = (txId: string) => app.ctx.db.select().from(orders).where(eq(orders.providerPaymentKey, txId)).get()!;
-  const event = (id: string) => app.ctx.db.select().from(webhookEvents).where(eq(webhookEvents.id, id)).get();
+  const orderOf = async (txId: string) => (await app.ctx.db.select().from(orders).where(eq(orders.providerPaymentKey, txId)))[0]!;
+  const event = async (id: string) => (await app.ctx.db.select().from(webhookEvents).where(eq(webhookEvents.id, id)))[0];
   const apple = async (signedPayload: string) => api('POST', '/payments/iap/notifications/apple', { body: { signedPayload } });
 
   it('키가 없으면 두 엔드포인트 모두 501 NOT_CONFIGURED', async () => {
     const { db } = createDb(':memory:');
-    runMigrations(db);
+    await runMigrations(db);
     const bare = await buildApp({ config: cfg(), db, logger: false });
     const a = await bare.inject({ method: 'POST', url: '/api/v1/payments/iap/notifications/apple', payload: { signedPayload: 'x.y.z' } });
     const g = await bare.inject({ method: 'POST', url: '/api/v1/payments/iap/notifications/google', payload: { message: { data: '', messageId: '1' } } });
@@ -269,14 +269,14 @@ describe('스토어 알림 엔드포인트', () => {
       const w = await wallet();
       expect(w.entitlements.map((e: any) => e.key)).not.toContain(`report:lifetime:${profileId}`);
       expect(w.credits).toBe(0);
-      expect(orderOf(TX).status).toBe('refunded');
-      expect(orderOf(TX).failureReason).toContain('REFUND');
+      expect((await orderOf(TX)).status).toBe('refunded');
+      expect((await orderOf(TX)).failureReason).toContain('REFUND');
 
       // 같은 notificationUUID 재전송 → 중복, 두 번 회수하지 않는다
       const again = await apple(await appleNotification('REFUND', { uuid, txId: TX }));
       expect(again.body).toMatchObject({ duplicate: true, applied: false });
       expect((await wallet()).ledger.filter((l: any) => l.reason === 'refund')).toHaveLength(1);
-      expect(event(`iap_apple:${uuid}`)?.processedAt).toBeTruthy();
+      expect((await event(`iap_apple:${uuid}`))?.processedAt).toBeTruthy();
     });
 
     it('UUID 가 다른 같은 환불 알림이 와도 회수는 1회 (주문 상태 조건부 회수)', async () => {
@@ -291,7 +291,7 @@ describe('스토어 알림 엔드포인트', () => {
       const w = await wallet();
       expect(w.entitlements.map((e: any) => e.key)).toContain(`report:lifetime:${profileId}`);
       expect(w.credits).toBe(3);
-      expect(orderOf(TX).status).toBe('paid');
+      expect((await orderOf(TX)).status).toBe('paid');
     });
 
     it('REVOKE(가족 공유 해제) → 회수, 주문 canceled', async () => {
@@ -301,7 +301,7 @@ describe('스토어 알림 엔드포인트', () => {
       const r = await apple(await appleNotification('REVOKE', { txId: tx, tx: { productId: 'kr.dalbitsaju.chat.10', inAppOwnershipType: 'FAMILY_SHARED' } }));
       expect(r.body).toMatchObject({ type: 'REVOKE', applied: true });
       expect((await wallet()).credits).toBe(before - 10);
-      expect(orderOf(tx).status).toBe('canceled');
+      expect((await orderOf(tx)).status).toBe('canceled');
     });
 
     it('앱이 검증하기 전에 환불된 구매는 나중에 검증을 요청해도 지급하지 않는다', async () => {
@@ -319,12 +319,12 @@ describe('스토어 알림 엔드포인트', () => {
         const r = await apple(await appleNotification(type, { uuid, txId: TX, ...extra }));
         expect(r.status).toBe(200);
         expect(r.body).toMatchObject({ type, applied: false });
-        const row = event(`iap_apple:${uuid}`)!;
+        const row = (await event(`iap_apple:${uuid}`))!;
         expect(row.eventType).toBe(type);
         expect(row.processedAt).toBeTruthy();
         if (type === 'CONSUMPTION_REQUEST') expect(row.payload).toMatchObject({ consumptionRequestReason: 'UNINTENDED_PURCHASE' });
       }
-      expect(orderOf(TX).status).toBe('paid');
+      expect((await orderOf(TX)).status).toBe('paid');
     });
 
     it('위조 서명·다른 앱 알림은 400 이고 아무것도 바꾸지 않는다', async () => {
@@ -332,7 +332,7 @@ describe('스토어 알림 엔드포인트', () => {
       expect(forged.status).toBe(400);
       expect(forged.body.error.message).toBe('스토어 알림 검증에 실패했어요.');
       expect((await apple(await appleNotification('REFUND', { txId: TX, bundleId: 'com.other.app' }))).status).toBe(400);
-      expect(orderOf(TX).status).toBe('paid');
+      expect((await orderOf(TX)).status).toBe('paid');
     });
   });
 
@@ -377,8 +377,8 @@ describe('스토어 알림 엔드포인트', () => {
       expect((await google(body, await oidc({ email: 'attacker@evil-project.iam.gserviceaccount.com' }))).status).toBe(401);
       expect((await google(body, await oidc({ email_verified: false }))).status).toBe(401);
       expect((await wallet()).credits).toBe(before);
-      expect(orderOf(ORDER).status).toBe('paid');
-      expect(event(`iap_google:${body.message.messageId}`)).toBeUndefined();
+      expect((await orderOf(ORDER)).status).toBe('paid');
+      expect(await event(`iap_google:${body.message.messageId}`)).toBeUndefined();
     });
 
     it('voidedPurchaseNotification(환불·지불 거절) → 회수, 같은 messageId 재전송은 중복', async () => {
@@ -388,7 +388,7 @@ describe('스토어 알림 엔드포인트', () => {
       expect(r.status).toBe(200);
       expect(r.body).toMatchObject({ ok: true, duplicate: false, type: 'VOIDED_PURCHASE', applied: true });
       expect((await wallet()).credits).toBe(before - 10);
-      expect(orderOf(ORDER).status).toBe('refunded');
+      expect((await orderOf(ORDER)).status).toBe('refunded');
 
       const again = await google(body, await oidc());
       expect(again.body).toMatchObject({ duplicate: true });
@@ -408,7 +408,7 @@ describe('스토어 알림 엔드포인트', () => {
         const r = await google(body, await oidc());
         expect(r.status).toBe(200);
         expect(r.body).toMatchObject({ type, applied: false });
-        expect(event(`iap_google:${body.message.messageId}`)?.processedAt).toBeTruthy();
+        expect((await event(`iap_google:${body.message.messageId}`))?.processedAt).toBeTruthy();
       }
     });
 
@@ -416,7 +416,7 @@ describe('스토어 알림 엔드포인트', () => {
       await google(push(voided('GPA.5555-0000')), await oidc());
       const v = await api('POST', '/payments/iap/verify', { token, body: { platform: 'android', productId: 'chat_pack_10', receipt: 'mock:GPA.5555-0000' } });
       expect(v.status).toBe(402);
-      expect(app.ctx.db.select().from(webhookEvents).where(like(webhookEvents.id, 'iap_google:voided:%')).all().length).toBeGreaterThanOrEqual(2);
+      expect((await app.ctx.db.select().from(webhookEvents).where(like(webhookEvents.id, 'iap_google:voided:%'))).length).toBeGreaterThanOrEqual(2);
     });
 
     it('Pub/Sub 메시지 형식이 아니면 400', async () => {

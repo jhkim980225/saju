@@ -23,7 +23,7 @@ import {
   type TarotTopic,
 } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
-import type { Db } from '../../db/client.js';
+import { isUniqueViolation, type Db } from '../../db/client.js';
 import { tarotReadings, type TarotReading } from '../../db/schema.js';
 import { AppError, badRequest, conflict, notFound } from '../../lib/errors.js';
 import { newId } from '../../lib/ids.js';
@@ -52,12 +52,12 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
   const secret = `${config.JWT_ACCESS_SECRET}|tarot-deck`;
   const inflight = new Map<string, Promise<string[] | null>>();
 
-  const unlocked = (userId: string, r: TarotReading) => isFreeSpread(r.spread) || commerce.isPremium(userId) || commerce.hasEntitlement(userId, tarotKey(r.id));
+  const unlocked = async (userId: string, r: TarotReading) => isFreeSpread(r.spread) || (await commerce.isPremium(userId)) || (await commerce.hasEntitlement(userId, tarotKey(r.id)));
 
   /** 사주 결합용 원국 — 지정 프로필이 없거나 지워졌으면 대표 프로필, 그것도 없으면 null */
-  const chartFor = (userId: string, profileId: string | null): { chart: SajuChart; name: string; id: string } | null => {
+  const chartFor = async (userId: string, profileId: string | null): Promise<{ chart: SajuChart; name: string; id: string } | null> => {
     try {
-      const p = profileId ? profiles.getOwned(userId, profileId) : profiles.primary(userId);
+      const p = profileId ? await profiles.getOwned(userId, profileId) : await profiles.primary(userId);
       return p ? { chart: profiles.chartOf(p), name: p.name, id: p.id } : null;
     } catch {
       return null;
@@ -65,24 +65,24 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
   };
 
   /** 궁합 타로 상대 — 대표 프로필로 대신하지 않는다. 지워졌으면 null */
-  const partnerFor = (userId: string, profileId: string | null | undefined): { chart: SajuChart; name: string; id: string } | null => {
+  const partnerFor = async (userId: string, profileId: string | null | undefined): Promise<{ chart: SajuChart; name: string; id: string } | null> => {
     if (!profileId) return null;
     try {
-      const p = profiles.getOwned(userId, profileId);
+      const p = await profiles.getOwned(userId, profileId);
       return { chart: profiles.chartOf(p), name: p.name, id: p.id };
     } catch {
       return null;
     }
   };
 
-  const existing = (userId: string, dateKey: string, qKey: string) =>
-    db.select().from(tarotReadings).where(and(eq(tarotReadings.userId, userId), eq(tarotReadings.dateKey, dateKey), eq(tarotReadings.questionKey, qKey))).get();
+  const existing = async (userId: string, dateKey: string, qKey: string) =>
+    (await db.select().from(tarotReadings).where(and(eq(tarotReadings.userId, userId), eq(tarotReadings.dateKey, dateKey), eq(tarotReadings.questionKey, qKey))))[0];
 
   /**
    * 펼침 방식별 추가 입력 — 양자택일 선택지 A·B(서로 달라야 함), 궁합 타로 상대(내 프로필 중 하나).
    * extra 는 같은 질문 판정 키에 붙는다.
    */
-  const extrasOf = (userId: string, dto: TarotShuffleDto): { options: { a: string; b: string } | null; partner: ReturnType<typeof partnerFor>; extra: string | null } => {
+  const extrasOf = async (userId: string, dto: TarotShuffleDto): Promise<{ options: { a: string; b: string } | null; partner: Awaited<ReturnType<typeof partnerFor>>; extra: string | null }> => {
     if (TAROT_TOPICS[dto.topic].spread !== dto.spread) throw badRequest('이 주제에 맞지 않는 펼침 방식이에요.');
     if (dto.spread === 'choice') {
       const a = dto.optionA?.trim();
@@ -93,7 +93,7 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
     }
     if (dto.spread === 'compat') {
       if (!dto.partnerProfileId) throw badRequest('함께 볼 상대를 골라 주세요.');
-      const partner = partnerFor(userId, dto.partnerProfileId);
+      const partner = await partnerFor(userId, dto.partnerProfileId);
       if (!partner) throw badRequest('함께 볼 상대의 사주를 다시 골라 주세요.');
       return { options: null, partner, extra: partner.id };
     }
@@ -101,13 +101,12 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
   };
 
   /** 예·아니오 하루 무료 횟수 — 넘으면 429, 오늘 마지막으로 본 리딩으로 안내 */
-  const assertYesNoQuota = (userId: string, dateKey: string) => {
-    const used = db
+  const assertYesNoQuota = async (userId: string, dateKey: string) => {
+    const used = await db
       .select({ id: tarotReadings.id })
       .from(tarotReadings)
       .where(and(eq(tarotReadings.userId, userId), eq(tarotReadings.dateKey, dateKey), eq(tarotReadings.spread, 'yesno')))
-      .orderBy(desc(tarotReadings.createdAt))
-      .all();
+      .orderBy(desc(tarotReadings.createdAt), desc(tarotReadings.id));
     if (used.length >= TAROT_YESNO_DAILY_FREE) {
       throw new AppError(429, ERROR_CODES.RATE_LIMITED, `예·아니오 카드는 하루 ${TAROT_YESNO_DAILY_FREE}번까지 무료로 볼 수 있어요. 내일 다시 이용해 주세요.`, { readingId: used[0]!.id, limit: TAROT_YESNO_DAILY_FREE });
     }
@@ -130,8 +129,8 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
         ...(r.options ? { options: r.options } : {}),
         ...(people ? { people: { me: people.me.name, partner: people.partner.name } } : {}),
       })
-      .then((paragraphs) => {
-        if (paragraphs) db.update(tarotReadings).set({ aiParagraphs: paragraphs, model: ai.premiumModel }).where(eq(tarotReadings.id, r.id)).run();
+      .then(async (paragraphs) => {
+        if (paragraphs) await db.update(tarotReadings).set({ aiParagraphs: paragraphs, model: ai.premiumModel }).where(eq(tarotReadings.id, r.id));
         return paragraphs;
       })
       .finally(() => inflight.delete(r.id));
@@ -142,9 +141,9 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
   const view = async (userId: string, r: TarotReading): Promise<TarotReadingDto> => {
     const spread = r.spread as TarotSpread;
     const topic = (r.topic as TarotTopic | null) ?? null;
-    const isUnlocked = unlocked(userId, r);
-    const owner = chartFor(userId, r.profileId);
-    const partner = spread === 'compat' ? partnerFor(userId, r.partnerProfileId) : null;
+    const isUnlocked = await unlocked(userId, r);
+    const owner = await chartFor(userId, r.profileId);
+    const partner = spread === 'compat' ? await partnerFor(userId, r.partnerProfileId) : null;
     const people = owner && partner ? { me: owner, partner } : null;
     const input = { id: r.id, spread, topic, drawn: r.cards, chart: owner?.chart ?? null, unlocked: isUnlocked, options: r.options ?? null, people, name: owner?.name ?? null };
     let built = buildTarotReading(input);
@@ -177,8 +176,8 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
     };
   };
 
-  const ownedRow = (userId: string, id: string): TarotReading => {
-    const r = db.select().from(tarotReadings).where(and(eq(tarotReadings.id, id), eq(tarotReadings.userId, userId))).get();
+  const ownedRow = async (userId: string, id: string): Promise<TarotReading> => {
+    const [r] = await db.select().from(tarotReadings).where(and(eq(tarotReadings.id, id), eq(tarotReadings.userId, userId)));
     if (!r) throw notFound('타로 기록을 찾을 수 없어요.');
     return r;
   };
@@ -186,12 +185,12 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
   return {
     unlocked,
 
-    shuffle(userId: string, dto: TarotShuffleDto): TarotShuffleResultDto {
-      const { extra } = extrasOf(userId, dto);
+    async shuffle(userId: string, dto: TarotShuffleDto): Promise<TarotShuffleResultDto> {
+      const { extra } = await extrasOf(userId, dto);
       const dateKey = todayKey();
-      const prev = existing(userId, dateKey, questionKey(dto.spread, dto.topic, dto.question, extra));
+      const prev = await existing(userId, dateKey, questionKey(dto.spread, dto.topic, dto.question, extra));
       // 같은 질문이면 횟수와 상관없이 그 결과로 안내, 새 질문이면 예·아니오 무료 횟수를 먼저 확인
-      if (!prev && dto.spread === 'yesno') assertYesNoQuota(userId, dateKey);
+      if (!prev && dto.spread === 'yesno') await assertYesNoQuota(userId, dateKey);
       const { token, expiresAt } = issueDeckToken(secret, userId);
       return { deckToken: token, deckSize: DECK_SIZE, expiresAt: new Date(expiresAt).toISOString(), existingReadingId: prev?.id ?? null };
     },
@@ -199,7 +198,7 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
     async draw(userId: string, dto: TarotDrawDto): Promise<TarotReadingDto> {
       const spread = dto.spread;
       const topic = dto.topic;
-      const { options, partner, extra } = extrasOf(userId, dto);
+      const { options, partner, extra } = await extrasOf(userId, dto);
       const need = TAROT_SPREADS[spread].cards;
       if (dto.picks.length !== need) throw badRequest(`카드를 ${need}장 골라 주세요.`);
       if (new Set(dto.picks).size !== dto.picks.length) throw badRequest('같은 카드를 두 번 고를 수 없어요.');
@@ -208,13 +207,13 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
       const fingerprint = deckTokenFingerprint(dto.deckToken);
       const dateKey = todayKey();
       const qKey = questionKey(spread, topic, dto.question, extra);
-      const prev = existing(userId, dateKey, qKey);
+      const prev = await existing(userId, dateKey, qKey);
       if (prev) throw conflict('오늘 같은 질문으로 이미 카드를 뽑았어요. 앞서 뽑은 결과를 보여 드릴게요.', { readingId: prev.id });
-      if (db.select({ id: tarotReadings.id }).from(tarotReadings).where(eq(tarotReadings.deckFingerprint, fingerprint)).get()) {
+      if ((await db.select({ id: tarotReadings.id }).from(tarotReadings).where(eq(tarotReadings.deckFingerprint, fingerprint))).length > 0) {
         throw conflict('이미 사용한 카드 묶음이에요. 카드를 다시 섞어 주세요.');
       }
-      if (spread === 'yesno') assertYesNoQuota(userId, dateKey);
-      const owner = chartFor(userId, dto.profileId ?? null);
+      if (spread === 'yesno') await assertYesNoQuota(userId, dateKey);
+      const owner = await chartFor(userId, dto.profileId ?? null);
       if (dto.profileId && !owner) throw badRequest('사주를 함께 볼 프로필을 다시 선택해 주세요.');
       if (spread === 'compat') {
         if (!owner) throw badRequest('궁합 타로는 내 사주를 먼저 저장해야 볼 수 있어요.');
@@ -223,7 +222,8 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
       const drawn = drawAt(seed, dto.picks);
       const id = newId();
       try {
-        db.insert(tarotReadings)
+        await db
+          .insert(tarotReadings)
           .values({
             id,
             userId,
@@ -237,49 +237,48 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
             deckFingerprint: fingerprint,
             partnerProfileId: partner?.id ?? null,
             options,
-          })
-          .run();
+          });
       } catch (e) {
         // 같은 질문·같은 덱 토큰으로 동시에 들어온 요청 — 먼저 저장된 리딩으로 안내
-        if (!String((e as Error).message).includes('UNIQUE')) throw e;
-        const won = existing(userId, dateKey, qKey);
+        if (!isUniqueViolation(e)) throw e;
+        const won = await existing(userId, dateKey, qKey);
         throw conflict('오늘 같은 질문으로 이미 카드를 뽑았어요. 앞서 뽑은 결과를 보여 드릴게요.', won ? { readingId: won.id } : undefined);
       }
-      return view(userId, ownedRow(userId, id));
+      return view(userId, await ownedRow(userId, id));
     },
 
     async daily(userId: string, profileId?: string): Promise<TarotReadingDto> {
       const dateKey = todayKey();
       const qKey = questionKey('daily', null, null);
-      let r = existing(userId, dateKey, qKey);
+      let r = await existing(userId, dateKey, qKey);
       if (!r) {
-        const owner = chartFor(userId, profileId ?? null);
+        const owner = await chartFor(userId, profileId ?? null);
         const drawn: DrawnCard[] = [dailyCard(userId, dateKey)];
-        db.insert(tarotReadings).values({ id: newId(), userId, profileId: owner?.id ?? null, spread: 'daily', topic: null, question: null, questionKey: qKey, dateKey, cards: drawn }).onConflictDoNothing().run();
-        r = existing(userId, dateKey, qKey)!;
+        await db.insert(tarotReadings).values({ id: newId(), userId, profileId: owner?.id ?? null, spread: 'daily', topic: null, question: null, questionKey: qKey, dateKey, cards: drawn }).onConflictDoNothing();
+        r = (await existing(userId, dateKey, qKey))!;
       }
       return view(userId, r);
     },
 
-    get(userId: string, id: string): Promise<TarotReadingDto> {
-      return view(userId, ownedRow(userId, id));
+    async get(userId: string, id: string): Promise<TarotReadingDto> {
+      return view(userId, await ownedRow(userId, id));
     },
 
     /** 결제 전 확인 — 내 리딩이고 이 상품으로 열 수 있는가 */
-    assertPurchasable(userId: string, readingId: string, productId: string) {
-      const r = ownedRow(userId, readingId);
+    async assertPurchasable(userId: string, readingId: string, productId: string) {
+      const r = await ownedRow(userId, readingId);
       if (TAROT_SPREADS[r.spread as TarotSpread].productId !== productId) throw badRequest('이 리딩에 맞지 않는 상품이에요.');
     },
 
-    history(userId: string): TarotHistoryItemDto[] {
-      return db
+    async history(userId: string): Promise<TarotHistoryItemDto[]> {
+      const rows = await db
         .select()
         .from(tarotReadings)
         .where(eq(tarotReadings.userId, userId))
-        .orderBy(desc(tarotReadings.createdAt))
-        .limit(100)
-        .all()
-        .map((r) => ({
+        .orderBy(desc(tarotReadings.createdAt), desc(tarotReadings.id))
+        .limit(100);
+      return Promise.all(
+        rows.map(async (r) => ({
           id: r.id,
           spread: r.spread as TarotSpread,
           spreadName: TAROT_SPREADS[r.spread as TarotSpread].name,
@@ -290,13 +289,14 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
             const c = cardDto(d);
             return { id: c.id, nameKo: c.nameKo, orientation: c.orientation, image: c.image };
           }),
-          locked: !unlocked(userId, r),
-        }));
+          locked: !(await unlocked(userId, r)),
+        })),
+      );
     },
 
-    remove(userId: string, id: string) {
-      ownedRow(userId, id);
-      db.delete(tarotReadings).where(and(eq(tarotReadings.id, id), eq(tarotReadings.userId, userId))).run();
+    async remove(userId: string, id: string) {
+      await ownedRow(userId, id);
+      await db.delete(tarotReadings).where(and(eq(tarotReadings.id, id), eq(tarotReadings.userId, userId)));
     },
   };
 }

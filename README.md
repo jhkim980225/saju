@@ -10,7 +10,7 @@
 ```
 packages/saju-core   사주 계산 엔진 (절기·서머타임·경도 보정·음력/윤달·십신·12운성·신살·합충·대운·운세·궁합)
 packages/shared      API 계약 (zod 스키마 + DTO 타입) — 웹·API·앱 공용
-apps/api             백엔드 (Fastify 5 · Drizzle · SQLite→PostgreSQL · JWT · 결제/로그인/AI/푸시 어댑터)
+apps/api             백엔드 (Fastify 5 · Drizzle · PostgreSQL · JWT · 결제/로그인/AI/푸시 어댑터)
 apps/web             프론트엔드 (React 19 · Vite 7 · Tailwind v4 · React Router 7 · TanStack Query)
   ├─ android/        Capacitor Android 프로젝트 (APK 빌드·에뮬레이터 검증 완료)
   └─ ios/            Capacitor iOS 프로젝트 (빌드는 macOS + Xcode)
@@ -27,7 +27,7 @@ cp apps/web/.env.example apps/web/.env       # 선택
 npm run dev                                  # API :4000 + Web :5173 동시 실행
 ```
 - 웹: http://localhost:5173 (Vite 가 `/api` 를 :4000 으로 프록시)
-- DB 는 첫 기동 시 자동 마이그레이션 + 상품 카탈로그 시드 (`apps/api/data/saju.db`)
+- DB 는 첫 기동 시 자동 마이그레이션 + 상품 카탈로그 시드 (개발은 설치 없이 PGlite `apps/api/data/pglite`, 운영은 `DATABASE_URL=postgres://…`)
 - mock 결제: 결제창 없이 바로 성공 처리됩니다 — 결제·지급·잠금 해제 흐름 전체를 키 없이 확인 가능
 
 ## 스크립트

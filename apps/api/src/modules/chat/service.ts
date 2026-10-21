@@ -76,48 +76,47 @@ export function ruleBasedAnswer(chart: SajuChart, message: string, access: Readi
   ].join('\n\n');
 }
 
-export function createChatService(config: AppConfig, db: Db, profiles: ProfileService, commerce: CommerceService, ai: AiService, access: (userId: string, profileId: string) => ReadingAccess) {
+export function createChatService(config: AppConfig, db: Db, profiles: ProfileService, commerce: CommerceService, ai: AiService, access: (userId: string, profileId: string) => Promise<ReadingAccess>) {
   const toDto = (m: typeof chatMessages.$inferSelect): ChatMessageDto => ({ id: m.id, role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content, createdAt: new Date(m.createdAt).toISOString() });
 
   return {
-    history(userId: string, profileId: string): ChatMessageDto[] {
-      profiles.getOwned(userId, profileId);
-      return db.select().from(chatMessages).where(and(eq(chatMessages.userId, userId), eq(chatMessages.profileId, profileId))).orderBy(asc(chatMessages.createdAt)).all().map(toDto);
+    async history(userId: string, profileId: string): Promise<ChatMessageDto[]> {
+      await profiles.getOwned(userId, profileId);
+      return (await db.select().from(chatMessages).where(and(eq(chatMessages.userId, userId), eq(chatMessages.profileId, profileId))).orderBy(asc(chatMessages.createdAt), asc(chatMessages.id))).map(toDto);
     },
 
     async send(userId: string, input: { profileId: string; message: string }): Promise<ChatReplyDto> {
-      const profile = profiles.getOwned(userId, input.profileId);
+      const profile = await profiles.getOwned(userId, input.profileId);
       const chart = profiles.chartOf(profile);
       const cost = config.AI_CHAT_CREDIT_COST;
       const userMsgId = newId();
       // AI 호출 전에 질문권을 먼저 차감(동시 요청으로 AI 비용을 부풀리는 것 방지) — 실패하면 무상으로 돌려준다
-      if (ai.enabled && cost > 0) commerce.consumeCredits(userId, cost, 'AI 사주 상담', userMsgId);
-      const history = db
-        .select()
-        .from(chatMessages)
-        .where(and(eq(chatMessages.userId, userId), eq(chatMessages.profileId, profile.id)))
-        .orderBy(asc(chatMessages.createdAt))
-        .all()
-        .map((m) => ({ role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const), content: m.content }));
+      if (ai.enabled && cost > 0) await commerce.consumeCredits(userId, cost, 'AI 사주 상담', userMsgId);
+      const history = (
+        await db
+          .select()
+          .from(chatMessages)
+          .where(and(eq(chatMessages.userId, userId), eq(chatMessages.profileId, profile.id)))
+          .orderBy(asc(chatMessages.createdAt), asc(chatMessages.id))
+      ).map((m) => ({ role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const), content: m.content }));
 
       const now = Date.now();
-      db.insert(chatMessages).values({ id: userMsgId, userId, profileId: profile.id, role: 'user', content: input.message, createdAt: now }).run();
+      await db.insert(chatMessages).values({ id: userMsgId, userId, profileId: profile.id, role: 'user', content: input.message, createdAt: now });
 
       const aiReply = ai.enabled ? await ai.chat({ chart, profileName: profile.name, chartSummary: chartSummary(chart), history, message: input.message }) : null;
-      const text = aiReply?.text ?? ruleBasedAnswer(chart, input.message, access(userId, profile.id), profile.name);
+      const text = aiReply?.text ?? ruleBasedAnswer(chart, input.message, await access(userId, profile.id), profile.name);
       const generator = aiReply ? 'ai' : 'rule';
-      if (ai.enabled && cost > 0 && !aiReply) commerce.grantFreeCredits(userId, cost, 'AI 상담 실패 환급');
-      const creditsLeft = commerce.wallet(userId).credits;
+      if (ai.enabled && cost > 0 && !aiReply) await commerce.grantFreeCredits(userId, cost, 'AI 상담 실패 환급');
+      const creditsLeft = (await commerce.wallet(userId)).credits;
 
       const replyId = newId();
-      db.insert(chatMessages).values({ id: replyId, userId, profileId: profile.id, role: 'assistant', content: text, createdAt: now + 1 }).run();
-      const reply = db.select().from(chatMessages).where(eq(chatMessages.id, replyId)).get()!;
-      return { reply: toDto(reply), creditsLeft, generator };
+      const [reply] = await db.insert(chatMessages).values({ id: replyId, userId, profileId: profile.id, role: 'assistant', content: text, createdAt: now + 1 }).returning();
+      return { reply: toDto(reply!), creditsLeft, generator };
     },
 
-    clear(userId: string, profileId: string) {
-      profiles.getOwned(userId, profileId);
-      db.delete(chatMessages).where(and(eq(chatMessages.userId, userId), eq(chatMessages.profileId, profileId))).run();
+    async clear(userId: string, profileId: string) {
+      await profiles.getOwned(userId, profileId);
+      await db.delete(chatMessages).where(and(eq(chatMessages.userId, userId), eq(chatMessages.profileId, profileId)));
     },
   };
 }

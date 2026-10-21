@@ -1,40 +1,12 @@
 {
   "version": "7",
-  "dialect": "sqlite",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "6",
-      "when": 1791734136148,
+      "version": "7",
+      "when": 1792546877089,
       "tag": "0000_init",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1791736025410,
-      "tag": "0001_apple_refresh_token",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1791786528504,
-      "tag": "0002_tarot_readings",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1791992707805,
-      "tag": "0003_tarot_spreads",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1792385093873,
-      "tag": "0004_password_resets",
       "breakpoints": true
     }
   ]

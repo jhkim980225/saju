@@ -161,7 +161,7 @@ export function createPushService(config: AppConfig, db: Db, deps: PushDeps = {}
     if (res.ok) return 'sent';
     const body: unknown = await res.json().catch(() => null);
     if (isUnregistered(res.status, body)) {
-      db.delete(pushTokens).where(eq(pushTokens.token, token)).run();
+      await db.delete(pushTokens).where(eq(pushTokens.token, token));
       return 'removed';
     }
     if (res.status === 401 && !retried) {
@@ -188,21 +188,21 @@ export function createPushService(config: AppConfig, db: Db, deps: PushDeps = {}
 
   return {
     enabled: config.features.push,
-    register(userId: string, token: string, platform: 'web' | 'ios' | 'android') {
-      db.insert(pushTokens)
+    async register(userId: string, token: string, platform: 'web' | 'ios' | 'android') {
+      await db
+        .insert(pushTokens)
         .values({ id: newId(), userId, token, platform })
-        .onConflictDoUpdate({ target: pushTokens.token, set: { userId, platform } })
-        .run();
+        .onConflictDoUpdate({ target: pushTokens.token, set: { userId, platform } });
     },
-    unregister(token: string) {
-      db.delete(pushTokens).where(eq(pushTokens.token, token)).run();
+    async unregister(token: string) {
+      await db.delete(pushTokens).where(eq(pushTokens.token, token));
     },
     /** 한 사용자의 모든 기기로 발송. 수신 거부(pushEnabled=false)·탈퇴 사용자는 보내지 않음 */
     async sendToUser(userId: string, message: PushMessage): Promise<PushSendResult> {
       ensure();
-      const user = db.select({ pushEnabled: users.pushEnabled, deletedAt: users.deletedAt }).from(users).where(eq(users.id, userId)).get();
+      const [user] = await db.select({ pushEnabled: users.pushEnabled, deletedAt: users.deletedAt }).from(users).where(eq(users.id, userId));
       if (!user || user.deletedAt || !user.pushEnabled) return { sent: 0, failed: 0, removed: 0 };
-      const tokens = db.select({ token: pushTokens.token }).from(pushTokens).where(eq(pushTokens.userId, userId)).all();
+      const tokens = await db.select({ token: pushTokens.token }).from(pushTokens).where(eq(pushTokens.userId, userId));
       return deliver(tokens.map(({ token }) => ({ token, message })));
     },
     /**
@@ -211,12 +211,11 @@ export function createPushService(config: AppConfig, db: Db, deps: PushDeps = {}
      */
     async sendDailyFortuneDigest(buildMessage: (userId: string) => PushMessage | null | Promise<PushMessage | null>): Promise<PushDigestResult> {
       ensure();
-      const rows = db
+      const rows = await db
         .select({ userId: pushTokens.userId, token: pushTokens.token })
         .from(pushTokens)
         .innerJoin(users, eq(users.id, pushTokens.userId))
-        .where(and(eq(users.pushEnabled, true), isNull(users.deletedAt)))
-        .all();
+        .where(and(eq(users.pushEnabled, true), isNull(users.deletedAt)));
       const tokensByUser = new Map<string, string[]>();
       for (const { userId, token } of rows) {
         const list = tokensByUser.get(userId);

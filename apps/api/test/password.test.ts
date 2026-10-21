@@ -16,8 +16,8 @@ const MAIL_ENV = { RESEND_API_KEY: 're_test_key', MAIL_FROM: '달빛사주 <no-r
 async function makeApp(overrides: Record<string, string>) {
   const config = loadConfig({ ...BASE_ENV, ...overrides });
   const { db } = createDb(':memory:');
-  runMigrations(db);
-  seedProducts(db);
+  await runMigrations(db);
+  await seedProducts(db);
   return buildApp({ config, db, logger: false });
 }
 

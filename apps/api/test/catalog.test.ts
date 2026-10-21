@@ -9,13 +9,13 @@ import { seedProducts } from '../src/db/seed.js';
 import { CATALOG } from '../src/modules/commerce/catalog.js';
 
 describe('seedProducts', () => {
-  it('카탈로그에 없는 기존 상품은 active=false, 카탈로그 상품은 active=true', () => {
+  it('카탈로그에 없는 기존 상품은 active=false, 카탈로그 상품은 active=true', async () => {
     const { db } = createDb(':memory:');
-    runMigrations(db);
-    db.insert(products).values({ id: 'sub_plus_monthly', name: '플러스 월 구독', description: '', type: 'subscription', price: 6900, active: true, sortOrder: 99 }).run();
-    seedProducts(db);
-    expect(db.select().from(products).where(eq(products.id, 'sub_plus_monthly')).get()?.active).toBe(false);
-    const active = db.select().from(products).where(eq(products.active, true)).all().map((p) => p.id).sort();
+    await runMigrations(db);
+    await db.insert(products).values({ id: 'sub_plus_monthly', name: '플러스 월 구독', description: '', type: 'subscription', price: 6900, active: true, sortOrder: 99 });
+    await seedProducts(db);
+    expect((await db.select().from(products).where(eq(products.id, 'sub_plus_monthly')))[0]?.active).toBe(false);
+    const active = (await db.select().from(products).where(eq(products.active, true))).map((p) => p.id).sort();
     expect(active).toEqual(CATALOG.map((c) => c.id).sort());
     expect(CATALOG.some((c) => c.type === 'subscription')).toBe(false);
   });

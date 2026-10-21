@@ -28,7 +28,7 @@ export const tarotRoutes: FastifyPluginAsync = async (app) => {
 
   app.delete('/readings/:id', { preHandler: app.authenticate }, async (req, reply) => {
     const { id } = parse(z.object({ id: z.string() }), req.params);
-    tarot.remove(requireUser(req).id, id);
+    await tarot.remove(requireUser(req).id, id);
     reply.status(204);
   });
 };

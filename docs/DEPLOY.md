@@ -1,6 +1,6 @@
 # 운영 배포 절차 — 웹 (서버 1대, Docker)
 
-구성: `Caddy(HTTPS 자동 발급) → web(nginx: 정적 파일 + /api 프록시) → api(Fastify + SQLite)`. 파일은 모두 `deploy/` 에 있다.
+구성: `Caddy(HTTPS 자동 발급) → web(nginx: 정적 파일 + /api 프록시) → api(Fastify) → db(PostgreSQL 17)`. 파일은 모두 `deploy/` 에 있다.
 
 ## 0. 준비할 것
 
@@ -28,13 +28,17 @@ openssl rand -base64 48   # → JWT_ACCESS_SECRET
 openssl rand -base64 48   # → JWT_REFRESH_SECRET (다른 값)
 openssl rand -hex 24      # → ADMIN_API_TOKEN
 nano deploy/api.prod.env  # 위 값과 그로블 키 등 채우기
+
+# 도메인 · DB 비밀번호 (compose 가 자동으로 읽는다)
+cp deploy/.env.example deploy/.env
+openssl rand -hex 24      # → POSTGRES_PASSWORD
+nano deploy/.env          # DOMAIN=실제도메인, POSTGRES_PASSWORD=위 값
 ```
 
 ## 2. 올리기
 
 ```bash
 cd /opt/saju
-export DOMAIN=dalbitsaju.kr          # 실제 도메인
 docker compose -f deploy/docker-compose.prod.yml up -d --build
 docker compose -f deploy/docker-compose.prod.yml logs -f api   # '미설정 연동:' 줄로 어떤 키가 빠졌는지 확인
 ```
@@ -57,17 +61,16 @@ DB 마이그레이션과 상품 시드는 api 기동 시 자동이다.
 **코드 갱신**
 ```bash
 cd /opt/saju && git pull
-export DOMAIN=dalbitsaju.kr
 docker compose -f deploy/docker-compose.prod.yml up -d --build
 ```
 빌드 중에도 기존 컨테이너가 돌다가 새 이미지로 교체되므로 끊김은 몇 초다.
 
-**백업** — SQLite 파일을 매일 새벽 4시에 복사(7일 보관). 다른 곳(스토리지·다른 서버)에 한 번 더 옮기는 걸 권장.
+**백업** — 매일 새벽 4시에 `pg_dump` 사본(7일 보관). 다른 곳(스토리지·다른 서버)에 한 번 더 옮기는 걸 권장.
 ```bash
 chmod +x /opt/saju/deploy/backup.sh
-(crontab -l 2>/dev/null; echo "0 4 * * * DOMAIN=dalbitsaju.kr /opt/saju/deploy/backup.sh >> /var/log/saju-backup.log 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "0 4 * * * /opt/saju/deploy/backup.sh >> /var/log/saju-backup.log 2>&1") | crontab -
 ```
-복구: `docker compose -f deploy/docker-compose.prod.yml stop api` → `gunzip -c 백업.db.gz > saju.db` → `docker compose cp saju.db api:/data/saju.db` → `start api`.
+복구: `docker compose -f deploy/docker-compose.prod.yml stop api` → `gunzip -c 백업.sql.gz | docker compose -f deploy/docker-compose.prod.yml exec -T db psql -U saju -d saju` → `start api`.
 
 **로그·상태**
 ```bash
@@ -79,8 +82,9 @@ docker compose -f deploy/docker-compose.prod.yml logs --tail 200 api
 
 ## 5. 주의
 
-- `deploy/api.prod.env` 는 저장소에 올리지 않는다(.gitignore). 서버에만 둔다.
+- `deploy/api.prod.env` · `deploy/.env` 는 저장소에 올리지 않는다(.gitignore). 서버에만 둔다.
+- DB 를 Supabase 같은 외부 PostgreSQL 로 쓰려면 compose 의 `db` 서비스를 빼고 api 의 `DATABASE_URL` 을 그 주소(트랜잭션 풀러 6543)로 바꾼다.
 - `TRUST_PROXY_HOPS=2`(Caddy → nginx → api)라 레이트리밋이 실제 방문자 IP 기준으로 돈다. 앞에 Cloudflare 같은 프록시를 하나 더 두면 3으로 올린다.
 - 그로블 웹훅 주소는 `https://도메인/api/v1/payments/webhooks/groble` 이다(`PAYMENTS.md` §3.5). 그로블에 등록한 주소와 도메인이 다르면 결제가 확정되지 않는다.
 - 서버 1대 구성이라 `DAILY_PUSH_ENABLED` 는 앱 출시 뒤 이 서버에서만 `true` 로 켠다.
-- 트래픽이 늘면 [`ARCHITECTURE.md`](./ARCHITECTURE.md) 의 PostgreSQL 전환 절을 따른다.
+- DB 구조·동시성 처리: [`ARCHITECTURE.md`](./ARCHITECTURE.md) 의 DB 절.

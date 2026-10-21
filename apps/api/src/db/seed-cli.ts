@@ -4,8 +4,8 @@ import { createDb, runMigrations } from './client.js';
 import { seedProducts } from './seed.js';
 
 const config = loadConfig();
-const { db, sqlite } = createDb(config.DATABASE_PATH);
-runMigrations(db);
-seedProducts(db);
-sqlite.close();
+const { db, close } = createDb(config.DATABASE_URL);
+await runMigrations(db);
+await seedProducts(db);
+await close();
 console.log('✔ 상품 카탈로그 시드 완료');

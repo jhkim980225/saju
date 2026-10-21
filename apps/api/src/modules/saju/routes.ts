@@ -8,10 +8,10 @@ import { buildBasicReading, yearList, type ReadingAccess } from '../interpretati
 import { birthDtoToInput } from '../profiles/service.js';
 
 /** birth 또는 profileId 로 원국 계산. profileId 는 로그인 필요 */
-export function resolveChart(app: FastifyInstance, req: FastifyRequest, body: z.output<typeof chartRequestSchema>): { chart: SajuChart; profileId: string | null; name: string | null } {
+export async function resolveChart(app: FastifyInstance, req: FastifyRequest, body: z.output<typeof chartRequestSchema>): Promise<{ chart: SajuChart; profileId: string | null; name: string | null }> {
   if (body.profileId) {
     if (!req.user) throw unauthorized();
-    const p = app.ctx.services.profiles.getOwned(req.user.id, body.profileId);
+    const p = await app.ctx.services.profiles.getOwned(req.user.id, body.profileId);
     return { chart: app.ctx.services.profiles.chartOf(p), profileId: p.id, name: p.name };
   }
   return { chart: calculateSaju(birthDtoToInput(body.birth!)), profileId: null, name: body.name ?? null };
@@ -38,14 +38,14 @@ export const sajuRoutes: FastifyPluginAsync = async (app) => {
   /** 만세력 원국 계산 (무료, 비회원 가능) */
   app.post('/chart', { preHandler: app.optionalAuth }, async (req) => {
     const body = parse(chartRequestSchema, req.body);
-    return resolveChart(app, req, body).chart;
+    return (await resolveChart(app, req, body)).chart;
   });
 
   /** 기본 풀이 — 구매 여부에 따라 유료 섹션 잠금 */
   app.post('/reading', { preHandler: app.optionalAuth }, async (req) => {
     const body = parse(chartRequestSchema, req.body);
-    const { chart, profileId, name } = resolveChart(app, req, body);
-    const access: ReadingAccess = req.user && profileId ? app.ctx.services.reports.access(req.user.id, profileId) : 'none';
+    const { chart, profileId, name } = await resolveChart(app, req, body);
+    const access: ReadingAccess = req.user && profileId ? await app.ctx.services.reports.access(req.user.id, profileId) : 'none';
     return buildBasicReading(chart, { access, name });
   });
 
@@ -56,7 +56,7 @@ export const sajuRoutes: FastifyPluginAsync = async (app) => {
       z.object({ from: z.coerce.number().int().min(1900).max(2100).optional(), to: z.coerce.number().int().min(1900).max(2100).optional() }),
       req.query,
     );
-    const { chart } = resolveChart(app, req, body);
+    const { chart } = await resolveChart(app, req, body);
     const now = new Date().getFullYear();
     const from = q.from ?? now - 2;
     const to = Math.min(q.to ?? now + 7, from + 30);

@@ -5,9 +5,9 @@ import { seedProducts } from './db/seed.js';
 import { scheduleDailyPush } from './jobs/dailyPush.js';
 
 const config = loadConfig();
-const { db, sqlite } = createDb(config.DATABASE_PATH);
-runMigrations(db);
-seedProducts(db);
+const { db, close } = createDb(config.DATABASE_URL);
+await runMigrations(db);
+await seedProducts(db);
 
 const app = await buildApp({ config, db });
 const missing = Object.entries(config.features).filter(([, on]) => !on).map(([k]) => k);
@@ -19,7 +19,7 @@ const stopDailyPush = config.features.push && config.DAILY_PUSH_ENABLED ? schedu
 const shutdown = async () => {
   stopDailyPush();
   await app.close();
-  sqlite.close();
+  await close();
   process.exit(0);
 };
 process.on('SIGINT', shutdown);

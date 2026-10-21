@@ -10,7 +10,7 @@
 | 층 | 위치 | 도구 | 무엇을 보나 | 현재 규모 |
 |---|---|---|---|---|
 | 엔진 단위 | `packages/saju-core/test` | Vitest | 일진·절입 시각(KASI 대조)·입춘 기준 년주·경도/서머타임 보정·야자시, lunar-javascript 와 무작위 3,000건 교차 검증, 십신·12운성·신살·대운·궁합 | 67 |
-| API 통합 | `apps/api/test` | Vitest + Fastify inject(인메모리 SQLite) | 인증·게스트 전환, 프로필 소유권, 잠금 섹션 서버 절단, 주문·결제 승인·금액 검증·멱등, 웹훅, IAP, 환불, 보상형 광고, 보안 회귀 | 114 |
+| API 통합 | `apps/api/test` | Vitest + Fastify inject(인메모리 PGlite · `TEST_DATABASE_URL` 이면 실제 PostgreSQL) | 인증·게스트 전환, 프로필 소유권, 잠금 섹션 서버 절단, 주문·결제 승인·금액 검증·멱등, 웹훅, IAP, 환불, 보상형 광고, 보안 회귀 | 114 |
 | 웹 단위 | `apps/web/src/**/*.test.*` | Vitest + Testing Library(jsdom) | 폼 검증·변환, 결제 SDK 연동부(가짜 SDK 주입), 네이티브 계층, 광고·분석 | 58 |
 | **E2E** | `e2e/*.spec.ts` | Playwright 1.64 (Chromium) | 화면 흐름 전체: 입력 → 결과 → 결제 → 잠금 해제, 탭 화면, 설정, 오류 화면, 접근성 스모크, 타로 | 38 × 2 (모바일·데스크톱) |
 

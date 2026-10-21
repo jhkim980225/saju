@@ -10,28 +10,28 @@ export const profileRoutes: FastifyPluginAsync = async (app) => {
   const { profiles } = app.ctx.services;
   app.addHook('preHandler', app.authenticate);
 
-  app.get('/', async (req) => profiles.list(requireUser(req).id).map((p) => profiles.toDto(p)));
+  app.get('/', async (req) => (await profiles.list(requireUser(req).id)).map((p) => profiles.toDto(p)));
 
   app.post('/', async (req, reply) => {
     const body = parse(profileCreateSchema, req.body);
     reply.status(201);
-    return profiles.toDto(profiles.create(requireUser(req).id, body));
+    return profiles.toDto(await profiles.create(requireUser(req).id, body));
   });
 
   app.get('/:id', async (req) => {
     const { id } = parse(idParam, req.params);
-    return profiles.toDto(profiles.getOwned(requireUser(req).id, id));
+    return profiles.toDto(await profiles.getOwned(requireUser(req).id, id));
   });
 
   app.patch('/:id', async (req) => {
     const { id } = parse(idParam, req.params);
     const body = parse(profileUpdateSchema, req.body);
-    return profiles.toDto(profiles.update(requireUser(req).id, id, body));
+    return profiles.toDto(await profiles.update(requireUser(req).id, id, body));
   });
 
   app.delete('/:id', async (req, reply) => {
     const { id } = parse(idParam, req.params);
-    profiles.remove(requireUser(req).id, id);
+    await profiles.remove(requireUser(req).id, id);
     reply.status(204);
   });
 };

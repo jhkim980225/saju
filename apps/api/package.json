@@ -16,19 +16,19 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
+    "@electric-sql/pglite": "^0.5.10",
     "@fastify/cors": "^11.0.0",
     "@fastify/helmet": "^13.0.0",
     "@fastify/rate-limit": "^11.0.0",
     "@saju/core": "0.1.0",
     "@saju/shared": "0.1.0",
-    "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.4",
     "fastify": "^5.12.5",
     "jose": "^6.0.0",
+    "postgres": "^3.4.9",
     "zod": "^4.1.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
     "drizzle-kit": "^0.31.11",
     "tsup": "^8.5.0"
   }

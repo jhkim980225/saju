@@ -24,7 +24,8 @@ const schema = z.object({
   CORS_ORIGINS: z.string().default('http://localhost:5173,capacitor://localhost,http://localhost,https://localhost'),
   /** 결제·소셜로그인 리다이렉트, 비밀번호 재설정 메일 링크의 기준이 되는 웹 주소 */
   PUBLIC_WEB_URL: z.string().default('http://localhost:5173'),
-  DATABASE_PATH: z.string().default('./data/saju.db'),
+  /** postgres://… (운영: Supabase) 또는 PGlite 데이터 폴더 경로(개발) — ':memory:' 는 인메모리 */
+  DATABASE_URL: z.string().default('./data/pglite'),
   JWT_ACCESS_SECRET: opt.transform((v) => v ?? 'dev-access-secret-change-me-please-32chars'),
   JWT_REFRESH_SECRET: opt.transform((v) => v ?? 'dev-refresh-secret-change-me-please-32chars'),
   ACCESS_TOKEN_TTL_SEC: z.coerce.number().int().default(60 * 60),
@@ -174,6 +175,10 @@ export function loadConfig(overrides: Record<string, string | undefined> = {}): 
   }
   if (isProd && c.PAYMENT_PROVIDER === 'mock') {
     throw new Error('운영 환경에서는 PAYMENT_PROVIDER=mock 을 사용할 수 없습니다.');
+  }
+  // PGlite(파일·인메모리)는 개발용 — 운영에서 쓰면 서버를 옮기거나 다시 띄울 때 데이터가 사라질 수 있다
+  if (isProd && !/^postgres(ql)?:\/\//i.test(c.DATABASE_URL)) {
+    throw new Error('운영 환경에서는 DATABASE_URL 에 PostgreSQL 주소(postgres://…)를 지정해야 합니다.');
   }
   const googleIap = Boolean(c.GOOGLE_PLAY_PACKAGE_NAME && c.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON);
   return {

@@ -13,8 +13,8 @@ const BIRTH = { calendar: 'solar', year: 1990, month: 5, day: 15, hour: 14, minu
 beforeAll(async () => {
   const config = loadConfig({ __SKIP_ENV_FILE: '1', NODE_ENV: 'test', PAYMENT_PROVIDER: 'mock', ANTHROPIC_API_KEY: '', SIGNUP_BONUS_CREDITS: '0' });
   const { db } = createDb(':memory:');
-  runMigrations(db);
-  seedProducts(db);
+  await runMigrations(db);
+  await seedProducts(db);
   app = await buildApp({ config, db, logger: false });
 });
 afterAll(async () => {

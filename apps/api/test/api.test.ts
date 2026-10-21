@@ -12,8 +12,8 @@ const PARTNER = { calendar: 'solar', year: 1992, month: 8, day: 21, hour: 9, min
 beforeAll(async () => {
   const config = loadConfig({ __SKIP_ENV_FILE: '1', NODE_ENV: 'test', PAYMENT_PROVIDER: 'mock', ANTHROPIC_API_KEY: '', SIGNUP_BONUS_CREDITS: '0', ADMIN_API_TOKEN: 'admin-secret' });
   const { db } = createDb(':memory:');
-  runMigrations(db);
-  seedProducts(db);
+  await runMigrations(db);
+  await seedProducts(db);
   app = await buildApp({ config, db, logger: false });
 });
 afterAll(async () => {

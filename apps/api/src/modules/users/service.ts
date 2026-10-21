@@ -1,7 +1,7 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import type { UserDto } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
-import type { Db } from '../../db/client.js';
+import { isUniqueViolation, type Db } from '../../db/client.js';
 import { chatMessages, creditLedger, profiles, pushTokens, refreshTokens, reports, users, type User } from '../../db/schema.js';
 import { conflict, notFound } from '../../lib/errors.js';
 import { newId } from '../../lib/ids.js';
@@ -9,8 +9,8 @@ import { newId } from '../../lib/ids.js';
 const GUEST_NAMES = ['별빛', '새벽', '달무리', '은하', '노을', '바람', '구름', '햇살'];
 
 export function createUserService(config: AppConfig, db: Db) {
-  const get = (id: string): User => {
-    const u = db.select().from(users).where(eq(users.id, id)).get();
+  const get = async (id: string): Promise<User> => {
+    const [u] = await db.select().from(users).where(eq(users.id, id));
     if (!u || u.deletedAt) throw notFound('사용자를 찾을 수 없어요.');
     return u;
   };
@@ -31,119 +31,128 @@ export function createUserService(config: AppConfig, db: Db) {
     };
   };
 
-  const grantSignupBonus = (userId: string) => {
+  const grantSignupBonus = async (userId: string) => {
     if (config.SIGNUP_BONUS_CREDITS <= 0) return;
-    db.transaction((tx) => {
-      const u = tx.select({ credits: users.credits }).from(users).where(eq(users.id, userId)).get()!;
-      const balance = u.credits + config.SIGNUP_BONUS_CREDITS;
-      tx.update(users).set({ credits: balance }).where(eq(users.id, userId)).run();
-      tx.insert(creditLedger).values({ id: newId(), userId, delta: config.SIGNUP_BONUS_CREDITS, reason: 'bonus', memo: '가입 축하 크레딧', balanceAfter: balance }).run();
+    await db.transaction(async (tx) => {
+      const [u] = await tx.select({ credits: users.credits }).from(users).where(eq(users.id, userId)).for('update');
+      const balance = u!.credits + config.SIGNUP_BONUS_CREDITS;
+      await tx.update(users).set({ credits: balance }).where(eq(users.id, userId));
+      await tx.insert(creditLedger).values({ id: newId(), userId, delta: config.SIGNUP_BONUS_CREDITS, reason: 'bonus', memo: '가입 축하 크레딧', balanceAfter: balance });
     });
   };
+
+  const emailTakenError = () => conflict('이미 가입된 이메일이에요.');
 
   return {
     get,
     toDto,
-    isActive(id: string): boolean {
-      const u = db.select({ deletedAt: users.deletedAt }).from(users).where(eq(users.id, id)).get();
+    async isActive(id: string): Promise<boolean> {
+      const [u] = await db.select({ deletedAt: users.deletedAt }).from(users).where(eq(users.id, id));
       return Boolean(u && !u.deletedAt);
     },
-    findByEmail(email: string): User | undefined {
-      return db.select().from(users).where(and(eq(users.email, email.toLowerCase()), isNull(users.deletedAt))).get();
+    async findByEmail(email: string): Promise<User | undefined> {
+      const [u] = await db.select().from(users).where(and(eq(users.email, email.toLowerCase()), isNull(users.deletedAt)));
+      return u;
     },
-    createGuest(deviceId?: string): User {
+    async createGuest(deviceId?: string): Promise<User> {
       if (deviceId) {
-        const existing = db.select().from(users).where(and(eq(users.deviceId, deviceId), eq(users.provider, 'guest'), isNull(users.deletedAt))).get();
+        const [existing] = await db.select().from(users).where(and(eq(users.deviceId, deviceId), eq(users.provider, 'guest'), isNull(users.deletedAt)));
         if (existing) return existing;
       }
       const id = newId();
       const nickname = `${GUEST_NAMES[Math.floor(Math.random() * GUEST_NAMES.length)]}${Math.floor(1000 + Math.random() * 9000)}`;
-      db.insert(users).values({ id, nickname, provider: 'guest', deviceId: deviceId ?? null }).run();
+      await db.insert(users).values({ id, nickname, provider: 'guest', deviceId: deviceId ?? null });
       return get(id);
     },
     /** 이메일 가입. guestUserId 가 있으면 게스트 계정을 정회원으로 전환(데이터 유지) */
-    createEmailUser(input: { email: string; passwordHash: string; nickname?: string; marketingConsent?: boolean; guestUserId?: string }): User {
+    async createEmailUser(input: { email: string; passwordHash: string; nickname?: string; marketingConsent?: boolean; guestUserId?: string }): Promise<User> {
       const email = input.email.toLowerCase();
-      if (db.select({ id: users.id }).from(users).where(eq(users.email, email)).get()) throw conflict('이미 가입된 이메일이에요.');
-      if (input.guestUserId) {
-        const guest = db.select().from(users).where(eq(users.id, input.guestUserId)).get();
-        if (guest && guest.provider === 'guest' && !guest.deletedAt) {
-          db.update(users)
-            .set({ email, passwordHash: input.passwordHash, provider: 'email', nickname: input.nickname ?? guest.nickname, marketingConsent: input.marketingConsent ?? false, updatedAt: Date.now() })
-            .where(eq(users.id, guest.id))
-            .run();
-          grantSignupBonus(guest.id);
-          return get(guest.id);
+      if ((await db.select({ id: users.id }).from(users).where(eq(users.email, email))).length > 0) throw emailTakenError();
+      try {
+        if (input.guestUserId) {
+          const [guest] = await db.select().from(users).where(eq(users.id, input.guestUserId));
+          if (guest && guest.provider === 'guest' && !guest.deletedAt) {
+            await db
+              .update(users)
+              .set({ email, passwordHash: input.passwordHash, provider: 'email', nickname: input.nickname ?? guest.nickname, marketingConsent: input.marketingConsent ?? false, updatedAt: Date.now() })
+              .where(eq(users.id, guest.id));
+            await grantSignupBonus(guest.id);
+            return get(guest.id);
+          }
         }
+        const id = newId();
+        await db.insert(users).values({ id, email, passwordHash: input.passwordHash, nickname: input.nickname ?? email.split('@')[0]!.slice(0, 20), provider: 'email', marketingConsent: input.marketingConsent ?? false });
+        await grantSignupBonus(id);
+        return get(id);
+      } catch (e) {
+        // 같은 이메일로 동시에 가입한 경우 — 확인과 저장 사이에 다른 요청이 먼저 들어갔다
+        if (isUniqueViolation(e)) throw emailTakenError();
+        throw e;
       }
-      const id = newId();
-      db.insert(users).values({ id, email, passwordHash: input.passwordHash, nickname: input.nickname ?? email.split('@')[0]!.slice(0, 20), provider: 'email', marketingConsent: input.marketingConsent ?? false }).run();
-      grantSignupBonus(id);
-      return get(id);
     },
     /** 소셜 로그인 사용자 찾기/생성 (게스트 전환 지원) */
-    upsertSocialUser(input: { provider: string; providerUserId: string; email: string | null; nickname: string | null; refreshToken?: string | null; guestUserId?: string }): { user: User; created: boolean } {
-      const found = db.select().from(users).where(and(eq(users.provider, input.provider), eq(users.providerUserId, input.providerUserId))).get();
+    async upsertSocialUser(input: { provider: string; providerUserId: string; email: string | null; nickname: string | null; refreshToken?: string | null; guestUserId?: string }): Promise<{ user: User; created: boolean }> {
+      const [found] = await db.select().from(users).where(and(eq(users.provider, input.provider), eq(users.providerUserId, input.providerUserId)));
       if (found && !found.deletedAt) {
-        if (input.refreshToken) db.update(users).set({ providerRefreshToken: input.refreshToken }).where(eq(users.id, found.id)).run();
+        if (input.refreshToken) await db.update(users).set({ providerRefreshToken: input.refreshToken }).where(eq(users.id, found.id));
         return { user: found, created: false };
       }
       const email = input.email?.toLowerCase() ?? null;
       // 같은 이메일의 다른 계정이 있으면 이메일은 비워 둔다(계정 병합은 정책 결정 필요)
-      const emailTaken = email ? Boolean(db.select({ id: users.id }).from(users).where(eq(users.email, email)).get()) : false;
+      const emailTaken = email ? (await db.select({ id: users.id }).from(users).where(eq(users.email, email))).length > 0 : false;
       const nickname = (input.nickname ?? email?.split('@')[0] ?? '사용자').slice(0, 20);
       if (input.guestUserId) {
-        const guest = db.select().from(users).where(eq(users.id, input.guestUserId)).get();
+        const [guest] = await db.select().from(users).where(eq(users.id, input.guestUserId));
         if (guest && guest.provider === 'guest' && !guest.deletedAt) {
-          db.update(users)
+          await db
+            .update(users)
             .set({ provider: input.provider, providerUserId: input.providerUserId, providerRefreshToken: input.refreshToken ?? null, email: emailTaken ? null : email, nickname, updatedAt: Date.now() })
-            .where(eq(users.id, guest.id))
-            .run();
-          grantSignupBonus(guest.id);
-          return { user: get(guest.id), created: true };
+            .where(eq(users.id, guest.id));
+          await grantSignupBonus(guest.id);
+          return { user: await get(guest.id), created: true };
         }
       }
       const id = newId();
-      db.insert(users).values({ id, provider: input.provider, providerUserId: input.providerUserId, providerRefreshToken: input.refreshToken ?? null, email: emailTaken ? null : email, nickname }).run();
-      grantSignupBonus(id);
-      return { user: get(id), created: true };
+      await db.insert(users).values({ id, provider: input.provider, providerUserId: input.providerUserId, providerRefreshToken: input.refreshToken ?? null, email: emailTaken ? null : email, nickname });
+      await grantSignupBonus(id);
+      return { user: await get(id), created: true };
     },
     /**
      * 게스트 데이터(프로필·리포트·상담)를 기존 회원 계정으로 옮기고 게스트를 정리한다.
      * 게스트로 사주를 저장한 뒤 "이미 있는 계정"으로 로그인한 경우의 유실을 막는다.
      */
-    mergeGuestInto(guestUserId: string | undefined, userId: string): number {
+    async mergeGuestInto(guestUserId: string | undefined, userId: string): Promise<number> {
       if (!guestUserId || guestUserId === userId) return 0;
-      const guest = db.select().from(users).where(eq(users.id, guestUserId)).get();
+      const [guest] = await db.select().from(users).where(eq(users.id, guestUserId));
       if (!guest || guest.provider !== 'guest' || guest.deletedAt) return 0;
-      return db.transaction((tx) => {
-        const moved = tx.update(profiles).set({ userId, isPrimary: false, updatedAt: Date.now() }).where(eq(profiles.userId, guestUserId)).run().changes;
-        tx.update(reports).set({ userId }).where(eq(reports.userId, guestUserId)).run();
-        tx.update(chatMessages).set({ userId }).where(eq(chatMessages.userId, guestUserId)).run();
-        tx.delete(refreshTokens).where(eq(refreshTokens.userId, guestUserId)).run();
-        tx.update(users).set({ deviceId: null, deletedAt: Date.now(), nickname: '병합된 게스트', updatedAt: Date.now() }).where(eq(users.id, guestUserId)).run();
-        return moved;
+      return db.transaction(async (tx) => {
+        const moved = await tx.update(profiles).set({ userId, isPrimary: false, updatedAt: Date.now() }).where(eq(profiles.userId, guestUserId)).returning({ id: profiles.id });
+        await tx.update(reports).set({ userId }).where(eq(reports.userId, guestUserId));
+        await tx.update(chatMessages).set({ userId }).where(eq(chatMessages.userId, guestUserId));
+        await tx.delete(refreshTokens).where(eq(refreshTokens.userId, guestUserId));
+        await tx.update(users).set({ deviceId: null, deletedAt: Date.now(), nickname: '병합된 게스트', updatedAt: Date.now() }).where(eq(users.id, guestUserId));
+        return moved.length;
       });
     },
-    update(id: string, patch: { nickname?: string; marketingConsent?: boolean; pushEnabled?: boolean }): User {
-      db.update(users).set({ ...patch, updatedAt: Date.now() }).where(eq(users.id, id)).run();
+    async update(id: string, patch: { nickname?: string; marketingConsent?: boolean; pushEnabled?: boolean }): Promise<User> {
+      await db.update(users).set({ ...patch, updatedAt: Date.now() }).where(eq(users.id, id));
       return get(id);
     },
     /**
      * 회원 탈퇴 — 개인정보(프로필·리포트·상담·토큰)는 즉시 삭제하고, 주문/결제 기록은
      * 전자상거래법상 보존 의무(5년)를 위해 익명화된 사용자 행에 남긴다.
      */
-    deleteAccount(id: string) {
-      db.transaction((tx) => {
-        tx.delete(profiles).where(eq(profiles.userId, id)).run();
-        tx.delete(reports).where(eq(reports.userId, id)).run();
-        tx.delete(chatMessages).where(eq(chatMessages.userId, id)).run();
-        tx.delete(refreshTokens).where(eq(refreshTokens.userId, id)).run();
-        tx.delete(pushTokens).where(eq(pushTokens.userId, id)).run();
-        tx.update(users)
+    async deleteAccount(id: string) {
+      await db.transaction(async (tx) => {
+        await tx.delete(profiles).where(eq(profiles.userId, id));
+        await tx.delete(reports).where(eq(reports.userId, id));
+        await tx.delete(chatMessages).where(eq(chatMessages.userId, id));
+        await tx.delete(refreshTokens).where(eq(refreshTokens.userId, id));
+        await tx.delete(pushTokens).where(eq(pushTokens.userId, id));
+        await tx
+          .update(users)
           .set({ email: null, passwordHash: null, providerUserId: null, providerRefreshToken: null, deviceId: null, nickname: '탈퇴한 사용자', deletedAt: Date.now(), updatedAt: Date.now() })
-          .where(eq(users.id, id))
-          .run();
+          .where(eq(users.id, id));
       });
     },
   };

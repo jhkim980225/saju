@@ -14,7 +14,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
-  // 한 API 프로세스·SQLite 파일을 공유하므로 동시 실행 수를 적당히 제한 (테스트마다 사용자는 따로 만든다)
+  // 한 API 프로세스·DB(PGlite)를 공유하므로 동시 실행 수를 적당히 제한 (테스트마다 사용자는 따로 만든다)
   workers: process.env.CI ? 2 : 3,
   timeout: 60_000,
   expect: { timeout: 10_000 },
@@ -52,7 +52,7 @@ export default defineConfig({
         NODE_ENV: 'development',
         PORT: String(API_PORT),
         HOST: '127.0.0.1',
-        DATABASE_PATH: './data/e2e.db',
+        DATABASE_URL: './data/e2e-pglite',
         CORS_ORIGINS: `${WEB_ORIGIN},http://127.0.0.1:${WEB_PORT}`,
         PUBLIC_WEB_URL: WEB_ORIGIN,
         PAYMENT_PROVIDER: 'mock',

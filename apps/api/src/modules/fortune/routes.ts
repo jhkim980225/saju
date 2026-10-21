@@ -15,7 +15,7 @@ export const fortuneRoutes: FastifyPluginAsync = async (app) => {
   app.get('/daily', { preHandler: app.authenticate }, async (req) => {
     const q = parse(z.object({ profileId: z.string().optional(), date: dateQuery.optional() }), req.query);
     const user = requireUser(req);
-    const profile = q.profileId ? profiles.getOwned(user.id, q.profileId) : profiles.primary(user.id);
+    const profile = q.profileId ? await profiles.getOwned(user.id, q.profileId) : await profiles.primary(user.id);
     if (!profile) return { needsProfile: true };
     return buildDailyFortune(profiles.chartOf(profile), q.date ? parseDate(q.date) : todayInSeoul(), profile.id, profile.name);
   });
@@ -30,8 +30,8 @@ export const fortuneRoutes: FastifyPluginAsync = async (app) => {
   app.get('/yearly', { preHandler: app.authenticate }, async (req) => {
     const q = parse(z.object({ profileId: z.string(), year: z.coerce.number().int().min(1900).max(2100).optional() }), req.query);
     const user = requireUser(req);
-    const profile = profiles.getOwned(user.id, q.profileId);
+    const profile = await profiles.getOwned(user.id, q.profileId);
     const year = q.year ?? targetFortuneYear();
-    return buildYearlyFortune(profiles.chartOf(profile), year, reports.yearlyUnlocked(user.id, profile.id, year), profile.name);
+    return buildYearlyFortune(profiles.chartOf(profile), year, await reports.yearlyUnlocked(user.id, profile.id, year), profile.name);
   });
 };

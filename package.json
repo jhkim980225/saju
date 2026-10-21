@@ -33,8 +33,7 @@
     "esbuild@0.28.2": true,
     "esbuild@0.18.20": true,
     "esbuild@0.25.12": true,
-    "esbuild@0.27.7": true,
-    "better-sqlite3": false
+    "esbuild@0.27.7": true
   },
   "overrides": {
     "vite": "^7.3.7"

@@ -17,7 +17,7 @@ export const tojeongRoutes: FastifyPluginAsync = async (app) => {
     const year = body.year ?? TOJEONG_DEFAULT_YEAR;
     if (body.profileId) {
       if (!req.user) throw unauthorized();
-      const p = profiles.getOwned(req.user.id, body.profileId);
+      const p = await profiles.getOwned(req.user.id, body.profileId);
       return tojeongFor(profileToBirth(p), year, p.id);
     }
     return tojeongFor(body.birth!, year);

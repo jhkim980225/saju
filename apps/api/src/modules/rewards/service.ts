@@ -6,7 +6,7 @@
  * - 거래 ID(transaction_id)로 멱등 처리, 하루 지급 한도(REWARDED_AD_DAILY_LIMIT, 기본 3) 적용.
  */
 import { createPublicKey, verify } from 'node:crypto';
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { and, count, eq, gte } from 'drizzle-orm';
 import type { AppConfig } from '../../config/env.js';
 import type { Db } from '../../db/client.js';
 import { creditLedger, users, webhookEvents } from '../../db/schema.js';
@@ -54,13 +54,14 @@ export function createRewardsService(config: AppConfig, db: Db, commerce: Commer
 
   return {
     /** 오늘 받은 광고 보상 횟수 */
-    todayCount(userId: string): number {
+    async todayCount(userId: string): Promise<number> {
       return (
-        db
-          .select({ n: sql<number>`count(*)` })
-          .from(creditLedger)
-          .where(and(eq(creditLedger.userId, userId), eq(creditLedger.reason, 'bonus'), eq(creditLedger.memo, REWARD_MEMO), gte(creditLedger.createdAt, startOfTodayKst())))
-          .get()?.n ?? 0
+        (
+          await db
+            .select({ n: count() })
+            .from(creditLedger)
+            .where(and(eq(creditLedger.userId, userId), eq(creditLedger.reason, 'bonus'), eq(creditLedger.memo, REWARD_MEMO), gte(creditLedger.createdAt, startOfTodayKst())))
+        )[0]?.n ?? 0
       );
     },
 
@@ -90,13 +91,18 @@ export function createRewardsService(config: AppConfig, db: Db, commerce: Commer
       const userId = params.get('user_id');
       if (!transactionId || !userId) return { granted: false, reason: 'MISSING_PARAMS' };
       const eventId = `admob:${transactionId}`;
-      if (db.select({ id: webhookEvents.id }).from(webhookEvents).where(eq(webhookEvents.id, eventId)).get()) return { granted: false, reason: 'DUPLICATE' };
-      db.insert(webhookEvents).values({ id: eventId, provider: 'admob', eventType: 'reward', payload: Object.fromEntries(params), processedAt: now() }).run();
+      // 같은 거래가 동시에 두 번 와도 먼저 기록한 쪽만 지급한다
+      const recorded = await db
+        .insert(webhookEvents)
+        .values({ id: eventId, provider: 'admob', eventType: 'reward', payload: Object.fromEntries(params), processedAt: now() })
+        .onConflictDoNothing()
+        .returning({ id: webhookEvents.id });
+      if (recorded.length === 0) return { granted: false, reason: 'DUPLICATE' };
 
-      const user = db.select({ id: users.id, deletedAt: users.deletedAt }).from(users).where(eq(users.id, userId)).get();
+      const [user] = await db.select({ id: users.id, deletedAt: users.deletedAt }).from(users).where(eq(users.id, userId));
       if (!user || user.deletedAt) return { granted: false, reason: 'UNKNOWN_USER' };
-      if (this.todayCount(userId) >= config.REWARDED_AD_DAILY_LIMIT) return { granted: false, reason: 'DAILY_LIMIT' };
-      const credits = commerce.grantFreeCredits(userId, config.REWARDED_AD_CREDITS, REWARD_MEMO);
+      if ((await this.todayCount(userId)) >= config.REWARDED_AD_DAILY_LIMIT) return { granted: false, reason: 'DAILY_LIMIT' };
+      const credits = await commerce.grantFreeCredits(userId, config.REWARDED_AD_CREDITS, REWARD_MEMO);
       return { granted: true, credits };
     },
   };

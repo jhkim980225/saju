@@ -17,6 +17,14 @@ jobs:
     name: 타입검사 · 단위/통합 · E2E
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # API 테스트를 실제 PostgreSQL 로도 한 번 더 돌린다(기본 테스트는 PGlite)
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env: { POSTGRES_USER: saju, POSTGRES_PASSWORD: saju, POSTGRES_DB: saju }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U saju" --health-interval 5s --health-timeout 3s --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,10 +32,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # better-sqlite3 네이티브 모듈을 러너 환경에 맞게 빌드
-      - run: npm rebuild better-sqlite3
       - run: npm run typecheck
       - run: npm test
+      - name: API 테스트 — 실제 PostgreSQL
+        run: npm test -w @saju/api
+        env:
+          TEST_DATABASE_URL: postgres://saju:saju@localhost:5432/saju
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4

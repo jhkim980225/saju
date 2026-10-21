@@ -34,8 +34,8 @@ beforeAll(async () => {
     ADMIN_API_TOKEN: 'admin-secret',
   });
   ({ db } = createDb(':memory:'));
-  runMigrations(db);
-  seedProducts(db);
+  await runMigrations(db);
+  await seedProducts(db);
   app = await buildApp({ config, db, logger: false });
 });
 afterAll(() => app.close());
@@ -184,7 +184,7 @@ describe('그로블 결제 흐름', () => {
     expect((await send(evt)).body.duplicate).toBe(true);
     await send(completed(c.order.id, { merchantUid: 'mu-dup' }));
     expect(await credits(token)).toBe(10);
-    const saved = db.select().from(orders).where(eq(orders.id, c.order.id)).get()!;
+    const saved = (await db.select().from(orders).where(eq(orders.id, c.order.id)))[0]!;
     expect(saved.providerPaymentKey).toBe('mu-dup');
   });
 
@@ -193,7 +193,7 @@ describe('그로블 결제 흐름', () => {
     const c = await order(token, 'chat_pack_10');
     const evt = completed(c.order.id);
     await send(evt);
-    const row = db.select().from(webhookEvents).where(eq(webhookEvents.id, `groble:${evt.id}`)).get()!;
+    const row = (await db.select().from(webhookEvents).where(eq(webhookEvents.id, `groble:${evt.id}`)))[0]!;
     const text = JSON.stringify(row.payload);
     expect(text).not.toContain('buyer@example.com');
     expect(text).not.toContain('010-1234-5678');
@@ -222,7 +222,7 @@ describe('그로블 결제 흐름', () => {
     const { token } = await member();
     const c = await order(token, 'chat_pack_10');
     expect((await send(completed(c.order.id, { amount: 1000, merchantUid: 'mu-cheap' }))).status).toBe(200);
-    const saved = db.select().from(orders).where(eq(orders.id, c.order.id)).get()!;
+    const saved = (await db.select().from(orders).where(eq(orders.id, c.order.id)))[0]!;
     expect(saved.status).toBe('failed');
     expect(saved.failureReason).toContain('WEBHOOK_AMOUNT_MISMATCH');
     expect(saved.providerPaymentKey).toBe('mu-cheap');
@@ -233,7 +233,7 @@ describe('그로블 결제 흐름', () => {
     const { token } = await member();
     const c = await order(token, 'chat_pack_10');
     await send(completed(c.order.id, { contentId: 'some-other-window' }));
-    const saved = db.select().from(orders).where(eq(orders.id, c.order.id)).get()!;
+    const saved = (await db.select().from(orders).where(eq(orders.id, c.order.id)))[0]!;
     expect(saved.status).toBe('failed');
     expect(saved.failureReason).toContain('WEBHOOK_PRODUCT_MISMATCH');
   });
@@ -302,8 +302,8 @@ describe('한 그로블 계정을 여러 서비스가 같이 쓸 때 (GROBLE_REF
       SIGNUP_BONUS_CREDITS: '0',
     });
     const created = createDb(':memory:');
-    runMigrations(created.db);
-    seedProducts(created.db);
+    await runMigrations(created.db);
+    await seedProducts(created.db);
     shared = await buildApp({ config, db: created.db, logger: false });
     target = shared;
   });

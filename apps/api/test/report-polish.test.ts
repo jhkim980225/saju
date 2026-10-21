@@ -86,8 +86,8 @@ const BIRTH = { calendar: 'solar', year: 1990, month: 5, day: 15, hour: 14, minu
 beforeAll(async () => {
   const config = loadConfig({ __SKIP_ENV_FILE: '1', NODE_ENV: 'test', PAYMENT_PROVIDER: 'mock', ANTHROPIC_API_KEY: 'test-key', SIGNUP_BONUS_CREDITS: '0' });
   db = createDb(':memory:').db;
-  runMigrations(db);
-  seedProducts(db);
+  await runMigrations(db);
+  await seedProducts(db);
   app = await buildApp({ config, db, logger: false });
 });
 afterAll(async () => {
@@ -213,7 +213,7 @@ describe('사주분석서 — 결제 직후 미리 만들고, 규칙 기반 본�
     const lost = h.calls.splice(0);
     const restarted = await buildApp({ config: app.ctx.config, db, logger: false });
     try {
-      expect(db.select().from(reports).where(eq(reports.id, id)).get()!.generator).toBe('polishing');
+      expect((await db.select().from(reports).where(eq(reports.id, id)))[0]!.generator).toBe('polishing');
       const reopened = await api('GET', `/reports/${id}`, { token, via: restarted });
       expect(reopened.body).toMatchObject({ status: 'polishing', progress: { done: 0, total: n } });
       expect(h.calls).toHaveLength(n);

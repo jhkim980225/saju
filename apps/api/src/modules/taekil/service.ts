@@ -43,11 +43,11 @@ interface StoredTaekil {
 
 export function createTaekilService(db: Db, profiles: ProfileService, commerce: CommerceService, ai: AiService) {
   const inflight = new Map<string, Promise<ReadingSection[] | null>>();
-  const unlocked = (userId: string, r: Report) => commerce.isPremium(userId) || commerce.hasEntitlement(userId, taekilKey(r.id));
+  const unlocked = async (userId: string, r: Report) => (await commerce.isPremium(userId)) || commerce.hasEntitlement(userId, taekilKey(r.id));
   const stored = (r: Report) => r.content as StoredTaekil;
 
-  const ownedRow = (userId: string, id: string): Report => {
-    const r = db.select().from(reports).where(and(eq(reports.id, id), eq(reports.userId, userId), eq(reports.type, TAEKIL_REPORT_TYPE))).get();
+  const ownedRow = async (userId: string, id: string): Promise<Report> => {
+    const [r] = await db.select().from(reports).where(and(eq(reports.id, id), eq(reports.userId, userId), eq(reports.type, TAEKIL_REPORT_TYPE)));
     if (!r) throw notFound('택일 결과를 찾을 수 없어요.');
     return r;
   };
@@ -63,10 +63,10 @@ export function createTaekilService(db: Db, profiles: ProfileService, commerce: 
     if (running) return running;
     const job = ai
       .enhanceSections({ title: r.title, chart: s.chart, draft: draft.filter((x) => AI_SECTION_KEYS.includes(x.key)) })
-      .then((res) => {
+      .then(async (res) => {
         if (res.generator !== 'ai') return null;
-        const fresh = db.select().from(reports).where(eq(reports.id, r.id)).get();
-        if (fresh) db.update(reports).set({ content: { ...(fresh.content as StoredTaekil), ai: { sections: res.sections, model: res.model } }, generator: 'ai', model: res.model }).where(eq(reports.id, r.id)).run();
+        const [fresh] = await db.select().from(reports).where(eq(reports.id, r.id));
+        if (fresh) await db.update(reports).set({ content: { ...(fresh.content as StoredTaekil), ai: { sections: res.sections, model: res.model } }, generator: 'ai', model: res.model }).where(eq(reports.id, r.id));
         return res.sections;
       })
       .catch(() => null)
@@ -78,7 +78,7 @@ export function createTaekilService(db: Db, profiles: ProfileService, commerce: 
   const view = async (userId: string, r: Report): Promise<TaekilResultDto> => {
     const s = stored(r);
     const ctx = ctxOf(s);
-    const isUnlocked = unlocked(userId, r);
+    const isUnlocked = await unlocked(userId, r);
     let sections: ReadingSection[];
     let generator: 'rule' | 'ai' = 'rule';
     if (isUnlocked) {
@@ -117,7 +117,7 @@ export function createTaekilService(db: Db, profiles: ProfileService, commerce: 
     };
   };
 
-  const summary = (userId: string, r: Report): TaekilSummaryDto => {
+  const summary = async (userId: string, r: Report): Promise<TaekilSummaryDto> => {
     const s = stored(r);
     return {
       id: r.id,
@@ -128,7 +128,7 @@ export function createTaekilService(db: Db, profiles: ProfileService, commerce: 
       from: s.from,
       to: s.to,
       top: s.selection.top,
-      locked: !unlocked(userId, r),
+      locked: !(await unlocked(userId, r)),
       createdAt: new Date(r.createdAt).toISOString(),
     };
   };
@@ -137,13 +137,13 @@ export function createTaekilService(db: Db, profiles: ProfileService, commerce: 
     unlocked,
 
     async create(userId: string, dto: TaekilCreateDto): Promise<TaekilResultDto> {
-      const profile = profiles.getOwned(userId, dto.profileId);
+      const profile = await profiles.getOwned(userId, dto.profileId);
       const chart = profiles.chartOf(profile);
       const purpose = dto.purpose as TaekilPurpose;
       let partner: { id: string; name: string; chart: SajuChart } | null = null;
       if (purpose === 'wedding' && dto.partnerProfileId) {
         if (dto.partnerProfileId === profile.id) throw badRequest('서로 다른 두 사람을 골라 주세요.');
-        const p = profiles.getOwned(userId, dto.partnerProfileId);
+        const p = await profiles.getOwned(userId, dto.partnerProfileId);
         partner = { id: p.id, name: p.name, chart: profiles.chartOf(p) };
       }
 
@@ -172,13 +172,13 @@ export function createTaekilService(db: Db, profiles: ProfileService, commerce: 
 
       // 같은 입력이면 저장본으로 안내(이미 산 결과를 다시 사지 않게)
       const key = [purpose, profile.id, partner?.id ?? '', mode, dates.join(',')].join('|');
-      const existing = db
-        .select()
-        .from(reports)
-        .where(and(eq(reports.userId, userId), eq(reports.type, TAEKIL_REPORT_TYPE), eq(reports.profileId, profile.id)))
-        .orderBy(desc(reports.createdAt))
-        .all()
-        .find((r) => stored(r).key === key);
+      const existing = (
+        await db
+          .select()
+          .from(reports)
+          .where(and(eq(reports.userId, userId), eq(reports.type, TAEKIL_REPORT_TYPE), eq(reports.profileId, profile.id)))
+          .orderBy(desc(reports.createdAt), desc(reports.id))
+      ).find((r) => stored(r).key === key);
       if (existing) return view(userId, existing);
 
       const selection = selectTaekilDays(chart, purpose, dates.map(parseYmd), { partner: partner?.chart ?? null });
@@ -188,28 +188,27 @@ export function createTaekilService(db: Db, profiles: ProfileService, commerce: 
       const title = partner ? `${profile.name}·${partner.name}님의 결혼 택일${range}` : `${profile.name}님의 ${TAEKIL_PURPOSES[purpose].label} 택일${range}`;
       const content: StoredTaekil = { v: 1, key, purpose, mode, from, to, profileName: profile.name, partnerName: partner?.name ?? null, chart, selection };
       const id = newId();
-      db.insert(reports).values({ id, userId, profileId: profile.id, partnerProfileId: partner?.id ?? null, type: TAEKIL_REPORT_TYPE, year: null, title, content, generator: 'rule', model: null }).run();
-      return view(userId, ownedRow(userId, id));
+      await db.insert(reports).values({ id, userId, profileId: profile.id, partnerProfileId: partner?.id ?? null, type: TAEKIL_REPORT_TYPE, year: null, title, content, generator: 'rule', model: null });
+      return view(userId, await ownedRow(userId, id));
     },
 
-    get(userId: string, id: string): Promise<TaekilResultDto> {
-      return view(userId, ownedRow(userId, id));
+    async get(userId: string, id: string): Promise<TaekilResultDto> {
+      return view(userId, await ownedRow(userId, id));
     },
 
-    list(userId: string): TaekilSummaryDto[] {
-      return db
+    async list(userId: string): Promise<TaekilSummaryDto[]> {
+      const rows = await db
         .select()
         .from(reports)
         .where(and(eq(reports.userId, userId), eq(reports.type, TAEKIL_REPORT_TYPE)))
-        .orderBy(desc(reports.createdAt))
-        .limit(100)
-        .all()
-        .map((r) => summary(userId, r));
+        .orderBy(desc(reports.createdAt), desc(reports.id))
+        .limit(100);
+      return Promise.all(rows.map((r) => summary(userId, r)));
     },
 
     /** 결제 전 확인 — 내 택일 결과이고 이 상품으로 열 수 있는가 */
-    assertPurchasable(userId: string, readingId: string, productId: string) {
-      ownedRow(userId, readingId);
+    async assertPurchasable(userId: string, readingId: string, productId: string) {
+      await ownedRow(userId, readingId);
       if (productId !== TAEKIL_PRODUCT_ID) throw badRequest('이 택일 결과에 맞지 않는 상품이에요.');
     },
   };

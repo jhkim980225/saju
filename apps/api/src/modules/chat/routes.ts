@@ -20,7 +20,7 @@ export const chatRoutes: FastifyPluginAsync = async (app) => {
 
   app.delete('/', async (req, reply) => {
     const q = parse(z.object({ profileId: z.string() }), req.query);
-    chat.clear(requireUser(req).id, q.profileId);
+    await chat.clear(requireUser(req).id, q.profileId);
     reply.status(204);
   });
 };

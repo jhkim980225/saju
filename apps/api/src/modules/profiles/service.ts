@@ -77,8 +77,8 @@ export function createProfileService(db: Db) {
     };
   };
 
-  const getOwned = (userId: string, id: string): Profile => {
-    const p = db.select().from(profiles).where(and(eq(profiles.id, id), eq(profiles.userId, userId))).get();
+  const getOwned = async (userId: string, id: string): Promise<Profile> => {
+    const [p] = await db.select().from(profiles).where(and(eq(profiles.id, id), eq(profiles.userId, userId)));
     if (!p) throw notFound('프로필을 찾을 수 없어요.');
     return p;
   };
@@ -104,36 +104,38 @@ export function createProfileService(db: Db) {
     chartOf(p: Profile): SajuChart {
       return calculateSaju(profileToBirth(p));
     },
-    list(userId: string): Profile[] {
-      return db.select().from(profiles).where(eq(profiles.userId, userId)).orderBy(desc(profiles.isPrimary), asc(profiles.createdAt)).all();
+    async list(userId: string): Promise<Profile[]> {
+      return db.select().from(profiles).where(eq(profiles.userId, userId)).orderBy(desc(profiles.isPrimary), asc(profiles.createdAt), asc(profiles.id));
     },
-    primary(userId: string): Profile | undefined {
-      return db.select().from(profiles).where(eq(profiles.userId, userId)).orderBy(desc(profiles.isPrimary), asc(profiles.createdAt)).get();
+    async primary(userId: string): Promise<Profile | undefined> {
+      const [p] = await db.select().from(profiles).where(eq(profiles.userId, userId)).orderBy(desc(profiles.isPrimary), asc(profiles.createdAt), asc(profiles.id)).limit(1);
+      return p;
     },
-    create(userId: string, dto: Omit<ProfileCreateDto, 'birth'> & { birth: z.output<typeof birthInputSchema> }): Profile {
-      const count = db.select({ id: profiles.id }).from(profiles).where(eq(profiles.userId, userId)).all().length;
+    async create(userId: string, dto: Omit<ProfileCreateDto, 'birth'> & { birth: z.output<typeof birthInputSchema> }): Promise<Profile> {
+      const count = (await db.select({ id: profiles.id }).from(profiles).where(eq(profiles.userId, userId))).length;
       if (count >= MAX_PROFILES) throw badRequest(`프로필은 최대 ${MAX_PROFILES}개까지 저장할 수 있어요.`);
       calculateSaju(birthDtoToInput(dto.birth)); // 날짜 유효성 검증(SajuInputError → 400)
       const id = newId();
       const isPrimary = dto.isPrimary ?? (count === 0 || dto.relation === 'self');
-      db.transaction((tx) => {
-        if (isPrimary) tx.update(profiles).set({ isPrimary: false }).where(eq(profiles.userId, userId)).run();
-        tx.insert(profiles).values({ id, userId, name: dto.name, relation: dto.relation ?? 'self', cityName: dto.cityName ?? null, isPrimary, ...values(dto.birth) }).run();
+      await db.transaction(async (tx) => {
+        if (isPrimary) await tx.update(profiles).set({ isPrimary: false }).where(eq(profiles.userId, userId));
+        await tx.insert(profiles).values({ id, userId, name: dto.name, relation: dto.relation ?? 'self', cityName: dto.cityName ?? null, isPrimary, ...values(dto.birth) });
       });
       return getOwned(userId, id);
     },
-    update(userId: string, id: string, dto: Omit<ProfileUpdateDto, 'birth'> & { birth?: z.output<typeof birthInputSchema> }): Profile {
-      const current = getOwned(userId, id);
+    async update(userId: string, id: string, dto: Omit<ProfileUpdateDto, 'birth'> & { birth?: z.output<typeof birthInputSchema> }): Promise<Profile> {
+      const current = await getOwned(userId, id);
       if (dto.birth) {
         calculateSaju(birthDtoToInput(dto.birth));
         // 구매한 리포트 권한은 프로필 ID 에 묶여 있으므로, 출생정보를 바꿔 다른 사람 풀이에 재사용하는 것을 막는다
         const changed = JSON.stringify(values(dto.birth)) !== JSON.stringify(values(birthDtoFromProfile(current)));
-        const purchased = db.select({ id: entitlements.id }).from(entitlements).where(and(eq(entitlements.userId, userId), like(entitlements.key, `report:%${id}%`))).get();
+        const [purchased] = await db.select({ id: entitlements.id }).from(entitlements).where(and(eq(entitlements.userId, userId), like(entitlements.key, `report:%${id}%`))).limit(1);
         if (changed && purchased) throw conflict('구매한 풀이가 있는 사주는 출생 정보를 바꿀 수 없어요. 새 사주로 추가해 주세요. (입력 실수는 고객센터로 문의해 주세요)');
       }
-      db.transaction((tx) => {
-        if (dto.isPrimary) tx.update(profiles).set({ isPrimary: false }).where(eq(profiles.userId, userId)).run();
-        tx.update(profiles)
+      await db.transaction(async (tx) => {
+        if (dto.isPrimary) await tx.update(profiles).set({ isPrimary: false }).where(eq(profiles.userId, userId));
+        await tx
+          .update(profiles)
           .set({
             ...(dto.name !== undefined ? { name: dto.name } : {}),
             ...(dto.relation !== undefined ? { relation: dto.relation } : {}),
@@ -142,14 +144,13 @@ export function createProfileService(db: Db) {
             ...(dto.birth ? values(dto.birth) : {}),
             updatedAt: Date.now(),
           })
-          .where(eq(profiles.id, id))
-          .run();
+          .where(eq(profiles.id, id));
       });
       return getOwned(userId, id);
     },
-    remove(userId: string, id: string) {
-      getOwned(userId, id);
-      db.delete(profiles).where(eq(profiles.id, id)).run();
+    async remove(userId: string, id: string) {
+      await getOwned(userId, id);
+      await db.delete(profiles).where(eq(profiles.id, id));
     },
   };
 }

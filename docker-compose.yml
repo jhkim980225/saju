@@ -1,5 +1,18 @@
 # 로컬/스테이징 통합 실행: docker compose up --build  → http://localhost:8080
 services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: saju
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-saju-local}
+      POSTGRES_DB: saju
+    volumes: [db-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saju -d saju"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
   api:
     build: { context: ., dockerfile: deploy/api.Dockerfile }
     # 운영 env 파일 경로 (기본 apps/api/.env). 예: API_ENV_FILE=deploy/api.prod.env docker compose up
@@ -7,19 +20,21 @@ services:
     environment:
       NODE_ENV: production
       TRUST_PROXY_HOPS: "1"
-      DATABASE_PATH: /data/saju.db
+      DATABASE_URL: postgres://saju:${POSTGRES_PASSWORD:-saju-local}@db:5432/saju
       PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-http://localhost:8080}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,capacitor://localhost,https://localhost}
-    volumes: [api-data:/data]
+    depends_on:
+      db: { condition: service_healthy }
     restart: unless-stopped
   web:
     build:
       context: .
       dockerfile: deploy/web.Dockerfile
       # 사전 렌더링·sitemap 의 대표 주소 — api 의 PUBLIC_WEB_URL 과 같은 값
-      args: { PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-http://localhost:8080} }
+      args:
+        PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-http://localhost:8080}
     ports: ["8080:80"]
     depends_on: [api]
     restart: unless-stopped
 volumes:
-  api-data:
+  db-data:

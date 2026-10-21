@@ -99,12 +99,12 @@ export async function buildApp(opts: { config: AppConfig; db: Db; logger?: boole
   app.decorate('authenticate', async (req: FastifyRequest) => {
     const u = await readUser(req);
     if (!u) throw new AppError(401, ERROR_CODES.UNAUTHORIZED, u === undefined ? '로그인이 만료되었어요. 다시 로그인해 주세요.' : '로그인이 필요해요.');
-    if (!services.users.isActive(u.id)) throw unauthorized('탈퇴했거나 존재하지 않는 계정이에요.');
+    if (!(await services.users.isActive(u.id))) throw unauthorized('탈퇴했거나 존재하지 않는 계정이에요.');
     req.user = u;
   });
   app.decorate('optionalAuth', async (req: FastifyRequest) => {
     const u = await readUser(req);
-    if (u && services.users.isActive(u.id)) req.user = u;
+    if (u && (await services.users.isActive(u.id))) req.user = u;
   });
 
   app.setErrorHandler((err, req, reply) => {

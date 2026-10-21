@@ -14,7 +14,7 @@ export const rewardRoutes: FastifyPluginAsync = async (app) => {
 
   /** 오늘 남은 광고 보상 횟수 (앱 UI 용) */
   app.get('/status', { preHandler: app.authenticate }, async (req) => {
-    const used = rewards.todayCount(requireUser(req).id);
+    const used = await rewards.todayCount(requireUser(req).id);
     const limit = app.ctx.config.REWARDED_AD_DAILY_LIMIT;
     return { used, limit, remaining: Math.max(0, limit - used), creditsPerReward: app.ctx.config.REWARDED_AD_CREDITS };
   });

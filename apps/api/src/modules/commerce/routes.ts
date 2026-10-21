@@ -99,6 +99,6 @@ export const commerceRoutes: FastifyPluginAsync = async (app) => {
     requireAdmin(req);
     const { id } = parse(idParam, req.params);
     const body = parse(z.object({ amount: z.number().int().min(1).max(1000), memo: z.string().max(100).default('운영 지급') }), req.body);
-    return { credits: commerce.grantFreeCredits(id, body.amount, body.memo) };
+    return { credits: await commerce.grantFreeCredits(id, body.amount, body.memo) };
   });
 };

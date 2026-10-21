@@ -15,7 +15,7 @@ const BASE = { year: 2026, month: 10, day: 15 };
 beforeAll(async () => {
   const config = loadConfig({ __SKIP_ENV_FILE: '1', NODE_ENV: 'test', PAYMENT_PROVIDER: 'mock', ANTHROPIC_API_KEY: '' });
   const { db } = createDb(':memory:');
-  runMigrations(db);
+  await runMigrations(db);
   app = await buildApp({ config, db, logger: false });
 });
 afterAll(async () => {

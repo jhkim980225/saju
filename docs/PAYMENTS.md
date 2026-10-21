@@ -583,7 +583,7 @@ cd apps/api
 PAYMENT_PROVIDER=toss \
 TOSS_CLIENT_KEY=test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq \
 TOSS_SECRET_KEY=test_sk_zXLkKEypNArWmo50nX3lmeaxYG5R \
-DATABASE_PATH=./data/toss-sandbox.db npx tsx src/server.ts
+DATABASE_URL=./data/toss-sandbox-pglite npx tsx src/server.ts
 # 다른 터미널: npm run dev:web → 상점에서 구매
 ```
 

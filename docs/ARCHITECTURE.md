@@ -13,7 +13,7 @@
                      │ modules: auth · profiles · saju · fortune · compatibility ·        │
                      │          reports · chat · commerce · push · config                 │
                      │ interpretation(규칙 기반 해석 + 콘텐츠) ─┐   ai(Claude, 선택)        │
-                     │ Drizzle ORM ── SQLite(dev) / PostgreSQL(운영 전환)                  │
+                     │ Drizzle ORM ── PostgreSQL (운영 Supabase · 개발/테스트 PGlite)       │
                      └──────┬───────────────────────────┬────────────────────────────────┘
                             │                           │ 외부 연동(키 없으면 목업/NOT_CONFIGURED)
           ┌─────────────────▼──────┐     토스페이먼츠 · 포트원 · App Store/Play 검증 · Kakao/Naver/Google/Apple
@@ -27,7 +27,7 @@
 |---|---|---|
 | 모노레포 | npm workspaces | 추가 도구 없이 엔진·계약을 프론트/백/앱이 공유 |
 | 계산 엔진 | TypeScript, lunar-javascript(절기), korean-lunar-calendar(KASI 음력) | 프레임워크 무관 → 서버·브라우저·앱 어디서나 동일 결과 |
-| 백엔드 | Fastify 5, Drizzle ORM, better-sqlite3, jose, zod | 가볍고 빠름, 타입 안전, 테스트 시 인메모리 DB |
+| 백엔드 | Fastify 5, Drizzle ORM, PostgreSQL(postgres.js · PGlite), jose, zod | 가볍고 빠름, 타입 안전. 개발·테스트는 설치 없이 도는 PGlite(WASM PostgreSQL) |
 | 프론트 | React 19, Vite 7, Tailwind v4, React Router 7, TanStack Query, Zustand | 모바일 퍼스트 SPA → Capacitor 로 그대로 앱 포팅 |
 | 앱 | Capacitor 8 | 웹 코드 재사용 + 네이티브 기능(IAP·푸시·위젯) 추가 |
 | AI | Anthropic Claude (`@anthropic-ai/sdk`) | 키가 있을 때만 리포트 문장 고도화·상담. 없으면 규칙 기반 |
@@ -92,23 +92,27 @@ apps/web/src
 - 질문권: `users.credits`(합계) + `users.paidCredits`(유상) + `credit_ledger`(원장, source=paid/free, channel=web/ios/android/system). 사용은 **무상분 먼저** 차감(환불 가능한 유상분 보존).
 
 ## 4. 데이터 모델 (Drizzle, `apps/api/src/db/schema.ts`)
-`users` · `refresh_tokens`(해시 저장, 회전·재사용 탐지) · `profiles`(출생정보) · `products` · `orders` · `credit_ledger` · `entitlements` · `reports` · `chat_messages` · `push_tokens` · `webhook_events`
+`users` · `refresh_tokens`(해시 저장, 회전·재사용 탐지) · `password_resets` · `profiles`(출생정보) · `products` · `orders` · `credit_ledger` · `entitlements` · `reports` · `tarot_readings` · `chat_messages` · `push_tokens` · `webhook_events`
+
+- 금액은 원 단위 정수, 시각은 epoch ms(`bigint`), JSON 은 `jsonb`. ID 는 시간순 UUIDv7(`lib/ids.ts`) — 같은 ms 에 만든 행의 정렬 보조 기준.
+- `reports_target_uq`: 같은 대상(사람·종류·연도·상대)의 리포트는 하나만(택일 제외). 결제 직후 미리 만들기와 첫 열람이 겹쳐도 한 번만 만든다.
 
 탈퇴 시: 프로필·리포트·상담·토큰 즉시 삭제, 결제 기록은 익명화된 사용자 행에 5년 보존(전자상거래법).
 
 ## 5. 운영 전환 가이드
 
-### PostgreSQL 전환
-1. `drizzle-orm/pg-core` 로 `schema.ts` 를 옮긴다(`sqliteTable`→`pgTable`, `integer(..., {mode:'boolean'})`→`boolean`, JSON→`jsonb`, 시각은 `bigint` 또는 `timestamp`).
-2. `db/client.ts` 를 `drizzle-orm/node-postgres` 로 교체, `drizzle.config.ts` dialect `postgresql`.
-3. 서비스 코드는 동기 `.run()/.get()/.all()` 대신 `await` 사용으로 바꾼다(better-sqlite3 는 동기 드라이버).
+### DB (PostgreSQL) — 2026-10-21 SQLite 에서 전환
+- `DATABASE_URL` 하나로 고른다(`db/client.ts`): `postgres://…` 면 postgres.js(운영: Supabase 트랜잭션 풀러 6543 — prepared statement 끔), 그 밖의 값은 PGlite 데이터 폴더(개발 기본 `./data/pglite`), `:memory:` 는 테스트용 인메모리. 운영 모드(`NODE_ENV=production`)는 `postgres://` 가 아니면 기동을 거부한다.
+- 마이그레이션: `npm run db:generate -w @saju/api`(스키마 → `drizzle/*.sql`), 적용은 기동 시 자동.
+- 동시성: SQLite 처럼 쓰기가 한 줄로 서지 않으므로 — 잔액·한도는 사용자 행을 `FOR UPDATE` 로 잠그고(질문권 차감·지급, 결제 확정, 1회권 사용), 상태 전환은 조건부 UPDATE … RETURNING(결제 확정·환불, refresh 토큰 회전, 재설정 토큰 사용), 중복 생성은 유니크 인덱스 + `ON CONFLICT`(리포트, 광고 보상, 웹훅) 로 막는다. 회귀 테스트: `apps/api/test/concurrency.test.ts`.
+- 실제 PostgreSQL 로 테스트: `TEST_DATABASE_URL=postgres://… npm test -w @saju/api` — 테스트마다 임시 데이터베이스를 만들어 쓴다(CI 가 이 방식으로 한 번 더 돈다).
 
 ### 배포
 - API: `npm run build -w @saju/api` → `node apps/api/dist/server.js` (마이그레이션·상품 시드는 기동 시 자동). 단일 인스턴스에서 `DAILY_PUSH_ENABLED=true`.
 - Web: `npm run build -w @saju/web` → `apps/web/dist` 를 정적 호스팅(SPA fallback: 모든 경로 → `index.html`).
 - 앱: [`docs/APP_PORTING.md`](./APP_PORTING.md)
 - **운영 서버(HTTPS 포함) 절차: [`docs/DEPLOY.md`](./DEPLOY.md)** — `deploy/docker-compose.prod.yml`(Caddy 가 Let's Encrypt 인증서 자동 발급 → nginx → api), `deploy/api.prod.env.example`, 매일 백업 `deploy/backup.sh`.
-- Docker (✅ 빌드·운영 모드 기동 검증 완료): `deploy/api.Dockerfile`, `deploy/web.Dockerfile`(nginx — SPA fallback + `/api` 프록시), `docker-compose.yml` → `API_ENV_FILE=<운영 env 파일> docker compose up --build` 후 http://localhost:8080 (리버스 프록시 뒤라 `TRUST_PROXY_HOPS=1` 이 compose 에 지정됨).
+- Docker: `deploy/api.Dockerfile`, `deploy/web.Dockerfile`(nginx — SPA fallback + `/api` 프록시), `docker-compose.yml`(PostgreSQL 컨테이너 포함) → `API_ENV_FILE=<운영 env 파일> docker compose up --build` 후 http://localhost:8080 (리버스 프록시 뒤라 `TRUST_PROXY_HOPS=1` 이 compose 에 지정됨).
   운영 모드(`NODE_ENV=production`)이므로 `apps/api/.env` 에 JWT 시크릿(32자+)과 `PAYMENT_PROVIDER=toss|portone` + 결제 키가 있어야 기동됩니다(목업 결제는 운영 모드에서 차단).
 
 ## 6. 보안 체크
