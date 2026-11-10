@@ -5,9 +5,7 @@ coverage/
 .env
 .env.local
 .env.*.local
-apps/api/data/*.db
-apps/api/data/*.db-*
-apps/api/data/*pglite*/
+apps/api/.wrangler/
 playwright-report/
 test-results/
 .DS_Store
@@ -27,5 +25,4 @@ apps/web/ios/App/App/GoogleService-Info.plist
 .claude/
 
 # 운영 서버 env (서버에만 둔다)
-deploy/api.prod.env
-deploy/.env
+.dev.vars

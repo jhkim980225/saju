@@ -1,34 +1,38 @@
-import type { FastifyPluginAsync } from 'fastify';
+import { Hono } from 'hono';
 import { z } from 'zod';
 import { tarotDrawSchema, tarotShuffleSchema } from '@saju/shared';
-import { requireUser } from '../../app.js';
+import { noContent, readJson, requireUser, type AppEnv, type RouteKit } from '../../lib/http.js';
 import { parse } from '../../lib/validate.js';
 
-export const tarotRoutes: FastifyPluginAsync = async (app) => {
-  const { tarot } = app.ctx.services;
+export function tarotRoutes({ ctx, authenticate }: RouteKit) {
+  const { tarot } = ctx.services;
+  const app = new Hono<AppEnv>();
+  app.use('*', authenticate);
 
   /** 오늘의 카드 — 같은 사람·같은 날은 같은 카드 */
-  app.get('/daily', { preHandler: app.authenticate }, async (req) => {
-    const q = parse(z.object({ profileId: z.string().optional() }), req.query);
-    return tarot.daily(requireUser(req).id, q.profileId);
+  app.get('/daily', async (c) => {
+    const q = parse(z.object({ profileId: z.string().optional() }), c.req.query());
+    return c.json(await tarot.daily(requireUser(c).id, q.profileId));
   });
 
   /** 카드 섞기 — 덱 토큰 발급(카드 순서는 보내지 않는다) */
-  app.post('/shuffle', { preHandler: app.authenticate }, async (req) => tarot.shuffle(requireUser(req).id, parse(tarotShuffleSchema, req.body)));
+  app.post('/shuffle', async (c) => c.json(await tarot.shuffle(requireUser(c).id, parse(tarotShuffleSchema, await readJson(c)))));
 
   /** 고른 자리로 카드를 꺼내 리딩 생성 */
-  app.post('/readings', { preHandler: app.authenticate }, async (req) => tarot.draw(requireUser(req).id, parse(tarotDrawSchema, req.body)));
+  app.post('/readings', async (c) => c.json(await tarot.draw(requireUser(c).id, parse(tarotDrawSchema, await readJson(c)))));
 
-  app.get('/readings', { preHandler: app.authenticate }, async (req) => tarot.history(requireUser(req).id));
+  app.get('/readings', async (c) => c.json(await tarot.history(requireUser(c).id)));
 
-  app.get('/readings/:id', { preHandler: app.authenticate }, async (req) => {
-    const { id } = parse(z.object({ id: z.string() }), req.params);
-    return tarot.get(requireUser(req).id, id);
+  app.get('/readings/:id', async (c) => {
+    const { id } = parse(z.object({ id: z.string() }), c.req.param());
+    return c.json(await tarot.get(requireUser(c).id, id));
   });
 
-  app.delete('/readings/:id', { preHandler: app.authenticate }, async (req, reply) => {
-    const { id } = parse(z.object({ id: z.string() }), req.params);
-    await tarot.remove(requireUser(req).id, id);
-    reply.status(204);
+  app.delete('/readings/:id', async (c) => {
+    const { id } = parse(z.object({ id: z.string() }), c.req.param());
+    await tarot.remove(requireUser(c).id, id);
+    return noContent(c);
   });
-};
+
+  return app;
+}

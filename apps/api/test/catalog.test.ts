@@ -3,7 +3,7 @@
  */
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { createDb, runMigrations } from '../src/db/client.js';
+import { createDb, runMigrations } from '../src/db/local.js';
 import { products } from '../src/db/schema.js';
 import { seedProducts } from '../src/db/seed.js';
 import { CATALOG } from '../src/modules/commerce/catalog.js';

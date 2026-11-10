@@ -576,14 +576,19 @@ curl -X POST http://localhost:4000/api/v1/admin/orders/ORD-20261012-ABCDEF123456
 
 ## 토스페이먼츠 샌드박스 실연동 검증 (2026-10-12, 팀장)
 
-토스페이먼츠 공식 샘플 저장소([tosspayments-sample](https://github.com/tosspayments/tosspayments-sample))에 공개된 **API 개별 연동 테스트 키 쌍**으로 실제 샌드박스와 연동해 확인했습니다. 테스트 환경이라 실제 출금은 없습니다. 키는 저장소에 넣지 않고 실행 시 환경변수로만 전달했습니다.
+토스페이먼츠 공식 샘플 저장소([tosspayments-sample](https://github.com/tosspayments/tosspayments-sample))에 공개된 **API 개별 연동 테스트 키 쌍**으로 실제 샌드박스와 연동해 확인했습니다. 테스트 환경이라 실제 출금은 없습니다. 키는 저장소에 넣지 않고 실행할 때만 따로 전달했습니다.
+
+아래는 현재 구조(Cloudflare Worker 로컬 실행)에서 같은 시험을 다시 하는 방법입니다. 키는 별도 env 파일에 넣어 `--env-file` 로 넘기고(이때 `apps/api/.env` 대신 이 파일을 읽는다), 로컬 D1 은 개발용 데이터와 섞이지 않게 별도 폴더(`.wrangler/toss-sandbox`)를 씁니다. `.wrangler/` 는 git 에서 제외됩니다.
 
 ```bash
 cd apps/api
-PAYMENT_PROVIDER=toss \
-TOSS_CLIENT_KEY=test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq \
-TOSS_SECRET_KEY=test_sk_zXLkKEypNArWmo50nX3lmeaxYG5R \
-DATABASE_URL=./data/toss-sandbox-pglite npx tsx src/server.ts
+mkdir -p .wrangler
+cat > .wrangler/toss-sandbox.env <<'EOF'
+PAYMENT_PROVIDER=toss
+TOSS_CLIENT_KEY=test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq
+TOSS_SECRET_KEY=test_sk_zXLkKEypNArWmo50nX3lmeaxYG5R
+EOF
+node scripts/local.mjs --port 4000 --persist-to .wrangler/toss-sandbox --env-file .wrangler/toss-sandbox.env
 # 다른 터미널: npm run dev:web → 상점에서 구매
 ```
 

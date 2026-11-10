@@ -1,37 +1,39 @@
-import type { FastifyPluginAsync } from 'fastify';
+import { Hono } from 'hono';
 import { z } from 'zod';
 import { profileCreateSchema, profileUpdateSchema } from '@saju/shared';
-import { requireUser } from '../../app.js';
+import { noContent, readJson, requireUser, type AppEnv, type RouteKit } from '../../lib/http.js';
 import { parse } from '../../lib/validate.js';
 
 const idParam = z.object({ id: z.string().min(1) });
 
-export const profileRoutes: FastifyPluginAsync = async (app) => {
-  const { profiles } = app.ctx.services;
-  app.addHook('preHandler', app.authenticate);
+export function profileRoutes({ ctx, authenticate }: RouteKit) {
+  const { profiles } = ctx.services;
+  const app = new Hono<AppEnv>();
+  app.use('*', authenticate);
 
-  app.get('/', async (req) => (await profiles.list(requireUser(req).id)).map((p) => profiles.toDto(p)));
+  app.get('/', async (c) => c.json((await profiles.list(requireUser(c).id)).map((p) => profiles.toDto(p))));
 
-  app.post('/', async (req, reply) => {
-    const body = parse(profileCreateSchema, req.body);
-    reply.status(201);
-    return profiles.toDto(await profiles.create(requireUser(req).id, body));
+  app.post('/', async (c) => {
+    const body = parse(profileCreateSchema, await readJson(c));
+    return c.json(profiles.toDto(await profiles.create(requireUser(c).id, body)), 201);
   });
 
-  app.get('/:id', async (req) => {
-    const { id } = parse(idParam, req.params);
-    return profiles.toDto(await profiles.getOwned(requireUser(req).id, id));
+  app.get('/:id', async (c) => {
+    const { id } = parse(idParam, c.req.param());
+    return c.json(profiles.toDto(await profiles.getOwned(requireUser(c).id, id)));
   });
 
-  app.patch('/:id', async (req) => {
-    const { id } = parse(idParam, req.params);
-    const body = parse(profileUpdateSchema, req.body);
-    return profiles.toDto(await profiles.update(requireUser(req).id, id, body));
+  app.patch('/:id', async (c) => {
+    const { id } = parse(idParam, c.req.param());
+    const body = parse(profileUpdateSchema, await readJson(c));
+    return c.json(profiles.toDto(await profiles.update(requireUser(c).id, id, body)));
   });
 
-  app.delete('/:id', async (req, reply) => {
-    const { id } = parse(idParam, req.params);
-    await profiles.remove(requireUser(req).id, id);
-    reply.status(204);
+  app.delete('/:id', async (c) => {
+    const { id } = parse(idParam, c.req.param());
+    await profiles.remove(requireUser(c).id, id);
+    return noContent(c);
   });
-};
+
+  return app;
+}

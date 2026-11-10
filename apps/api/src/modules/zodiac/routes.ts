@@ -6,10 +6,11 @@
  * GET /horoscope?period&date            12별자리 한 줄 요약
  * GET /horoscope/:sign?period&date      별자리 하나 (aries … pisces)
  */
-import type { FastifyPluginAsync, FastifyReply } from 'fastify';
+import { Hono } from 'hono';
 import { z } from 'zod';
 import { FREE_FORTUNE_PERIODS, starSignBySlug, zodiacAnimalBySlug } from '@saju/shared';
 import { notFound } from '../../lib/errors.js';
+import type { AppEnv, Ctx, RouteKit } from '../../lib/http.js';
 import { parse } from '../../lib/validate.js';
 import { dateQuery, parseDate, todayInSeoul } from '../saju/routes.js';
 import { buildHoroscope, buildHoroscopeOverview } from './horoscope.js';
@@ -21,41 +22,43 @@ const querySchema = z.object({
 });
 
 /** 같은 날 같은 응답이므로 짧게 캐시해도 된다(날짜를 넘기면 내용이 바뀌므로 10분) */
-const cache = (reply: FastifyReply) => reply.header('cache-control', 'public, max-age=600');
+const cached = (c: Ctx, body: unknown) => {
+  c.header('cache-control', 'public, max-age=600');
+  return c.json(body);
+};
 
-export const zodiacRoutes: FastifyPluginAsync = async (app) => {
-  const read = (query: unknown) => {
-    const q = parse(querySchema, query);
+export function zodiacRoutes(_kit: RouteKit) {
+  const app = new Hono<AppEnv>();
+  const read = (c: Ctx) => {
+    const q = parse(querySchema, c.req.query());
     return { period: q.period, base: q.date ? parseDate(q.date) : todayInSeoul() };
   };
 
-  app.get('/zodiac', async (req, reply) => {
-    const { period, base } = read(req.query);
-    cache(reply);
-    return buildZodiacOverview(period, base);
+  app.get('/zodiac', (c) => {
+    const { period, base } = read(c);
+    return cached(c, buildZodiacOverview(period, base));
   });
 
-  app.get('/zodiac/:animal', async (req, reply) => {
-    const { animal: slug } = parse(z.object({ animal: z.string() }), req.params);
+  app.get('/zodiac/:animal', (c) => {
+    const { animal: slug } = parse(z.object({ animal: z.string() }), c.req.param());
     const animal = zodiacAnimalBySlug(slug);
     if (!animal) throw notFound('없는 띠예요. rat, ox, tiger … pig 중에서 골라 주세요.');
-    const { period, base } = read(req.query);
-    cache(reply);
-    return buildZodiacFortune(animal, period, base);
+    const { period, base } = read(c);
+    return cached(c, buildZodiacFortune(animal, period, base));
   });
 
-  app.get('/horoscope', async (req, reply) => {
-    const { period, base } = read(req.query);
-    cache(reply);
-    return buildHoroscopeOverview(period, base);
+  app.get('/horoscope', (c) => {
+    const { period, base } = read(c);
+    return cached(c, buildHoroscopeOverview(period, base));
   });
 
-  app.get('/horoscope/:sign', async (req, reply) => {
-    const { sign: slug } = parse(z.object({ sign: z.string() }), req.params);
+  app.get('/horoscope/:sign', (c) => {
+    const { sign: slug } = parse(z.object({ sign: z.string() }), c.req.param());
     const sign = starSignBySlug(slug);
     if (!sign) throw notFound('없는 별자리예요. aries, taurus … pisces 중에서 골라 주세요.');
-    const { period, base } = read(req.query);
-    cache(reply);
-    return buildHoroscope(sign, period, base);
+    const { period, base } = read(c);
+    return cached(c, buildHoroscope(sign, period, base));
   });
-};
+
+  return app;
+}

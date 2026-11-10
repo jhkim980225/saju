@@ -1,22 +1,25 @@
-import type { FastifyPluginAsync } from 'fastify';
+import { Hono } from 'hono';
 import { z } from 'zod';
 import { pushRegisterSchema } from '@saju/shared';
-import { requireUser } from '../../app.js';
+import { noContent, readJson, requireUser, type AppEnv, type RouteKit } from '../../lib/http.js';
 import { parse } from '../../lib/validate.js';
 
-export const pushRoutes: FastifyPluginAsync = async (app) => {
-  const { push } = app.ctx.services;
-  app.addHook('preHandler', app.authenticate);
+export function pushRoutes({ ctx, authenticate }: RouteKit) {
+  const { push } = ctx.services;
+  const app = new Hono<AppEnv>();
+  app.use('*', authenticate);
 
-  app.post('/tokens', async (req, reply) => {
-    const body = parse(pushRegisterSchema, req.body);
-    await push.register(requireUser(req).id, body.token, body.platform);
-    reply.status(204);
+  app.post('/tokens', async (c) => {
+    const body = parse(pushRegisterSchema, await readJson(c));
+    await push.register(requireUser(c).id, body.token, body.platform);
+    return noContent(c);
   });
 
-  app.delete('/tokens', async (req, reply) => {
-    const body = parse(z.object({ token: z.string() }), req.body);
+  app.delete('/tokens', async (c) => {
+    const body = parse(z.object({ token: z.string() }), await readJson(c));
     await push.unregister(body.token);
-    reply.status(204);
+    return noContent(c);
   });
-};
+
+  return app;
+}

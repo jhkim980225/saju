@@ -12,15 +12,20 @@ import { createCommerceService } from './modules/commerce/service.js';
 import { createMailService } from './modules/mail/service.js';
 import { createProfileService } from './modules/profiles/service.js';
 import { createPushService } from './modules/push/service.js';
-import { createReportService } from './modules/reports/service.js';
+import { createReportService, type StartJob } from './modules/reports/service.js';
 import { createRewardsService } from './modules/rewards/service.js';
 import { createTarotService } from './modules/tarot/service.js';
 import { createUserService } from './modules/users/service.js';
 import { createTaekilService } from './modules/taekil/service.js';
 
-/** 테스트용 외부 의존성 주입 (생략 시 실제 값) */
+/** 외부 의존성 주입 (생략 시 실제 값) */
 export interface ServiceDeps {
   gateways?: GatewayDeps;
+  /**
+   * 응답 뒤에 이어 할 작업(리포트 다듬기) 맡기기 — Worker 는 Queue 로 보낸다(src/worker.ts).
+   * 생략하면 같은 프로세스에서 바로 돌린다(테스트·Node): 작업이 시작되면(AI 호출이 나가면) 돌아온다
+   */
+  startJob?: StartJob;
 }
 
 export function createServices(config: AppConfig, db: Db, deps: ServiceDeps = {}) {
@@ -32,7 +37,13 @@ export function createServices(config: AppConfig, db: Db, deps: ServiceDeps = {}
   const gateways = createGateways(config, deps.gateways);
   const commerce = createCommerceService(config, db, gateways);
   const ai = createAiService(config);
-  const reports = createReportService(db, profiles, commerce, ai);
+  const startJob: StartJob =
+    deps.startJob ??
+    ((job) =>
+      new Promise<void>((started) => {
+        void reports.runPolish(job.reportId, started).finally(started);
+      }));
+  const reports = createReportService(db, profiles, commerce, ai, startJob);
   const chat = createChatService(config, db, profiles, commerce, ai, reports.access);
   const push = createPushService(config, db);
   const rewards = createRewardsService(config, db, commerce);

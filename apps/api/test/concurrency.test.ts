@@ -1,18 +1,19 @@
 /**
- * 동시 요청 — PostgreSQL 에서 같은 자원에 요청이 겹쳐도 돈·질문권·권한·토큰이 한 번만 처리되는지.
- * 기본은 PGlite(연결 하나라 요청이 줄을 선다)로 돌고, TEST_DATABASE_URL 을 주면 실제 PostgreSQL 의 행 잠금까지 확인한다.
- *   TEST_DATABASE_URL=postgres://… npx vitest run test/concurrency.test.ts
+ * 동시 요청 — 같은 자원에 요청이 겹쳐도 돈·질문권·권한·토큰이 한 번만 처리되는지.
+ * D1 에는 대화형 트랜잭션이 없어 읽고 → 묶음(batch) 실행 사이에 다른 요청이 끼어든다. db/atomic.ts 의 전제 확인·재시도가 이를 막는다.
+ * 기본은 인메모리 SQLite(libSQL)로 돌고, TEST_D1=1 이면 진짜 D1(Miniflare)로 돈다.
+ *   TEST_D1=1 npx vitest run test/concurrency.test.ts
  */
 import { and, eq } from 'drizzle-orm';
-import type { FastifyInstance } from 'fastify';
+import type { App } from '../src/app.js';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
-import { createDb, runMigrations, type Db } from '../src/db/client.js';
+import { createDb, runMigrations, type Db } from '../src/db/local.js';
 import { creditLedger, entitlements, orders, reports } from '../src/db/schema.js';
 import { seedProducts } from '../src/db/seed.js';
 
-let app: FastifyInstance;
+let app: App;
 let db: Db;
 let close: () => Promise<void>;
 const BIRTH = { calendar: 'solar', year: 1990, month: 5, day: 15, hour: 14, minute: 30, gender: 'male' } as const;
@@ -22,7 +23,7 @@ beforeAll(async () => {
   ({ db, close } = createDb(':memory:'));
   await runMigrations(db);
   await seedProducts(db);
-  app = await buildApp({ config, db, logger: false });
+  app = await buildApp({ config, db });
 });
 afterAll(async () => {
   await app.close();

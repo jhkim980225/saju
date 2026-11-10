@@ -1,21 +1,16 @@
 /**
- * DB 스키마 (Drizzle ORM / PostgreSQL — 운영 Supabase, 개발·테스트 PGlite).
- * 금액은 원(KRW) 정수, 시각은 epoch ms 정수(bigint)로 저장한다. JSON 은 jsonb.
+ * DB 스키마 (Drizzle ORM / Cloudflare D1 — SQLite).
+ * 금액은 원(KRW) 정수, 시각은 epoch ms 정수로 저장한다. JSON 은 text(json 모드).
  */
 import { sql } from 'drizzle-orm';
-import { bigint, boolean, doublePrecision, index, integer, jsonb, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core';
-
-/** epoch ms — int4 범위를 넘으므로 bigint(number 로 읽음) */
-const ms = (name: string) => bigint(name, { mode: 'number' });
-/** 지금 시각(epoch ms) 기본값 */
-const NOW_MS = sql`(extract(epoch from now()) * 1000)::bigint`;
+import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 const timestamps = {
-  createdAt: ms('created_at').notNull().default(NOW_MS),
-  updatedAt: ms('updated_at').notNull().default(NOW_MS),
+  createdAt: integer('created_at').notNull().default(sql`(unixepoch() * 1000)`),
+  updatedAt: integer('updated_at').notNull().default(sql`(unixepoch() * 1000)`),
 };
 
-export const users = pgTable(
+export const users = sqliteTable(
   'users',
   {
     id: text('id').primaryKey(),
@@ -33,10 +28,10 @@ export const users = pgTable(
     credits: integer('credits').notNull().default(0),
     /** 보유 질문권 중 유상(환불 대상) 수량 */
     paidCredits: integer('paid_credits').notNull().default(0),
-    premiumUntil: ms('premium_until'),
-    marketingConsent: boolean('marketing_consent').notNull().default(false),
-    pushEnabled: boolean('push_enabled').notNull().default(true),
-    deletedAt: ms('deleted_at'),
+    premiumUntil: integer('premium_until'),
+    marketingConsent: integer('marketing_consent', { mode: 'boolean' }).notNull().default(false),
+    pushEnabled: integer('push_enabled', { mode: 'boolean' }).notNull().default(true),
+    deletedAt: integer('deleted_at'),
     ...timestamps,
   },
   (t) => [
@@ -45,35 +40,35 @@ export const users = pgTable(
   ],
 );
 
-export const refreshTokens = pgTable(
+export const refreshTokens = sqliteTable(
   'refresh_tokens',
   {
     id: text('id').primaryKey(),
     userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     tokenHash: text('token_hash').notNull(),
-    expiresAt: ms('expires_at').notNull(),
-    revokedAt: ms('revoked_at'),
+    expiresAt: integer('expires_at').notNull(),
+    revokedAt: integer('revoked_at'),
     userAgent: text('user_agent'),
-    createdAt: ms('created_at').notNull().default(NOW_MS),
+    createdAt: integer('created_at').notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [uniqueIndex('refresh_tokens_hash_uq').on(t.tokenHash), index('refresh_tokens_user_idx').on(t.userId)],
 );
 
 /** 비밀번호 재설정 링크 토큰 — 원문은 메일로만 보내고 DB 에는 sha256 해시만 둔다. 30분 만료, 1회 사용 */
-export const passwordResets = pgTable(
+export const passwordResets = sqliteTable(
   'password_resets',
   {
     id: text('id').primaryKey(),
     userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     tokenHash: text('token_hash').notNull(),
-    expiresAt: ms('expires_at').notNull(),
-    usedAt: ms('used_at'),
-    createdAt: ms('created_at').notNull().default(NOW_MS),
+    expiresAt: integer('expires_at').notNull(),
+    usedAt: integer('used_at'),
+    createdAt: integer('created_at').notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [uniqueIndex('password_resets_hash_uq').on(t.tokenHash), index('password_resets_user_idx').on(t.userId)],
 );
 
-export const profiles = pgTable(
+export const profiles = sqliteTable(
   'profiles',
   {
     id: text('id').primaryKey(),
@@ -85,21 +80,21 @@ export const profiles = pgTable(
     birthYear: integer('birth_year').notNull(),
     birthMonth: integer('birth_month').notNull(),
     birthDay: integer('birth_day').notNull(),
-    isLeapMonth: boolean('is_leap_month').notNull().default(false),
+    isLeapMonth: integer('is_leap_month', { mode: 'boolean' }).notNull().default(false),
     birthHour: integer('birth_hour'),
     birthMinute: integer('birth_minute'),
     timeZone: text('time_zone').notNull().default('Asia/Seoul'),
-    longitude: doublePrecision('longitude').notNull().default(126.978),
+    longitude: real('longitude').notNull().default(126.978),
     cityName: text('city_name'),
     timeCorrection: text('time_correction').notNull().default('lmt'),
     ziHourRule: text('zi_hour_rule').notNull().default('nextDay'),
-    isPrimary: boolean('is_primary').notNull().default(false),
+    isPrimary: integer('is_primary', { mode: 'boolean' }).notNull().default(false),
     ...timestamps,
   },
   (t) => [index('profiles_user_idx').on(t.userId)],
 );
 
-export const products = pgTable('products', {
+export const products = sqliteTable('products', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   description: text('description').notNull(),
@@ -110,24 +105,24 @@ export const products = pgTable('products', {
   /** 지급 질문권 수 */
   credits: integer('credits').notNull().default(0),
   /** 지급 권한 템플릿 목록. 예: ["report:lifetime", "report:yearly:2027", "ticket:compatibility"] */
-  grants: jsonb('grants').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  grants: text('grants', { mode: 'json' }).$type<string[]>().notNull().default(sql`'[]'`),
   /** 구독 주기(일) */
   periodDays: integer('period_days'),
   /** 계정당 구매 가능 횟수 (null = 무제한) */
   perUserLimit: integer('per_user_limit'),
   /** 할인 종료 시각(epoch ms) — 지나면 listPrice 로 판매 */
-  saleEndsAt: ms('sale_ends_at'),
+  saleEndsAt: integer('sale_ends_at'),
   /** 2차 출시 예정 상품 */
-  comingSoon: boolean('coming_soon').notNull().default(false),
+  comingSoon: integer('coming_soon', { mode: 'boolean' }).notNull().default(false),
   badge: text('badge'),
   iosProductId: text('ios_product_id'),
   androidProductId: text('android_product_id'),
-  active: boolean('active').notNull().default(true),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
   sortOrder: integer('sort_order').notNull().default(0),
   ...timestamps,
 });
 
-export const orders = pgTable(
+export const orders = sqliteTable(
   'orders',
   {
     /** 결제사에 전달하는 orderId (영숫자·-_ 6~64자) */
@@ -143,16 +138,16 @@ export const orders = pgTable(
     providerPaymentKey: text('provider_payment_key'),
     method: text('method'),
     /** JSON: { profileId, partnerProfileId, year, couponCode } */
-    metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+    metadata: text('metadata', { mode: 'json' }).$type<Record<string, unknown>>(),
     failureReason: text('failure_reason'),
-    paidAt: ms('paid_at'),
-    canceledAt: ms('canceled_at'),
+    paidAt: integer('paid_at'),
+    canceledAt: integer('canceled_at'),
     ...timestamps,
   },
   (t) => [index('orders_user_idx').on(t.userId), uniqueIndex('orders_payment_key_uq').on(t.provider, t.providerPaymentKey)],
 );
 
-export const creditLedger = pgTable(
+export const creditLedger = sqliteTable(
   'credit_ledger',
   {
     id: text('id').primaryKey(),
@@ -168,12 +163,12 @@ export const creditLedger = pgTable(
     refType: text('ref_type'),
     refId: text('ref_id'),
     balanceAfter: integer('balance_after').notNull(),
-    createdAt: ms('created_at').notNull().default(NOW_MS),
+    createdAt: integer('created_at').notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [index('credit_ledger_user_idx').on(t.userId)],
 );
 
-export const entitlements = pgTable(
+export const entitlements = sqliteTable(
   'entitlements',
   {
     id: text('id').primaryKey(),
@@ -181,13 +176,13 @@ export const entitlements = pgTable(
     /** 예: report:lifetime:<profileId>, report:yearly:<profileId>:2027, report:compatibility:<a>:<b> */
     key: text('key').notNull(),
     orderId: text('order_id'),
-    expiresAt: ms('expires_at'),
-    createdAt: ms('created_at').notNull().default(NOW_MS),
+    expiresAt: integer('expires_at'),
+    createdAt: integer('created_at').notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [uniqueIndex('entitlements_user_key_uq').on(t.userId, t.key)],
 );
 
-export const reports = pgTable(
+export const reports = sqliteTable(
   'reports',
   {
     id: text('id').primaryKey(),
@@ -198,11 +193,16 @@ export const reports = pgTable(
     year: integer('year'),
     title: text('title').notNull(),
     /** ReadingSection[] JSON */
-    content: jsonb('content').$type<unknown>().notNull(),
+    content: text('content', { mode: 'json' }).$type<unknown>().notNull(),
     /** 'rule' | 'ai' | 'polishing'(규칙 기반 본문을 저장해 두고 AI 가 다듬는 중 — 끝나면 'ai' 또는 'rule') */
     generator: text('generator').notNull(),
     model: text('model'),
-    createdAt: ms('created_at').notNull().default(NOW_MS),
+    /** AI 다듬기 진행 — 끝낸 덩어리 / 전체. 요청마다 다른 인스턴스가 받으므로 메모리가 아니라 DB 에 둔다 */
+    polishDone: integer('polish_done').notNull().default(0),
+    polishTotal: integer('polish_total').notNull().default(0),
+    /** 다듬기 담당 기한(epoch ms) — 이 시각까지 진행 소식이 없으면 끊긴 것으로 보고 다시 맡는다 */
+    polishLeaseUntil: integer('polish_lease_until'),
+    createdAt: integer('created_at').notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
     index('reports_user_idx').on(t.userId),
@@ -214,7 +214,7 @@ export const reports = pgTable(
   ],
 );
 
-export const chatMessages = pgTable(
+export const chatMessages = sqliteTable(
   'chat_messages',
   {
     id: text('id').primaryKey(),
@@ -222,12 +222,12 @@ export const chatMessages = pgTable(
     profileId: text('profile_id').notNull(),
     role: text('role').notNull(),
     content: text('content').notNull(),
-    createdAt: ms('created_at').notNull().default(NOW_MS),
+    createdAt: integer('created_at').notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [index('chat_messages_profile_idx').on(t.userId, t.profileId)],
 );
 
-export const tarotReadings = pgTable(
+export const tarotReadings = sqliteTable(
   'tarot_readings',
   {
     id: text('id').primaryKey(),
@@ -243,17 +243,17 @@ export const tarotReadings = pgTable(
     /** KST 날짜 YYYY-MM-DD */
     dateKey: text('date_key').notNull(),
     /** [{ index, orientation }] — 펼침 순서 */
-    cards: jsonb('cards').$type<{ index: number; orientation: 'upright' | 'reversed' }[]>().notNull(),
+    cards: text('cards', { mode: 'json' }).$type<{ index: number; orientation: 'upright' | 'reversed' }[]>().notNull(),
     /** 덱 토큰 지문 — 같은 토큰으로 두 번 뽑지 못하게 (오늘의 카드는 null) */
     deckFingerprint: text('deck_fingerprint'),
     /** AI 종합 문단(유료 열람 시 1회 생성 후 저장) */
-    aiParagraphs: jsonb('ai_paragraphs').$type<string[]>(),
+    aiParagraphs: text('ai_paragraphs', { mode: 'json' }).$type<string[]>(),
     model: text('model'),
-    createdAt: ms('created_at').notNull().default(NOW_MS),
+    createdAt: integer('created_at').notNull().default(sql`(unixepoch() * 1000)`),
     /** 궁합 타로 — 함께 본 상대 프로필 (삭제돼도 리딩은 남는다) */
     partnerProfileId: text('partner_profile_id'),
     /** 양자택일 선택지 { a, b } */
-    options: jsonb('options').$type<{ a: string; b: string }>(),
+    options: text('options', { mode: 'json' }).$type<{ a: string; b: string }>(),
   },
   (t) => [
     index('tarot_readings_user_idx').on(t.userId, t.createdAt),
@@ -262,25 +262,39 @@ export const tarotReadings = pgTable(
   ],
 );
 
-export const pushTokens = pgTable(
+export const pushTokens = sqliteTable(
   'push_tokens',
   {
     id: text('id').primaryKey(),
     userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     token: text('token').notNull(),
     platform: text('platform').notNull(),
-    createdAt: ms('created_at').notNull().default(NOW_MS),
+    createdAt: integer('created_at').notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [uniqueIndex('push_tokens_token_uq').on(t.token)],
 );
 
-export const webhookEvents = pgTable('webhook_events', {
+export const webhookEvents = sqliteTable('webhook_events', {
   id: text('id').primaryKey(),
   provider: text('provider').notNull(),
   eventType: text('event_type').notNull(),
-  payload: jsonb('payload').$type<unknown>().notNull(),
-  processedAt: ms('processed_at'),
-  createdAt: ms('created_at').notNull().default(NOW_MS),
+  payload: text('payload', { mode: 'json' }).$type<unknown>().notNull(),
+  processedAt: integer('processed_at'),
+  createdAt: integer('created_at').notNull().default(sql`(unixepoch() * 1000)`),
+});
+
+/** 서버가 관리하는 작은 값들 — 예: 상품 카탈로그 지문(catalog_hash, 바뀌었을 때만 다시 넣는다) */
+export const appMeta = sqliteTable('app_meta', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+});
+
+/**
+ * 원자적 쓰기 묶음의 전제 확인용(db/atomic.ts) — 행은 쌓이지 않는다.
+ * 전제가 깨졌으면 NULL 을 넣으려다 NOT NULL 위반으로 묶음 전체가 취소된다.
+ */
+export const atomicGuards = sqliteTable('atomic_guards', {
+  guardFailed: integer('guard_failed').notNull(),
 });
 
 export type User = typeof users.$inferSelect;

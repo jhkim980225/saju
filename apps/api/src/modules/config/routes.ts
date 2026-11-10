@@ -1,31 +1,35 @@
-import type { FastifyPluginAsync } from 'fastify';
+import { Hono } from 'hono';
 import type { PublicConfigDto } from '@saju/shared';
+import type { AppEnv, RouteKit } from '../../lib/http.js';
 
 /** 서버 주도 설정 — 앱 업데이트 없이 결제수단·광고·기능 플래그를 바꿀 수 있다 */
-export const configRoutes: FastifyPluginAsync = async (app) => {
-  app.get('/config', async (): Promise<PublicConfigDto> => {
-    const c = app.ctx.config;
-    return {
-      appName: c.APP_NAME,
-      paymentProvider: c.PAYMENT_PROVIDER,
-      tossClientKey: c.TOSS_CLIENT_KEY ?? null,
-      portone: { storeId: c.PORTONE_STORE_ID ?? null, channelKey: c.PORTONE_CHANNEL_KEY ?? null },
-      socialLogin: { kakao: c.features.kakao, naver: c.features.naver, google: c.features.google, apple: c.features.apple },
-      ai: { enabled: c.features.ai },
-      ads: { enabled: c.ADS_ENABLED && c.ADS_PROVIDER !== 'none', provider: c.ADS_PROVIDER },
+export function configRoutes({ ctx }: RouteKit) {
+  const app = new Hono<AppEnv>();
+  app.get('/config', (c) => {
+    const cfg = ctx.config;
+    const dto: PublicConfigDto = {
+      appName: cfg.APP_NAME,
+      paymentProvider: cfg.PAYMENT_PROVIDER,
+      tossClientKey: cfg.TOSS_CLIENT_KEY ?? null,
+      portone: { storeId: cfg.PORTONE_STORE_ID ?? null, channelKey: cfg.PORTONE_CHANNEL_KEY ?? null },
+      socialLogin: { kakao: cfg.features.kakao, naver: cfg.features.naver, google: cfg.features.google, apple: cfg.features.apple },
+      ai: { enabled: cfg.features.ai },
+      ads: { enabled: cfg.ADS_ENABLED && cfg.ADS_PROVIDER !== 'none', provider: cfg.ADS_PROVIDER },
       features: {
         chat: true,
         compatibility: true,
         yearly: true,
         manse: true,
-        push: c.features.push,
-        iapApple: c.features.appleIap || (c.PAYMENT_PROVIDER === 'mock' && !c.isProd),
-        iapGoogle: c.features.googleIap || (c.PAYMENT_PROVIDER === 'mock' && !c.isProd),
+        push: cfg.features.push,
+        iapApple: cfg.features.appleIap || (cfg.PAYMENT_PROVIDER === 'mock' && !cfg.isProd),
+        iapGoogle: cfg.features.googleIap || (cfg.PAYMENT_PROVIDER === 'mock' && !cfg.isProd),
         /** 비밀번호 재설정 메일(Resend) — false 면 웹이 문의 안내로 대체 */
-        mail: c.features.mail,
+        mail: cfg.features.mail,
       },
-      supportEmail: c.SUPPORT_EMAIL ?? null,
+      supportEmail: cfg.SUPPORT_EMAIL ?? null,
       notices: [],
     };
+    return c.json(dto);
   });
-};
+  return app;
+}

@@ -2,34 +2,30 @@
   "name": "@saju/api",
   "version": "0.1.0",
   "private": true,
-  "description": "사주 서비스 백엔드 API (Fastify + Drizzle)",
+  "description": "사주 서비스 백엔드 API (Cloudflare Workers · Hono · D1)",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --clear-screen=false src/server.ts",
-    "start": "node dist/server.js",
-    "build": "tsup",
+    "dev": "node scripts/local.mjs --port 4000",
+    "deploy": "wrangler deploy",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/db/migrate.ts",
-    "db:seed": "tsx src/db/seed-cli.ts"
+    "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
-    "@electric-sql/pglite": "^0.5.10",
-    "@fastify/cors": "^11.0.0",
-    "@fastify/helmet": "^13.0.0",
-    "@fastify/rate-limit": "^11.0.0",
     "@saju/core": "0.1.0",
     "@saju/shared": "0.1.0",
     "drizzle-orm": "^0.45.4",
-    "fastify": "^5.12.5",
+    "hono": "^4.13.16",
     "jose": "^6.0.0",
-    "postgres": "^3.4.9",
     "zod": "^4.1.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261027.1",
+    "@libsql/client": "^0.17.0",
     "drizzle-kit": "^0.31.11",
-    "tsup": "^8.5.0"
+    "miniflare": "5.20261023.1-beta",
+    "wrangler": "^4.154.0"
   }
 }

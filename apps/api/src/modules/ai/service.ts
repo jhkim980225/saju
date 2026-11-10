@@ -112,6 +112,9 @@ const REPORT_CONCURRENCY = 10;
  */
 const REPORT_GLOBAL_CONCURRENCY = 16;
 
+/** 리포트 다듬기를 몇 덩어리로 나눠 보내는가 — 진행률 총량 */
+export const polishChunkCount = (draft: ReadingSection[]) => chunkSections(draft).length;
+
 function chunkSections(draft: ReadingSection[]): ReadingSection[][] {
   const chunks: ReadingSection[][] = [];
   let cur: ReadingSection[] = [];

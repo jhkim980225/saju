@@ -2,7 +2,7 @@
  * Playwright E2E 설정 — `npm run test:e2e`
  *
  * - API(:4100)와 Web(:5180)을 개발 서버(:4000/:5173)와 겹치지 않는 포트로 새로 띄운다.
- * - API 는 매 실행마다 지우고 새로 만드는 임시 DB(apps/api/data/e2e.db)를 쓴다 → e2e/support/start-api.mjs
+ * - API 는 운영과 같은 Worker(wrangler dev — workerd·로컬 D1)로 띄우고, 매 실행마다 지우는 임시 D1 을 쓴다 → e2e/support/start-api.mjs
  * - 결제는 mock, AI 키 없음(규칙 기반 답변), 외부 네트워크(폰트 CDN 등)는 테스트 픽스처에서 차단한다.
  */
 import { defineConfig } from '@playwright/test';
@@ -14,7 +14,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
-  // 한 API 프로세스·DB(PGlite)를 공유하므로 동시 실행 수를 적당히 제한 (테스트마다 사용자는 따로 만든다)
+  // 한 API(로컬 Worker)·D1 을 공유하므로 동시 실행 수를 적당히 제한 (테스트마다 사용자는 따로 만든다)
   workers: process.env.CI ? 2 : 3,
   timeout: 60_000,
   expect: { timeout: 10_000 },
@@ -51,8 +51,6 @@ export default defineConfig({
       env: {
         NODE_ENV: 'development',
         PORT: String(API_PORT),
-        HOST: '127.0.0.1',
-        DATABASE_URL: './data/e2e-pglite',
         CORS_ORIGINS: `${WEB_ORIGIN},http://127.0.0.1:${WEB_PORT}`,
         PUBLIC_WEB_URL: WEB_ORIGIN,
         PAYMENT_PROVIDER: 'mock',
@@ -61,10 +59,7 @@ export default defineConfig({
         RESEND_API_KEY: '',
         MAIL_FROM: '',
         SUPPORT_EMAIL: 'help@dalbitsaju.test',
-        // 테스트마다 게스트·회원을 새로 만들므로 같은 IP(localhost)의 요청 제한을 사실상 끈다
-        RATE_LIMIT_PER_MIN: '100000',
-        AUTH_RATE_LIMIT_PER_MIN: '100000',
-        TRUST_PROXY_HOPS: '0',
+        // 요청 수 제한은 운영(NODE_ENV=production)에서만 켜진다 — 테스트마다 게스트·회원을 새로 만들어도 막히지 않는다
         DAILY_PUSH_ENABLED: 'false',
         ADS_ENABLED: 'false',
       },

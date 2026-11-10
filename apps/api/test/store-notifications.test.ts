@@ -3,13 +3,13 @@
  * Apple 은 가짜 루트/중간/리프 체인(test/helpers/appleChain.ts)을, Google 은 로컬 JWKS 를 주입한다. 외부 호출 없음.
  */
 import { generateKeyPairSync, randomUUID } from 'node:crypto';
-import type { FastifyInstance } from 'fastify';
+import type { App } from '../src/app.js';
 import { SignJWT, createLocalJWKSet, exportJWK } from 'jose';
 import { eq, like } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
-import { createDb, runMigrations } from '../src/db/client.js';
+import { createDb, runMigrations } from '../src/db/local.js';
 import { orders, webhookEvents } from '../src/db/schema.js';
 import { seedProducts } from '../src/db/seed.js';
 import { AppError } from '../src/lib/errors.js';
@@ -194,7 +194,7 @@ describe('App Store Server Notifications V2 파서', () => {
 // ── 엔드포인트 (Apple + Google) ────────────────────────────────
 
 describe('스토어 알림 엔드포인트', () => {
-  let app: FastifyInstance;
+  let app: App;
   let token: string;
   let profileId: string;
 
@@ -209,7 +209,6 @@ describe('스토어 알림 엔드포인트', () => {
     app = await buildApp({
       config: cfg(storeEnv),
       db,
-      logger: false,
       deps: {
         gateways: {
           appleRootCertificates: [chain.root],
@@ -243,7 +242,7 @@ describe('스토어 알림 엔드포인트', () => {
   it('키가 없으면 두 엔드포인트 모두 501 NOT_CONFIGURED', async () => {
     const { db } = createDb(':memory:');
     await runMigrations(db);
-    const bare = await buildApp({ config: cfg(), db, logger: false });
+    const bare = await buildApp({ config: cfg(), db });
     const a = await bare.inject({ method: 'POST', url: '/api/v1/payments/iap/notifications/apple', payload: { signedPayload: 'x.y.z' } });
     const g = await bare.inject({ method: 'POST', url: '/api/v1/payments/iap/notifications/google', payload: { message: { data: '', messageId: '1' } } });
     expect(a.statusCode).toBe(501);

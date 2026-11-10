@@ -3,11 +3,11 @@
  * Anthropic SDK 는 vi.mock 으로 바꿔 끼우고, 덩어리마다 응답 시점을 테스트가 정한다(네트워크 없음).
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FastifyInstance } from 'fastify';
+import type { App } from '../src/app.js';
 import { eq } from 'drizzle-orm';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
-import { createDb, runMigrations, type Db } from '../src/db/client.js';
+import { createDb, runMigrations, type Db } from '../src/db/local.js';
 import { reports } from '../src/db/schema.js';
 import { seedProducts } from '../src/db/seed.js';
 
@@ -79,7 +79,7 @@ vi.mock('@anthropic-ai/sdk', () => {
   return { default: Anthropic };
 });
 
-let app: FastifyInstance;
+let app: App;
 let db: Db;
 const BIRTH = { calendar: 'solar', year: 1990, month: 5, day: 15, hour: 14, minute: 30, gender: 'male' } as const;
 
@@ -88,7 +88,7 @@ beforeAll(async () => {
   db = createDb(':memory:').db;
   await runMigrations(db);
   await seedProducts(db);
-  app = await buildApp({ config, db, logger: false });
+  app = await buildApp({ config, db });
 });
 afterAll(async () => {
   await app.close();
@@ -106,7 +106,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const api = async (method: 'GET' | 'POST', url: string, opts: { token?: string; body?: unknown; via?: FastifyInstance } = {}) => {
+const api = async (method: 'GET' | 'POST', url: string, opts: { token?: string; body?: unknown; via?: App } = {}) => {
   const res = await (opts.via ?? app).inject({
     method,
     url: `/api/v1${url}`,
@@ -202,18 +202,22 @@ describe('사주분석서 — 결제 직후 미리 만들고, 규칙 기반 본�
     expect(rule.sections).toEqual(created.body.sections);
   });
 
-  it('서버 재시작으로 끊긴 다듬기는 다음 열람 때 처음부터 다시 다듬는다', async () => {
+  it('끊긴 다듬기(담당 기한이 지나도록 진행 소식 없음)는 다음 열람 때 처음부터 다시 다듬는다', async () => {
     const token = await member();
     const profileId = await profile(token);
     await buy(token, 'report_saju_lifetime', { profileId });
     const id = (await api('GET', '/reports', { token })).body[0].id;
     const n = h.calls.length;
     expect(n).toBeGreaterThanOrEqual(6);
-    // 다듬던 중 프로세스가 죽었다 — 먼저 띄운 서버의 호출은 끝나지 않고, 새 서버는 진행 기록이 없다
+    // 다듬던 작업이 죽었다 — 그 호출은 끝나지 않고, 담당 기한이 지나도록 진행 소식이 없다
     const lost = h.calls.splice(0);
-    const restarted = await buildApp({ config: app.ctx.config, db, logger: false });
+    const restarted = await buildApp({ config: app.ctx.config, db });
     try {
       expect((await db.select().from(reports).where(eq(reports.id, id)))[0]!.generator).toBe('polishing');
+      // 기한 안에는 다른 인스턴스가 열어도 다시 시작하지 않는다(작업이 아직 살아 있을 수 있다)
+      await api('GET', `/reports/${id}`, { token, via: restarted });
+      expect(h.calls).toHaveLength(0);
+      await db.update(reports).set({ polishLeaseUntil: Date.now() - 1 }).where(eq(reports.id, id));
       const reopened = await api('GET', `/reports/${id}`, { token, via: restarted });
       expect(reopened.body).toMatchObject({ status: 'polishing', progress: { done: 0, total: n } });
       expect(h.calls).toHaveLength(n);

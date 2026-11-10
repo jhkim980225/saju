@@ -1,7 +1,7 @@
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config/env.js';
-import { createDb, runMigrations } from '../src/db/client.js';
+import { createDb, runMigrations } from '../src/db/local.js';
 import { seedProducts } from '../src/db/seed.js';
 import { users } from '../src/db/schema.js';
 import { createGateways } from '../src/modules/commerce/providers/index.js';

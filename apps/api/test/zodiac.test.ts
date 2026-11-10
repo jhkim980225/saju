@@ -1,14 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { FastifyInstance } from 'fastify';
+import type { App } from '../src/app.js';
 import { signOfBody } from '@saju/core';
 import { FREE_FORTUNE_PERIODS, STAR_SIGNS, ZODIAC_ANIMALS, starSignOfBirthday, zodiacAnimalByName } from '@saju/shared';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
-import { createDb, runMigrations } from '../src/db/client.js';
+import { createDb, runMigrations } from '../src/db/local.js';
 import { buildHoroscope } from '../src/modules/zodiac/horoscope.js';
 import { buildZodiacFortune } from '../src/modules/zodiac/zodiacFortune.js';
 
-let app: FastifyInstance;
+let app: App;
 const DATE = '2026-10-15';
 const BASE = { year: 2026, month: 10, day: 15 };
 
@@ -16,7 +16,7 @@ beforeAll(async () => {
   const config = loadConfig({ __SKIP_ENV_FILE: '1', NODE_ENV: 'test', PAYMENT_PROVIDER: 'mock', ANTHROPIC_API_KEY: '' });
   const { db } = createDb(':memory:');
   await runMigrations(db);
-  app = await buildApp({ config, db, logger: false });
+  app = await buildApp({ config, db });
 });
 afterAll(async () => {
   await app.close();

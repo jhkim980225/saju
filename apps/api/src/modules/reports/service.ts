@@ -4,16 +4,17 @@
  * - 결제가 확정되면 지급 알림으로 미리 만들기 시작한다(prewarm). 사용자가 처음 열 때는 이미 다듬는 중이거나 끝나 있다.
  * - 같은 조건의 리포트는 다시 만들지 않고 저장본을 돌려준다(AI 비용 절감).
  *   같은 대상 리포트는 DB 유니크 인덱스(reports_target_uq)로 하나만 저장된다 — 동시에 만들면 먼저 저장된 것을 쓴다.
- * - 다듬기 진행은 메모리에만 둔다. 서버 재시작으로 끊긴 다듬기('polishing' 인데 진행 기록 없음)는 다음 열람 때 처음부터 다시 다듬는다.
+ * - 다듬기는 응답 뒤 작업(background — Worker 는 Queue, Node 는 같은 프로세스)으로 돌린다. 요청마다 다른 인스턴스가 받으므로
+ *   진행률과 담당 기한(lease)은 DB 에 둔다. 기한이 지나도록 진행 소식이 없으면(작업이 죽음) 다음 열람 때 처음부터 다시 다듬는다.
  */
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull, lt, or } from 'drizzle-orm';
 import { calculateCompatibility } from '@saju/core';
 import type { ReadingSection, ReportCreateDto, ReportDto, ReportProgressDto, ReportSummaryDto, ReportType } from '@saju/shared';
 import type { Db } from '../../db/client.js';
 import { profiles as profilesTable, reports, type Report } from '../../db/schema.js';
 import { badRequest, notFound, paymentRequired } from '../../lib/errors.js';
 import { newId } from '../../lib/ids.js';
-import type { AiService } from '../ai/service.js';
+import { polishChunkCount, type AiService } from '../ai/service.js';
 import { compatKey, type CommerceService, type FulfilledEvent } from '../commerce/service.js';
 import { buildCareerWealthReport } from '../interpretation/careerWealthReport.js';
 import { buildLoveReport } from '../interpretation/loveReport.js';
@@ -22,6 +23,13 @@ import { buildCompatibilityReport, buildSajuAnalysis, buildYearlyReport } from '
 import type { ProfileService } from '../profiles/service.js';
 
 type CreateInput = Omit<ReportCreateDto, 'year'> & { year?: number };
+
+/** 응답 뒤에 이어 할 작업 — 맡긴 작업이 시작되면(Queue 는 보내지면) 끝난다 */
+export type BackgroundJob = { kind: 'polish'; reportId: string };
+export type StartJob = (job: BackgroundJob) => Promise<void>;
+
+/** 다듬기 담당 기한 — 덩어리 하나가 끝날 때마다 늘린다. 덩어리 호출 제한 시간(2분)보다 넉넉하게 */
+export const POLISH_LEASE_MS = 5 * 60_000;
 
 /**
  * 프로필 하나에 대한 주제별 리포트 — 권한 키 report:<type>:<profileId> (카탈로그 grant report:<type>)
@@ -34,7 +42,7 @@ const TOPIC_REPORTS = {
 type TopicReportType = keyof typeof TOPIC_REPORTS;
 const isTopicReport = (type: string): type is TopicReportType => Object.hasOwn(TOPIC_REPORTS, type);
 
-export function createReportService(db: Db, profiles: ProfileService, commerce: CommerceService, ai: AiService) {
+export function createReportService(db: Db, profiles: ProfileService, commerce: CommerceService, ai: AiService, startJob: StartJob) {
   const access = async (userId: string, profileId: string): Promise<ReadingAccess> => {
     if ((await commerce.isPremium(userId)) || (await commerce.hasEntitlement(userId, `report:lifetime:${profileId}`))) return 'full';
     if (await commerce.hasEntitlement(userId, `report:mini:${profileId}`)) return 'mini';
@@ -55,12 +63,8 @@ export function createReportService(db: Db, profiles: ProfileService, commerce: 
     return false;
   };
 
-  /** 다듬는 중인 리포트 ID → 끝낸 덩어리 / 전체. 같은 리포트를 두 번 다듬지 않게 하는 잠금도 겸한다 */
-  const polishing = new Map<string, { done: number; total: number }>();
-
   const toDto = (r: Report): ReportDto => {
     const running = r.generator === 'polishing';
-    const p = polishing.get(r.id);
     return {
       id: r.id,
       type: r.type as ReportType,
@@ -71,59 +75,76 @@ export function createReportService(db: Db, profiles: ProfileService, commerce: 
       sections: r.content as ReadingSection[],
       generator: r.generator === 'ai' ? 'ai' : 'rule',
       status: running ? 'polishing' : 'ready',
-      progress: running ? { done: p?.done ?? 0, total: p?.total ?? 0 } : null,
+      progress: running ? { done: r.polishDone, total: r.polishTotal } : null,
       createdAt: new Date(r.createdAt).toISOString(),
     };
   };
 
-  /** 뒤에서 AI 다듬기 — 끝나면(실패해도) 같은 행을 최종본으로 바꾼다. 응답은 기다리지 않는다 */
-  /** 다듬기 시작 — 원국을 읽고 AI 호출을 건 뒤(진행률 총량이 정해진 뒤) 돌아온다. 끝나기를 기다리지는 않는다 */
-  const startPolish = async (r: Report): Promise<void> => {
-    if (polishing.has(r.id)) return;
-    const progress = { done: 0, total: 0 };
-    polishing.set(r.id, progress);
+  const stillPolishing = (id: string) => and(eq(reports.id, id), eq(reports.generator, 'polishing'));
+
+  /**
+   * 다듬기 맡기기 — 담당 기한이 비었거나 지났을 때만 맡는다(조건부 UPDATE: 같은 리포트를 두 작업이 다듬지 않게).
+   * 진행률 총량을 정해 두고 작업을 넘긴 뒤, 갱신된 행을 돌려준다. 끝나기를 기다리지는 않는다
+   */
+  const startPolish = async (r: Report): Promise<Report> => {
+    const now = Date.now();
+    const [claimed] = await db
+      .update(reports)
+      .set({ polishDone: 0, polishTotal: polishChunkCount(r.content as ReadingSection[]), polishLeaseUntil: now + POLISH_LEASE_MS })
+      .where(and(stillPolishing(r.id), or(isNull(reports.polishLeaseUntil), lt(reports.polishLeaseUntil, now))))
+      .returning();
+    if (!claimed) return (await db.select().from(reports).where(eq(reports.id, r.id)))[0] ?? r;
+    await startJob({ kind: 'polish', reportId: r.id });
+    return claimed;
+  };
+
+  /**
+   * 다듬기 작업 본체(background) — 끝나면(실패해도) 같은 행을 최종본으로 바꾼다.
+   * started 는 AI 호출을 건 직후 불린다(같은 프로세스에서 돌릴 때 호출이 나간 뒤 응답하게).
+   */
+  const runPolish = async (reportId: string, started?: () => void): Promise<void> => {
+    const [r] = await db.select().from(reports).where(stillPolishing(reportId));
+    if (!r) return;
+    // 진행 기록은 순서대로 — 앞의 기록이 늦게 끝나 뒤의 기록을 덮지 않게
+    let writes = Promise.resolve();
+    const record = (done: number, total: number) => {
+      writes = writes
+        .then(async () => {
+          await db.update(reports).set({ polishDone: done, polishTotal: total, polishLeaseUntil: Date.now() + POLISH_LEASE_MS }).where(stillPolishing(reportId));
+        })
+        .catch((error: unknown) => console.error('[reports] 다듬기 진행 기록 실패', error));
+    };
     const finish = async (set: Partial<Pick<Report, 'content' | 'generator' | 'model'>>) => {
+      await writes;
       try {
         // 다듬는 사이 탈퇴로 행이 지워졌을 수 있다 — 아직 다듬는 중인 행만 바꾼다
-        await db
-          .update(reports)
-          .set(set)
-          .where(and(eq(reports.id, r.id), eq(reports.generator, 'polishing')));
+        await db.update(reports).set({ ...set, polishLeaseUntil: null }).where(stillPolishing(reportId));
       } catch (error) {
         console.error('[reports] 다듬은 본문 저장 실패', error);
-      } finally {
-        polishing.delete(r.id);
       }
     };
     let job: ReturnType<AiService['enhanceSections']>;
     try {
       const chart = profiles.chartOf(await profiles.getOwned(r.userId, r.profileId));
-      job = ai.enhanceSections({
-        title: r.title,
-        chart,
-        draft: r.content as ReadingSection[],
-        onProgress: (done, total) => Object.assign(progress, { done, total }),
-      });
+      job = ai.enhanceSections({ title: r.title, chart, draft: r.content as ReadingSection[], onProgress: record });
     } catch (error) {
       job = Promise.reject(error);
     }
-    void job.then(
-      (e) => finish({ content: e.sections, generator: e.generator, model: e.model }),
-      (error: unknown) => {
-        console.error('[reports] AI 다듬기 실패 — 규칙 기반 본문으로 마무리', error);
-        return finish({ generator: 'rule' });
-      },
-    );
+    started?.();
+    try {
+      const e = await job;
+      await finish({ content: e.sections, generator: e.generator, model: e.model });
+    } catch (error) {
+      console.error('[reports] AI 다듬기 실패 — 규칙 기반 본문으로 마무리', error);
+      await finish({ generator: 'rule' });
+    }
   };
 
-  /** 끊긴 다듬기(서버 재시작)를 처음부터 다시 한다. 그 사이 AI 키를 뺐다면 규칙 기반으로 마무리 */
+  /** 끊긴 다듬기(담당 기한이 지나도록 진행 소식 없음)를 처음부터 다시 한다. 그 사이 AI 키를 뺐다면 규칙 기반으로 마무리 */
   const resumeIfStalled = async (r: Report): Promise<Report> => {
-    if (r.generator !== 'polishing' || polishing.has(r.id)) return r;
-    if (ai.enabled) {
-      await startPolish(r);
-      return r;
-    }
-    await db.update(reports).set({ generator: 'rule' }).where(eq(reports.id, r.id));
+    if (r.generator !== 'polishing' || (r.polishLeaseUntil !== null && r.polishLeaseUntil >= Date.now())) return r;
+    if (ai.enabled) return startPolish(r);
+    await db.update(reports).set({ generator: 'rule', polishLeaseUntil: null }).where(eq(reports.id, r.id));
     return { ...r, generator: 'rule' };
   };
 
@@ -212,8 +233,7 @@ export function createReportService(db: Db, profiles: ProfileService, commerce: 
     const row = inserted[0];
     // 동시에 만든 다른 요청이 먼저 저장했다 — 그 저장본을 쓴다(다듬기도 그쪽이 맡는다)
     if (!row) return toDto(await resumeIfStalled((await findExisting())!));
-    if (ai.enabled) await startPolish(row);
-    return toDto(row);
+    return toDto(ai.enabled ? await startPolish(row) : row);
   };
 
   const get = async (userId: string, id: string): Promise<ReportDto> => {
@@ -230,6 +250,7 @@ export function createReportService(db: Db, profiles: ProfileService, commerce: 
     topicUnlocked,
     create,
     get,
+    runPolish,
 
     /** 다듬기 진행 — 화면은 본문 대신 이것만 폴링하다가 ready 가 되면 본문을 다시 받는다 */
     async progress(userId: string, id: string): Promise<ReportProgressDto> {

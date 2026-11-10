@@ -2,13 +2,13 @@
  * QA 보안·로직 리뷰(docs/QA.md) 회귀 테스트 — 결제 동시성, 권한 재사용, 유료 콘텐츠 노출 경로.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { FastifyInstance } from 'fastify';
+import type { App } from '../src/app.js';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
-import { createDb, runMigrations } from '../src/db/client.js';
+import { createDb, runMigrations } from '../src/db/local.js';
 import { seedProducts } from '../src/db/seed.js';
 
-let app: FastifyInstance;
+let app: App;
 const BIRTH = { calendar: 'solar', year: 1990, month: 5, day: 15, hour: 14, minute: 30, gender: 'male' } as const;
 const OTHER = { calendar: 'solar', year: 1975, month: 11, day: 2, hour: 6, minute: 10, gender: 'female' } as const;
 
@@ -17,7 +17,7 @@ beforeAll(async () => {
   const { db } = createDb(':memory:');
   await runMigrations(db);
   await seedProducts(db);
-  app = await buildApp({ config, db, logger: false });
+  app = await buildApp({ config, db });
 });
 afterAll(() => app.close());
 

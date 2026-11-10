@@ -4,10 +4,10 @@
  *  - 계정 유무는 응답으로 드러나지 않아야 한다(없는 이메일도 200, 메일만 안 감)
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { FastifyInstance } from 'fastify';
+import type { App } from '../src/app.js';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
-import { createDb, runMigrations } from '../src/db/client.js';
+import { createDb, runMigrations } from '../src/db/local.js';
 import { seedProducts } from '../src/db/seed.js';
 
 const BASE_ENV = { __SKIP_ENV_FILE: '1', NODE_ENV: 'test', PAYMENT_PROVIDER: 'mock', ANTHROPIC_API_KEY: '', SIGNUP_BONUS_CREDITS: '0', PUBLIC_WEB_URL: 'https://dalbitsaju.test/' };
@@ -18,15 +18,15 @@ async function makeApp(overrides: Record<string, string>) {
   const { db } = createDb(':memory:');
   await runMigrations(db);
   await seedProducts(db);
-  return buildApp({ config, db, logger: false });
+  return buildApp({ config, db });
 }
 
-const call = (app: FastifyInstance) => async (method: 'GET' | 'POST', url: string, opts: { token?: string; body?: unknown } = {}) => {
+const call = (app: App) => async (method: 'GET' | 'POST', url: string, opts: { token?: string; body?: unknown } = {}) => {
   const res = await app.inject({ method, url: `/api/v1${url}`, headers: opts.token ? { authorization: `Bearer ${opts.token}` } : {}, ...(opts.body !== undefined ? { payload: opts.body as object } : {}) });
   return { status: res.statusCode, body: res.body ? (JSON.parse(res.body) as any) : null };
 };
 
-let app: FastifyInstance;
+let app: App;
 let api: ReturnType<typeof call>;
 const outbox = () => app.ctx.services.mail.outbox;
 const tokenFrom = (text: string) => /password\/reset\?token=([A-Za-z0-9_-]+)/.exec(text)?.[1];
@@ -195,7 +195,7 @@ describe('비밀번호 변경 (로그인 상태)', () => {
 });
 
 describe('메일 미설정', () => {
-  let bare: FastifyInstance;
+  let bare: App;
   beforeAll(async () => {
     bare = await makeApp({ RESEND_API_KEY: '', MAIL_FROM: '' });
   });

@@ -1,17 +1,19 @@
 /**
- * Fastify 앱 조립. 테스트에서는 buildApp({ config, db }) 로 인메모리 DB 를 주입한다.
+ * Hono 앱 조립. Worker(src/worker.ts)와 테스트가 같은 buildApp 을 쓴다 — 테스트는 인메모리 SQLite 를 넣는다.
  */
-import cors from '@fastify/cors';
-import helmet from '@fastify/helmet';
-import rateLimit from '@fastify/rate-limit';
-import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
+import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
+import { cors } from 'hono/cors';
+import { HTTPException } from 'hono/http-exception';
+import { secureHeaders } from 'hono/secure-headers';
 import { ERROR_CODES } from '@saju/shared';
 import { SajuInputError } from '@saju/core';
 import type { AppConfig } from './config/env.js';
 import type { Db } from './db/client.js';
 import { AppError, unauthorized } from './lib/errors.js';
+import { rateLimit, type AppContext, type AppEnv, type AuthUser, type RateLimiter, type RouteKit } from './lib/http.js';
 import { verifyAccessToken } from './lib/tokens.js';
-import { createServices, type ServiceDeps, type Services } from './services.js';
+import { createServices, type ServiceDeps } from './services.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { profileRoutes } from './modules/profiles/routes.js';
 import { sajuRoutes } from './modules/saju/routes.js';
@@ -29,128 +31,136 @@ import { dreamRoutes } from './modules/dream/routes.js';
 import { zodiacRoutes } from './modules/zodiac/routes.js';
 import { taekilRoutes } from './modules/taekil/routes.js';
 
-export interface AuthUser {
-  id: string;
-  role: 'user' | 'admin';
+export type { AppContext, AuthUser } from './lib/http.js';
+
+/** 요청 수 제한 — Worker 는 wrangler.jsonc 의 ratelimits 바인딩, 테스트·Node 는 비워 둔다(제한 없음) */
+export interface RateLimiters {
+  general?: RateLimiter;
+  auth?: RateLimiter;
+  admin?: RateLimiter;
 }
 
-declare module 'fastify' {
-  interface FastifyInstance {
-    ctx: AppContext;
-    authenticate: (req: FastifyRequest, reply: FastifyReply) => Promise<void>;
-    optionalAuth: (req: FastifyRequest, reply: FastifyReply) => Promise<void>;
-  }
-  interface FastifyRequest {
-    user: AuthUser | null;
-  }
+export interface InjectResponse {
+  statusCode: number;
+  body: string;
+  headers: Record<string, string>;
+  json: () => unknown;
 }
 
-export interface AppContext {
-  config: AppConfig;
-  db: Db;
-  services: Services;
+export interface App {
+  fetch: (request: Request) => Response | Promise<Response>;
+  ctx: AppContext;
+  /** 테스트·스크립트용 — 네트워크 없이 요청 하나를 보내 본다 */
+  inject(request: { method: string; url: string; headers?: Record<string, string>; payload?: unknown }): Promise<InjectResponse>;
+  close(): Promise<void>;
 }
 
-/** 인증된 요청에서 사용자 꺼내기 (authenticate preHandler 이후) */
-export function requireUser(req: FastifyRequest): AuthUser {
-  if (!req.user) throw unauthorized();
-  return req.user;
-}
+export function buildApp(opts: { config: AppConfig; db: Db; deps?: ServiceDeps; rateLimiters?: RateLimiters }): App {
+  const { config } = opts;
+  const services = createServices(config, opts.db, opts.deps);
+  const ctx: AppContext = { config, db: opts.db, services };
+  const limits = opts.rateLimiters ?? {};
 
-export async function buildApp(opts: { config: AppConfig; db: Db; logger?: boolean; deps?: ServiceDeps }): Promise<FastifyInstance> {
-  const app = Fastify({
-    logger: opts.logger ?? !opts.config.isTest,
-    // 프록시 홉 수만큼만 X-Forwarded-For 를 신뢰 (0 이면 신뢰 안 함)
-    trustProxy: (_address: string, hop: number) => hop < opts.config.TRUST_PROXY_HOPS,
-    bodyLimit: 1024 * 1024,
-  });
-  const services = createServices(opts.config, opts.db, opts.deps);
-  app.decorate('ctx', { config: opts.config, db: opts.db, services });
-  app.decorateRequest('user', null);
-
-  await app.register(helmet, { contentSecurityPolicy: false });
-  await app.register(cors, {
-    origin: (origin, cb) => {
-      // 앱(WebView)·서버 간 호출은 Origin 이 없을 수 있다
-      if (!origin || opts.config.corsOrigins.includes(origin) || opts.config.corsOrigins.includes('*')) cb(null, true);
-      else cb(null, false);
-    },
-    credentials: true,
-  });
-  if (!opts.config.isTest) {
-    await app.register(rateLimit, {
-      max: opts.config.RATE_LIMIT_PER_MIN,
-      timeWindow: '1 minute',
-      // statusCode 를 포함해야 오류 핸들러가 429 로 응답한다(없으면 500)
-      errorResponseBuilder: () => ({ statusCode: 429, error: { code: ERROR_CODES.RATE_LIMITED, message: '요청이 너무 많아요. 잠시 후 다시 시도해 주세요.' } }),
-    });
-  }
-
-  const readUser = async (req: FastifyRequest) => {
-    const h = req.headers.authorization;
-    if (!h?.startsWith('Bearer ')) return null;
+  const readUser = async (header: string | undefined): Promise<AuthUser | null | undefined> => {
+    if (!header?.startsWith('Bearer ')) return null;
     try {
-      const claims = await verifyAccessToken(h.slice(7), opts.config.JWT_ACCESS_SECRET);
+      const claims = await verifyAccessToken(header.slice(7), config.JWT_ACCESS_SECRET);
       return { id: claims.sub, role: claims.role } satisfies AuthUser;
     } catch {
       return undefined; // 토큰이 있으나 유효하지 않음
     }
   };
-  app.decorate('authenticate', async (req: FastifyRequest) => {
-    const u = await readUser(req);
-    if (!u) throw new AppError(401, ERROR_CODES.UNAUTHORIZED, u === undefined ? '로그인이 만료되었어요. 다시 로그인해 주세요.' : '로그인이 필요해요.');
-    if (!(await services.users.isActive(u.id))) throw unauthorized('탈퇴했거나 존재하지 않는 계정이에요.');
-    req.user = u;
-  });
-  app.decorate('optionalAuth', async (req: FastifyRequest) => {
-    const u = await readUser(req);
-    if (u && (await services.users.isActive(u.id))) req.user = u;
-  });
-
-  app.setErrorHandler((err, req, reply) => {
-    if (err instanceof AppError) {
-      return reply.status(err.statusCode).send({ error: { code: err.code, message: err.message, details: err.details } });
-    }
-    if (err instanceof SajuInputError) {
-      return reply.status(400).send({ error: { code: ERROR_CODES.VALIDATION, message: err.message } });
-    }
-    const e = err as { statusCode?: number; validation?: unknown; message?: string };
-    if (e.statusCode === 429) {
-      return reply.status(429).send({ error: { code: ERROR_CODES.RATE_LIMITED, message: '요청이 너무 많아요. 잠시 후 다시 시도해 주세요.' } });
-    }
-    if (e.statusCode && e.statusCode >= 400 && e.statusCode < 500) {
-      return reply.status(e.statusCode).send({ error: { code: ERROR_CODES.VALIDATION, message: e.message ?? '잘못된 요청이에요.' } });
-    }
-    req.log.error(err);
-    return reply.status(500).send({ error: { code: ERROR_CODES.INTERNAL, message: '일시적인 오류가 발생했어요. 잠시 후 다시 시도해 주세요.' } });
-  });
-  app.setNotFoundHandler((req, reply) => {
-    reply.status(404).send({ error: { code: ERROR_CODES.NOT_FOUND, message: `경로를 찾을 수 없어요: ${req.method} ${req.url}` } });
-  });
-
-  app.get('/health', async () => ({ ok: true, time: new Date().toISOString() }));
-
-  await app.register(
-    async (api) => {
-      await api.register(configRoutes);
-      await api.register(authRoutes, { prefix: '/auth' });
-      await api.register(profileRoutes, { prefix: '/profiles' });
-      await api.register(sajuRoutes, { prefix: '/saju' });
-      await api.register(fortuneRoutes, { prefix: '/fortune' });
-      await api.register(compatibilityRoutes, { prefix: '/compatibility' });
-      await api.register(reportRoutes, { prefix: '/reports' });
-      await api.register(chatRoutes, { prefix: '/chat' });
-      await api.register(tarotRoutes, { prefix: '/tarot' });
-      await api.register(commerceRoutes);
-      await api.register(pushRoutes, { prefix: '/push' });
-      await api.register(rewardRoutes, { prefix: '/rewards' });
-      await api.register(tojeongRoutes, { prefix: '/tojeong' });
-      await api.register(dreamRoutes, { prefix: '/dream' });
-      await api.register(zodiacRoutes);
-      await api.register(taekilRoutes, { prefix: '/taekil' });
+  const kit: RouteKit = {
+    ctx,
+    authenticate: async (c, next) => {
+      const u = await readUser(c.req.header('authorization'));
+      if (!u) throw new AppError(401, ERROR_CODES.UNAUTHORIZED, u === undefined ? '로그인이 만료되었어요. 다시 로그인해 주세요.' : '로그인이 필요해요.');
+      if (!(await services.users.isActive(u.id))) throw unauthorized('탈퇴했거나 존재하지 않는 계정이에요.');
+      c.set('user', u);
+      await next();
     },
-    { prefix: '/api/v1' },
+    optionalAuth: async (c, next) => {
+      const u = await readUser(c.req.header('authorization'));
+      if (u && (await services.users.isActive(u.id))) c.set('user', u);
+      await next();
+    },
+    authLimit: rateLimit(limits.auth, 'auth'),
+    adminLimit: rateLimit(limits.admin, 'admin'),
+  };
+
+  const app = new Hono<AppEnv>();
+  app.use('*', async (c, next) => {
+    c.set('user', null);
+    await next();
+  });
+  app.use('*', secureHeaders());
+  app.use(
+    '*',
+    cors({
+      // 앱(WebView)·서버 간 호출은 Origin 이 없을 수 있다
+      origin: (origin) => (!origin || config.corsOrigins.includes(origin) || config.corsOrigins.includes('*') ? origin : null),
+      credentials: true,
+    }),
+  );
+  app.use(
+    '*',
+    bodyLimit({
+      maxSize: 1024 * 1024,
+      onError: (c) => c.json({ error: { code: ERROR_CODES.VALIDATION, message: '요청 본문이 너무 커요.' } }, 413),
+    }),
   );
 
-  return app;
+  app.onError((err, c) => {
+    if (err instanceof AppError) {
+      return c.json({ error: { code: err.code, message: err.message, details: err.details } }, err.statusCode as 400);
+    }
+    if (err instanceof SajuInputError) {
+      return c.json({ error: { code: ERROR_CODES.VALIDATION, message: err.message } }, 400);
+    }
+    if (err instanceof HTTPException && err.status < 500) {
+      return c.json({ error: { code: ERROR_CODES.VALIDATION, message: err.message || '잘못된 요청이에요.' } }, err.status);
+    }
+    console.error(`[api] ${c.req.method} ${c.req.path}`, err);
+    return c.json({ error: { code: ERROR_CODES.INTERNAL, message: '일시적인 오류가 발생했어요. 잠시 후 다시 시도해 주세요.' } }, 500);
+  });
+  app.notFound((c) => c.json({ error: { code: ERROR_CODES.NOT_FOUND, message: `경로를 찾을 수 없어요: ${c.req.method} ${c.req.path}` } }, 404));
+
+  app.get('/health', (c) => c.json({ ok: true, time: new Date().toISOString() }));
+
+  const api = new Hono<AppEnv>();
+  api.use('*', rateLimit(limits.general, 'api'));
+  api.route('/', configRoutes(kit));
+  api.route('/auth', authRoutes(kit));
+  api.route('/profiles', profileRoutes(kit));
+  api.route('/saju', sajuRoutes(kit));
+  api.route('/fortune', fortuneRoutes(kit));
+  api.route('/compatibility', compatibilityRoutes(kit));
+  api.route('/reports', reportRoutes(kit));
+  api.route('/chat', chatRoutes(kit));
+  api.route('/tarot', tarotRoutes(kit));
+  api.route('/', commerceRoutes(kit));
+  api.route('/push', pushRoutes(kit));
+  api.route('/rewards', rewardRoutes(kit));
+  api.route('/tojeong', tojeongRoutes(kit));
+  api.route('/dream', dreamRoutes(kit));
+  api.route('/', zodiacRoutes(kit));
+  api.route('/taekil', taekilRoutes(kit));
+  app.route('/api/v1', api);
+
+  return {
+    fetch: (request) => app.fetch(request),
+    ctx,
+    async inject({ method, url, headers, payload }) {
+      const h = new Headers(headers);
+      let body: string | undefined;
+      if (payload !== undefined) {
+        body = typeof payload === 'string' ? payload : JSON.stringify(payload);
+        if (!h.has('content-type') && typeof payload !== 'string') h.set('content-type', 'application/json');
+      }
+      const res = await app.request(url, { method, headers: h, body });
+      const text = await res.text();
+      return { statusCode: res.status, body: text, headers: Object.fromEntries(res.headers), json: () => JSON.parse(text) as unknown };
+    },
+    async close() {},
+  };
 }

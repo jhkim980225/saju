@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { FastifyInstance } from 'fastify';
+import type { App } from '../src/app.js';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
-import { createDb, runMigrations } from '../src/db/client.js';
+import { createDb, runMigrations } from '../src/db/local.js';
 import { seedProducts } from '../src/db/seed.js';
 
-let app: FastifyInstance;
+let app: App;
 const BIRTH = { calendar: 'solar', year: 1990, month: 5, day: 15, hour: 14, minute: 30, gender: 'male' } as const;
 const PARTNER = { calendar: 'solar', year: 1992, month: 8, day: 21, hour: 9, minute: 0, gender: 'female' } as const;
 
@@ -14,7 +14,7 @@ beforeAll(async () => {
   const { db } = createDb(':memory:');
   await runMigrations(db);
   await seedProducts(db);
-  app = await buildApp({ config, db, logger: false });
+  app = await buildApp({ config, db });
 });
 afterAll(async () => {
   await app.close();
@@ -302,12 +302,13 @@ describe('웹훅 — 취소 시 회수, 결제 완료 시 복구', () => {
 });
 
 describe('오늘의 운세 푸시 스케줄', () => {
-  it('다음 08:00 KST 까지의 시간 계산', async () => {
-    const { msUntilNextRun } = await import('../src/jobs/dailyPush.js');
-    // 2026-10-12 07:00 KST = 2026-10-11 22:00 UTC → 1시간 뒤
-    expect(msUntilNextRun(Date.UTC(2026, 9, 11, 22, 0))).toBe(3_600_000);
-    // 08:00 KST 정각 직후면 다음 날
-    expect(msUntilNextRun(Date.UTC(2026, 9, 11, 23, 0, 1))).toBe(86_400_000 - 1000);
+  it('Worker 예약 실행은 매일 08:00 KST(23:00 UTC)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { utcToZoned } = await import('@saju/core');
+    const crons = /"crons":\s*\[\s*"([^"]+)"/.exec(readFileSync('wrangler.jsonc', 'utf8'))?.[1];
+    expect(crons).toBe('0 23 * * *');
+    const kst = utcToZoned(Date.UTC(2026, 9, 11, 23, 0), 'Asia/Seoul');
+    expect([kst.day, kst.hour, kst.minute]).toEqual([12, 8, 0]);
   });
 });
 

@@ -10,20 +10,20 @@
 | 층 | 위치 | 도구 | 무엇을 보나 | 현재 규모 |
 |---|---|---|---|---|
 | 엔진 단위 | `packages/saju-core/test` | Vitest | 일진·절입 시각(KASI 대조)·입춘 기준 년주·경도/서머타임 보정·야자시, lunar-javascript 와 무작위 3,000건 교차 검증, 십신·12운성·신살·대운·궁합 | 67 |
-| API 통합 | `apps/api/test` | Vitest + Fastify inject(인메모리 PGlite · `TEST_DATABASE_URL` 이면 실제 PostgreSQL) | 인증·게스트 전환, 프로필 소유권, 잠금 섹션 서버 절단, 주문·결제 승인·금액 검증·멱등, 웹훅, IAP, 환불, 보상형 광고, 보안 회귀 | 114 |
+| API 통합 | `apps/api/test` | Vitest + Hono 앱에 요청을 바로 넣는 `app.inject` 도우미(인메모리 SQLite · libSQL). `TEST_D1=1` 이면 같은 테스트를 실제 D1(Miniflare)에서 실행 | 인증·게스트 전환, 프로필 소유권, 잠금 섹션 서버 절단, 주문·결제 승인·금액 검증·멱등, 웹훅, IAP, 환불, 보상형 광고, 동시 요청, 보안 회귀 | 397 |
 | 웹 단위 | `apps/web/src/**/*.test.*` | Vitest + Testing Library(jsdom) | 폼 검증·변환, 결제 SDK 연동부(가짜 SDK 주입), 네이티브 계층, 광고·분석 | 58 |
-| **E2E** | `e2e/*.spec.ts` | Playwright 1.64 (Chromium) | 화면 흐름 전체: 입력 → 결과 → 결제 → 잠금 해제, 탭 화면, 설정, 오류 화면, 접근성 스모크, 타로 | 38 × 2 (모바일·데스크톱) |
+| **E2E** | `e2e/*.spec.ts` | Playwright 1.64 (Chromium) | 화면 흐름 전체: 입력 → 결과 → 결제 → 잠금 해제, 탭 화면, 설정, 오류 화면, 접근성 스모크, 타로 | 65 × 2 (모바일·데스크톱) |
 
 (단위·통합 개수는 `npm test` 기준이며 팀장 작업에 따라 바뀔 수 있다.)
 
 ### E2E 환경 원칙
-- **분리된 서버:** API `:4100`, Web `:5180` 로 새로 띄운다. 개발 서버(4000/5173)와 겹치지 않는다. Web 은 `VITE_API_BASE_URL=http://localhost:4100/api/v1`, API 는 `CORS_ORIGINS` 에 `http://localhost:5180` 을 넣는다.
-- **임시 DB:** `apps/api/data/e2e.db` 를 매 실행 시작 때 지우고 새로 만든다(`e2e/support/start-api.mjs`, 파일 이름에 `e2e` 가 없으면 지우지 않는 안전장치 포함).
+- **분리된 서버:** API `:4100`(운영과 같은 Worker 를 `wrangler dev` 로), Web `:5180` 로 새로 띄운다. 개발 서버(4000/5173)와 겹치지 않는다. Web 은 `VITE_API_BASE_URL=http://localhost:4100/api/v1`, API 는 `CORS_ORIGINS` 에 `http://localhost:5180` 을 넣는다.
+- **임시 DB:** 로컬 D1 저장 폴더 `apps/api/.wrangler/e2e-state` 를 매 실행 시작 때 지우고 마이그레이션부터 새로 만든다(`e2e/support/start-api.mjs`). API 설정은 `playwright.config.ts` 의 `webServer.env` 로 만든 파일(`apps/api/.wrangler/e2e.env`)만 쓰고, 개인 키가 든 `apps/api/.env` 는 읽지 않는다.
 - **외부 네트워크 차단:** localhost 이외 요청(폰트 CDN·분석·광고·결제 SDK)은 픽스처에서 모두 차단한다. 결제는 mock, AI 키는 비워서 규칙 기반 답변을 쓴다.
 - **모바일 기준:** 390×844, `isMobile`, 터치, `ko-KR`, `Asia/Seoul`, 라이트 색상 모드.
-- **데스크톱:** 같은 시나리오를 1440×900(`desktop-chromium` 프로젝트)에서도 실행한다 — 상단 내비, 2단 화면, 가운데 대화상자. 전체 76개.
+- **데스크톱:** 같은 시나리오를 1440×900(`desktop-chromium` 프로젝트)에서도 실행한다 — 상단 내비, 2단 화면, 가운데 대화상자. 전체 130개.
 - **데이터 독립성:** 테스트마다 새 게스트·회원을 만든다. 병렬(워커 3)로 돌려도 서로 영향을 주지 않는다. 화면과 무관한 준비(가입·프로필·구매)는 API 로 하고, 세션은 `localStorage['yd.session']` 에 주입한다(`e2e/support/fixtures.ts`).
-- **요청 제한:** 같은 IP 에서 계정을 많이 만들기 때문에 E2E 서버에서는 `RATE_LIMIT_PER_MIN`·`AUTH_RATE_LIMIT_PER_MIN` 을 크게 잡는다. 운영 값 검증은 API 통합 테스트(`security.test.ts`)가 맡는다.
+- **요청 제한:** 같은 IP 에서 계정을 많이 만들지만, 요청 수 제한(Cloudflare Rate Limiting 바인딩)은 운영 모드(`NODE_ENV=production`)에서만 켜지므로 E2E 서버(`development`)에서는 막히지 않는다.
 - **선택자:** 역할·접근 가능한 이름·화면 문구(`apps/web/src/i18n/ko.json`)를 쓴다. 클래스 선택자는 꼭 필요한 곳(궁합 점수 숫자)에만 쓴다.
 
 ### E2E 시나리오
@@ -85,7 +85,7 @@ npm run test:e2e                   # API(:4100)·Web(:5180) 자동 기동 → �
 - 설정: `playwright.config.ts` (retries 0, `trace: on-first-retry`, 실패 시 스크린샷, 리포터 list + html)
 - 포트 바꾸기: `E2E_API_PORT`, `E2E_WEB_PORT` 환경 변수
 - 4100/5180 을 다른 프로세스가 쓰고 있으면 기동이 실패한다(`reuseExistingServer: false` — 임시 DB 를 매번 새로 쓰기 위해서다).
-- 결과물: `test-results/`(실패 스크린샷·에러 컨텍스트), `playwright-report/`, `apps/api/data/e2e.db` — 모두 git 에서 제외된다.
+- 결과물: `test-results/`(실패 스크린샷·에러 컨텍스트), `playwright-report/`, `apps/api/.wrangler/`(임시 D1·e2e 설정 파일) — 모두 git 에서 제외된다.
 
 ## 3. 발견한 이슈
 
@@ -143,7 +143,7 @@ npm run test:e2e                   # API(:4100)·Web(:5180) 자동 기동 → �
 | 대상 | 결과 |
 |---|---|
 | Android APK 빌드 + 에뮬레이터 | ✅ 빌드·설치·실행·크래시 0·백엔드 연동·딥링크·뒤로가기 — 상세 `docs/APP_PORTING.md` §0 |
-| Docker (`docker compose build/up`, 운영 모드) | ✅ API·웹 이미지 빌드, nginx 경유 헬스·SPA 라우팅·사주 계산·게스트 세션, 운영 모드에서 목업 웹훅 404, 결제 키 미설정 시 `501 NOT_CONFIGURED`(필요 env 키 안내), 로그인 11회째 429 |
+| Cloudflare 로컬 Worker (`wrangler dev` · 로컬 D1) | ✅ 웹·API 한 Worker 스모크: `/health`, 가입·로그인(workerd 의 scrypt), 프로필 저장, mock 결제 승인·지급, Queue 로 돈 리포트 AI 다듬기 8/8 덩어리 완료 |
 | 토스페이먼츠 샌드박스 | ✅ 실제 샌드박스 결제창 진입·카드사 인증 전환, 서버 승인 API 실호출·오류 매핑 — 상세 `docs/PAYMENTS.md` 마지막 절 |
 | Linux(Node 22) 클린 설치 | ✅ `node:22-bookworm` 컨테이너에서 `npm ci` → 타입검사 0 → 테스트 240/240 (CI 와 동일 조건) |
 | CI 워크플로 | ✅ `.github/workflows/ci.yml` (테스트·E2E / Android APK / **iOS 시뮬레이터 빌드(macOS 러너)**) — `actionlint` 통과. 저장소를 GitHub 에 올리면 실행 |
@@ -160,7 +160,7 @@ E2E 는 mock 결제·AI 키 없음·Chromium 한 종류 환경이라 아래는 �
 | **실결제(웹)** | 토스페이먼츠·포트원 테스트 키 → 카드·간편결제(카카오페이·네이버페이·토스페이) 승인, 실패·취소 리다이렉트, 결제창 뒤로가기, 모바일 앱카드 전환 후 복귀, 인앱 브라우저(카카오톡·인스타그램) 결제, 웹훅(취소 → 권한 회수, 승인 응답 유실 → 복구), 관리자 환불(부분 환불: 질문권 미사용분), 영수증·결제 내역 금액, 라이브 키 전환 전 PG 심사 항목(`docs/PAYMENTS.md`) |
 | **인앱결제(앱)** | App Store 샌드박스·Play 테스트 트랙 구매, 영수증 서버 검증, finish/consume, 앱 종료 후 복구(`recoverInAppPurchases`), 환불·구매 복원, 스토어별 상품 ID 매핑 |
 | **소셜 로그인** | 카카오·네이버·Google·Apple 각각: 신규 가입, 기존 계정 로그인, 게스트 → 소셜 전환 시 데이터 유지, 같은 이메일의 다른 제공자, 동의 취소, 앱 딥링크 콜백(유니버설 링크·App Links), Apple form_post, 탈퇴 시 연결 해제 |
-| **푸시** | 웹 푸시 권한 요청·거부, FCM 토큰 등록·해제(로그아웃 시), 08:00 KST 오늘의 운세 발송(`DAILY_PUSH_ENABLED`, 단일 인스턴스), 알림 탭 → `/today` 이동, 알림 끄기 반영, iOS 포그라운드·백그라운드 수신 |
+| **푸시** | 웹 푸시 권한 요청·거부, FCM 토큰 등록·해제(로그아웃 시), 08:00 KST 오늘의 운세 발송(`DAILY_PUSH_ENABLED`, Cron Trigger `0 23 * * *`), 알림 탭 → `/today` 이동, 알림 끄기 반영, iOS 포그라운드·백그라운드 수신 |
 | **앱 빌드** | `npm run build:app -w @saju/web` → iOS/Android 빌드·실행, API 절대 주소, 스플래시·상태바(다크 모드), safe-area(노치·홈 인디케이터), Android 뒤로가기(시트 닫기 → 화면 뒤로), 키보드가 입력칸을 가리지 않는지, 공유 시트, AdMob 배너·보상형(일 3회 한도), 오프라인 첫 실행, 심사 대응 항목(`docs/APP_PORTING.md`) |
 | AI 상담·리포트 | `ANTHROPIC_API_KEY` 설정 시 질문권 차감·부족 시 결제 유도, 실패 시 환원, 응답 품질·금칙(의료·투자 단정 금지), 위기 표현 안내, AI 배지·면책 문구. 리포트: 결제 직후 보관함에 바로 생김 → 열면 규칙 기반 본문 + 'AI가 문장을 다듬고 있어요 n/전체' → 끝나면 최종본(읽는 중이면 '바꿔 보기'), 서버 로그 `[ai:report]` 의 걸린 초 |
 | 리포트 PDF (앱) | Android: PDF로 저장 → 인쇄 화면에서 'PDF로 저장' → 한글·한자·명조 제목이 화면과 같게, 다크 테마여도 흰 바탕, 비행기 모드에서도 동작. iOS: 인쇄 화면 공유 → '파일에 저장' |

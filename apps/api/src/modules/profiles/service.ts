@@ -117,10 +117,10 @@ export function createProfileService(db: Db) {
       calculateSaju(birthDtoToInput(dto.birth)); // 날짜 유효성 검증(SajuInputError → 400)
       const id = newId();
       const isPrimary = dto.isPrimary ?? (count === 0 || dto.relation === 'self');
-      await db.transaction(async (tx) => {
-        if (isPrimary) await tx.update(profiles).set({ isPrimary: false }).where(eq(profiles.userId, userId));
-        await tx.insert(profiles).values({ id, userId, name: dto.name, relation: dto.relation ?? 'self', cityName: dto.cityName ?? null, isPrimary, ...values(dto.birth) });
-      });
+      const insert = db.insert(profiles).values({ id, userId, name: dto.name, relation: dto.relation ?? 'self', cityName: dto.cityName ?? null, isPrimary, ...values(dto.birth) });
+      // 대표 사주는 하나 — 다른 사주의 대표 표시를 끄는 것과 새 사주 저장을 한 묶음으로
+      if (isPrimary) await db.batch([db.update(profiles).set({ isPrimary: false }).where(eq(profiles.userId, userId)), insert]);
+      else await insert;
       return getOwned(userId, id);
     },
     async update(userId: string, id: string, dto: Omit<ProfileUpdateDto, 'birth'> & { birth?: z.output<typeof birthInputSchema> }): Promise<Profile> {
@@ -132,20 +132,19 @@ export function createProfileService(db: Db) {
         const [purchased] = await db.select({ id: entitlements.id }).from(entitlements).where(and(eq(entitlements.userId, userId), like(entitlements.key, `report:%${id}%`))).limit(1);
         if (changed && purchased) throw conflict('구매한 풀이가 있는 사주는 출생 정보를 바꿀 수 없어요. 새 사주로 추가해 주세요. (입력 실수는 고객센터로 문의해 주세요)');
       }
-      await db.transaction(async (tx) => {
-        if (dto.isPrimary) await tx.update(profiles).set({ isPrimary: false }).where(eq(profiles.userId, userId));
-        await tx
-          .update(profiles)
-          .set({
-            ...(dto.name !== undefined ? { name: dto.name } : {}),
-            ...(dto.relation !== undefined ? { relation: dto.relation } : {}),
-            ...(dto.cityName !== undefined ? { cityName: dto.cityName } : {}),
-            ...(dto.isPrimary !== undefined ? { isPrimary: dto.isPrimary } : {}),
-            ...(dto.birth ? values(dto.birth) : {}),
-            updatedAt: Date.now(),
-          })
-          .where(eq(profiles.id, id));
-      });
+      const update = db
+        .update(profiles)
+        .set({
+          ...(dto.name !== undefined ? { name: dto.name } : {}),
+          ...(dto.relation !== undefined ? { relation: dto.relation } : {}),
+          ...(dto.cityName !== undefined ? { cityName: dto.cityName } : {}),
+          ...(dto.isPrimary !== undefined ? { isPrimary: dto.isPrimary } : {}),
+          ...(dto.birth ? values(dto.birth) : {}),
+          updatedAt: Date.now(),
+        })
+        .where(eq(profiles.id, id));
+      if (dto.isPrimary) await db.batch([db.update(profiles).set({ isPrimary: false }).where(eq(profiles.userId, userId)), update]);
+      else await update;
       return getOwned(userId, id);
     },
     async remove(userId: string, id: string) {

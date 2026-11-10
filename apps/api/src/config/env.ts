@@ -1,9 +1,8 @@
 /**
  * 환경 변수 로딩·검증. 외부 연동 키는 모두 선택값이며, 비어 있으면 해당 기능은
  * "미설정(NOT_CONFIGURED)" 상태로 동작한다(목업/규칙 기반 대체). 키 목록은 docs/ENV_KEYS.md 참고.
+ * Worker 는 바인딩(env — wrangler.jsonc vars + 시크릿)을, Node(테스트·스크립트)는 process.env 와 .env 파일을 읽는다.
  */
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { z } from 'zod';
 
 const bool = z
@@ -17,24 +16,15 @@ const opt = z
 
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().int().default(4000),
-  HOST: z.string().default('0.0.0.0'),
   APP_NAME: z.string().default('달빛사주'),
   /** CORS 허용 오리진(콤마 구분). Capacitor 앱 오리진도 포함 */
   CORS_ORIGINS: z.string().default('http://localhost:5173,capacitor://localhost,http://localhost,https://localhost'),
   /** 결제·소셜로그인 리다이렉트, 비밀번호 재설정 메일 링크의 기준이 되는 웹 주소 */
   PUBLIC_WEB_URL: z.string().default('http://localhost:5173'),
-  /** postgres://… (운영: Supabase) 또는 PGlite 데이터 폴더 경로(개발) — ':memory:' 는 인메모리 */
-  DATABASE_URL: z.string().default('./data/pglite'),
   JWT_ACCESS_SECRET: opt.transform((v) => v ?? 'dev-access-secret-change-me-please-32chars'),
   JWT_REFRESH_SECRET: opt.transform((v) => v ?? 'dev-refresh-secret-change-me-please-32chars'),
   ACCESS_TOKEN_TTL_SEC: z.coerce.number().int().default(60 * 60),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().default(30),
-  RATE_LIMIT_PER_MIN: z.coerce.number().int().default(120),
-  /** 로그인·가입·게스트 생성 등 인증 경로의 분당 제한 */
-  AUTH_RATE_LIMIT_PER_MIN: z.coerce.number().int().default(10),
-  /** 앞단 리버스 프록시 홉 수(nginx 1대면 1). 0 이면 X-Forwarded-For 를 신뢰하지 않음 — IP 위조로 rate limit 우회 방지 */
-  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
   ADMIN_API_TOKEN: opt,
   /** 신규 가입 보너스 크레딧 */
   SIGNUP_BONUS_CREDITS: z.coerce.number().int().default(0),
@@ -108,7 +98,7 @@ const schema = z.object({
   FCM_PROJECT_ID: opt,
   FCM_CLIENT_EMAIL: opt,
   FCM_PRIVATE_KEY: opt,
-  /** 매일 08:00 KST 오늘의 운세 푸시 발송 (단일 인스턴스에서만 true) */
+  /** 매일 08:00 KST 오늘의 운세 푸시 발송 — Worker 예약 실행(wrangler.jsonc triggers.crons)이 이 값이 true 일 때만 보낸다 */
   DAILY_PUSH_ENABLED: bool,
 
   // 메일 (Resend HTTPS API) — 비밀번호 재설정 링크 발송
@@ -154,11 +144,15 @@ export type AppConfig = z.infer<typeof schema> & {
 };
 
 let envFileLoaded = false;
+/** Node 에서만 — 현재 폴더의 .env 를 process.env 로 (없으면 무시) */
 function loadEnvFile() {
   if (envFileLoaded) return;
   envFileLoaded = true;
-  const path = resolve(process.cwd(), '.env');
-  if (existsSync(path)) process.loadEnvFile(path);
+  try {
+    process.loadEnvFile('.env');
+  } catch {
+    /* .env 없음 */
+  }
 }
 
 export function loadConfig(overrides: Record<string, string | undefined> = {}): AppConfig {
@@ -175,10 +169,6 @@ export function loadConfig(overrides: Record<string, string | undefined> = {}): 
   }
   if (isProd && c.PAYMENT_PROVIDER === 'mock') {
     throw new Error('운영 환경에서는 PAYMENT_PROVIDER=mock 을 사용할 수 없습니다.');
-  }
-  // PGlite(파일·인메모리)는 개발용 — 운영에서 쓰면 서버를 옮기거나 다시 띄울 때 데이터가 사라질 수 있다
-  if (isProd && !/^postgres(ql)?:\/\//i.test(c.DATABASE_URL)) {
-    throw new Error('운영 환경에서는 DATABASE_URL 에 PostgreSQL 주소(postgres://…)를 지정해야 합니다.');
   }
   const googleIap = Boolean(c.GOOGLE_PLAY_PACKAGE_NAME && c.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON);
   return {

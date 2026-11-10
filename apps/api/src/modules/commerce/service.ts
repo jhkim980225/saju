@@ -6,7 +6,8 @@ import { and, asc, count, desc, eq, inArray, like, notInArray, sql } from 'drizz
 import type { CheckoutDto, OrderCreateDto, OrderDto, PaymentProvider, PaymentResultDto, ProductDto, WalletDto } from '@saju/shared';
 import { ERROR_CODES } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
-import type { Db, Tx } from '../../db/client.js';
+import { atomic, type Unit } from '../../db/atomic.js';
+import type { Db } from '../../db/client.js';
 import { creditLedger, entitlements, orders, products, profiles, users, webhookEvents, type Order, type Product } from '../../db/schema.js';
 import { AppError, badRequest, conflict, forbidden, insufficientCredits, notConfigured, notFound } from '../../lib/errors.js';
 import { newId, newOrderId } from '../../lib/ids.js';
@@ -30,13 +31,13 @@ type FulfilledListener = (e: FulfilledEvent) => Promise<void> | void;
 /** 결과 하나를 여는 상품(타로·택일)의 소유·상품 일치 확인 — 맞지 않으면 예외 */
 type ReadingCheck = (userId: string, readingId: string, productId: string) => Promise<void> | void;
 
-/** 카탈로그 → DB upsert. 카탈로그에서 뺀 상품은 지우지 않고 판매 중지(active=false) — 지난 주문이 참조한다 */
+/** 카탈로그 → DB upsert(한 묶음). 카탈로그에서 뺀 상품은 지우지 않고 판매 중지(active=false) — 지난 주문이 참조한다 */
 export async function seedCatalog(db: Db) {
-  await db
+  const deactivate = db
     .update(products)
     .set({ active: false, updatedAt: Date.now() })
     .where(and(eq(products.active, true), notInArray(products.id, CATALOG.map((c) => c.id))));
-  for (const [i, c] of CATALOG.entries()) {
+  const upserts = CATALOG.map((c, i) => {
     const values = {
       name: c.name,
       description: c.description,
@@ -56,8 +57,9 @@ export async function seedCatalog(db: Db) {
       sortOrder: i,
       updatedAt: Date.now(),
     };
-    await db.insert(products).values({ id: c.id, ...values }).onConflictDoUpdate({ target: products.id, set: values });
-  }
+    return db.insert(products).values({ id: c.id, ...values }).onConflictDoUpdate({ target: products.id, set: values });
+  });
+  await db.batch([deactivate, ...upserts]);
 }
 
 export const requiresProfile = (p: Pick<Product, 'grants'>) => p.grants.some((g) => g.startsWith('report:'));
@@ -71,6 +73,12 @@ export function currentPrice(p: Product, now = Date.now()): number {
   return p.price;
 }
 
+/**
+ * 원장에 적을 잔액 — 같은 묶음(batch) 안에서 잔액 갱신 바로 뒤에 넣으면 갱신된 값을 읽는다.
+ * (drizzle 의 D1 batch 는 db.run(sql) 원시 문장에 인자가 있으면 실패해, insert 의 값 자리에 하위 쿼리로 넣는다)
+ */
+export const balanceNow = (userId: string) => sql<number>`(select ${users.credits} from ${users} where ${users.id} = ${userId})`;
+
 export function compatKey(a: string, b: string) {
   const [x, y] = [a, b].sort();
   return `report:compatibility:${x}:${y}`;
@@ -83,12 +91,12 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
     return p;
   };
 
-  const paidCount = async (q: Db | Tx, userId: string, productId: string) =>
-    (await q.select({ n: count() }).from(orders).where(and(eq(orders.userId, userId), eq(orders.productId, productId), eq(orders.status, 'paid'))))[0]?.n ?? 0;
+  const paidCount = async (userId: string, productId: string) =>
+    (await db.select({ n: count() }).from(orders).where(and(eq(orders.userId, userId), eq(orders.productId, productId), eq(orders.status, 'paid'))))[0]?.n ?? 0;
 
   const productDto = async (p: Product, userId?: string): Promise<ProductDto> => {
     const price = currentPrice(p);
-    const purchasable = !p.comingSoon && (p.perUserLimit === null || !userId || (await paidCount(db, userId, p.id)) < p.perUserLimit);
+    const purchasable = !p.comingSoon && (p.perUserLimit === null || !userId || (await paidCount(userId, p.id)) < p.perUserLimit);
     return {
       id: p.id,
       name: p.name,
@@ -146,22 +154,41 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
   };
 
   // ── 질문권 원장 ─────────────────────────────────────────────
-  /** 잔액 갱신 — 사용자 행을 잠가(FOR UPDATE) 동시 요청끼리 잔액을 덮어쓰지 않게 한다 */
-  const addCredits = async (tx: Tx, userId: string, delta: number, opts: { reason: string; source: 'paid' | 'free'; channel: Channel; memo?: string; refType?: string; refId?: string }) => {
-    const [u] = await tx.select({ credits: users.credits, paidCredits: users.paidCredits }).from(users).where(eq(users.id, userId)).for('update');
-    if (!u) throw notFound('사용자를 찾을 수 없어요.');
-    const credits = u.credits + delta;
-    const paidCredits = opts.source === 'paid' ? u.paidCredits + delta : u.paidCredits;
-    await tx.update(users).set({ credits, paidCredits, updatedAt: Date.now() }).where(eq(users.id, userId));
-    await tx
-      .insert(creditLedger)
-      .values({ id: newId(), userId, delta, reason: opts.reason, source: opts.source, channel: opts.channel, memo: opts.memo ?? null, refType: opts.refType ?? null, refId: opts.refId ?? null, balanceAfter: credits });
-    return credits;
+  /**
+   * 잔액 갱신(묶음에 넣기) — 누적은 SQL 로 해 동시 요청끼리 잔액을 덮어쓰지 않고,
+   * 원장의 잔액은 같은 묶음 안에서 갱신 직후 사용자 행을 읽어 적는다
+   */
+  const addCredits = (u: Unit, userId: string, delta: number, opts: { reason: string; source: 'paid' | 'free'; channel: Channel; memo?: string; refType?: string; refId?: string }) => {
+    u.write(
+      db
+        .update(users)
+        .set({ credits: sql`${users.credits} + ${delta}`, ...(opts.source === 'paid' ? { paidCredits: sql`${users.paidCredits} + ${delta}` } : {}), updatedAt: Date.now() })
+        .where(eq(users.id, userId)),
+    );
+    u.write(
+      db.insert(creditLedger).values({
+        id: newId(),
+        userId,
+        delta,
+        reason: opts.reason,
+        source: opts.source,
+        channel: opts.channel,
+        memo: opts.memo ?? null,
+        refType: opts.refType ?? null,
+        refId: opts.refId ?? null,
+        balanceAfter: balanceNow(userId),
+      }),
+    );
   };
 
-  const grantEntitlement = async (tx: Tx, userId: string, key: string, orderId: string | null, expiresAt: number | null = null) => {
-    await tx.insert(entitlements).values({ id: newId(), userId, key, orderId, expiresAt }).onConflictDoNothing();
+  const grantEntitlement = (u: Unit, userId: string, key: string, orderId: string | null, expiresAt: number | null = null) => {
+    u.write(db.insert(entitlements).values({ id: newId(), userId, key, orderId, expiresAt }).onConflictDoNothing());
   };
+
+  /** 주문이 실행 시점에도 이 상태들 중 하나여야 한다 */
+  const expectOrderStatus = (u: Unit, orderId: string, statuses: string[]) =>
+    u.expect(sql`exists (select 1 from ${orders} where ${orders.id} = ${orderId} and ${inArray(orders.status, statuses)})`);
+  const orderStatus = async (orderId: string) => (await db.select({ status: orders.status }).from(orders).where(eq(orders.id, orderId)))[0]?.status;
 
   /** grants 템플릿 → 이 주문의 실제 권한 키 (지급·환불 철회 공용) */
   const entitlementKeys = (product: Product, order: Order): string[] => {
@@ -176,20 +203,22 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
     });
   };
 
-  /** 상품 지급 — 질문권 / 권한 / 구독 기간 */
-  const fulfill = async (tx: Tx, order: Order, channel: Channel) => {
-    const [product] = await tx.select().from(products).where(eq(products.id, order.productId));
+  /** 상품 지급(묶음에 넣기) — 질문권 / 권한 / 구독 기간 */
+  const fulfill = async (u: Unit, order: Order, channel: Channel) => {
+    const [product] = await db.select().from(products).where(eq(products.id, order.productId));
     if (!product) throw notFound('상품을 찾을 수 없어요.');
     const granted = entitlementKeys(product, order);
-    for (const key of granted) await grantEntitlement(tx, order.userId, key, order.id);
+    for (const key of granted) grantEntitlement(u, order.userId, key, order.id);
     let premiumUntil: number | null = null;
     if (product.type === 'subscription' && product.periodDays) {
-      const [u] = await tx.select({ premiumUntil: users.premiumUntil }).from(users).where(eq(users.id, order.userId)).for('update');
-      premiumUntil = Math.max(Date.now(), u!.premiumUntil ?? 0) + product.periodDays * DAY;
-      await tx.update(users).set({ premiumUntil }).where(eq(users.id, order.userId));
+      const [w] = await db.select({ premiumUntil: users.premiumUntil }).from(users).where(eq(users.id, order.userId));
+      premiumUntil = Math.max(Date.now(), w!.premiumUntil ?? 0) + product.periodDays * DAY;
+      // 읽은 만료 시각에 기간을 더한다 — 그사이 다른 결제가 기간을 늘렸으면 다시 계산
+      u.expect(sql`exists (select 1 from ${users} where ${users.id} = ${order.userId} and coalesce(${users.premiumUntil}, 0) = ${w!.premiumUntil ?? 0})`);
+      u.write(db.update(users).set({ premiumUntil }).where(eq(users.id, order.userId)));
     }
     if (product.credits > 0) {
-      await addCredits(tx, order.userId, product.credits, { reason: 'purchase', source: 'paid', channel, memo: product.name, refType: 'order', refId: order.id });
+      addCredits(u, order.userId, product.credits, { reason: 'purchase', source: 'paid', channel, memo: product.name, refType: 'order', refId: order.id });
     }
     return { credits: product.credits, entitlements: granted, premiumUntil: premiumUntil ? new Date(premiumUntil).toISOString() : null };
   };
@@ -198,19 +227,23 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
    * 지급분 회수 — 권한 삭제 + 유상 질문권 차감(남은 만큼).
    * paid 주문일 때만 조건부로 바꾼다 → 관리자 환불·결제사 웹훅·스토어 알림이 겹쳐도 회수는 1회. 회수했으면 true
    */
-  const revokeOrder = async (tx: Tx, order: Order, status: 'refunded' | 'canceled', reason: string): Promise<boolean> => {
-    const r = await tx
-      .update(orders)
-      .set({ status, canceledAt: Date.now(), failureReason: reason, updatedAt: Date.now() })
-      .where(and(eq(orders.id, order.id), eq(orders.status, 'paid')))
-      .returning({ id: orders.id });
-    if (r.length !== 1) return false;
-    await tx.delete(entitlements).where(eq(entitlements.orderId, order.id));
-    const [product] = await tx.select().from(products).where(eq(products.id, order.productId));
+  const revokeOrder = async (u: Unit, order: Order, status: 'refunded' | 'canceled', reason: string): Promise<boolean> => {
+    if ((await orderStatus(order.id)) !== 'paid') return false;
+    expectOrderStatus(u, order.id, ['paid']);
+    u.write(
+      db
+        .update(orders)
+        .set({ status, canceledAt: Date.now(), failureReason: reason, updatedAt: Date.now() })
+        .where(and(eq(orders.id, order.id), eq(orders.status, 'paid'))),
+    );
+    u.write(db.delete(entitlements).where(eq(entitlements.orderId, order.id)));
+    const [product] = await db.select().from(products).where(eq(products.id, order.productId));
     if (product && product.credits > 0) {
-      const [u] = await tx.select({ paidCredits: users.paidCredits }).from(users).where(eq(users.id, order.userId)).for('update');
-      const revoke = Math.min(product.credits, u!.paidCredits);
-      if (revoke > 0) await addCredits(tx, order.userId, -revoke, { reason: 'refund', source: 'paid', channel: 'system', memo: `${product.name} ${status === 'refunded' ? '환불' : '결제 취소'}`, refType: 'order', refId: order.id });
+      const [w] = await db.select({ paidCredits: users.paidCredits }).from(users).where(eq(users.id, order.userId));
+      const revoke = Math.min(product.credits, w!.paidCredits);
+      // 남은 유상 질문권을 기준으로 회수량을 정했다 — 그사이 바뀌었으면 다시 계산
+      u.expect(sql`exists (select 1 from ${users} where ${users.id} = ${order.userId} and ${users.paidCredits} = ${w!.paidCredits})`);
+      if (revoke > 0) addCredits(u, order.userId, -revoke, { reason: 'refund', source: 'paid', channel: 'system', memo: `${product.name} ${status === 'refunded' ? '환불' : '결제 취소'}`, refType: 'order', refId: order.id });
     }
     return true;
   };
@@ -220,26 +253,28 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
    * 질문권은 이 주문 원장(refType=order)의 순합계가 상품 질문권 수가 될 만큼만 채운다
    * (환불 때 이미 써 버려 회수하지 못한 몫은 다시 주지 않는다). 복구했으면 true
    */
-  const restoreOrder = async (tx: Tx, order: Order): Promise<boolean> => {
-    const r = await tx
-      .update(orders)
-      .set({ status: 'paid', canceledAt: null, failureReason: null, updatedAt: Date.now() })
-      .where(and(eq(orders.id, order.id), eq(orders.status, 'refunded')))
-      .returning({ id: orders.id });
-    if (r.length !== 1) return false;
-    const [product] = await tx.select().from(products).where(eq(products.id, order.productId));
+  const restoreOrder = async (u: Unit, order: Order): Promise<boolean> => {
+    if ((await orderStatus(order.id)) !== 'refunded') return false;
+    expectOrderStatus(u, order.id, ['refunded']);
+    u.write(
+      db
+        .update(orders)
+        .set({ status: 'paid', canceledAt: null, failureReason: null, updatedAt: Date.now() })
+        .where(and(eq(orders.id, order.id), eq(orders.status, 'refunded'))),
+    );
+    const [product] = await db.select().from(products).where(eq(products.id, order.productId));
     if (!product) return true;
-    for (const key of entitlementKeys(product, order)) await grantEntitlement(tx, order.userId, key, order.id);
+    for (const key of entitlementKeys(product, order)) grantEntitlement(u, order.userId, key, order.id);
     if (product.credits > 0) {
       const net =
         (
-          await tx
+          await db
             .select({ n: sql<number>`coalesce(sum(${creditLedger.delta}), 0)`.mapWith(Number) })
             .from(creditLedger)
             .where(and(eq(creditLedger.refType, 'order'), eq(creditLedger.refId, order.id)))
         )[0]?.n ?? 0;
       const give = product.credits - net;
-      if (give > 0) await addCredits(tx, order.userId, give, { reason: 'purchase', source: 'paid', channel: 'system', memo: `${product.name} 환불 철회`, refType: 'order', refId: order.id });
+      if (give > 0) addCredits(u, order.userId, give, { reason: 'purchase', source: 'paid', channel: 'system', memo: `${product.name} 환불 철회`, refType: 'order', refId: order.id });
     }
     return true;
   };
@@ -263,10 +298,10 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
   };
 
   /**
-   * 결제 확정 + 지급을 한 트랜잭션에서 원자적으로 처리한다.
-   * - pending/failed 주문만 paid 로 바꾼다(조건부 UPDATE) → 동시 승인·웹훅 경쟁에서도 지급은 정확히 1회
-   * - 계정당 구매 한도를 트랜잭션 안에서 다시 확인한다(주문 생성 시점 확인만으로는 우회 가능)
-   * - 커밋된 뒤에만 지급 알림을 보낸다(웹 승인·인앱결제·웹훅 모두 여기를 지난다)
+   * 결제 확정 + 지급을 한 묶음(atomic)으로 원자적으로 처리한다.
+   * - pending/failed 주문만 paid 로 바꾼다(실행 시점 상태 확인) → 동시 승인·웹훅 경쟁에서도 지급은 정확히 1회
+   * - 계정당 구매 한도를 묶음 실행 시점에 다시 확인한다(주문 생성 시점 확인만으로는 우회 가능)
+   * - 묶음이 실행된 뒤에만 지급 알림을 보낸다(웹 승인·인앱결제·웹훅 모두 여기를 지난다)
    */
   type Payment = { paymentKey: string | null; method: string | null; paidAt: number };
   type Settled = { ok: true; granted: Granted } | { ok: false; reason: 'ALREADY_SETTLED' | 'PER_USER_LIMIT' };
@@ -276,21 +311,26 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
     return result;
   };
   const settleTx = (order: Order, pay: Payment, channel: Channel): Promise<Settled> =>
-    db.transaction(async (tx): Promise<Settled> => {
-      // 같은 사용자의 결제 확정은 사용자 행을 잠가 한 줄로 세운다 — 구매 한도 확인과 지급이 동시 요청 사이에 겹치지 않게
-      await tx.select({ id: users.id }).from(users).where(eq(users.id, order.userId)).for('update');
-      const [product] = await tx.select().from(products).where(eq(products.id, order.productId));
+    atomic(db, async (u): Promise<Settled> => {
+      const [product] = await db.select().from(products).where(eq(products.id, order.productId));
       if (product && product.perUserLimit !== null) {
-        const n = await paidCount(tx, order.userId, order.productId);
+        const n = await paidCount(order.userId, order.productId);
         if (n >= product.perUserLimit) return { ok: false as const, reason: 'PER_USER_LIMIT' as const };
+        // 같은 상품을 다른 주문으로 동시에 확정하는 경우 — 실행 시점에도 한도 안이어야 한다
+        u.expect(
+          sql`(select count(*) from ${orders} where ${orders.userId} = ${order.userId} and ${orders.productId} = ${order.productId} and ${orders.status} = 'paid') < ${product.perUserLimit}`,
+        );
       }
-      const r = await tx
-        .update(orders)
-        .set({ status: 'paid', providerPaymentKey: pay.paymentKey ?? order.providerPaymentKey, method: pay.method ?? order.method, paidAt: pay.paidAt, failureReason: null, updatedAt: Date.now() })
-        .where(and(eq(orders.id, order.id), inArray(orders.status, ['pending', 'failed'])))
-        .returning({ id: orders.id });
-      if (r.length !== 1) return { ok: false as const, reason: 'ALREADY_SETTLED' as const };
-      return { ok: true as const, granted: await fulfill(tx, order, channel) };
+      const current = await orderStatus(order.id);
+      if (current !== 'pending' && current !== 'failed') return { ok: false as const, reason: 'ALREADY_SETTLED' as const };
+      expectOrderStatus(u, order.id, ['pending', 'failed']);
+      u.write(
+        db
+          .update(orders)
+          .set({ status: 'paid', providerPaymentKey: pay.paymentKey ?? order.providerPaymentKey, method: pay.method ?? order.method, paidAt: pay.paidAt, failureReason: null, updatedAt: Date.now() })
+          .where(and(eq(orders.id, order.id), inArray(orders.status, ['pending', 'failed']))),
+      );
+      return { ok: true as const, granted: await fulfill(u, order, channel) };
     });
 
   /** pending 일 때만 실패로 표시(이미 paid 된 주문을 덮어쓰지 않음) */
@@ -334,7 +374,7 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
       if (user.provider === 'guest') throw new AppError(403, ERROR_CODES.FORBIDDEN, '구매 내역을 안전하게 보관하려면 로그인이 필요해요.', { reason: 'LOGIN_REQUIRED' });
       const product = await getProduct(dto.productId);
       if (product.comingSoon) throw badRequest('곧 출시될 상품이에요.');
-      if (product.perUserLimit !== null && (await paidCount(db, userId, product.id)) >= product.perUserLimit) throw conflict('이미 구매한 상품이에요. (계정당 1회)');
+      if (product.perUserLimit !== null && (await paidCount(userId, product.id)) >= product.perUserLimit) throw conflict('이미 구매한 상품이에요. (계정당 1회)');
       if (requiresProfile(product)) {
         if (!dto.profileId) throw badRequest('리포트를 받을 프로필을 선택해 주세요.');
         await assertOwnedProfile(userId, dto.profileId);
@@ -514,7 +554,7 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
           console.warn(`[commerce] 부분 환불 웹훅 — 자동 회수하지 않음 (${providerId} order=${order.id} amount=${event.amount ?? '-'})`);
         } else {
           // 결제사 관리자 화면 등에서 취소·환불된 경우에도 지급분을 회수한다
-          await db.transaction((tx) => revokeOrder(tx, order, event.status === 'refunded' ? 'refunded' : 'canceled', `웹훅(${event.type})`));
+          await atomic(db, (u) => revokeOrder(u, order, event.status === 'refunded' ? 'refunded' : 'canceled', `웹훅(${event.type})`));
         }
       } else if (order && event.status === 'paid' && (order.status === 'pending' || order.status === 'failed')) {
         // 승인 응답 유실 등으로 지급되지 않은 결제를 복구(그로블은 이것이 유일한 확정 경로)
@@ -567,17 +607,19 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
       let applied = false;
       if (n.action !== 'none' && n.transactionIds.length > 0) {
         const [order] = await db.select().from(orders).where(and(eq(orders.provider, provider), inArray(orders.providerPaymentKey, n.transactionIds)));
-        await db.transaction(async (tx) => {
+        applied = await atomic(db, async (u) => {
+          let changed = false;
           if (n.action === 'revoke') {
-            if (order) applied = await revokeOrder(tx, order, n.revokeStatus ?? 'refunded', n.reason);
+            if (order) changed = await revokeOrder(u, order, n.revokeStatus ?? 'refunded', n.reason);
             // 앱이 아직 검증(/payments/iap/verify)하지 않은 구매도 있다 — 나중에 검증 요청이 와도 지급하지 않도록 표시
             for (const txId of n.transactionIds) {
-              await tx.insert(webhookEvents).values({ id: voidedKey(provider, txId), provider, eventType: 'VOIDED', payload: { notification: n.id, reason: n.reason }, processedAt: Date.now() }).onConflictDoNothing();
+              u.write(db.insert(webhookEvents).values({ id: voidedKey(provider, txId), provider, eventType: 'VOIDED', payload: { notification: n.id, reason: n.reason }, processedAt: Date.now() }).onConflictDoNothing());
             }
           } else {
-            if (order) applied = await restoreOrder(tx, order);
-            for (const txId of n.transactionIds) await tx.delete(webhookEvents).where(eq(webhookEvents.id, voidedKey(provider, txId)));
+            if (order) changed = await restoreOrder(u, order);
+            for (const txId of n.transactionIds) u.write(db.delete(webhookEvents).where(eq(webhookEvents.id, voidedKey(provider, txId))));
           }
+          return changed;
         });
       }
       await markProcessed(eventKey);
@@ -604,7 +646,7 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
         if (unused < product.credits) cancelAmount = Math.floor((order.amount * unused) / product.credits);
       }
       if (order.providerPaymentKey) await gateway.cancel({ paymentKey: order.providerPaymentKey, reason, amount: cancelAmount });
-      await db.transaction((tx) => revokeOrder(tx, order, 'refunded', reason));
+      await atomic(db, (u) => revokeOrder(u, order, 'refunded', reason));
       return orderDto((await db.select().from(orders).where(eq(orders.id, order.id)))[0]!);
     },
 
@@ -631,18 +673,18 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
     },
     /** 1회권(ticket) 사용 → 실제 권한으로 전환. 사용 가능한 티켓이 없으면 false */
     async redeemTicket(userId: string, kind: 'compatibility', newKey: string): Promise<boolean> {
-      return db.transaction(async (tx) => {
-        // 같은 티켓을 두 요청이 동시에 쓰지 않게 사용자 행을 잠근다
-        await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for('update');
-        const [ticket] = await tx
+      return atomic(db, async (u) => {
+        const [ticket] = await db
           .select()
           .from(entitlements)
           .where(and(eq(entitlements.userId, userId), like(entitlements.key, `ticket:${kind}:%`)))
           .orderBy(asc(entitlements.createdAt))
           .limit(1);
         if (!ticket) return false;
-        await tx.delete(entitlements).where(eq(entitlements.id, ticket.id));
-        await grantEntitlement(tx, userId, newKey, ticket.orderId);
+        // 같은 1회권을 두 요청이 함께 쓰지 않게 — 실행 시점에도 남아 있어야 한다(먼저 쓴 요청이 있으면 다음 1회권으로 다시)
+        u.expect(sql`exists (select 1 from ${entitlements} where ${entitlements.id} = ${ticket.id})`);
+        u.write(db.delete(entitlements).where(eq(entitlements.id, ticket.id)));
+        grantEntitlement(u, userId, newKey, ticket.orderId);
         return true;
       });
     },
@@ -653,21 +695,25 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
     // ── 질문권 ─────────────────────────────────────────────────
     /** 무상분부터 차감(유상분은 환불 대상으로 최대한 보존) */
     async consumeCredits(userId: string, amount: number, memo: string, refId?: string): Promise<number> {
-      return db.transaction(async (tx) => {
-        const [u] = await tx.select({ credits: users.credits, paidCredits: users.paidCredits }).from(users).where(eq(users.id, userId)).for('update');
-        if (!u) throw notFound('사용자를 찾을 수 없어요.');
-        if (u.credits < amount) throw insufficientCredits(amount, u.credits);
-        const free = u.credits - u.paidCredits;
-        const fromFree = Math.min(free, amount);
+      await atomic(db, async (u) => {
+        const [w] = await db.select({ credits: users.credits, paidCredits: users.paidCredits }).from(users).where(eq(users.id, userId));
+        if (!w) throw notFound('사용자를 찾을 수 없어요.');
+        if (w.credits < amount) throw insufficientCredits(amount, w.credits);
+        const fromFree = Math.min(w.credits - w.paidCredits, amount);
         const fromPaid = amount - fromFree;
-        let left = u.credits;
-        if (fromFree > 0) left = await addCredits(tx, userId, -fromFree, { reason: 'consume', source: 'free', channel: 'system', memo, refType: 'chat', refId });
-        if (fromPaid > 0) left = await addCredits(tx, userId, -fromPaid, { reason: 'consume', source: 'paid', channel: 'system', memo, refType: 'chat', refId });
-        return left;
+        // 나눈 몫이 실행 시점에도 그대로 남아 있어야 한다 — 동시 차감으로 줄었으면 다시 읽고 계산(모자라면 위에서 402)
+        u.expect(
+          sql`exists (select 1 from ${users} where ${users.id} = ${userId} and ${users.credits} - ${users.paidCredits} >= ${fromFree} and ${users.paidCredits} >= ${fromPaid})`,
+        );
+        if (fromFree > 0) addCredits(u, userId, -fromFree, { reason: 'consume', source: 'free', channel: 'system', memo, refType: 'chat', refId });
+        if (fromPaid > 0) addCredits(u, userId, -fromPaid, { reason: 'consume', source: 'paid', channel: 'system', memo, refType: 'chat', refId });
       });
+      return balance(userId);
     },
     async grantFreeCredits(userId: string, amount: number, memo: string): Promise<number> {
-      return db.transaction((tx) => addCredits(tx, userId, amount, { reason: 'bonus', source: 'free', channel: 'system', memo }));
+      if (!(await db.select({ id: users.id }).from(users).where(eq(users.id, userId))).length) throw notFound('사용자를 찾을 수 없어요.');
+      await atomic(db, async (u) => addCredits(u, userId, amount, { reason: 'bonus', source: 'free', channel: 'system', memo }));
+      return balance(userId);
     },
     async wallet(userId: string): Promise<WalletDto> {
       const [u] = await db.select({ credits: users.credits, paidCredits: users.paidCredits }).from(users).where(eq(users.id, userId));

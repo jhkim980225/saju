@@ -172,7 +172,7 @@ Capawesome Secure Preferences 는 후원자 전용 레지스트리(npm 미공개
 
 | 변수 | 필수 | 설명 |
 |---|---|---|
-| `VITE_API_BASE_URL` | **필수** | API **절대 주소**(예: `https://api.dalbitsaju.kr/api/v1`). 앱 웹뷰 origin 은 `capacitor://localhost`(iOS) / `https://localhost`(Android)라서 상대 경로 `/api/v1` 은 실패합니다. 비어 있으면 앱 시작 시 콘솔 오류를 남깁니다. |
+| `VITE_API_BASE_URL` | **필수** | API **절대 주소**(예: `https://dalbitsaju.kr/api/v1` — 웹과 API 를 Cloudflare Worker 하나가 같은 도메인으로 낸다). 앱 웹뷰 origin 은 `capacitor://localhost`(iOS) / `https://localhost`(Android)라서 상대 경로 `/api/v1` 은 실패합니다. 비어 있으면 앱 시작 시 콘솔 오류를 남깁니다. |
 | `VITE_PUBLIC_WEB_URL` | **필수** | 웹 서비스 주소(예: `https://dalbitsaju.kr`). 소셜 로그인 `redirectUri` 기준(`appWebOrigin()`), 유니버설 링크/App Links 허용 호스트 |
 | `VITE_DEEPLINK_HOSTS` | 선택 | 딥링크로 받을 추가 도메인(쉼표 구분, 예: `www.dalbitsaju.kr`) |
 | `VITE_APP_URL_SCHEME` | 선택 | 추가 커스텀 스킴(예: `dalbitsaju`). `kr.dalbitsaju.app://` 는 항상 허용 |
@@ -182,7 +182,7 @@ Capawesome Secure Preferences 는 후원자 전용 레지스트리(npm 미공개
 
 ```dotenv
 # apps/web/.env.app — VITE_* 는 앱 번들에 그대로 들어가는 공개 값입니다(비밀 키 금지)
-VITE_API_BASE_URL=https://api.dalbitsaju.kr/api/v1
+VITE_API_BASE_URL=https://dalbitsaju.kr/api/v1
 VITE_PUBLIC_WEB_URL=https://dalbitsaju.kr
 VITE_APP_URL_SCHEME=dalbitsaju
 VITE_ADMOB_UNIT_REWARDED_CHAT_IOS=ca-app-pub-XXXXXXXXXXXXXXXX/NNNNNNNNNN

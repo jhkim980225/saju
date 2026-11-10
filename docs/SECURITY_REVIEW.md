@@ -21,6 +21,12 @@ QA팀(보안·로직 리뷰어)이 인메모리 API 재현으로 확인한 15개
 | 14 | Low | 운세 `date` 에 존재하지 않는 날짜 허용 | 1900~2100 실제 날짜만 허용(400) | ✅ |
 | 15 | Low | 게스트 데이터: 기존 계정 로그인 시 유실 / 공용 기기 | 로그인·소셜 로그인 시 게스트 프로필·리포트·상담을 계정으로 병합 후 게스트 정리(같은 기기의 다음 게스트는 새 계정). 공용 기기에서 **가입 전** 게스트 데이터는 기기에 남는 특성은 게스트 모드의 한계로 문서화 | ✅ / 한계 고지 |
 
+> **Cloudflare Workers 전환(2026-11) 뒤 바뀐 구현** — 조치 내용(무엇을 막는지)은 같고 수단만 바뀌었다.
+> - 5번: 요청 수 제한은 Cloudflare Rate Limiting 바인딩으로, Cloudflare 가 붙이는 접속 IP(`cf-connecting-ip`) 기준이다. `TRUST_PROXY_HOPS`·`AUTH_RATE_LIMIT_PER_MIN` 은 없앴고, 인증·관리자 경로 별도 제한은 `wrangler.jsonc` 의 `ratelimits`(인증 60초 10회, 관리자 60초 20회)로 옮겼다. 운영 모드에서만 켜진다.
+> - 1·7번: D1 에는 대화형 트랜잭션이 없어, 읽고 판단한 뒤 쓰기를 batch 하나로 실행하고 batch 맨 앞의 조건 확인 문장(guard — "주문이 아직 pending", "구매 횟수 < 한도")이 깨지면 batch 전체를 취소하고 다시 실행한다(`apps/api/src/db/atomic.ts`, [`ARCHITECTURE.md`](./ARCHITECTURE.md) DB 절).
+> - 8번: 리포트 중복 생성은 DB 유니크 인덱스 `reports_target_uq` 로 막는다(인스턴스 수와 무관).
+> - 회귀 테스트는 같고, 실제 D1 에서도 돈다(`TEST_D1=1`).
+
 ## 후속 조치 — 앱의 토큰 저장 위치 (2026-10-15)
 - 앱(Capacitor): 세션(access·refresh 토큰 + 사용자)을 평문 Preferences(UserDefaults / SharedPreferences) 대신 **iOS Keychain**(`afterFirstUnlockThisDeviceOnly`, iCloud 동기화 없음) / **Android Keystore** AES-GCM 키로 암호화한 저장소에 둔다(`@aparajita/capacitor-secure-storage`).
 - 기존 설치의 평문 세션(Preferences, 첫 실행의 웹뷰 localStorage)은 보안 저장소 기록 성공 후 삭제 — 업데이트로 로그아웃되지 않음. 값이 바뀌거나 로그아웃하면 남은 평문 사본도 삭제(회전 전 refresh 토큰 재사용 → 전체 세션 폐기 방지).
@@ -52,4 +58,4 @@ QA팀(보안·로직 리뷰어)이 인메모리 API 재현으로 확인한 15개
 ## 남은 권장 사항 (출시 후 개선)
 - Apple 인증서 OCSP 폐기 확인, Google Voided Purchases API 정기 대조(Pub/Sub 보관 기간을 넘는 장애 대비)
 - Google Play 구매의 서버 측 acknowledge
-- 다중 API 인스턴스 운영 시: 리포트 생성 중복 방지를 DB 유니크 키로, 푸시 스케줄러는 1대만
+- ~~다중 API 인스턴스 운영 시: 리포트 생성 중복 방지를 DB 유니크 키로, 푸시 스케줄러는 1대만~~ — 완료: `reports_target_uq` 유니크 인덱스, 푸시는 Cloudflare Cron Trigger 가 하루 한 번 실행

@@ -8,10 +8,10 @@
 import { calculateCompatibility, calculateSaju, type BirthInput, type SajuChart } from '@saju/core';
 import type { DailyFortuneDto, ReadingSection, YearlyFortuneDto } from '@saju/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { FastifyInstance } from 'fastify';
+import type { App } from '../src/app.js';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
-import { createDb, runMigrations } from '../src/db/client.js';
+import { createDb, runMigrations } from '../src/db/local.js';
 import { seedProducts } from '../src/db/seed.js';
 import { buildCompatibilitySections, buildDailyFortune, buildYearlyFortune, yearList } from '../src/modules/interpretation/reading.js';
 
@@ -190,13 +190,13 @@ describe('궁합 — 사람이 말하듯 쉬운 말', () => {
 });
 
 describe('이름이 API 까지 이어진다', () => {
-  let app: FastifyInstance;
+  let app: App;
   beforeAll(async () => {
     const config = loadConfig({ __SKIP_ENV_FILE: '1', NODE_ENV: 'test', PAYMENT_PROVIDER: 'mock', ANTHROPIC_API_KEY: '', SIGNUP_BONUS_CREDITS: '0' });
     const { db } = createDb(':memory:');
     await runMigrations(db);
     await seedProducts(db);
-    app = await buildApp({ config, db, logger: false });
+    app = await buildApp({ config, db });
   });
   afterAll(async () => {
     await app.close();

@@ -1,10 +1,11 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { UserDto } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
 import { isUniqueViolation, type Db } from '../../db/client.js';
 import { chatMessages, creditLedger, profiles, pushTokens, refreshTokens, reports, users, type User } from '../../db/schema.js';
 import { conflict, notFound } from '../../lib/errors.js';
 import { newId } from '../../lib/ids.js';
+import { balanceNow } from '../commerce/service.js';
 
 const GUEST_NAMES = ['별빛', '새벽', '달무리', '은하', '노을', '바람', '구름', '햇살'];
 
@@ -33,12 +34,15 @@ export function createUserService(config: AppConfig, db: Db) {
 
   const grantSignupBonus = async (userId: string) => {
     if (config.SIGNUP_BONUS_CREDITS <= 0) return;
-    await db.transaction(async (tx) => {
-      const [u] = await tx.select({ credits: users.credits }).from(users).where(eq(users.id, userId)).for('update');
-      const balance = u!.credits + config.SIGNUP_BONUS_CREDITS;
-      await tx.update(users).set({ credits: balance }).where(eq(users.id, userId));
-      await tx.insert(creditLedger).values({ id: newId(), userId, delta: config.SIGNUP_BONUS_CREDITS, reason: 'bonus', memo: '가입 축하 크레딧', balanceAfter: balance });
-    });
+    const bonus = config.SIGNUP_BONUS_CREDITS;
+    // 누적은 SQL 로, 원장의 잔액은 같은 묶음 안에서 갱신 직후 값을 읽어 적는다
+    await db.batch([
+      db
+        .update(users)
+        .set({ credits: sql`${users.credits} + ${bonus}` })
+        .where(eq(users.id, userId)),
+      db.insert(creditLedger).values({ id: newId(), userId, delta: bonus, reason: 'bonus', memo: '가입 축하 크레딧', balanceAfter: balanceNow(userId) }),
+    ]);
   };
 
   const emailTakenError = () => conflict('이미 가입된 이메일이에요.');
@@ -125,14 +129,14 @@ export function createUserService(config: AppConfig, db: Db) {
       if (!guestUserId || guestUserId === userId) return 0;
       const [guest] = await db.select().from(users).where(eq(users.id, guestUserId));
       if (!guest || guest.provider !== 'guest' || guest.deletedAt) return 0;
-      return db.transaction(async (tx) => {
-        const moved = await tx.update(profiles).set({ userId, isPrimary: false, updatedAt: Date.now() }).where(eq(profiles.userId, guestUserId)).returning({ id: profiles.id });
-        await tx.update(reports).set({ userId }).where(eq(reports.userId, guestUserId));
-        await tx.update(chatMessages).set({ userId }).where(eq(chatMessages.userId, guestUserId));
-        await tx.delete(refreshTokens).where(eq(refreshTokens.userId, guestUserId));
-        await tx.update(users).set({ deviceId: null, deletedAt: Date.now(), nickname: '병합된 게스트', updatedAt: Date.now() }).where(eq(users.id, guestUserId));
-        return moved.length;
-      });
+      const [moved] = await db.batch([
+        db.update(profiles).set({ userId, isPrimary: false, updatedAt: Date.now() }).where(eq(profiles.userId, guestUserId)).returning({ id: profiles.id }),
+        db.update(reports).set({ userId }).where(eq(reports.userId, guestUserId)),
+        db.update(chatMessages).set({ userId }).where(eq(chatMessages.userId, guestUserId)),
+        db.delete(refreshTokens).where(eq(refreshTokens.userId, guestUserId)),
+        db.update(users).set({ deviceId: null, deletedAt: Date.now(), nickname: '병합된 게스트', updatedAt: Date.now() }).where(eq(users.id, guestUserId)),
+      ]);
+      return moved.length;
     },
     async update(id: string, patch: { nickname?: string; marketingConsent?: boolean; pushEnabled?: boolean }): Promise<User> {
       await db.update(users).set({ ...patch, updatedAt: Date.now() }).where(eq(users.id, id));
@@ -143,17 +147,17 @@ export function createUserService(config: AppConfig, db: Db) {
      * 전자상거래법상 보존 의무(5년)를 위해 익명화된 사용자 행에 남긴다.
      */
     async deleteAccount(id: string) {
-      await db.transaction(async (tx) => {
-        await tx.delete(profiles).where(eq(profiles.userId, id));
-        await tx.delete(reports).where(eq(reports.userId, id));
-        await tx.delete(chatMessages).where(eq(chatMessages.userId, id));
-        await tx.delete(refreshTokens).where(eq(refreshTokens.userId, id));
-        await tx.delete(pushTokens).where(eq(pushTokens.userId, id));
-        await tx
+      await db.batch([
+        db.delete(profiles).where(eq(profiles.userId, id)),
+        db.delete(reports).where(eq(reports.userId, id)),
+        db.delete(chatMessages).where(eq(chatMessages.userId, id)),
+        db.delete(refreshTokens).where(eq(refreshTokens.userId, id)),
+        db.delete(pushTokens).where(eq(pushTokens.userId, id)),
+        db
           .update(users)
           .set({ email: null, passwordHash: null, providerUserId: null, providerRefreshToken: null, deviceId: null, nickname: '탈퇴한 사용자', deletedAt: Date.now(), updatedAt: Date.now() })
-          .where(eq(users.id, id));
-      });
+          .where(eq(users.id, id)),
+      ]);
     },
   };
 }

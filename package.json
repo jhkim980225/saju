@@ -14,13 +14,12 @@
     "dev": "node scripts/dev.mjs",
     "dev:api": "npm run dev -w @saju/api",
     "dev:web": "npm run dev -w @saju/web",
-    "build": "npm run build -w @saju/api && npm run build -w @saju/web",
+    "build": "npm run build -w @saju/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "test:e2e": "playwright test",
-    "db:migrate": "npm run db:migrate -w @saju/api",
-    "db:seed": "npm run db:seed -w @saju/api",
-    "start": "npm run start -w @saju/api"
+    "db:migrate:remote": "npm run db:migrate:remote -w @saju/api",
+    "deploy": "npm run build -w @saju/web && npm run deploy -w @saju/api"
   },
   "devDependencies": {
     "@playwright/test": "~1.64.0",
@@ -33,7 +32,8 @@
     "esbuild@0.28.2": true,
     "esbuild@0.18.20": true,
     "esbuild@0.25.12": true,
-    "esbuild@0.27.7": true
+    "esbuild@0.27.7": true,
+    "workerd@1.20261023.1": true
   },
   "overrides": {
     "vite": "^7.3.7"

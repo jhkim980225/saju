@@ -1,6 +1,7 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { AuthTokensDto } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
+import { atomic } from '../../db/atomic.js';
 import type { Db } from '../../db/client.js';
 import { passwordResets, refreshTokens, users as usersTable, type User } from '../../db/schema.js';
 import { badRequest, notConfigured, unauthorized } from '../../lib/errors.js';
@@ -95,11 +96,11 @@ export function createAuthService(config: AppConfig, db: Db, users: UserService,
       const user = await users.findByEmail(email);
       if (!user || user.provider !== 'email' || !user.passwordHash) return;
       const token = randomToken(32);
-      await db.transaction(async (tx) => {
+      await db.batch([
         // 같은 사용자의 이전 미사용 토큰은 무효화 — 가장 최근 링크만 유효
-        await tx.delete(passwordResets).where(and(eq(passwordResets.userId, user.id), isNull(passwordResets.usedAt)));
-        await tx.insert(passwordResets).values({ id: newId(), userId: user.id, tokenHash: hashToken(token), expiresAt: Date.now() + PASSWORD_RESET_TTL_MS });
-      });
+        db.delete(passwordResets).where(and(eq(passwordResets.userId, user.id), isNull(passwordResets.usedAt))),
+        db.insert(passwordResets).values({ id: newId(), userId: user.id, tokenHash: hashToken(token), expiresAt: Date.now() + PASSWORD_RESET_TTL_MS }),
+      ]);
       const link = `${config.PUBLIC_WEB_URL.replace(/\/$/, '')}/password/reset?token=${encodeURIComponent(token)}`;
       await mail.send({ to: user.email!, ...buildPasswordResetMail(link, config.APP_NAME) });
     },
@@ -108,15 +109,13 @@ export function createAuthService(config: AppConfig, db: Db, users: UserService,
       const [row] = await db.select().from(passwordResets).where(eq(passwordResets.tokenHash, hashToken(token)));
       if (!row || row.usedAt || row.expiresAt < Date.now() || !(await users.isActive(row.userId))) throw badRequest(PASSWORD_RESET_INVALID);
       const passwordHash = await hashPassword(password);
-      await db.transaction(async (tx) => {
-        // 아직 쓰지 않은 토큰일 때만 — 같은 링크가 동시에 두 번 쓰이지 않게
-        const used = await tx
-          .update(passwordResets)
-          .set({ usedAt: Date.now() })
-          .where(and(eq(passwordResets.id, row.id), isNull(passwordResets.usedAt)))
-          .returning({ id: passwordResets.id });
-        if (used.length !== 1) throw badRequest(PASSWORD_RESET_INVALID);
-        await tx.update(usersTable).set({ passwordHash, updatedAt: Date.now() }).where(eq(usersTable.id, row.userId));
+      // 아직 쓰지 않은 토큰일 때만 — 같은 링크가 동시에 두 번 쓰이지 않게(실행 시점 확인, 이미 쓰였으면 다시 읽어 400)
+      await atomic(db, async (u) => {
+        const [cur] = await db.select({ usedAt: passwordResets.usedAt }).from(passwordResets).where(eq(passwordResets.id, row.id));
+        if (!cur || cur.usedAt) throw badRequest(PASSWORD_RESET_INVALID);
+        u.expect(sql`exists (select 1 from ${passwordResets} where ${passwordResets.id} = ${row.id} and ${passwordResets.usedAt} is null)`);
+        u.write(db.update(passwordResets).set({ usedAt: Date.now() }).where(eq(passwordResets.id, row.id)));
+        u.write(db.update(usersTable).set({ passwordHash, updatedAt: Date.now() }).where(eq(usersTable.id, row.userId)));
       });
       await revokeAllSessions(row.userId);
     },

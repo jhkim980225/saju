@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { FastifyInstance } from 'fastify';
+import type { App } from '../src/app.js';
 import { TOJEONG_CODES } from '@saju/core';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
-import { createDb, runMigrations } from '../src/db/client.js';
+import { createDb, runMigrations } from '../src/db/local.js';
 import { seedProducts } from '../src/db/seed.js';
 import { GWAE_LIST } from '../src/modules/tojeong/content/index.js';
 
-let app: FastifyInstance;
+let app: App;
 const BIRTH = { calendar: 'solar', year: 1990, month: 5, day: 15, hour: 14, minute: 30, gender: 'male' } as const;
 
 beforeAll(async () => {
@@ -15,7 +15,7 @@ beforeAll(async () => {
   const { db } = createDb(':memory:');
   await runMigrations(db);
   await seedProducts(db);
-  app = await buildApp({ config, db, logger: false });
+  app = await buildApp({ config, db });
 });
 afterAll(async () => {
   await app.close();

@@ -10,7 +10,7 @@
 ```
 packages/saju-core   사주 계산 엔진 (절기·서머타임·경도 보정·음력/윤달·십신·12운성·신살·합충·대운·운세·궁합)
 packages/shared      API 계약 (zod 스키마 + DTO 타입) — 웹·API·앱 공용
-apps/api             백엔드 (Fastify 5 · Drizzle · PostgreSQL · JWT · 결제/로그인/AI/푸시 어댑터)
+apps/api             백엔드 (Cloudflare Workers · Hono · D1(SQLite) · Drizzle · JWT · 결제/로그인/AI/푸시 어댑터)
 apps/web             프론트엔드 (React 19 · Vite 7 · Tailwind v4 · React Router 7 · TanStack Query)
   ├─ android/        Capacitor Android 프로젝트 (APK 빌드·에뮬레이터 검증 완료)
   └─ ios/            Capacitor iOS 프로젝트 (빌드는 macOS + Xcode)
@@ -27,7 +27,8 @@ cp apps/web/.env.example apps/web/.env       # 선택
 npm run dev                                  # API :4000 + Web :5173 동시 실행
 ```
 - 웹: http://localhost:5173 (Vite 가 `/api` 를 :4000 으로 프록시)
-- DB 는 첫 기동 시 자동 마이그레이션 + 상품 카탈로그 시드 (개발은 설치 없이 PGlite `apps/api/data/pglite`, 운영은 `DATABASE_URL=postgres://…`)
+- API :4000 은 `wrangler dev`(운영과 같은 Worker 런타임)와 로컬 D1 로 돈다. 기동 전에 마이그레이션(`apps/api/drizzle/*.sql`)을 자동 적용하고, 상품 카탈로그는 첫 요청 때 시드한다. 로컬 데이터는 `apps/api/.wrangler/state` 에 남는다
+- 설정은 `apps/api/.env` 를 읽는다(`wrangler.jsonc` 의 vars 위에 덮어씀). Node·npm 만 있으면 되고 DB 설치는 필요 없다
 - mock 결제: 결제창 없이 바로 성공 처리됩니다 — 결제·지급·잠금 해제 흐름 전체를 키 없이 확인 가능
 
 ## 스크립트
@@ -38,21 +39,24 @@ npm run dev                                  # API :4000 + Web :5173 동시 실�
 | `npm test` | 전 워크스페이스 단위·통합 테스트 (엔진·API·웹) |
 | `npm run test:e2e` | Playwright E2E (웹) |
 | `npm run typecheck` | 전체 타입 검사 |
-| `npm run build` | API(`apps/api/dist`) + Web(`apps/web/dist`) 운영 빌드 |
-| `npm start` | 빌드된 API 실행 |
-| `npm run db:migrate` / `db:seed` | 마이그레이션 / 상품 시드 |
+| `TEST_D1=1 npm test -w @saju/api` | API 테스트를 실제 D1(Miniflare)에서 실행 (기본은 libSQL 인메모리) |
+| `npm run build` | Web(`apps/web/dist`) 운영 빌드 (사전 렌더링 포함) |
+| `npm run deploy` | 웹 빌드 + Cloudflare Worker 배포(`wrangler deploy`) → [`docs/DEPLOY.md`](docs/DEPLOY.md) |
+| `npm run db:migrate:remote -w @saju/api` | 운영 D1 에 마이그레이션 적용 |
+| `npm run db:generate -w @saju/api` | 스키마 변경 → 마이그레이션 SQL 생성(drizzle-kit) |
 | `npm run build:app:android -w @saju/web` | Android 앱 빌드 + `cap sync` → `apps/web/android` 에서 `./gradlew assembleDebug` (iOS 는 macOS 에서 `build:app:ios`) → [`docs/APP_PORTING.md`](docs/APP_PORTING.md) |
 
 ## CI
 
-`.github/workflows/ci.yml` — 푸시/PR 마다 ① 타입검사·단위/통합·E2E ② Android 디버그 APK(아티팩트) ③ **iOS 시뮬레이터 빌드(macOS 러너)**.
+`.github/workflows/ci.yml` — 푸시/PR 마다 ① 타입검사·단위/통합(API 는 인메모리 SQLite 와 실제 D1 으로 두 번)·E2E ② Android 디버그 APK(아티팩트) ③ **iOS 시뮬레이터 빌드(macOS 러너)**.
 
 ## 문서
 
 | 문서 | 내용 |
 |---|---|
 | [`docs/PRD.md`](docs/PRD.md) | 제품 결정 — 기능 범위, 상품·가격, 광고 정책, UX 원칙, 출시 체크리스트 |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 시스템 구조, 흐름(게스트→회원, 결제, IAP, 권한), 데이터 모델, PostgreSQL 전환·배포 |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 시스템 구조, 흐름(게스트→회원, 결제, IAP, 권한), 데이터 모델, D1 동시성 처리·배포 구조 |
+| [`docs/DEPLOY.md`](docs/DEPLOY.md) | Cloudflare Workers 배포 절차 · 갱신 · 백업(Time Travel) |
 | [`docs/SAJU_ENGINE.md`](docs/SAJU_ENGINE.md) | 사주 계산 방법론과 검증(KASI 절입 시각, 3,000건 교차 검증) |
 | [`docs/API.md`](docs/API.md) | REST API 레퍼런스 |
 | [`docs/ENV_KEYS.md`](docs/ENV_KEYS.md) | **연동할 API 키 전체 목록 · 발급처 · 없을 때 동작** |

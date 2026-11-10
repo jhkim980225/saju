@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { FastifyInstance } from 'fastify';
+import type { App } from '../src/app.js';
 import {
   DREAM_CATEGORIES,
   DREAM_ENTRIES,
@@ -12,7 +12,7 @@ import {
 } from '@saju/shared/dream';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
-import { createDb, runMigrations } from '../src/db/client.js';
+import { createDb, runMigrations } from '../src/db/local.js';
 import { seedProducts } from '../src/db/seed.js';
 import type { DreamAiInput } from '../src/modules/ai/service.js';
 
@@ -174,7 +174,7 @@ describe('꿈해몽 사전 — 상징 추출', () => {
 
 type Api = (method: 'GET' | 'POST', url: string, opts?: { token?: string; body?: unknown }) => Promise<{ status: number; body: any }>;
 const client =
-  (app: FastifyInstance): Api =>
+  (app: App): Api =>
   async (method, url, opts = {}) => {
     const res = await app.inject({
       method,
@@ -190,11 +190,11 @@ async function makeApp(withKey: boolean) {
   const { db } = createDb(':memory:');
   await runMigrations(db);
   await seedProducts(db);
-  const app = await buildApp({ config, db, logger: false });
+  const app = await buildApp({ config, db });
   return { app, api: client(app) };
 }
 
-async function signup(api: Api, credits: number, app: FastifyInstance) {
+async function signup(api: Api, credits: number, app: App) {
   const r = await api('POST', '/auth/signup', { body: { email: `dream-${Math.random().toString(36).slice(2)}@example.com`, password: 'password1234', nickname: '꿈꾸는이' } });
   expect(r.status).toBe(201);
   if (credits > 0) await app.ctx.services.commerce.grantFreeCredits(r.body.user.id, credits, '테스트 지급');
@@ -202,7 +202,7 @@ async function signup(api: Api, credits: number, app: FastifyInstance) {
 }
 
 describe('AI 꿈풀이 API — AI 키 없음', () => {
-  let app: FastifyInstance;
+  let app: App;
   let api: Api;
   beforeAll(async () => ({ app, api } = await makeApp(false)));
   afterAll(async () => app.close());
@@ -259,7 +259,7 @@ describe('AI 꿈풀이 API — AI 키 없음', () => {
 });
 
 describe('AI 꿈풀이 API — AI 키 있음 (AI 응답은 가짜로 대체)', () => {
-  let app: FastifyInstance;
+  let app: App;
   let api: Api;
   let calls: DreamAiInput[] = [];
   let reply: { headline: string; paragraphs: string[] } | null = null;

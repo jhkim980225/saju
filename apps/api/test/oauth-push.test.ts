@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { SignJWT, createLocalJWKSet, decodeProtectedHeader, exportJWK, exportPKCS8, generateKeyPair, jwtVerify, type CryptoKey } from 'jose';
 import { eq } from 'drizzle-orm';
 import { loadConfig } from '../src/config/env.js';
-import { createDb, runMigrations } from '../src/db/client.js';
+import { createDb, runMigrations } from '../src/db/local.js';
 import { pushTokens, users } from '../src/db/schema.js';
 import { AppError } from '../src/lib/errors.js';
 import { createOAuthService } from '../src/modules/auth/oauth.js';

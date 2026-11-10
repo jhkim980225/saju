@@ -17,14 +17,6 @@ jobs:
     name: 타입검사 · 단위/통합 · E2E
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # API 테스트를 실제 PostgreSQL 로도 한 번 더 돌린다(기본 테스트는 PGlite)
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env: { POSTGRES_USER: saju, POSTGRES_PASSWORD: saju, POSTGRES_DB: saju }
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U saju" --health-interval 5s --health-timeout 3s --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,10 +26,16 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - name: API 테스트 — 실제 PostgreSQL
+      # 기본 API 테스트는 인메모리 SQLite(libSQL) — 운영과 같은 D1(Miniflare·workerd)로 한 번 더 돌린다
+      - name: API 테스트 — D1
         run: npm test -w @saju/api
         env:
-          TEST_DATABASE_URL: postgres://saju:saju@localhost:5432/saju
+          TEST_D1: '1'
+      # 배포 묶음이 만들어지는지(번들·바인딩 설정) — 실제 배포는 하지 않는다
+      - run: npm run build -w @saju/web
+      - name: Worker 배포 점검(dry-run)
+        working-directory: apps/api
+        run: npx wrangler deploy --dry-run --outdir dist
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4

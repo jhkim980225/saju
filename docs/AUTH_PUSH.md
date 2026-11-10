@@ -188,7 +188,7 @@ VITE_FIREBASE_VAPID_KEY=        # 클라우드 메시징 → 웹 푸시 인증�
 2. **재설정** — `/password/reset?token=` 에서 새 비밀번호 입력 → `POST /auth/password/reset { token, password }`. 유효·미만료·미사용 토큰이면 비밀번호 해시를 바꾸고 토큰에 `usedAt` 을 기록하며, **그 사용자의 refresh token 을 모두 폐기**해 다른 기기의 로그인도 끊습니다(이미 발급된 access token 은 만료까지 유효). 그 밖에는 400 "링크가 만료됐거나 이미 사용됐습니다. 다시 요청해 주세요."
 3. **변경** — 마이 > 비밀번호 변경(이메일 계정에만 보임) → `POST /auth/password/change { currentPassword, newPassword }`(로그인 필요). 현재 비밀번호를 확인한 뒤 바꾸고, 현재 세션은 그대로 둡니다.
 
-세 경로 모두 `AUTH_RATE_LIMIT_PER_MIN` 의 엄격 제한을 받습니다. 테스트 환경(`NODE_ENV=test`)에서는 메일을 보내지 않고 `mail.outbox` 에 쌓아 두므로 테스트가 본문에서 토큰을 읽습니다(`apps/api/test/password.test.ts`).
+세 경로 모두 인증 경로의 엄격한 요청 수 제한(운영 모드에서 접속 IP 당 60초에 10회, `apps/api/wrangler.jsonc` 의 `RATE_LIMIT_AUTH`)을 받습니다. 테스트 환경(`NODE_ENV=test`)에서는 메일을 보내지 않고 `mail.outbox` 에 쌓아 두므로 테스트가 본문에서 토큰을 읽습니다(`apps/api/test/password.test.ts`).
 
 ---
 
@@ -243,7 +243,7 @@ const { push } = app.ctx.services;
 await push.sendToUser(userId, { title: '리포트가 준비됐어요', body: '지금 확인해 보세요', link: '/reports/abc' });
 // → { sent, failed, removed }
 
-// 스케줄러(팀장 연결)에서 매일 아침 호출
+// 매일 08:00 KST — Cron Trigger(`0 23 * * *`) → worker.ts scheduled() → jobs/dailyPush.ts 가 호출
 await push.sendDailyFortuneDigest((userId) => {
   // 해당 사용자의 대표 프로필로 오늘의 운세 한 줄 생성. 보낼 게 없으면 null
   return { title: '오늘의 운세', body: '…', link: '/fortune/today' };
@@ -262,6 +262,6 @@ await push.sendDailyFortuneDigest((userId) => {
 - [ ] 네이버 앱은 검수를 마쳤다. 검수 전에는 멤버만 로그인할 수 있다.
 - [ ] 구글 OAuth 동의 화면을 프로덕션으로 게시했다.
 - [ ] Apple: Return URL이 HTTPS이고 form_post를 받는 엔드포인트다. 이름 전달을 확인했다. 탈퇴 시 revoke를 처리할 계획이 있다.
-- [ ] PEM 키를 `\n` 한 줄 형식으로 넣었고, 서버 기동 후 실제 로그인과 푸시가 1회 성공했다.
+- [ ] PEM 키를 `\n` 한 줄 형식으로 넣었고, 배포 후 실제 로그인과 푸시가 1회 성공했다.
 - [ ] iOS는 APNs 키를 Firebase에 업로드했고, 앱이 **FCM 토큰**(APNs 토큰 아님)을 등록한다.
 - [ ] 운영 `PUBLIC_WEB_URL`이 `https://`다. http면 웹 푸시 클릭 링크가 빠진다.

@@ -1,0 +1,59 @@
+// 달빛사주 — Cloudflare Worker 하나로 웹(정적 파일)과 API 를 낸다. 배포: docs/DEPLOY.md
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "dalbit-saju",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-20",
+  // node:crypto(scrypt·HMAC·X509) 등 Node API — 결제 서명 검증·비밀번호 해시가 쓴다
+  "compatibility_flags": ["nodejs_compat"],
+  // D1 가까이에서 실행(요청마다 DB 를 여러 번 오가므로 사용자 가까이보다 DB 가까이가 빠르다)
+  "placement": { "mode": "smart" },
+  "observability": { "enabled": true },
+
+  // 웹 빌드 결과(npm run build -w @saju/web). /api/* 와 /health 만 Worker 코드가 먼저 받는다
+  "assets": {
+    "directory": "../web/dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/health"],
+    // 없는 주소는 index.html(SPA 라우팅)
+    "not_found_handling": "single-page-application",
+    // 사전 렌더링한 <경로>/index.html 을 끝 슬래시 없는 대표 주소(/today)로 낸다
+    "html_handling": "drop-trailing-slash"
+  },
+
+  // wrangler d1 create dalbit-saju --location apac 로 만든 뒤 database_id 를 바꿔 넣는다
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "dalbit-saju",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "drizzle"
+    }
+  ],
+
+  // 리포트 AI 다듬기 — 응답 뒤 작업. wrangler queues create dalbit-saju-jobs
+  "queues": {
+    "producers": [{ "binding": "JOBS", "queue": "dalbit-saju-jobs" }],
+    "consumers": [{ "queue": "dalbit-saju-jobs", "max_batch_size": 1, "max_retries": 2 }]
+  },
+
+  // 요청 수 제한(접속 IP 기준, 60초 창). namespace_id 는 계정 안에서 겹치지 않는 정수
+  "ratelimits": [
+    { "name": "RATE_LIMIT_API", "namespace_id": "1001", "simple": { "limit": 120, "period": 60 } },
+    { "name": "RATE_LIMIT_AUTH", "namespace_id": "1002", "simple": { "limit": 10, "period": 60 } },
+    { "name": "RATE_LIMIT_ADMIN", "namespace_id": "1003", "simple": { "limit": 20, "period": 60 } }
+  ],
+
+  // 매일 23:00 UTC = 08:00 KST 오늘의 운세 푸시(DAILY_PUSH_ENABLED=true 이고 FCM 키가 있을 때만 보낸다)
+  "triggers": { "crons": ["0 23 * * *"] },
+
+  // 비밀이 아닌 설정. 키·비밀번호는 wrangler secret put <이름> (docs/ENV_KEYS.md)
+  "vars": {
+    "NODE_ENV": "production",
+    "APP_NAME": "달빛사주",
+    "PUBLIC_WEB_URL": "https://dalbitsaju.kr",
+    "CORS_ORIGINS": "https://dalbitsaju.kr,capacitor://localhost,https://localhost,http://localhost",
+    "PAYMENT_PROVIDER": "groble",
+    "DAILY_PUSH_ENABLED": "true"
+  }
+}

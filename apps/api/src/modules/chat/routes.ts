@@ -1,26 +1,29 @@
-import type { FastifyPluginAsync } from 'fastify';
+import { Hono } from 'hono';
 import { z } from 'zod';
 import { chatSendSchema } from '@saju/shared';
-import { requireUser } from '../../app.js';
+import { noContent, readJson, requireUser, type AppEnv, type RouteKit } from '../../lib/http.js';
 import { parse } from '../../lib/validate.js';
 
-export const chatRoutes: FastifyPluginAsync = async (app) => {
-  const { chat } = app.ctx.services;
-  app.addHook('preHandler', app.authenticate);
+export function chatRoutes({ ctx, authenticate }: RouteKit) {
+  const { chat } = ctx.services;
+  const app = new Hono<AppEnv>();
+  app.use('*', authenticate);
 
-  app.get('/', async (req) => {
-    const q = parse(z.object({ profileId: z.string() }), req.query);
-    return chat.history(requireUser(req).id, q.profileId);
+  app.get('/', async (c) => {
+    const q = parse(z.object({ profileId: z.string() }), c.req.query());
+    return c.json(await chat.history(requireUser(c).id, q.profileId));
   });
 
-  app.post('/', async (req) => {
-    const body = parse(chatSendSchema, req.body);
-    return chat.send(requireUser(req).id, body);
+  app.post('/', async (c) => {
+    const body = parse(chatSendSchema, await readJson(c));
+    return c.json(await chat.send(requireUser(c).id, body));
   });
 
-  app.delete('/', async (req, reply) => {
-    const q = parse(z.object({ profileId: z.string() }), req.query);
-    await chat.clear(requireUser(req).id, q.profileId);
-    reply.status(204);
+  app.delete('/', async (c) => {
+    const q = parse(z.object({ profileId: z.string() }), c.req.query());
+    await chat.clear(requireUser(c).id, q.profileId);
+    return noContent(c);
   });
-};
+
+  return app;
+}

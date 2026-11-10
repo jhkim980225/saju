@@ -3,12 +3,12 @@
  * 금액·결제창 불일치 거부, 환불 웹훅(merchantUid 로 주문 찾기) 회수. 외부 호출 없음.
  */
 import { createHmac } from 'node:crypto';
-import type { FastifyInstance } from 'fastify';
+import type { App } from '../src/app.js';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
-import { createDb, runMigrations } from '../src/db/client.js';
+import { createDb, runMigrations } from '../src/db/local.js';
 import { orders, webhookEvents } from '../src/db/schema.js';
 import { seedProducts } from '../src/db/seed.js';
 import { parseGrobleProductLinks, verifyGrobleSignature } from '../src/modules/commerce/providers/groble.js';
@@ -17,10 +17,10 @@ const SECRET = 'groble-test-secret';
 const LINKS = 'chat_pack_10=https://groble.im/payment/chat10,report_saju_lifetime=https://groble.im/payment/life99|content-life-99';
 const BIRTH = { calendar: 'solar', year: 1990, month: 5, day: 15, hour: 14, minute: 30, gender: 'male' } as const;
 
-let app: FastifyInstance;
+let app: App;
 let db: ReturnType<typeof createDb>['db'];
 /** 요청을 보낼 앱 — 기본은 app, 접두어 테스트에서만 바꾼다 */
-let target: FastifyInstance | undefined;
+let target: App | undefined;
 
 beforeAll(async () => {
   const config = loadConfig({
@@ -36,7 +36,7 @@ beforeAll(async () => {
   ({ db } = createDb(':memory:'));
   await runMigrations(db);
   await seedProducts(db);
-  app = await buildApp({ config, db, logger: false });
+  app = await buildApp({ config, db });
 });
 afterAll(() => app.close());
 
@@ -289,7 +289,7 @@ describe('그로블 결제 흐름', () => {
 });
 
 describe('한 그로블 계정을 여러 서비스가 같이 쓸 때 (GROBLE_REF_PREFIX)', () => {
-  let shared: FastifyInstance;
+  let shared: App;
   beforeAll(async () => {
     const config = loadConfig({
       __SKIP_ENV_FILE: '1',
@@ -304,7 +304,7 @@ describe('한 그로블 계정을 여러 서비스가 같이 쓸 때 (GROBLE_REF
     const created = createDb(':memory:');
     await runMigrations(created.db);
     await seedProducts(created.db);
-    shared = await buildApp({ config, db: created.db, logger: false });
+    shared = await buildApp({ config, db: created.db });
     target = shared;
   });
   afterAll(async () => {

@@ -3,13 +3,13 @@
  * 프로필·주제마다 따로 열리는 권한, 인앱결제 상품 연결, 환불 후 열람 차단. AI 키 없음 → 규칙 기반 최종본.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { FastifyInstance } from 'fastify';
+import type { App } from '../src/app.js';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
-import { createDb, runMigrations } from '../src/db/client.js';
+import { createDb, runMigrations } from '../src/db/local.js';
 import { seedProducts } from '../src/db/seed.js';
 
-let app: FastifyInstance;
+let app: App;
 const BIRTH = { calendar: 'solar', year: 1990, month: 5, day: 15, hour: 14, minute: 30, gender: 'male' } as const;
 const OTHER = { calendar: 'solar', year: 1992, month: 8, day: 21, hour: 9, minute: 0, gender: 'female' } as const;
 const LOVE_KEYS = ['summary', 'loveNature', 'spousePalace', 'tenGodBalance', 'attraction', 'idealPartner', 'pattern', 'friction', 'decade', 'threeYears', 'advice', 'closing'];
@@ -20,7 +20,7 @@ beforeAll(async () => {
   const { db } = createDb(':memory:');
   await runMigrations(db);
   await seedProducts(db);
-  app = await buildApp({ config, db, logger: false });
+  app = await buildApp({ config, db });
 });
 afterAll(async () => {
   await app.close();
