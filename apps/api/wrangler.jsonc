@@ -26,7 +26,7 @@
     {
       "binding": "DB",
       "database_name": "dalbit-saju",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "80cf65da-7505-42e1-b6ac-6d0607026742",
       "migrations_dir": "drizzle"
     }
   ],
@@ -37,11 +37,11 @@
     "consumers": [{ "queue": "dalbit-saju-jobs", "max_batch_size": 1, "max_retries": 2 }]
   },
 
-  // 요청 수 제한(접속 IP 기준, 60초 창). namespace_id 는 계정 안에서 겹치지 않는 정수
+  // 요청 수 제한(접속 IP 기준, 60초 창). namespace_id 는 계정 안에서 겹치지 않는 정수 — 같은 계정의 다른 Worker 와 겹치면 횟수를 같이 센다
   "ratelimits": [
-    { "name": "RATE_LIMIT_API", "namespace_id": "1001", "simple": { "limit": 120, "period": 60 } },
-    { "name": "RATE_LIMIT_AUTH", "namespace_id": "1002", "simple": { "limit": 10, "period": 60 } },
-    { "name": "RATE_LIMIT_ADMIN", "namespace_id": "1003", "simple": { "limit": 20, "period": 60 } }
+    { "name": "RATE_LIMIT_API", "namespace_id": "73101", "simple": { "limit": 120, "period": 60 } },
+    { "name": "RATE_LIMIT_AUTH", "namespace_id": "73102", "simple": { "limit": 10, "period": 60 } },
+    { "name": "RATE_LIMIT_ADMIN", "namespace_id": "73103", "simple": { "limit": 20, "period": 60 } }
   ],
 
   // 매일 23:00 UTC = 08:00 KST 오늘의 운세 푸시(DAILY_PUSH_ENABLED=true 이고 FCM 키가 있을 때만 보낸다)
