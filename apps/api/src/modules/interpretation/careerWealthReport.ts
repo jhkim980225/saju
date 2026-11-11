@@ -63,7 +63,7 @@ const EARN_ORDER: Exclude<EarnKey, 'none'>[] = ['정재', '편재', '식신', '�
 const BAND_SUMMARY: Record<StrengthBand, string> = {
   strong: '규모가 큰 일과 돈도 감당할 수 있는 편이에요',
   mid: '때에 따라 넓히고 줄이는 조절이 잘 맞아요',
-  weak: '돈은 나눠서 관리하고, 일은 함께할 때 편한 편이에요',
+  weak: '돈은 나눠서 관리하고, 일은 함께할 때 수월해요',
 };
 const word = (n: number) => gradeWord(n, '낮음');
 
@@ -380,9 +380,9 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
     const grp = TEN_GOD_GROUP[cur.stemTenGod];
     daeunLines.push(`대운으로 보면, ${cur.startYear}년부터 ${cur.endYear}년까지는 대운의 천간이 ${td(grp, '에', '에')} 해당해, ${C.group[grp].decade} ${C.group[grp].decadeMoney}`, C.daeunUse[cur.stemTenGod]);
   } else if (next) {
-    daeunLines.push(`첫 대운은 ${next.startYear}년에 시작돼요. 그 전까지는 타고난 사주와 해마다 들어오는 세운의 영향이 더 직접 드러난다고 봐요.`);
+    daeunLines.push(`첫 대운은 ${next.startYear}년에 시작돼요. 그 전까지는 타고난 사주와 해마다 들어오는 세운의 영향이 더 직접 드러난다고 봅니다.`);
   } else {
-    daeunLines.push('달달사주가 계산한 대운의 마지막 단계를 지나, 해마다 들어오는 세운의 영향을 더 직접 받는 때로 봐요.');
+    daeunLines.push('달달사주가 계산한 대운의 마지막 단계를 지나, 해마다 들어오는 세운의 영향을 더 직접 받는 때로 봅니다.');
   }
   if (next && cur) {
     const ngrp = TEN_GOD_GROUP[next.stemTenGod];
@@ -491,7 +491,7 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
       ...(risksHit.length ? risksHit.map(([k], i) => (risksHit.length > 1 ? `${ORDINAL[i]}, ${fill(C.risk[k])}` : fill(C.risk[k]))) : [C.riskGeneral]),
       C.riskMind[band],
       gisinYears.length
-        ? `가까운 3년 가운데 ${yearsText(gisinYears.map((x) => x.year))}에는 세운에 ${t('기신')}의 기운이 들어와 균형이 흐트러지기 쉽다고 봐요. 나쁜 해라는 뜻은 아니지만, 새 일을 크게 벌이기보다 지출과 계약을 한 번 더 점검하는 편이 좋습니다.`
+        ? `가까운 3년 가운데 ${yearsText(gisinYears.map((x) => x.year))}에는 세운에 ${t('기신')}의 기운이 들어와 균형이 흐트러지기 쉬워요. 나쁜 해라는 뜻은 아니지만, 새 일을 크게 벌이기보다 지출과 계약을 한 번 더 점검하는 게 좋습니다.`
         : `가까운 3년에는 세운에 ${t('기신')}의 기운이 들어오는 해가 없어요. 세워 둔 계획을 차분히 이어 가면 됩니다.`,
       C.riskChecklist,
     ],

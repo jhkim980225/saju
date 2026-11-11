@@ -275,7 +275,7 @@ function elementsSection(chart: SajuChart): ReadingSection {
   ];
   for (const el of many) paragraphs.push(`${EL_KO[el]} 기운이 ${e.count[el]}개로 많은 편이에요. ${ELEMENT_PLAIN[el].many}`);
   for (const el of none) paragraphs.push(`${EL_KO[el]} 기운은 하나도 없어요. ${ELEMENT_PLAIN[el].none}`);
-  if (many.length === 0 && none.length === 0) paragraphs.push('다섯 오행이 고르게 분포해 있어, 상황에 따라 유연하게 대응하기 쉬운 구조로 봐요.');
+  if (many.length === 0 && none.length === 0) paragraphs.push('다섯 오행이 고르게 분포해 있어, 상황에 따라 유연하게 대응할 수 있는 구조입니다.');
   paragraphs.push(
     `이 개수는 ${n} 글자를 단순히 센 달달사주 기준 집계로, 지장간과 태어난 계절의 영향은 반영하지 않았어요.${
       none.length ? ' 또한 없는 오행이 곧 채워야 할 기운을 뜻하지는 않습니다. 사주에 필요한 기운은 일간의 강약을 함께 따져 정하며, 바로 아래에서 설명합니다.' : ''
@@ -388,10 +388,10 @@ function wealthSection(chart: SajuChart, name: string | null): ReadingSection {
   const dm = dayMasterContent(chart);
   const g = groupCount(chart);
   const p = [dmText(chart, dm.wealth, name)];
-  if (g.재성 >= 3) p.push(`재성이 ${g.재성}개로 많은 편이라, 재물에 관심이 크고 기회를 포착하는 감각이 있다고 봐요. 다만 일이 몰려 지치면 판단이 흐려지기 쉬우니, 컨디션 관리도 재정 관리만큼 챙겨 주세요.`);
-  else if (g.재성 === 0) p.push('사주의 글자 가운데 재성에 해당하는 것이 없어요. 재물을 직접 좇기보다 맡은 일에서 실력과 평판을 쌓을 때 수입이 따라오는 편으로 해석합니다. 수입을 늘리고 싶다면 자격이나 경력처럼 실력을 증명할 수 있는 것부터 갖춰 보세요.');
-  else p.push('재성이 알맞게 있어 꾸준히 벌고 모으는 힘이 있다고 봐요. 수입원을 하나 더 만드는 작은 시도가 좋은 결과로 이어질 수 있어요.');
-  if (g.식상 >= 2) p.push('식상도 두드러져, 재능과 아이디어를 수입으로 바꾸는 힘이 있다고 봅니다. 콘텐츠·기술·서비스처럼 직접 만든 결과물로 버는 방식이 잘 맞는 편이에요.');
+  if (g.재성 >= 3) p.push(`재성이 ${g.재성}개로 많은 편이라, 재물에 관심이 크고 기회를 포착하는 감각이 있어요. 다만 일이 몰려 지치면 판단이 흐려지기 쉬우니, 컨디션 관리도 재정 관리만큼 챙겨 주세요.`);
+  else if (g.재성 === 0) p.push('사주의 글자 가운데 재성에 해당하는 것이 없어요. 재물을 직접 좇기보다 맡은 일에서 실력과 평판을 쌓을 때 수입이 따라오는 구조로 해석합니다. 수입을 늘리고 싶다면 자격이나 경력처럼 실력을 증명할 수 있는 것부터 갖추세요.');
+  else p.push('재성이 알맞게 있어 꾸준히 벌고 모으는 힘이 있습니다. 수입원을 하나 더 만드는 작은 시도가 좋은 결과로 이어질 수 있어요.');
+  if (g.식상 >= 2) p.push('식상도 두드러져, 재능과 아이디어를 수입으로 바꾸는 힘이 있어요. 콘텐츠·기술·서비스처럼 직접 만든 결과물로 버는 방식이 잘 맞는 편이에요.');
   if (g.비겁 >= 3) p.push('비겁이 많아 친구나 동료와 돈이 얽힐 일이 생기기 쉬우니, 자신의 몫을 지키는 습관이 중요해요. 동업이나 돈거래에서는 계약서와 기록을 꼼꼼히 남겨 두세요.');
   const score = Math.min(95, 55 + g.재성 * 6 + g.식상 * 4 - Math.max(0, g.비겁 - 2) * 4);
   return {
@@ -412,13 +412,13 @@ function loveSection(chart: SajuChart, name: string | null): ReadingSection {
   const spouseGroup: TenGodGroup = male ? '재성' : '관성';
   const p = [dmText(chart, dm.love, name), dp.love];
   if (g[spouseGroup] === 0) p.push('배우자성이 사주의 글자 가운데 드러나 있지 않아요. 그래서 해마다 바뀌는 운에서 이 기운이 들어오는 시기에 인연이 닿기 쉽다고 봅니다.');
-  else if (g[spouseGroup] >= 3) p.push('배우자성이 많은 편이라 이성의 관심을 받기 쉽다고 봐요. 여러 인연 가운데 자신을 편안하게 해 주는 사람을 고르는 것이 중요해요.');
+  else if (g[spouseGroup] >= 3) p.push('배우자성이 많은 편이라 이성의 관심을 받는 일이 많아요. 여러 인연 가운데 자신을 편안하게 해 주는 사람을 고르는 것이 중요해요.');
   // 무료 '특별한 기운' 섹션과 같은 문장을 되풀이하지 않게 연애에 맞춘 말로
-  if (hasShinsal(chart, '도화살')) p.push('매력과 인기를 뜻하는 도화가 있어, 연애에서도 첫 만남부터 호감을 얻기 쉬운 편이에요. 관심을 많이 받는 만큼, 마음은 한 사람에게 진솔하게 표현해 주세요.');
+  if (hasShinsal(chart, '도화살')) p.push('매력과 인기를 뜻하는 도화가 있어, 연애에서도 첫 만남부터 호감을 얻는 편이에요. 관심을 많이 받는 만큼, 마음은 한 사람에게 진솔하게 표현해 주세요.');
   if (hasShinsal(chart, '홍염살')) p.push('감수성과 매력을 뜻하는 홍염이 있어, 가까워질수록 매력이 더 잘 드러나는 편이에요. 서두르지 않고 천천히 마음을 열어도 충분해요.');
   const dayRel = chart.relations.filter((r) => r.positions.includes('day') && r.target === 'branch');
   const dayClash = dayRel.some((r) => r.type === '충');
-  if (dayClash) p.push('일지가 사주 안의 다른 지지와 충을 이뤄, 가까운 관계에 변화가 생기기 쉽다고 봐요. 이별을 뜻하는 것은 아니며, 서로의 공간과 속도를 존중하면 관계를 오래 이어 가기 쉬워요.');
+  if (dayClash) p.push('일지가 사주 안의 다른 지지와 충을 이뤄, 가까운 관계에 변화가 생기기 쉬워요. 이별을 뜻하는 것은 아니며, 서로의 공간과 속도를 존중하면 관계를 오래 이어 갈 수 있습니다.');
   const score = Math.min(95, 58 + g[spouseGroup] * 6 + (hasShinsal(chart, '도화살') ? 6 : 0) - (dayClash ? 8 : 0));
   // 요약은 본문 첫 문장과 겹치지 않게 — 배우자성 개수로 짧게
   const loveSummary = g[spouseGroup] === 0 ? '인연이 들어오는 시기를 잘 살피면 좋은 사주예요' : g[spouseGroup] >= 3 ? '사람을 끄는 힘이 있는 사주예요' : '진심으로 오래 가는 사랑을 하는 편이에요';
@@ -438,11 +438,11 @@ function careerSection(chart: SajuChart, name: string | null): ReadingSection {
   const dp = dayPillarContent(chart);
   const g = groupCount(chart);
   const p = [dmText(chart, dm.career, name), dp.career, `잘 맞는 분야로는 ${dm.jobs.join(', ')} 등을 꼽을 수 있어요.`];
-  if (g.관성 >= 2) p.push('관성이 두드러져 책임감이 강하고, 조직과 제도 안에서 인정받기 쉽다고 봐요. 공공기관, 규모 있는 회사, 전문 자격이 필요한 분야에서 안정적으로 경력을 쌓기 좋아요.');
+  if (g.관성 >= 2) p.push('관성이 두드러져 책임감이 강하고, 조직과 제도 안에서 인정받는 타입이에요. 공공기관, 규모 있는 회사, 전문 자격이 필요한 분야에서 안정적으로 경력을 쌓기 좋아요.');
   if (g.식상 >= 2) p.push('일에서도 식상의 표현력과 창의력이 강점으로 꼽혀요. 기획·창작·교육·프리랜서처럼 자신의 방식으로 일할 수 있는 자리가 잘 맞는 편입니다.');
-  if (g.인성 >= 2) p.push('인성이 두드러져 깊이 공부하고 가르치는 일과 잘 맞는다고 봐요. 연구·교육·상담처럼 자격이 필요한 일에서 전문성을 쌓으면 대체하기 어려운 인재가 되기 쉬워요.');
+  if (g.인성 >= 2) p.push('인성이 두드러져 깊이 공부하고 가르치는 일과 잘 맞아요. 연구·교육·상담처럼 자격이 필요한 일에서 전문성을 쌓으면 대체하기 어려운 인재가 됩니다.');
   if (hasShinsal(chart, '역마살')) p.push('이동과 변화를 뜻하는 역마가 있어, 일에서도 자리를 옮기거나 외부 활동이 많은 업무가 잘 맞는 편이에요. 출장이 잦거나 해외와 연결된 일을 눈여겨보세요.');
-  if (hasShinsal(chart, '문창귀인')) p.push('학문과 문장을 뜻하는 문창귀인이 있어, 글과 말로 생각을 정리하는 능력이 일에서도 강점이 돼요. 기획서·보고서·강의처럼 사고력이 필요한 일에서 돋보이기 쉬워요.');
+  if (hasShinsal(chart, '문창귀인')) p.push('학문과 문장을 뜻하는 문창귀인이 있어, 글과 말로 생각을 정리하는 능력이 일에서도 강점이 돼요. 기획서·보고서·강의처럼 사고력이 필요한 일에서 돋보입니다.');
   const score = Math.min(95, 58 + g.관성 * 5 + g.인성 * 3 + g.식상 * 3);
   return {
     key: 'career',
@@ -457,7 +457,7 @@ function careerSection(chart: SajuChart, name: string | null): ReadingSection {
 
 /** 오행 이론에서 각 기운과 연결해 보는 몸의 부위와 생활 관리 — 진단이 아니다 */
 const ORGAN_NOTE: Record<Element, { organs: string; tip: string }> = {
-  wood: { organs: '간·담(쓸개), 눈, 근육', tip: '눈의 피로와 몸의 뻣뻣함을 살피고 스트레칭을 챙겨 보세요.' },
+  wood: { organs: '간·담(쓸개), 눈, 근육', tip: '눈의 피로와 몸의 뻣뻣함을 살피고 스트레칭을 챙기세요.' },
   fire: { organs: '심장·소장과 혈액순환', tip: '수면 리듬과 마음의 긴장을 함께 살펴 주세요.' },
   earth: { organs: '비장·위장과 소화', tip: '식사 시간과 식습관부터 점검해 보는 것이 좋아요.' },
   metal: { organs: '폐·대장, 코, 피부', tip: '호흡기와 피부 보습을 챙겨 주세요.' },
@@ -474,7 +474,7 @@ function healthSection(chart: SajuChart, name: string | null): ReadingSection {
     // 나를 뜻하는 기운은 바로 앞 문단(일간 건강)이 이미 말했다
     p.push(el === chart.dayMaster.element ? `${EL_KO[el]} 기운이 많은 편이라, 위에서 말한 부분을 특히 잘 살펴 주세요.` : `${EL_KO[el]} 기운이 많은 편이라, 이 기운과 연결해 보는 ${ORGAN_NOTE[el].organs} 쪽에 무리가 가지 않게 살펴 주세요. ${ORGAN_NOTE[el].tip}`);
   }
-  for (const el of none) p.push(`${EL_KO[el]} 기운은 하나도 없어, 이 기운과 연결해 보는 ${ORGAN_NOTE[el].organs} 쪽 컨디션을 꾸준히 살피는 것이 좋다고 봐요. ${ORGAN_NOTE[el].tip}`);
+  for (const el of none) p.push(`${EL_KO[el]} 기운은 하나도 없어, 이 기운과 연결해 보는 ${ORGAN_NOTE[el].organs} 쪽 컨디션을 꾸준히 살피는 것이 좋아요. ${ORGAN_NOTE[el].tip}`);
   p.push('사주로 보는 건강 풀이는 생활 습관을 돌아보는 참고 자료이며 진단이 아닙니다. 불편한 증상이 이어지면 꼭 병원에서 확인해 주세요.');
   return {
     key: 'health',
@@ -923,7 +923,7 @@ export function buildCompatibilitySections(a: SajuChart, b: SajuChart, r: Compat
       title: '한눈에 보는 궁합',
       // 점수·등급·한 줄 평은 화면 위 점수 카드에 있으므로 요약은 비워 둔다(같은 말 두 번 금지)
       summary: '',
-      paragraphs: [whoLine, ...(freePos.length ? freePos.map((l) => l.text) : ['두드러진 끌림보다는 시간이 지날수록 관계가 깊어지는 사이로 봐요.'])],
+      paragraphs: [whoLine, ...(freePos.length ? freePos.map((l) => l.text) : ['두드러진 끌림보다는 시간이 지날수록 관계가 깊어지는 사이예요.'])],
       basis: [
         `${names.a} 일간 ${dmA.name}`,
         `${names.b} 일간 ${dmB.name}`,

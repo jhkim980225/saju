@@ -71,7 +71,7 @@ test('비회원 결제 → 가입 → 같은 프로필로 복귀 → 목업 결�
   // 결제 내역 화면
   await page.goto('/my/payments');
   await expect(page.getByText(/평생 사주분석서/).first()).toBeVisible();
-  await expect(page.getByText(/9,900원 · mock/)).toBeVisible();
+  await expect(page.getByText(/9,900원 · 테스트 결제/)).toBeVisible();
 });
 
 test('비회원 결제 → 기존 회원 로그인 → 게스트 사주를 이어받아 같은 프로필로 복귀 → 결제', async ({ page, api }) => {
@@ -150,7 +150,7 @@ test.describe('결제 실패·위변조', () => {
 
     await page.goto(`/payments/success?orderId=${checkout.order.id}&amount=100&paymentKey=mock_${checkout.order.id}&provider=mock`);
     await expect(page.getByRole('heading', { name: '결제가 완료되지 않았어요' })).toBeVisible();
-    await expect(page.getByText('결제가 두 번 된 것 같다면, 다시 결제하기 전에 결제 내역을 먼저 확인해 주세요.')).toBeVisible();
+    await expect(page.getByText('결제가 두 번 된 것 같다면, 다시 결제하기 전에 결제 내역부터 확인해 주세요.')).toBeVisible();
     const order = await apiCall<{ status: string }>(api, 'GET', `/orders/${checkout.order.id}`, { token: tokens.accessToken });
     expect(order.status).not.toBe('paid');
     const wallet = await apiCall<{ entitlements: { key: string }[]; credits: number }>(api, 'GET', '/wallet', { token: tokens.accessToken });

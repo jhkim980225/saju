@@ -229,7 +229,7 @@ export function DreamHomePage() {
               <span className="block">어젯밤 꿈,</span>
               <span className="block">무슨 뜻이었을까요?</span>
             </h2>
-            <p className="mt-3 text-[15px] leading-relaxed text-ink-2">자주 꾸는 꿈 {total}가지를 전해 오는 해석으로 차분하게 정리했어요.</p>
+            <p className="mt-3 text-[15px] leading-relaxed text-ink-2">자주 꾸는 꿈 {total}가지를 전해 오는 해석으로 정리했어요.</p>
             <div className="mt-6">
               <DreamSearch />
             </div>

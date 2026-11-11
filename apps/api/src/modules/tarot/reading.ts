@@ -212,13 +212,13 @@ function relationLine(rel: Relation, x: string, w: Who): string {
   const what = `${w.of} ${relationPhrase(rel, true)}`;
   switch (rel) {
     case 'same':
-      return `${x} ${what}이에요. 카드가 말하는 내용이 타고난 성향과 잘 맞아 받아들이기 쉬운 편이에요.`;
+      return `${x} ${what}이에요. 카드가 말하는 내용이 타고난 성향과 잘 맞아 받아들이기 수월해요.`;
     case 'support':
-      return `${x} ${what}이에요. 카드가 권하는 방향으로 움직이기가 비교적 수월하다고 봐요.`;
+      return `${x} ${what}이에요. 카드가 권하는 방향으로 움직이는 데 부담이 적습니다.`;
     case 'express':
       return `${x} ${what}이라, 가진 힘을 밖으로 쓰게 하는 카드로 봐요. 생각에 그치기보다 직접 실행할 때 카드의 뜻이 잘 드러나요.`;
     case 'manage':
-      return `${x} ${what}이라, 직접 관리해 결과로 만들어 가는 카드로 봐요. 구체적인 계획으로 옮겨 보면 좋아요.`;
+      return `${x} ${what}이라, 직접 관리해 결과로 만들어 가는 카드로 봐요. 구체적인 계획으로 옮기세요.`;
     default:
       return `${x} ${what}이라 다소 부담으로 느껴질 수 있어요. 대신 무엇을 고쳐야 할지 분명하게 짚어 주는 카드로 읽어요.`;
   }
@@ -240,10 +240,10 @@ const yongsinWord = (r: YongsinRel, glossed: boolean): string => {
 function yongsinLine(who: string, el: Element, y: Element, w: Who): string {
   const rel = yongsinRel(el, y);
   const ys = `${w.of} ${GLOSS.yongsin}인 ${EL_KO[y]}`;
-  if (rel === 'same') return `${who} ${josa(ys, '과', '와')} 같은 오행이에요. 이번에는 카드의 조언을 조금 더 적극적으로 따라 보세요.`;
-  if (rel === 'feed') return `${who} ${josa(ys, '을', '를')} 생하는 오행이에요. 이번에는 카드의 조언을 조금 더 적극적으로 따라 보세요.`;
+  if (rel === 'same') return `${who} ${josa(ys, '과', '와')} 같은 오행이에요. 이번에는 카드의 조언을 적극적으로 따르세요.`;
+  if (rel === 'feed') return `${who} ${josa(ys, '을', '를')} 생하는 오행이에요. 카드의 조언을 적극적으로 실천하기 좋은 때입니다.`;
   if (rel === 'press') return `${who} ${josa(ys, '을', '를')} 극하는 오행이에요. 서두르기보다 속도를 늦추고 한 번 더 살펴보라는 뜻으로 읽어요.`;
-  return `${who} ${josa(ys, '과', '와')} 직접 부딪히지 않는 오행이에요. 카드의 조언을 자신의 속도에 맞춰 실천해 보세요.`;
+  return `${who} ${josa(ys, '과', '와')} 직접 부딪히지 않는 오행이에요. 카드의 조언을 자신의 속도에 맞춰 실천하세요.`;
 }
 
 /** 카드 이름 + '카드는' — '힘'·'달'·'별'처럼 보통 낱말과 헷갈리는 이름도 카드로 읽히게 */
@@ -279,7 +279,7 @@ function sajuLines(chart: SajuChart, placed: TarotPlacedCardDto[], spread: Tarot
   const dm = chart.dayMaster;
   const w = whoOf(name);
   const y = chart.yongsin.yongsin;
-  const intro = `사주로 보면 ${w.named ? `${w.of} ` : ''}${GLOSS.dayMaster}은 ${dmName(chart, '이에요', '예요')}. ${ELEMENT_NATURE[dm.element]} 기운으로 봐요. 달달사주는 카드마다 ${GLOSS.elements} 가운데 하나를 대응시켜, 그 오행이 일간과 어떤 관계인지 살폈어요.`;
+  const intro = `사주로 보면 ${w.named ? `${w.of} ` : ''}${GLOSS.dayMaster}은 ${dmName(chart, '이에요', '예요')}. ${ELEMENT_NATURE[dm.element]} 기운입니다. 달달사주는 카드마다 ${GLOSS.elements} 가운데 하나를 대응시켜, 그 오행이 일간과 어떤 관계인지 살폈어요.`;
   const paragraphs = [intro];
   const rels = placed.map((p) => relationTo(dm.element, p.element));
   // 용신과 견주는 카드 — 보통 마지막 자리, 양자택일은 어느 선택지도 편들지 않도록 '지금의 나' 자리
@@ -329,9 +329,9 @@ function pairLine(me: TarotPerson, partner: TarotPerson): string {
   const [m, p] = [`${me.name}님`, `${partner.name}님`];
   switch (relationTo(me.chart.dayMaster.element, partner.chart.dayMaster.element)) {
     case 'same':
-      return '두 사람의 일간이 같은 오행이라 서로의 성향을 빨리 이해하는 편이에요. 다만 고집이 맞설 때는 한 사람이 먼저 한발 물러서는 편이 좋아요.';
+      return '두 사람의 일간이 같은 오행이라 서로의 성향을 빨리 이해해요. 다만 고집이 맞설 때는 한 사람이 먼저 한발 물러서는 편이 좋아요.';
     case 'support':
-      return `${p}의 일간이 ${m}의 일간을 생하는 관계라, ${josa(p, '이', '가')} ${josa(m, '을', '를')} 받쳐 주는 사이로 봐요. 받는 쪽이 고마움을 자주 표현하면 관계가 오래 편안하게 이어지기 쉬워요.`;
+      return `${p}의 일간이 ${m}의 일간을 생하는 관계라, ${josa(p, '이', '가')} ${josa(m, '을', '를')} 받쳐 주는 사이로 봐요. 받는 쪽이 고마움을 자주 표현하면 관계가 오래 편안하게 이어져요.`;
     case 'express':
       return `${m}의 일간이 ${p}의 일간을 생하는 관계라, ${josa(m, '이', '가')} ${josa(p, '을', '를')} 받쳐 주는 사이로 봐요. 주는 쪽이 지치지 않도록 서로 챙겨 주세요.`;
     case 'manage':
@@ -372,10 +372,10 @@ function compatSajuLines(me: TarotPerson, partner: TarotPerson, placed: TarotPla
   const align = (r: YongsinRel) => r === 'same' || r === 'feed';
   const closing =
     align(ra) && align(rb)
-      ? '두 사람 모두 이 카드의 조언을 조금 더 적극적으로 함께 실천해 보기 좋아요.'
+      ? '두 사람 모두 이 카드의 조언을 적극적으로 함께 실천하기 좋아요.'
       : ra === 'press' || rb === 'press'
         ? '한 사람에게는 속도를 늦추라는 뜻으로 읽으니, 서로의 속도를 맞춰 가며 조언을 실천해 보세요.'
-        : '두 사람의 속도에 맞춰 카드의 조언을 함께 실천해 보세요.';
+        : '두 사람의 속도에 맞춰 카드의 조언을 함께 실천하세요.';
   const lastLine =
     ra === rb
       ? `마지막 '${last.position.label}' 자리의 ${cardIs(last)} 두 사람 모두에게 ${yongsinWord(ra, true)}이에요.`
@@ -422,16 +422,16 @@ function overviewParagraph(placed: TarotPlacedCardDto[], seed: string): string {
     parts.push(`${MAJOR_TERM}가 ${majors.length}장 나왔어요. 이 고민이 지금 마음에서 큰 비중을 차지하고 있다고 읽어요.`);
   }
   if (placed.length > 1) {
-    if (reversed === 0) parts.push('모두 정방향이라 카드의 뜻이 그대로 드러나는 편이에요.');
+    if (reversed === 0) parts.push('모두 정방향이라 카드의 뜻이 그대로 드러나요.');
     else if (reversed * 2 > placed.length)
-      parts.push(`역방향 카드가 ${reversed}장으로 절반을 넘어요. 역방향은 카드의 뜻이 늦어지거나 아직 드러나지 않은 상태로 읽기 때문에, 서두르기보다 생각을 정리할 시간을 먼저 갖는 편이 좋아요.`);
+      parts.push(`역방향 카드가 ${reversed}장으로 절반을 넘어요. 역방향은 카드의 뜻이 늦어지거나 아직 드러나지 않은 상태로 읽기 때문에, 서두르기보다 생각을 정리할 시간부터 갖는 편이 좋아요.`);
     // 같은 슈트가 두 장 이상이면 그 슈트의 전통 원소·주제를 짚는다(오행 연결은 사주 섹션에서만)
     const counts = new Map<TarotSuit, number>();
     for (const p of placed) if (p.suit) counts.set(p.suit, (counts.get(p.suit) ?? 0) + 1);
     const top = [...counts].sort((a, b) => b[1] - a[1])[0];
     if (top && top[1] >= 2) {
       const s = SUIT_THEME[top[0]];
-      parts.push(`${cj(s.name, '이', '가')} ${top[1]}장이에요. ${cj(s.name, '은', '는')} ${s.element}의 원소에 해당하는 슈트(마이너 아르카나를 이루는 네 무리)로 ${josa(s.theme, '을', '를')} 다루기 때문에, 이번 고민에서는 이 부분이 중요한 쟁점으로 읽혀요.`);
+      parts.push(`${cj(s.name, '이', '가')} ${top[1]}장이에요. ${cj(s.name, '은', '는')} ${s.element}의 원소에 해당하는 슈트(마이너 아르카나를 이루는 네 무리)로 ${josa(s.theme, '을', '를')} 다루기 때문에, 이번 고민에서는 이 부분이 중요한 쟁점입니다.`);
     }
   }
   return parts.join(' ');
@@ -462,7 +462,7 @@ function ruleStory(spread: TarotSpread, placed: TarotPlacedCardDto[], topic: Tar
     return [
       `${now.position.label} 자리의 ${cj(now.nameKo, '은', '는')} 지금 고민하는 마음을 보여 줘요. ${line(now)}`,
       `A(${options.a})를 고르면 ${cj(a.nameKo, '이', '가')} 이렇게 말해요. ${line(a)} B(${options.b})를 고르면 ${cj(b.nameKo, '이', '가')} 이렇게 말해요. ${line(b)}`,
-      '두 카드는 어느 길이 맞다고 정해 주지 않아요. 각 길에서 기대할 수 있는 것과 챙겨야 할 것을 나란히 놓고, 지금의 나에게 더 중요한 기준이 무엇인지 먼저 정해 보세요.',
+      '두 카드는 어느 길이 맞다고 정해 주지 않아요. 각 길에서 기대할 수 있는 것과 챙겨야 할 것을 나란히 놓고, 지금의 나에게 더 중요한 기준이 무엇인지부터 정하세요.',
     ];
   }
   if (spread === 'celtic' && placed.length === 10) {
@@ -592,7 +592,7 @@ export function buildTarotReading(input: {
     options && placed.length === 3
       ? [advice(placed[0]!), `A를 고른다면 — ${advice(placed[1]!)}`, `B를 고른다면 — ${advice(placed[2]!)}`]
       : [...new Set([...placed].reverse().map(advice))].slice(0, 3);
-  sections.push(lock({ key: 'actions', title: '지금 해 볼 수 있는 행동', summary: '카드의 뜻에 맞춰 바로 해 볼 수 있는 일', paragraphs: actions }, !input.unlocked, productId));
+  sections.push(lock({ key: 'actions', title: '지금 해 볼 수 있는 행동', summary: '카드의 뜻에 맞춰 해 볼 수 있는 일', paragraphs: actions }, !input.unlocked, productId));
 
   if (saju) {
     // 잠겨 있으면 용어 근거(basis)도 보내지 않는다 — 미리보기 첫 문단만

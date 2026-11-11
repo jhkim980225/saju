@@ -145,7 +145,7 @@ export function buildHoroscope(sign: StarSign, period: FreeFortunePeriod, base: 
     const sunHouse = solarHouse(sign.index, sunSign);
     const paragraphs = [
       text.body,
-      `이번 주에는 태양이 ${signName(sunSign)}에 있어요. 내 별자리에서 ${houseLabel(sunHouse)}(${HOUSES[sunHouse - 1]!.theme})라서 이쪽 일에 관심이 가기 쉬워요.`,
+      `이번 주에는 태양이 ${signName(sunSign)}에 있어요. 내 별자리에서 ${houseLabel(sunHouse)}(${HOUSES[sunHouse - 1]!.theme})라서 이쪽 일에 관심이 커집니다.`,
       styleOf(sign, tone),
     ];
     // 달이 지나는 별자리마다 근거 한 줄

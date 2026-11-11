@@ -362,7 +362,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
   const attraction: ReadingSection = {
     key: 'attraction',
     title: '끌림과 매력',
-    summary: hasDohwa || hasHongyeom ? '처음 만난 사람에게도 호감을 사기 쉬워요' : '오래 볼수록 호감을 사는 편이에요',
+    summary: hasDohwa || hasHongyeom ? '처음 만난 사람에게도 호감을 잘 사요' : '오래 볼수록 호감을 사는 편이에요',
     paragraphs: [
       ...charmIntro,
       `일간의 오행이 ${el(dmEl, '이라', '라')} ${C.attraction.firstImpression[dmEl]} ${C.attraction.moment[dmEl]}`,
@@ -392,18 +392,18 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
     title: '나에게 맞는 사람',
     summary: `${partner.chip} 곁에서 힘이 나요`,
     paragraphs: [
-      `${nameSubject(name, '의')}${t('용신', '은', '는')} ${el(y.yongsin)}입니다. 그래서 ${ys}의 성향을 지닌 사람, 곧 ${pp(partner.temperament, '이', '가')} 힘이 된다고 봐요. ${partner.why}`,
+      `${nameSubject(name, '의')}${t('용신', '은', '는')} ${el(y.yongsin)}입니다. 그래서 ${ys}의 성향을 지닌 사람, 곧 ${pp(partner.temperament, '이', '가')} 힘이 됩니다. ${partner.why}`,
       `이런 사람은 처음 만났을 때도 알아볼 수 있어요. ${partner.spot}`,
       `${partner.together} ${C.partnerGive[dmEl]}`,
       `주로 ${partner.meet}`,
       `${t('희신')}인 ${el(y.heesin)}의 성향으로 보면, ${C.heesin[y.heesin]}`,
       `${t('신강·신약', '으로')} 보면 ${level}에 해당해요. 이 단계는 달달사주가 일간을 돕는 기운의 비중으로 나눈 것입니다. ${C.partnerStrength[level]}`,
       // 손발이 맞는 기질이 지치게 하는 기질과 같은 기운이면 서로 어긋나 보이니 말하지 않는다
-      ...(comboBranch && comboBranch.element !== y.gisin ? [`일지와 ${t('육합', '을', '를')} 이루는 글자의 오행으로 보면, 특히 ${C.combineTemperament[comboBranch.element]} 사람과는 자연스럽게 손발이 맞기 쉬워요.`] : []),
+      ...(comboBranch && comboBranch.element !== y.gisin ? [`일지와 ${t('육합', '을', '를')} 이루는 글자의 오행으로 보면, 특히 ${C.combineTemperament[comboBranch.element]} 사람과는 손발이 잘 맞아요.`] : []),
       ...(lacking.length
-        ? [`나와 다른 사람에게 끌리는 것도 자연스러운 일이에요. 사주 글자에 없는 오행인 ${lacking.map((e) => el(e)).join('·')}의 성향, 곧 ${listPp(lacking.map((e) => C.complement[e]), '을', '를')} 가진 사람 곁에서는 그 점을 보고 배우기 쉬워요.`]
+        ? [`나와 다른 사람에게 끌리는 것도 자연스러운 일이에요. 사주 글자에 없는 오행인 ${lacking.map((e) => el(e)).join('·')}의 성향, 곧 ${listPp(lacking.map((e) => C.complement[e]), '을', '를')} 가진 사람 곁에서는 그 점을 보고 배우게 돼요.`]
         : []),
-      `반대로 ${t('기신')}인 ${el(y.gisin)}의 기운이 지나친 관계에서는 쉽게 지칠 수 있다고 봐요. 예를 들면 ${pp(C.partnerCaution[y.gisin], '이에요', '예요')}. 상대가 잘못해서라기보다 서로 편한 방식이 다르기 때문이니, 이런 일이 되풀이되면 만나는 횟수와 거리를 조절하는 것도 방법입니다.`,
+      `반대로 ${t('기신')}인 ${el(y.gisin)}의 기운이 지나친 관계에서는 쉽게 지칠 수 있어요. 예를 들면 ${pp(C.partnerCaution[y.gisin], '이에요', '예요')}. 상대가 잘못해서라기보다 서로 편한 방식이 다르기 때문이니, 이런 일이 되풀이되면 만나는 횟수와 거리를 조절하는 것도 방법입니다.`,
       C.partnerNote,
     ],
     basis: [
@@ -422,7 +422,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
   const pattern: ReadingSection = {
     key: 'pattern',
     title: '가까워지는 속도와 주고받는 방식',
-    summary: `${C.patternSpeed[level]}, ${give >= receive + 2 ? '주는 쪽에 서기 쉬운 편이에요' : receive >= give + 2 ? '받을 때 힘이 나는 편이에요' : '주고받는 균형이 맞는 편이에요'}`,
+    summary: `${C.patternSpeed[level]}, ${give >= receive + 2 ? '주는 쪽에 서는 편이에요' : receive >= give + 2 ? '받을 때 힘이 나는 편이에요' : '주고받는 균형이 맞는 편이에요'}`,
     paragraphs: [
       C.pattern[level],
       C.patternGroup[dominant],
@@ -505,7 +505,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
     keywords: [...topLove.map((x) => `새 인연 ${x.year}`), ...topBond.map((x) => `관계 다지기 ${x.year}`)],
     paragraphs: [
       C.decade.intro,
-      `새로운 인연이나 설렘이 커지기 쉬운 해는 ${yearsText(topLove.map((x) => x.year))}이에요. ${reasonSentences(topLove, 'love', told)} 가장 좋은 ${best.year}년에는 ${monthsText(best.year, bestMonths)} 무렵을 특히 눈여겨보세요.`,
+      `새로운 인연이나 설렘이 찾아오기 좋은 해는 ${yearsText(topLove.map((x) => x.year))}이에요. ${reasonSentences(topLove, 'love', told)} 가장 좋은 ${best.year}년에는 ${monthsText(best.year, bestMonths)} 무렵을 특히 눈여겨보세요.`,
       `결혼이나 함께 사는 약속처럼 관계를 한 단계 진지하게 생각한다면, ${yearsText(topBond.map((x) => x.year))}에 이야기를 꺼내 보기 좋아요. ${reasonSentences(topBond, 'bond', told)}`,
       ...years.map(yearLine),
       ...(changeYears.length
@@ -590,7 +590,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
       C.advice.ritual[dominant],
       C.advice.selfCare[y.yongsin],
       `내가 지쳤다는 신호도 알아 두세요. ${C.advice.tired[dmEl]} 이런 신호가 보이면 "요즘 좀 지쳤어"라고 먼저 알려 주세요. 상대가 내 상태를 알면 오해 대신 배려가 돌아와요.`,
-      `오행에는 저마다 상징하는 색이 있어, 용신인 ${pp(ys, '에는', '에는')} ${C.advice.color[y.yongsin]} 계열이 어울려요. 데이트 장소나 선물을 고를 때 가볍게 참고해 보세요. 이번 달에 실천할 일 세 가지는 아래에 정리했습니다.`,
+      `오행에는 저마다 상징하는 색이 있어, 용신인 ${pp(ys, '에는', '에는')} ${C.advice.color[y.yongsin]} 계열이 어울려요. 데이트 장소나 선물을 고를 때 가볍게 참고하세요. 이번 달에 실천할 일 세 가지는 아래에 정리했습니다.`,
     ],
     tips: ['고마운 점을 하루 한 가지씩 말로 전하기', C.advice.action[y.yongsin], '서운한 일은 일주일을 넘기지 않고 부드럽게 꺼내기'],
     basis: `용신 ${EL_TERM[y.yongsin]} · 일간의 힘 ${level} · 가장 많은 십성 ${dominant} · 일간 오행 ${EL_TERM[dmEl]}`,

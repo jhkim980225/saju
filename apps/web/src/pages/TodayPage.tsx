@@ -149,7 +149,7 @@ export function TodayPage() {
 
               <Card className="mt-4">
                 <h3 className="font-semibold">분야별 운</h3>
-                <p className="mt-1 text-sm text-ink-3">100점에 가까울수록 흐름이 좋은 분야입니다. 50점보다 낮은 분야는 평소보다 신중하게 다루는 것이 좋아요.</p>
+                <p className="mt-1 text-sm text-ink-3">100점에 가까울수록 흐름이 좋은 분야입니다. 50점보다 낮은 분야는 평소보다 신중하게 다루는 게 좋아요.</p>
                 <ul className="mt-4 space-y-4">
                   {d.categories.map((c) => (
                     <li key={c.key}>

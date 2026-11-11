@@ -5,7 +5,7 @@
  * - 맨 앞 섹션에 '한눈에 보기'(points)를 두고, 각 장은 결론부터.
  * - 정식 명리학 용어(천간·지지·일간·십성·오행·용신·대운·세운·신강·신약·12운성·합·충 …)를 쓰고, 한 권에서 처음 나올 때 뜻을 붙인다(reportOnce.term).
  *   근거 글자와 관계는 basis('사주로 보면')에 모아 둔다.
- * - 해석은 확정이 아니라 명리학적 해석으로('~기 쉽습니다', '~로 봐요').
+ * - 성향은 담백하게, 앞일만 한 겹의 추측으로 쓴다('~로 봐요'는 명리학 근거를 밝힐 때만).
  * - 점수·등급·신강·신약 점수·오행 비율·용신 계산·대운 시작 나이처럼 달달사주가 계산한 것은 '달달사주 기준'이라고 밝힌다.
  * - 이름으로 부르고("서윤님은"), 이름이 없으면 주어를 뺀다. "당신"은 쓰지 않는다.
  * - 한 권 안에서 같은 문장을 되풀이하지 않는다(reportOnce).
@@ -204,7 +204,7 @@ function chartSection(chart: SajuChart, name: string | null, once: Once): Readin
       const branch = `${p.branch.hangul}(${el(p.branch.element)})`;
       const st = p.stem.tenGod as TenGod;
       const bt = p.branch.tenGod;
-      if (p.position === 'day') return `${head} 천간 ${stem}${particle(p.stem.hangul, '이', '가')} 일간이고, 지지 ${branch}${particle(p.branch.hangul, '은', '는')} ${tgp(once, bt, '에', '에')} 해당해요. 일지는 배우자 자리로도 보아, 가까운 관계에서 이 성향이 드러나기 쉽다고 해석합니다.`;
+      if (p.position === 'day') return `${head} 천간 ${stem}${particle(p.stem.hangul, '이', '가')} 일간이고, 지지 ${branch}${particle(p.branch.hangul, '은', '는')} ${tgp(once, bt, '에', '에')} 해당해요. 일지는 배우자 자리로도 보아, 가까운 관계에서 이 성향이 잘 드러납니다.`;
       if (st === bt) return `${head} 천간 ${stem}${particle(p.stem.hangul, '과', '와')} 지지 ${branch}${particle(p.branch.hangul, '이', '가')} 모두 ${tgp(once, st, '에', '에')} 해당합니다.`;
       return `${head} 천간 ${stem}${particle(p.stem.hangul, '은', '는')} ${once.tg(st)}, 지지 ${branch}${particle(p.branch.hangul, '은', '는')} ${tgp(once, bt, '에', '에')} 해당합니다.`;
     }),
@@ -250,13 +250,13 @@ function elementRatioSection(chart: SajuChart, name: string | null, once: Once):
   }
   if (fill.length) {
     const role = fill.map((x) => (x === y.yongsin ? once.term('용신') : once.term('희신')));
-    paragraphs.push(`원국에 없는 ${fill.map(el).join('·')} 기운은 ${fill.length > 1 ? `각각 ${role.join('과 ')}` : role[0]}에 해당해, 생활 속에서 보완하면 도움이 된다고 봐요. 흔히 권하는 방법은 다음과 같습니다.`);
+    paragraphs.push(`원국에 없는 ${fill.map(el).join('·')} 기운은 ${fill.length > 1 ? `각각 ${role.join('과 ')}` : role[0]}에 해당해, 생활 속에서 보완하면 도움이 됩니다. 흔히 권하는 방법은 다음과 같아요.`);
   }
   return {
     key: 'elements',
     title: '오행의 분포',
     summary: fill.length
-      ? `원국에 없는 ${fill.map(el).join('·')} 기운을 보완하면 균형에 도움이 된다고 봐요`
+      ? `원국에 없는 ${fill.map(el).join('·')} 기운을 보완하면 균형에 도움이 돼요`
       : many.length
         ? `${many.map(el).join('·')} 기운이 많은 편이에요`
         : none.length
@@ -329,8 +329,8 @@ function yongsinDetailSection(base: ReadingSection, chart: SajuChart, name: stri
     ...base,
     paragraphs: [
       `${once.term('용신')}은 일간의 강약을 조절하는 억부, 계절의 춥고 더움을 조절하는 조후, 사주의 구조를 보는 격국 등 여러 방법으로 정하며, 학파와 해석자에 따라 결과가 달라질 수 있습니다. 달달사주는 억부법을 중심으로 한 간이 계산으로 조후와 격국은 반영하지 않으며, 강약이 균형에 가까우면 가장 약한 오행을 용신으로 정해요. ${yongsinReason(chart, name)}`,
-      `생활 속에서는 ${q(need.need, '이', '가')} 이 기운과 연결된다고 봐요. ${need.needMore}`,
-      `${elWord(y.heesin)}은 용신을 생하여 돕는 희신, ${elWord(y.gisin)}은 용신을 극하는 기신에 해당합니다. 운에서 용신이나 희신이 들어오는 해와 달은 비교적 순조롭게 흐르기 쉽다고 봐요. 기신이 강하게 들어오는 시기라고 해서 반드시 나쁜 결과를 뜻하지는 않지만, 일정과 체력에 여유를 두는 것이 좋습니다.`,
+      `생활 속에서는 ${q(need.need, '이', '가')} 이 기운과 연결됩니다. ${need.needMore}`,
+      `${elWord(y.heesin)}은 용신을 생하여 돕는 희신, ${elWord(y.gisin)}은 용신을 극하는 기신에 해당합니다. 운에서 용신이나 희신이 들어오는 해와 달은 비교적 순조롭게 흐르는 시기로 봅니다. 기신이 강하게 들어오는 시기라고 해서 반드시 나쁜 결과를 뜻하지는 않지만, 일정과 체력에 여유를 두는 것이 좋습니다.`,
       // '일상에서는 이런 것부터 해 보세요.'(목록 머리말)는 맨 뒤에 둔다
       base.paragraphs.at(-1)!,
     ],
@@ -393,7 +393,7 @@ function relationsSection(chart: SajuChart, once: Once): ReadingSection {
       key: 'relations',
       title,
       summary: '원국에 두드러진 합·충이 없어요',
-      paragraphs: ['원국의 글자 사이에 두드러진 합(결합)이나 충(대립)이 없습니다. 글자끼리 크게 묶이거나 부딪히는 곳이 적어, 기질이 비교적 일관되게 드러나는 편으로 봐요. 변화의 계기는 주로 10년 단위의 대운과 해마다 바뀌는 세운에서 들어온다고 해석합니다.'],
+      paragraphs: ['원국의 글자 사이에 두드러진 합(결합)이나 충(대립)이 없습니다. 글자끼리 크게 묶이거나 부딪히는 곳이 적어, 기질이 비교적 일관되게 드러나요. 변화의 계기는 주로 10년 단위의 대운과 해마다 바뀌는 세운에서 들어온다고 해석합니다.'],
       basis: '원국 합충 없음',
     };
   }
@@ -454,7 +454,7 @@ function stagesSection(chart: SajuChart, once: Once): ReadingSection {
       const pos = POSITION_PLAIN[p.position];
       const s = TWELVE_STAGE_CONTENT[p.branch.twelveStage];
       const where = `${pos.pillar}의 지지(${pos.short})`;
-      if (seen.has(s.name)) return `${where}도 ${s.name} 단계로, 앞에서 본 성향이 이 영역에서도 나타난다고 봐요.`;
+      if (seen.has(s.name)) return `${where}도 ${s.name} 단계로, 앞에서 본 성향이 이 영역에서도 나타납니다.`;
       seen.add(s.name);
       return `${where}는 ${s.name} 단계로, '${s.keyword}'${particle(s.keyword, '을', '를')} 뜻해요. ${s.meaning}`;
     }),
@@ -491,7 +491,7 @@ function daeunSections(chart: SajuChart, now: Date, once: Once, name: string | n
     paragraphs: [
       `대운은 10년 단위로 바뀌는 운의 큰 흐름입니다. 태어난 달의 기둥(월주)에서 출발해 육십갑자의 순서를 한 칸씩 앞으로(순행) 또는 뒤로(역행) 짚어 정하며, 방향은 성별과 태어난 해 천간의 음양에 따라 달라져요. ${nameSubject(name, '의')}대운은 ${forward ? '순행' : '역행'}합니다.`,
       `대운이 시작되는 나이(대운수)도 사람마다 다릅니다. 달달사주는 ${forward ? '출생일부터 다음 절입일(절기가 바뀌는 날)까지' : '직전 절입일(절기가 바뀌는 날)부터 출생일까지'}의 날수를 3으로 나눠 계산하며, ${nameSubject(name, '의')}첫 대운은 만 ${chart.daeun.startAge}세에 시작${started ? '됐어요' : '돼요'}.`,
-      '대운의 천간은 드러나는 사건과 기회, 지지는 생활 환경과 연결해 해석하는 경우가 많습니다. 아래 점수는 대운의 오행이 용신에 해당하는지, 원국과 합·충을 이루는지 등을 반영한 달달사주 자체 지표예요. 점수가 낮은 시기라고 해서 반드시 나쁜 시기는 아니며, 속도를 조절하고 기반을 다지는 데 무게를 두면 좋은 시기로 봐요.',
+      '대운의 천간은 드러나는 사건과 기회, 지지는 생활 환경과 연결해 해석하는 경우가 많습니다. 아래 점수는 대운의 오행이 용신에 해당하는지, 원국과 합·충을 이루는지 등을 반영한 달달사주 자체 지표예요. 점수가 낮은 시기라고 해서 반드시 나쁜 시기는 아니며, 속도를 조절하고 기반을 다지는 데 무게를 두면 좋은 시기입니다.',
       ...periods.map((p, i) => `${p === current ? '▶ ' : ''}${range(p)} (${p.startYear}~${p.endYear}년) · ${p.ganzhi.hangul} 대운 · ${p.stemTenGod}(${TEN_GOD_PLAIN_LABEL[p.stemTenGod]}) · ${GRADE_PLAIN_LABEL[evs[i]!.grade]} ${evs[i]!.scores.total}점`),
     ],
     basis: `대운수 ${chart.daeun.startAge}(정밀 ${chart.daeun.startExact.years}년 ${chart.daeun.startExact.months}개월) · ${forward ? '순행' : '역행'} · ${periods.map((p, i) => `${p.ganzhi.hangul}(${p.ganzhi.hanja}) ${p.stemTenGod}·${p.branchTenGod} ${GRADE_LABEL[evs[i]!.grade]}`).join(', ')}`,
@@ -515,7 +515,7 @@ function daeunSections(chart: SajuChart, now: Date, once: Once, name: string | n
     const fit = [fs.text, fb.text].filter(Boolean).join(' ');
     if (fit) paragraphs.push(fit);
     // 유년기의 대운은 돈·연애·직장 이야기 대신 학업·친구·집안 분위기로
-    if (child) paragraphs.push(`유년기에는 대운의 기운이 학업 방식과 친구 관계, 집안 분위기로 나타나기 쉽다고 봐요. ${CHILD_HINT[st]}`);
+    if (child) paragraphs.push(`유년기에는 대운의 기운이 학업 방식과 친구 관계, 집안 분위기로 나타납니다. ${CHILD_HINT[st]}`);
     else paragraphs.push(`재물 — ${c.wealth}`, `애정·관계 — ${c.love}`, `일·커리어 — ${c.career}`, `건강 — ${c.health}`);
     if (once.first(`stage:${p.twelveStage}`)) paragraphs.push(`12운성으로 보면 ${p.twelveStage}, 곧 ${STAGE_SHORT[p.twelveStage]}에 해당해요.`);
     if (!child && !past) paragraphs.push(DAEUN_TIP[st]);
@@ -556,7 +556,7 @@ export function monthSections(chart: SajuChart, year: number, once: Once = repor
     paragraphs: [
       `${once.term('월운')}은 달력의 1일이 아니라 절기가 바뀌는 절입일을 기준으로 나눕니다. 그래서 2월은 ${monthDay(months[0]!.startsAt)} 무렵(${months[0]!.termName}), 3월은 ${monthDay(months[1]!.startsAt)} 무렵(${months[1]!.termName})부터 시작해요. 점수는 그달의 간지가 사주와 맺는 관계(용신에 해당하는지, 원국과 합·충을 이루는지, 12운성 등)를 반영한 달달사주 자체 지표로, 100점 만점입니다.`,
       months.map((_, i) => `${label(i)} ${evals[i]!.scores.total}점`).join(' · '),
-      `새로운 일을 시작하거나 중요한 약속을 잡기에는 ${best.map(label).join(', ')}이 비교적 유리하고, ${careful.map(label).join(', ')}에는 일정과 컨디션에 여유를 두는 것이 좋다고 봐요.`,
+      `새로운 일을 시작하거나 중요한 약속을 잡기에는 ${best.map(label).join(', ')}이 비교적 유리하고, ${careful.map(label).join(', ')}에는 일정과 컨디션에 여유를 두는 것이 좋아요.`,
     ],
     basis: `월운(절기 기준) ${months.map((m, i) => `${label(i)} ${m.ganzhi.hangul}(${m.ganzhi.hanja})`).join(' · ')}`,
   };
@@ -641,7 +641,7 @@ export function buildSajuAnalysis(chart: SajuChart, now = new Date(), profileNam
     paragraphs: [
       `${nameSubject(name, '은')}${REPORT_MISC.closingByStrength[chart.strength.level]}`,
       `생활에서 기억해 두면 좋은 점이 있어요. ${dm.advice}`,
-      `오행마다 대응하는 색·방향·숫자가 있어, 용신에 해당하는 것을 생활에 활용하기도 합니다. ${elWord(y.yongsin)}의 경우 색은 ${LUCKY_COLOR_PLAIN[y.yongsin]}, 방향은 ${info.direction}, 숫자는 ${info.numbers.join('·')}입니다. 생활 속에서는 ${YONGSIN_CONTENT[y.yongsin].tips.slice(4, 6).join(', ')} 같은 방법도 활용해 보세요.`,
+      `오행마다 대응하는 색·방향·숫자가 있어, 용신에 해당하는 것을 생활에 활용하기도 합니다. ${elWord(y.yongsin)}의 경우 색은 ${LUCKY_COLOR_PLAIN[y.yongsin]}, 방향은 ${info.direction}, 숫자는 ${info.numbers.join('·')}입니다. 생활 속에서는 ${YONGSIN_CONTENT[y.yongsin].tips.slice(4, 6).join(', ')} 같은 방법도 활용할 수 있어요.`,
       '사주는 앞날을 정해 두는 것이 아니라, 타고난 성향과 시기별 흐름을 살펴보는 참고 자료입니다. 강점을 살릴 시기와 속도를 조절할 시기를 판단할 때 이 분석서를 다시 참고해 보세요.',
     ],
     basis: `일간 ${dm.name} · 일간의 힘 ${chart.strength.level} · 용신 ${EL_NAME[y.yongsin]}`,
@@ -779,10 +779,10 @@ export function buildYearlyReport(chart: SajuChart, year: number, profileName: s
         ? [
             `${year}년은 ${range(daeun)}(${daeun.startYear}~${daeun.endYear}년) ${daeun.ganzhi.hangul} ${once.term('대운')} 안에 있습니다. 한 해의 운은 대운의 흐름 위에서 함께 해석해요.`,
             childDaeun
-              ? `이 대운의 천간은 ${once.tg(daeun.stemTenGod)}${ieyo(daeun.stemTenGod)}. 유년기의 대운은 학업 방식과 친구 관계, 집안 분위기로 나타나기 쉽다고 봐요.`
+              ? `이 대운의 천간은 ${once.tg(daeun.stemTenGod)}${ieyo(daeun.stemTenGod)}. 유년기의 대운은 학업 방식과 친구 관계, 집안 분위기로 나타납니다.`
               : `이 대운의 천간은 ${once.tg(daeun.stemTenGod)}${ieyo(daeun.stemTenGod)}. ${daeun.stemTenGod}${ro(daeun.stemTenGod)} 보면, ${LUCK_CONTENT.daeun[daeun.stemTenGod].general}`,
           ]
-        : [`아직 첫 ${once.term('대운')}이 시작되기 전이에요. 대운이 시작되기 전에는 타고난 원국과 그해의 세운을 중심으로 해석하며, 그만큼 한 해의 흐름이 비교적 직접 드러난다고 봐요.`],
+        : [`아직 첫 ${once.term('대운')}이 시작되기 전이에요. 대운이 시작되기 전에는 타고난 원국과 그해의 세운을 중심으로 해석하며, 그만큼 한 해의 흐름이 비교적 직접 드러나요.`],
       basis: daeun ? `${daeun.ganzhi.hangul}(${daeun.ganzhi.hanja}) 대운 ${daeun.startYear}~${daeun.endYear} · 천간 ${daeun.stemTenGod} · 지지 ${daeun.branchTenGod}` : `대운수 ${chart.daeun.startAge}`,
     },
     area('wealth', '재물운'),
@@ -908,8 +908,8 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
       stem_clash: '같은 일도 정반대로 반응할 때가 많아요',
       stem_same: '가치관과 사고방식이 닮았어요',
       stem_generate: '한쪽이 다른 쪽에게 힘이 되어 줘요',
-      stem_control: '한쪽이 이끌고 한쪽이 맞추기 쉬워요',
-      day_branch_combine: '함께 지낼수록 편안해지기 쉬워요',
+      stem_control: '한쪽이 이끌고 한쪽이 맞춰 가요',
+      day_branch_combine: '함께 지낼수록 편안해져요',
       day_branch_half: '같은 목표 앞에서 협력이 잘 돼요',
       day_branch_clash: '생활 방식이 달라 조율이 필요해요',
       day_branch_punish: '사소한 지적이 다툼이 되기 쉬워요',
@@ -922,7 +922,7 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
       complement: '서로에게 없는 오행을 보완해 줘요',
       yongsin: '상대의 기운이 사주의 균형을 보완해 줘요',
       gisin: '함께 있으면 부담을 느끼는 순간이 있어요',
-      spouse_star: '서로를 오래 함께할 사람으로 느끼기 쉬워요',
+      spouse_star: '서로를 오래 함께할 사람으로 느껴요',
     };
     return SHORT[factorKey(f.key)] ?? f.label.replace(/\.$/, '');
   };
@@ -1000,8 +1000,8 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
         sameStem ? `${who(B, '도')} 같은 일간을 타고나, 서로를 설명 없이도 잘 이해하는 편이에요.` : `${who(B, '의')} 타고난 성향도 살펴볼게요. ${STEM_PLAIN[b.dayMaster.index]!.line}`,
         ...(samePillar ? [] : [dpB.personality]),
         sameStem
-          ? `두 사람 모두 강점은 ${strengthsOf(dmA).join(', ')}${ieyo(strengthsOf(dmA).at(-1)!)}. 같은 강점을 가진 만큼, 일을 나눌 때는 앞에서 이끄는 역할과 뒤에서 챙기는 역할을 번갈아 맡아 보세요.`
-          : `${who(A, '의')} 강점은 ${strengthsOf(dmA).join(', ')}이고, ${who(B, '의')} 강점은 ${strengthsOf(dmB).join(', ')}${ieyo(strengthsOf(dmB).at(-1)!)}. 강점이 다를수록 역할을 나누기 쉬워요.`,
+          ? `두 사람 모두 강점은 ${strengthsOf(dmA).join(', ')}${ieyo(strengthsOf(dmA).at(-1)!)}. 같은 강점을 가진 만큼, 일을 나눌 때는 앞에서 이끄는 역할과 뒤에서 챙기는 역할을 번갈아 맡으세요.`
+          : `${who(A, '의')} 강점은 ${strengthsOf(dmA).join(', ')}이고, ${who(B, '의')} 강점은 ${strengthsOf(dmB).join(', ')}${ieyo(strengthsOf(dmB).at(-1)!)}. 강점이 다를수록 역할을 나누기도 수월해요.`,
       ],
       basis: `${A} ${a.pillars.day.ganzhi.hangul}(${a.pillars.day.ganzhi.hanja})일주 · ${B} ${b.pillars.day.ganzhi.hangul}(${b.pillars.day.ganzhi.hanja})일주`,
     },
@@ -1045,7 +1045,7 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
           ? posRest.map(factorText)
           : pos.length
             ? ['앞에서 본 일간의 관계와 오행의 보완이 두 사람을 이어 주는 가장 큰 요인이에요.']
-            : ['눈에 띄는 끌림의 요인은 적지만, 시간이 지날수록 깊어지기 쉬운 관계로 봐요. 함께 보낸 시간이 신뢰로 쌓이는 사이예요.']),
+            : ['눈에 띄는 끌림의 요인은 적지만, 시간이 지날수록 깊어지는 관계입니다. 함께 보낸 시간이 신뢰로 쌓이는 사이예요.']),
         ROMANCE_KEEP[band(r.categories.romance)],
       ],
       basis: pos.map(factorTerm).join(' · ') || '긍정 요인 없음',
@@ -1082,7 +1082,7 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
           ? `${who(B, '도')} ${ga}${particle(ga, '이', '가')} 가장 많아, 마음을 전하는 방식이 닮은 편이에요.`
           : `${who(B, '은/는')} ${groupLine(gbs)} 가장 많아요. ${REPORT_MISC.compatCommunication[gb]}`,
         ga === gb
-          ? '같은 방식으로 마음을 표현하니 오해는 적지만, 두 사람이 같은 지점에서 지치기 쉬워요. 가끔은 상대가 잘 쓰지 않는 방식으로 먼저 다가가 보세요.'
+          ? '같은 방식으로 마음을 표현하니 오해는 적지만, 두 사람이 같은 지점에서 지치기도 해요. 가끔은 상대가 잘 쓰지 않는 방식으로 먼저 다가가 보세요.'
           : '표현 방식이 다르면 서로에게 없는 표현을 배울 수 있어요. 상대의 방식이 마음에 들지 않을 때는 고치라고 하기보다 왜 그렇게 하는지 먼저 물어보세요.',
       ],
       basis: `가장 많은 십성 무리 ${A} ${gas.join('·')} · ${B} ${gbs.join('·')}`,
@@ -1093,8 +1093,8 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
       summary: a.strength.level === b.strength.level ? `두 사람 모두 ${a.strength.level}에 해당해요` : `${a.strength.level}${particle(a.strength.level, '과', '와')} ${b.strength.level}의 만남이에요`,
       paragraphs: [
         `달달사주 기준으로 일간의 강약(신강·신약)을 보면 ${who(A, '은/는')} ${a.strength.level}에 해당해요. ${REPORT_MISC.compatConflict[a.strength.level]}`,
-        a.strength.level === b.strength.level ? `${who(B, '도')} 같은 단계라, 다툴 때 비슷한 방식으로 반응하기 쉬워요.` : `${who(B, '은/는')} ${b.strength.level}에 해당해요. ${REPORT_MISC.compatConflict[b.strength.level]}`,
-        '다툼이 길어질 때는 누가 옳은지보다 두 사람이 원하는 것이 무엇인지로 질문을 바꿔 보세요. 감정이 가라앉을 시간을 정해 두고 다시 이야기하는 것도 좋은 방법입니다.',
+        a.strength.level === b.strength.level ? `${who(B, '도')} 같은 단계라, 다툴 때 비슷한 방식으로 반응해요.` : `${who(B, '은/는')} ${b.strength.level}에 해당해요. ${REPORT_MISC.compatConflict[b.strength.level]}`,
+        '다툼이 길어질 때는 누가 옳은지보다 두 사람이 원하는 것이 무엇인지로 질문을 바꾸세요. 감정이 가라앉을 시간을 정해 두고 다시 이야기하는 것도 좋은 방법입니다.',
       ],
       basis: `일간의 힘 ${A} ${a.strength.level}(${pct(a.strength.score)}) · ${B} ${b.strength.level}(${pct(b.strength.score)})`,
     },
@@ -1131,7 +1131,7 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
       summary: yongA === yongB ? `두 사람 모두 ${elWord(yongA)}을 보완하면 좋아요` : `${el(yongA)}${particle(el(yongA), '과', '와')} ${el(yongB)} 기운을 함께 보완해요`,
       paragraphs: [
         yongA === yongB
-          ? `두 사람 모두 ${q(ELEMENT_PLAIN[yongA].need, '이', '가')} 도움이 된다고 봐요. 용신이 같아 아래 활동을 함께하면 두 사람 모두에게 도움이 됩니다. 한 달에 한두 번은 함께하는 습관으로 만들어 보세요.`
+          ? `두 사람 모두 ${q(ELEMENT_PLAIN[yongA].need, '이', '가')} 도움이 된다고 봐요. 용신이 같아 아래 활동을 함께하면 두 사람 모두에게 이롭습니다. 한 달에 한두 번은 함께하는 습관으로 만들어 보세요.`
           : `${who(A, '에게는')} '${ELEMENT_PLAIN[yongA].need}', ${who(B, '에게는')} ${q(ELEMENT_PLAIN[yongB].need, '이', '가')} 도움이 된다고 봐요. 아래 활동 가운데 상대에게 필요한 것을 번갈아 골라 함께하면 서로를 보완하는 시간이 됩니다.`,
         `함께 활용하면 좋은 색은 ${[...new Set([LUCKY_COLOR_PLAIN[yongA], LUCKY_COLOR_PLAIN[yongB]])].join(', ')}, 방향은 ${[...new Set([ELEMENT_INFO[yongA].direction, ELEMENT_INFO[yongB].direction])].join(', ')}입니다.`,
       ],
@@ -1150,14 +1150,14 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
           const both = ea.scores.total >= 65 && eb.scores.total >= 65;
           const gap = Math.abs(ea.scores.total - eb.scores.total) >= 15;
           const tail = both
-            ? ['두 사람 모두 점수가 높은 해라 함께 계획한 일을 시작하기에 좋다고 봐요.', '두 사람 모두 흐름이 좋은 해라 미뤄 둔 계획을 함께 추진해 보기 좋습니다.'][i]
+            ? ['두 사람 모두 점수가 높은 해라 함께 계획한 일을 시작하기에 좋아요.', '두 사람 모두 흐름이 좋은 해라 미뤄 둔 계획을 함께 추진해 보기 좋습니다.'][i]
             : gap
-              ? ['두 사람의 점수 차이가 큰 해라, 여유가 있는 쪽이 상대의 속도를 기다려 주면 관계가 안정되기 쉬워요.', '두 사람의 흐름이 엇갈리는 해라, 흐름이 좋은 쪽이 상대의 일을 먼저 도와주면 좋습니다.'][i]
+              ? ['두 사람의 점수 차이가 큰 해라, 여유가 있는 쪽이 상대의 속도를 기다려 주면 관계가 안정됩니다.', '두 사람의 흐름이 엇갈리는 해라, 흐름이 좋은 쪽이 상대의 일을 먼저 도와주면 좋습니다.'][i]
               : ['두 사람 모두 차분히 다지는 해라, 큰 결정보다 일상의 리듬을 맞추는 데 힘을 쓰는 것이 좋아요.', '두 사람 모두 무난하게 흐르는 해라, 함께하는 작은 습관을 하나 만들기 좋습니다.'][i];
           const sewoon = i === 0 ? terms.term('세운') : '세운';
           return `${ya[i]!.yr}년 — ${sewoon}의 천간이 ${who(A, '에게')} ${ea.pillar.stemTenGod}, ${who(B, '에게')} ${eb.pillar.stemTenGod}${particle(eb.pillar.stemTenGod, '으로', '로')} 들어오는 해예요. 달달사주 점수는 ${who(A, '은/는')} ${ea.scores.total}점, ${who(B, '은/는')} ${eb.scores.total}점이에요. ${tail}`;
         }),
-        `${target}년 ${terms.term('월운')}으로 보면 두 사람의 점수가 함께 높은 달은 ${goodTogether.map((i) => monthsA[i]!.label).join('·')}이에요. 여행이나 중요한 약속은 이때 잡아 보세요. ${monthsA[lowTogether]!.label}은 두 사람의 점수가 함께 낮은 달이라 일정에 여유를 두는 것이 좋습니다.`,
+        `${target}년 ${terms.term('월운')}으로 보면 두 사람의 점수가 함께 높은 달은 ${goodTogether.map((i) => monthsA[i]!.label).join('·')}이에요. 여행이나 중요한 약속은 이때 잡으세요. ${monthsA[lowTogether]!.label}은 두 사람의 점수가 함께 낮은 달이라 일정에 여유를 두는 것이 좋습니다.`,
       ],
       basis: `월운 점수(${target}년) ${A} ${monthsA.map((m) => m.score).join('·')} / ${B} ${monthsB.map((m) => m.score).join('·')} · ${A} ${da ? `${da.ganzhi.hangul} 대운 ${da.stemTenGod}` : '대운 전'} · ${B} ${db ? `${db.ganzhi.hangul} 대운 ${db.stemTenGod}` : '대운 전'} · ${thisYear}년 ${ya[0]!.ev.pillar.ganzhi.hangul} · ${thisYear + 1}년 ${ya[1]!.ev.pillar.ganzhi.hangul}`,
     },
@@ -1168,7 +1168,7 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
       paragraphs: [
         FORTUNE_TEMPLATES.compatibilityAdvice[r.grade],
         `두 사람이 특히 신경 쓰면 좋은 영역은 '${CATEGORY_LABEL[lowCat]}'${particle(CATEGORY_LABEL[lowCat], '이에요', '예요')}. 이 부분은 한 달에 한 번쯤 서로의 생각을 묻는 시간을 정해 두면 도움이 됩니다.`,
-        '궁합은 두 사람의 기운이 만나는 방식을 살펴보는 참고 자료입니다. 이 리포트를 서로를 이해하는 대화의 출발점으로 활용해 보세요.',
+        '궁합은 두 사람의 기운이 만나는 방식을 살펴보는 참고 자료입니다. 이 리포트를 서로를 이해하는 대화의 출발점으로 활용하세요.',
       ],
       basis: `궁합 등급 ${r.grade} · 가장 낮은 영역 ${CATEGORY_LABEL[lowCat]} ${r.categories[lowCat]}`,
     },

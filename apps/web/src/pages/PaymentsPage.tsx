@@ -10,6 +10,8 @@ import { formatDateKo, won } from '@/lib/format';
 
 const STATUS_LABEL = { pending: '결제 대기', paid: '결제 완료', failed: '실패', canceled: '취소', refunded: '환불' } as const;
 const REASON_LABEL: Record<string, string> = { purchase: '구매', consume: '사용', refund: '환불', bonus: '지급', admin: '운영' };
+/** 결제 수단 표시 — 웹은 그로블, 앱은 인앱결제 */
+const PROVIDER_LABEL: Record<string, string> = { groble: '그로블', toss: '토스페이먼츠', portone: '포트원', mock: '테스트 결제' };
 
 export function PaymentsPage() {
   const navigate = useNavigate();
@@ -33,7 +35,7 @@ export function PaymentsPage() {
             <p className="text-sm text-ink-3">AI 상담 질문권</p>
             <p className="tabular mt-1 text-3xl font-bold">{wallet.data.credits}회</p>
             <p className="mt-1 text-xs text-ink-3">
-              유상 {wallet.data.paidCredits} · 무상 {wallet.data.freeCredits} — 무상분부터 먼저 차감되며, 유효기간은 없습니다.
+              유상 {wallet.data.paidCredits} · 무상 {wallet.data.freeCredits} — 무상분부터 차감되며, 유효기간은 없습니다.
             </p>
             {wallet.data.ledger.length > 0 && (
               <ul className="mt-4 divide-y divide-line text-sm">
@@ -61,7 +63,7 @@ export function PaymentsPage() {
                     <Badge tone={o.status === 'paid' ? 'success' : 'default'}>{STATUS_LABEL[o.status]}</Badge>
                   </div>
                   <p className="tabular mt-1 text-sm text-ink-3">
-                    {formatDateKo(o.paidAt ?? o.createdAt)} · {won(o.amount)} · {o.provider.startsWith('iap') ? '인앱결제' : o.provider}
+                    {formatDateKo(o.paidAt ?? o.createdAt)} · {won(o.amount)} · {o.provider.startsWith('iap') ? '인앱결제' : (PROVIDER_LABEL[o.provider] ?? o.provider)}
                   </p>
                   <p className="mt-0.5 text-xs text-ink-3">주문번호 {o.id}</p>
                 </li>

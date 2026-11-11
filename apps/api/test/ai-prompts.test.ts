@@ -3,7 +3,7 @@
  * 리포트 다듬기(REPORT_SYSTEM)는 다른 기준으로 관리하므로 여기서 보지 않는다.
  */
 import { describe, expect, it } from 'vitest';
-import { CHAT_SYSTEM, DREAM_SYSTEM, PLAIN_VOICE, TAROT_SYSTEM } from '../src/modules/ai/service.js';
+import { CHAT_SYSTEM, DREAM_SYSTEM, PLAIN_VOICE, TAROT_SYSTEM, stackedHedgeCount } from '../src/modules/ai/service.js';
 import { toneProblems } from '../src/modules/interpretation/plainGuard.js';
 
 const PROMPTS = { chat: CHAT_SYSTEM, dream: DREAM_SYSTEM, tarot: TAROT_SYSTEM };
@@ -50,6 +50,20 @@ describe('AI 프롬프트 — 문체 지시', () => {
       expect(prompt).toMatch(/뜻을 붙입니다/);
     });
   }
+
+  it('추측은 한 겹만, 권유는 문단에 한 번 — 2026-11-11 개정 규칙을 지시한다', () => {
+    expect(PLAIN_VOICE).toMatch(/추측 표현은 한 문장에 한 번만/);
+    expect(PLAIN_VOICE).toMatch(/두 겹으로 겹치지 않습니다/);
+    expect(PLAIN_VOICE).toMatch(/"~해 보세요"는 많아야 한 번/);
+    // 좋은 예시에는 두 겹 추측이 없다
+    const goods = [...PLAIN_VOICE.matchAll(/좋음: "([^"]+)"/g)].map((m) => m[1]!);
+    expect(stackedHedgeCount(goods)).toBe(0);
+  });
+
+  it('두 겹 추측 세기 — 다듬은 글이 초안보다 많으면 초안을 쓴다', () => {
+    expect(stackedHedgeCount(['힘을 얻기 쉽다고 봐요.', '해결이 빨라질 수 있다고 봐요.', '배짱이 남다른 편으로 봐요.'])).toBe(3);
+    expect(stackedHedgeCount(['엇나가기 쉬운 때입니다.', '편관이 들어오는 해로 봅니다.', '좋은 인상을 남기기 좋아요.'])).toBe(0);
+  });
 
   it('안전 규칙은 그대로 남아 있다', () => {
     for (const p of [CHAT_SYSTEM, DREAM_SYSTEM, TAROT_SYSTEM]) expect(p).toContain('109');
