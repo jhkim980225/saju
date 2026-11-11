@@ -342,34 +342,34 @@ describe('하드웨어 뒤로가기', () => {
 
 describe('딥링크', () => {
   it('appUrlOpen 의 URL 을 pushState + popstate 로 라우팅한다', async () => {
-    vi.stubEnv('VITE_PUBLIC_WEB_URL', 'https://dalbitsaju.kr');
+    vi.stubEnv('VITE_PUBLIC_WEB_URL', 'https://daldalsaju.com');
     await boot();
     const open = h.appListeners.appUrlOpen!;
     const pops: PopStateEvent[] = [];
     listen('popstate', (e) => pops.push(e as PopStateEvent));
 
-    open({ url: 'https://dalbitsaju.kr/auth/callback/kakao?code=abc&state=xyz' });
+    open({ url: 'https://daldalsaju.com/auth/callback/kakao?code=abc&state=xyz' });
     expect(window.location.pathname).toBe('/auth/callback/kakao');
     expect(window.location.search).toBe('?code=abc&state=xyz');
     expect(pops).toHaveLength(1);
     expect(h.fn.browserClose).toHaveBeenCalledTimes(1); // 로그인용 인앱 브라우저 닫기
     const idx = (window.history.state as { idx: number }).idx;
 
-    open({ url: 'kr.dalbitsaju.app://payments/success?orderId=o1' });
+    open({ url: 'com.daldalsaju.app://payments/success?orderId=o1' });
     expect(`${window.location.pathname}${window.location.search}`).toBe('/payments/success?orderId=o1');
     expect((window.history.state as { idx: number }).idx).toBe(idx + 1); // react-router 인덱스 유지
 
-    open({ url: 'https://dalbitsaju.kr/today/' });
+    open({ url: 'https://daldalsaju.com/today/' });
     expect(window.location.pathname).toBe('/today');
 
     // 다른 도메인·허용되지 않은 경로·모르는 스킴은 무시
-    for (const url of ['https://evil.example/today', 'https://dalbitsaju.kr/admin', 'javascript:alert(1)', 'other.app://today']) open({ url });
+    for (const url of ['https://evil.example/today', 'https://daldalsaju.com/admin', 'javascript:alert(1)', 'other.app://today']) open({ url });
     expect(window.location.pathname).toBe('/today');
     expect(pops).toHaveLength(3);
   });
 
   it('콜드 스타트 링크(getLaunchUrl)와 알림 탭(data.link)도 라우팅한다', async () => {
-    h.launchUrl = { url: 'https://dalbitsaju.kr/reports/r1' };
+    h.launchUrl = { url: 'https://daldalsaju.com/reports/r1' };
     await boot();
     expect(window.location.pathname).toBe('/reports/r1');
 
@@ -378,11 +378,11 @@ describe('딥링크', () => {
   });
 
   it('resolveDeepLink 단위 규칙', async () => {
-    vi.stubEnv('VITE_PUBLIC_WEB_URL', 'https://dalbitsaju.kr');
-    vi.stubEnv('VITE_APP_URL_SCHEME', 'dalbitsaju');
+    vi.stubEnv('VITE_PUBLIC_WEB_URL', 'https://daldalsaju.com');
+    vi.stubEnv('VITE_APP_URL_SCHEME', 'daldalsaju');
     const { resolveDeepLink } = await import('../navigation');
-    expect(resolveDeepLink('dalbitsaju://auth/callback/apple?code=1#x')).toBe('/auth/callback/apple?code=1#x');
-    expect(resolveDeepLink('kr.dalbitsaju.app:///today')).toBe('/today');
+    expect(resolveDeepLink('daldalsaju://auth/callback/apple?code=1#x')).toBe('/auth/callback/apple?code=1#x');
+    expect(resolveDeepLink('com.daldalsaju.app:///today')).toBe('/today');
     expect(resolveDeepLink('capacitor://localhost/my')).toBe('/my');
     expect(resolveDeepLink('/yearly/p1?year=2027')).toBe('/yearly/p1?year=2027');
     expect(resolveDeepLink('/auth/callback/')).toBeNull();
@@ -448,15 +448,15 @@ describe('인앱결제', () => {
 
   it('iOS: transactionId 를 영수증으로 쓰고 finishTransaction 으로 마무리, 취소는 null', async () => {
     setPlatform('ios');
-    h.fn.purchaseProduct.mockResolvedValueOnce({ transactionId: '2000001', productIdentifier: 'kr.dalbitsaju.chat.10' });
+    h.fn.purchaseProduct.mockResolvedValueOnce({ transactionId: '2000001', productIdentifier: 'com.daldalsaju.chat.10' });
     const native = await boot();
     const { native: bridge } = await import('../../lib/platform');
-    expect(await bridge.purchase!('kr.dalbitsaju.chat.10')).toEqual({ receipt: '2000001' });
+    expect(await bridge.purchase!('com.daldalsaju.chat.10')).toEqual({ receipt: '2000001' });
     await native.finishPurchase('2000001');
     expect(h.fn.finishTransaction).toHaveBeenCalledWith({ transactionId: '2000001' });
 
     h.fn.purchaseProduct.mockRejectedValueOnce(Object.assign(new Error('User cancelled'), { code: '' }));
-    expect(await bridge.purchase!('kr.dalbitsaju.chat.10')).toBeNull();
+    expect(await bridge.purchase!('com.daldalsaju.chat.10')).toBeNull();
   });
 
   it('미완료 거래를 서버 검증 후 마무리한다', async () => {

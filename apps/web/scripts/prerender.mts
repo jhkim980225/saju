@@ -4,7 +4,7 @@
  * SPA 라서 JS 를 실행하지 않는 크롤러(네이버 등)는 index.html 기본값만 본다. 그래서 dist/<경로>/index.html 에
  * 그 화면의 <title>·description·canonical·og 태그를 미리 넣어 둔다(본문은 날마다 바뀌므로 그대로 JS 가 그린다).
  * nginx 의 `try_files $uri $uri/index.html /index.html` 이 이 파일을 먼저 집는다.
- * 함께 sitemap.xml·robots.txt 를 만든다(주소 기준: PUBLIC_WEB_URL, 기본 https://dalbitsaju.kr).
+ * 함께 sitemap.xml·robots.txt 를 만든다(주소 기준: PUBLIC_WEB_URL, 기본 https://daldalsaju.com).
  *
  * 실행: `npm run build -w @saju/web` 뒤에 자동(package.json build). 제목·설명은 화면 쪽(ZodiacPage·HoroscopePage·DreamPages)과 같아야 한다.
  */
@@ -15,8 +15,8 @@ import { FREE_FORTUNE_PERIODS, STAR_SIGNS, ZODIAC_ANIMALS, starSignDates, type F
 import { DREAM_CATEGORIES, DREAM_CATEGORY_META, DREAM_ENTRIES, dreamEntriesOf, dreamTitle } from '@saju/shared/dream';
 
 const DIST = path.resolve(fileURLToPath(new URL('../dist', import.meta.url)));
-const SITE = '달빛사주';
-const BASE = (process.env.PUBLIC_WEB_URL ?? 'https://dalbitsaju.kr').replace(/\/$/, '');
+const SITE = '달달사주';
+const BASE = (process.env.PUBLIC_WEB_URL ?? 'https://daldalsaju.com').replace(/\/$/, '');
 const TODAY = new Date().toISOString().slice(0, 10);
 
 const PERIOD_TITLE: Record<FreeFortunePeriod, string> = { today: '오늘의 운세', tomorrow: '내일의 운세', week: '이번 주 운세', month: '이번 달 운세', year: '올해 운세' };
@@ -41,7 +41,7 @@ interface Route {
 function routes(): Route[] {
   const year = Number(TODAY.slice(0, 4));
   const list: Route[] = [
-    { path: '/', title: '달빛사주 — 만세력 기반 사주풀이 · 오늘의 운세', description: '태어난 날과 시간으로 세운 사주팔자를 명리학 용어와 함께 알기 쉽게 풀이합니다. 보정 내역까지 공개하는 만세력과 매일 오늘의 운세.', changefreq: 'daily', priority: 1 },
+    { path: '/', title: '달달사주 — 만세력 기반 사주풀이 · 오늘의 운세', description: '태어난 날과 시간으로 세운 사주팔자를 명리학 용어와 함께 알기 쉽게 풀이합니다. 보정 내역까지 공개하는 만세력과 매일 오늘의 운세.', changefreq: 'daily', priority: 1 },
     { path: '/basics', title: `사주 기초 — 사주를 처음 접하는 분을 위한 안내 | ${SITE}`, description: '사주팔자, 천간과 지지, 일간, 오행, 십성, 용신, 대운까지 사주 풀이를 읽는 데 필요한 기본 개념을 순서대로 정리했습니다.', changefreq: 'monthly', priority: 0.7 },
     { path: '/tojeong', title: `토정비결 — 생년월일로 보는 한 해의 흐름 | ${SITE}`, description: '토정비결 144괘로 보는 한 해 운세와 열두 달 흐름. 생년월일만 넣으면 무료로 볼 수 있어요.', changefreq: 'weekly', priority: 0.8 },
     { path: '/manse', title: `만세력 — 날짜별 간지와 24절기 | ${SITE}`, description: '날짜를 고르면 그날의 연주·월주·일주와 그해 24절기 시각을 보여 주는 무료 만세력입니다.', changefreq: 'monthly', priority: 0.6 },

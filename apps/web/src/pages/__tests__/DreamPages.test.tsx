@@ -57,7 +57,7 @@ describe('꿈해몽 사전 화면', () => {
     const { unmount } = renderAt('/dream/뱀');
     expect(screen.getByRole('heading', { level: 1, name: '뱀 꿈 해몽' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '상황별 풀이' })).toBeInTheDocument();
-    expect(document.title).toBe('뱀 꿈 해몽 — 뜻과 상황별 풀이 | 달빛사주');
+    expect(document.title).toBe('뱀 꿈 해몽 — 뜻과 상황별 풀이 | 달달사주');
     expect(document.head.querySelector('meta[name="description"]')?.getAttribute('content')).toMatch(/길몽이에요\. .*상황별 풀이를 정리했어요\.$/);
     expect(decodeURI(document.head.querySelector('link[rel="canonical"]')!.getAttribute('href')!)).toMatch(/\/dream\/뱀$/);
     unmount();

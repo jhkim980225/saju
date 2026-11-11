@@ -25,7 +25,7 @@ export function ZodiacHubPage() {
   const today = todayKst();
   const overview = useQuery({ queryKey: ['zodiac', 'overview', 'today', today.iso], queryFn: () => api.zodiacOverview('today', today.iso), staleTime: 10 * 60_000 });
   usePageMeta({
-    title: '띠별 운세 — 12띠 오늘의 운세 | 달빛사주',
+    title: '띠별 운세 — 12띠 오늘의 운세 | 달달사주',
     description: '쥐띠부터 돼지띠까지 열두 띠의 오늘·내일·이번 주·이번 달·올해 운세. 그날의 띠와 내 띠가 잘 맞는지 푼 이유와 년생별 한 줄까지 무료로 보여 드려요.',
     path: '/zodiac',
   });
@@ -140,7 +140,7 @@ function ZodiacDetail({ animal, period }: { animal: ZodiacAnimal; period: FreeFo
   const title = `${animal.name}띠 ${PERIOD_TITLE[period]}`;
   const years = birthYearsOf(animal, today.year);
   usePageMeta({
-    title: `${title} — 띠별 운세 | 달빛사주`,
+    title: `${title} — 띠별 운세 | 달달사주`,
     description: `${animal.name}띠 ${PERIOD_TITLE[period]}. 그 기간의 띠와 ${animal.name}띠가 잘 맞는지로 풀고, ${years.slice(-5).join('·')}년생 등 년생별 한 줄까지 무료로 보여 드려요.`,
     path: zodiacPath(animal.slug, period),
   });

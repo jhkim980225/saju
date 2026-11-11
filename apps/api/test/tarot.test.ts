@@ -150,7 +150,7 @@ describe('타로 API', () => {
     const lockedSaju = res.body.sections.find((s: any) => s.key === 'saju');
     expect(lockedSaju.summary).toMatch(/카드예요$/);
     expect(lockedSaju.basis).toBeUndefined();
-    expect(res.body.basis).toContain('달빛사주 방식');
+    expect(res.body.basis).toContain('달달사주 방식');
   });
 
   it('같은 날 같은 질문은 다시 뽑지 않는다 (셔플 단계 안내 + 409)', async () => {
@@ -264,11 +264,11 @@ describe('2차 펼침 방식 정의', () => {
     for (const t of TAROT_SPREAD_TOPICS) expect(TAROT_TOPICS[t].spread).toBe(t);
   });
 
-  it('카탈로그 — 990 / 2,900 / 4,900원, 리딩 1건을 여는 권한, kr.dalbitsaju.* 상품 ID', () => {
+  it('카탈로그 — 990 / 2,900 / 4,900원, 리딩 1건을 여는 권한, com.daldalsaju.* 상품 ID', () => {
     const byId = (id: string) => CATALOG.find((c) => c.id === id)!;
-    expect(byId('tarot_choice_3')).toMatchObject({ price: 990, credits: 1, grants: ['tarot:reading'], iosProductId: 'kr.dalbitsaju.tarot.choice3', androidProductId: 'tarot_choice_3', type: 'one_time' });
-    expect(byId('tarot_compat_5')).toMatchObject({ price: 2900, credits: 1, grants: ['tarot:reading'], iosProductId: 'kr.dalbitsaju.tarot.compat5', androidProductId: 'tarot_compat_5', type: 'one_time' });
-    expect(byId('tarot_celtic_10')).toMatchObject({ price: 4900, credits: 3, grants: ['tarot:reading'], iosProductId: 'kr.dalbitsaju.tarot.celtic10', androidProductId: 'tarot_celtic_10', type: 'one_time' });
+    expect(byId('tarot_choice_3')).toMatchObject({ price: 990, credits: 1, grants: ['tarot:reading'], iosProductId: 'com.daldalsaju.tarot.choice3', androidProductId: 'tarot_choice_3', type: 'one_time' });
+    expect(byId('tarot_compat_5')).toMatchObject({ price: 2900, credits: 1, grants: ['tarot:reading'], iosProductId: 'com.daldalsaju.tarot.compat5', androidProductId: 'tarot_compat_5', type: 'one_time' });
+    expect(byId('tarot_celtic_10')).toMatchObject({ price: 4900, credits: 3, grants: ['tarot:reading'], iosProductId: 'com.daldalsaju.tarot.celtic10', androidProductId: 'tarot_celtic_10', type: 'one_time' });
     expect(TAROT_SPREADS.choice.productId).toBe('tarot_choice_3');
     expect(TAROT_SPREADS.compat.productId).toBe('tarot_compat_5');
     expect(TAROT_SPREADS.celtic.productId).toBe('tarot_celtic_10');

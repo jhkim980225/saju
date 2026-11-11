@@ -58,7 +58,7 @@ export default defineConfig({
         // 메일 연동 없음 → 비밀번호 찾기는 문의 안내 화면 (재설정 메일 흐름은 API 단위 테스트가 검증)
         RESEND_API_KEY: '',
         MAIL_FROM: '',
-        SUPPORT_EMAIL: 'help@dalbitsaju.test',
+        SUPPORT_EMAIL: 'help@daldalsaju.test',
         // 요청 수 제한은 운영(NODE_ENV=production)에서만 켜진다 — 테스트마다 게스트·회원을 새로 만들어도 막히지 않는다
         DAILY_PUSH_ENABLED: 'false',
         ADS_ENABLED: 'false',

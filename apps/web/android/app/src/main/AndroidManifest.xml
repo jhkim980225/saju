@@ -42,15 +42,15 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="dalbitsaju.kr" />
+                <data android:scheme="https" android:host="daldalsaju.com" />
             </intent-filter>
             <!-- 커스텀 스킴 딥링크 -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="kr.dalbitsaju.app" />
-                <data android:scheme="dalbitsaju" />
+                <data android:scheme="com.daldalsaju.app" />
+                <data android:scheme="daldalsaju" />
             </intent-filter>
         </activity>
 

@@ -20,7 +20,6 @@ export function t(key: string, vars?: Record<string, string | number>): string {
 
 export const BRAND = {
   name: t('brand.name'),
-  hanja: t('brand.nameHanja'),
   slogan: t('brand.slogan'),
   tagline: t('brand.tagline'),
 };

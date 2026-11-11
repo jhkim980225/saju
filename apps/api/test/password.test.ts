@@ -10,8 +10,8 @@ import { loadConfig } from '../src/config/env.js';
 import { createDb, runMigrations } from '../src/db/local.js';
 import { seedProducts } from '../src/db/seed.js';
 
-const BASE_ENV = { __SKIP_ENV_FILE: '1', NODE_ENV: 'test', PAYMENT_PROVIDER: 'mock', ANTHROPIC_API_KEY: '', SIGNUP_BONUS_CREDITS: '0', PUBLIC_WEB_URL: 'https://dalbitsaju.test/' };
-const MAIL_ENV = { RESEND_API_KEY: 're_test_key', MAIL_FROM: '달빛사주 <no-reply@dalbitsaju.test>', SUPPORT_EMAIL: 'help@dalbitsaju.test' };
+const BASE_ENV = { __SKIP_ENV_FILE: '1', NODE_ENV: 'test', PAYMENT_PROVIDER: 'mock', ANTHROPIC_API_KEY: '', SIGNUP_BONUS_CREDITS: '0', PUBLIC_WEB_URL: 'https://daldalsaju.test/' };
+const MAIL_ENV = { RESEND_API_KEY: 're_test_key', MAIL_FROM: '달달사주 <no-reply@daldalsaju.test>', SUPPORT_EMAIL: 'help@daldalsaju.test' };
 
 async function makeApp(overrides: Record<string, string>) {
   const config = loadConfig({ ...BASE_ENV, ...overrides });
@@ -44,7 +44,7 @@ describe('공개 설정', () => {
     const r = await api('GET', '/config');
     expect(r.status).toBe(200);
     expect(r.body.features.mail).toBe(true);
-    expect(r.body.supportEmail).toBe('help@dalbitsaju.test');
+    expect(r.body.supportEmail).toBe('help@daldalsaju.test');
   });
 });
 
@@ -66,8 +66,8 @@ describe('재설정 메일 흐름', () => {
     expect(outbox()).toHaveLength(1);
     const mail = outbox()[0]!;
     expect(mail.to).toBe(email);
-    expect(mail.subject).toBe('달빛사주 비밀번호 재설정');
-    expect(mail.text).toContain('https://dalbitsaju.test/password/reset?token=');
+    expect(mail.subject).toBe('달달사주 비밀번호 재설정');
+    expect(mail.text).toContain('https://daldalsaju.test/password/reset?token=');
     expect(mail.text).toContain('30분');
     expect(mail.text).toContain('본인이 요청하지 않았다면');
     expect(mail.html).toContain('새 비밀번호 정하기');

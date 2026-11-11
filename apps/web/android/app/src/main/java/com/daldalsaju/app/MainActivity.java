@@ -1,4 +1,4 @@
-package kr.dalbitsaju.app;
+package com.daldalsaju.app;
 
 import com.getcapacitor.BridgeActivity;
 

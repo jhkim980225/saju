@@ -4,7 +4,7 @@
  * 문체 기준(docs/PLAIN_KOREAN.md): 사주를 처음 접하는 성인이 읽는 전문 서비스의 글.
  * - 장마다 결론을 먼저 말한다. 정식 명리학 용어를 쓰되 처음 나올 때 뜻을 붙이고(termTracker), 한자·간지·점수는 basis('사주로 보면')에 둔다.
  * - 이름이 있으면 "○○님은"으로 부르고, 없으면 주어를 뺀다("당신"은 쓰지 않는다).
- * - 시기는 연도로, 점수는 '아주 좋음 / 좋음 / 보통 / 낮음'(달빛사주 기준)으로 말한다.
+ * - 시기는 연도로, 점수는 '아주 좋음 / 좋음 / 보통 / 낮음'(달달사주 기준)으로 말한다.
  *
  * 구성(12장): 한눈에 보기 → 돈이 들어오는 방식 → 감당하기 좋은 돈의 크기 → 버는·지키는 방식 → 일하는 방식
  *   → 어울리는 분야 → 직장형·독립형 → 앞으로 10년 → 가까운 3년 → 조심할 점 → 돈 습관 → 마무리.
@@ -211,7 +211,7 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
       `용신 ${EL_TERM[y.yongsin]}`,
       `가장 강한 십성 무리 ${top}`,
       `직장형·독립형 ${org}:${indep}`,
-      `재물 최고 ${bestWealth[0]!.year} ${bestWealth[0]!.hanja} · 일 최고 ${bestCareer[0]!.year} ${bestCareer[0]!.hanja}(달빛사주 기준)`,
+      `재물 최고 ${bestWealth[0]!.year} ${bestWealth[0]!.hanja} · 일 최고 ${bestCareer[0]!.year} ${bestCareer[0]!.hanja}(달달사주 기준)`,
       ...(transitions.length ? [`전환 신호 ${transitions.map((x) => `${x.year}(${x.keys.map((k) => TRANSITION_TERM[k]).join('·')})`).join(', ')}`] : []),
     ].join(' · '),
   };
@@ -231,14 +231,14 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
       termsPara,
       wealthLevel === 'none'
         ? `재성에 해당하는 오행인 ${el(wealthEl, '은', '는')} 사주에서 거의 보이지 않아요. ${C.wealthLevel.none}`
-        : `재성에 해당하는 오행인 ${el(wealthEl)}의 비중은 지장간까지 반영한 달빛사주 기준으로 약 ${wealthPct}%예요. ${C.wealthLevel[wealthLevel]}`,
+        : `재성에 해당하는 오행인 ${el(wealthEl)}의 비중은 지장간까지 반영한 달달사주 기준으로 약 ${wealthPct}%예요. ${C.wealthLevel[wealthLevel]}`,
       ...(['재성', '식상', '비겁'] as const).filter((k) => g[k] === 0 && !(k === '재성' && structureKey === 'hiddenWealth')).map((k) => C.groupAbsentMoney[k]),
       `먼저 강점입니다. ${S.strength}`,
       `한편 ${S.watch}`,
       S.leak,
       S.grow,
     ],
-    basis: `십성 ${groupsTerm} → ${S.term} · 재물 오행 ${EL_TERM[wealthEl]} 약 ${wealthPct}%(지장간·월령 가중, 달빛사주 기준)`,
+    basis: `십성 ${groupsTerm} → ${S.term} · 재물 오행 ${EL_TERM[wealthEl]} 약 ${wealthPct}%(지장간·월령 가중, 달달사주 기준)`,
   };
 
   // ── 감당하기 좋은 돈의 크기 ──────────────────────────────
@@ -255,7 +255,7 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
     summary: BAND_SUMMARY[band],
     paragraphs: [
       `${t('신강·신약', '으로')} 보면 ${nameSubject(name, '은')}${level}에 해당해요. ${C.strength[level].vessel}`,
-      `일간을 돕는 기운(일간과 같은 오행, 일간을 생하는 오행)의 비중은 ${Math.round(st.score)}%로 ${C.helpShare[shareKey]}. 이 비중과 단계 이름은 달빛사주가 계산한 지표입니다. ${helpText}`,
+      `일간을 돕는 기운(일간과 같은 오행, 일간을 생하는 오행)의 비중은 ${Math.round(st.score)}%로 ${C.helpShare[shareKey]}. 이 비중과 단계 이름은 달달사주가 계산한 지표입니다. ${helpText}`,
       C.strength[level].scale,
       C.strength[level].work,
       strengthWealth,
@@ -263,7 +263,7 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
       C.monthStage[monthStage],
     ],
     tips: [C.strength[level].action],
-    basis: `일간의 힘 ${level}(돕는 기운 ${Math.round(st.score)}%, 달빛사주 기준)${helps.length ? ` · ${helps.map((k) => terms[k]).join('·')}` : ''} · 재성 ${g.재성} · 월지 12운성 ${monthStage}`,
+    basis: `일간의 힘 ${level}(돕는 기운 ${Math.round(st.score)}%, 달달사주 기준)${helps.length ? ` · ${helps.map((k) => terms[k]).join('·')}` : ''} · 재성 ${g.재성} · 월지 12운성 ${monthStage}`,
   };
 
   // ── 버는 방식과 지키는 방식 ──────────────────────────────
@@ -315,7 +315,7 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
       `일에서 쓰는 강점은 ${pp([...S2.strengths].join(', '), '이에요', '예요')}.`,
       `보완하면 좋은 점도 있어요. ${S2.caution}`,
     ],
-    basis: `십성 세력(자리별 가중치, 달빛사주 기준) ${GROUPS.map((k) => `${k} ${share(k)}%`).join(' · ')} · 월지 ${mb.hanja}(${mb.tenGod}) · 일주 ${chart.pillars.day.ganzhi.hanja}`,
+    basis: `십성 세력(자리별 가중치, 달달사주 기준) ${GROUPS.map((k) => `${k} ${share(k)}%`).join(' · ')} · 월지 ${mb.hanja}(${mb.tenGod}) · 일주 ${chart.pillars.day.ganzhi.hanja}`,
   };
 
   // ── 어울리는 일과 분야 ────────────────────────────────────
@@ -334,7 +334,7 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
     summary: `${E.fields.slice(0, 2).join(', ')} 같은 일이 잘 맞아요`,
     keywords: E.fields.slice(0, 4),
     paragraphs: [
-      `${nameSubject(name, '의')}${t('용신', '은', '는')} ${el(y.yongsin)}입니다. 그래서 ${E.why} 용신은 학파와 방법에 따라 달라질 수 있으며, 달빛사주는 일간의 강약을 기준으로 정하는 간이 방식(억부)을 씁니다.`,
+      `${nameSubject(name, '의')}${t('용신', '은', '는')} ${el(y.yongsin)}입니다. 그래서 ${E.why} 용신은 학파와 방법에 따라 달라질 수 있으며, 달달사주는 일간의 강약을 기준으로 정하는 간이 방식(억부)을 씁니다.`,
       `이런 일로는 ${E.fields.join(', ')} 같은 분야가 있어요.`,
       `${t('희신')}인 ${el(y.heesin, '과', '와')} 관련된 ${H.fields.slice(0, 3).join(', ')}도 함께 살펴볼 만해요.`,
       `반대로 ${t('기신')}인 ${el(y.gisin)}의 성질로 보면, ${C.gisinEnvironment[y.gisin]}`,
@@ -353,7 +353,7 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
     summary: EMP.summary,
     paragraphs: [
       `${nameSubject(name, '은')}조직과 독립 가운데 '${EMP.title}'에 조금 더 가까워요. ${EMP.body}`,
-      `달빛사주는 ${t('관성', '과', '와')} ${t('인성', '을', '를')} 조직 안에서 인정받으며 크는 기운으로, 식상·비겁·${t('편재', '을', '를')} 스스로 일을 꾸리는 기운으로 봅니다. ${C.employmentIntro}`,
+      `달달사주는 ${t('관성', '과', '와')} ${t('인성', '을', '를')} 조직 안에서 인정받으며 크는 기운으로, 식상·비겁·${t('편재', '을', '를')} 스스로 일을 꾸리는 기운으로 봅니다. ${C.employmentIntro}`,
       C.employmentByStrength[band],
       C.employmentPath[employmentKey],
       C.employmentCheck[employmentKey],
@@ -382,7 +382,7 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
   } else if (next) {
     daeunLines.push(`첫 대운은 ${next.startYear}년에 시작돼요. 그 전까지는 타고난 사주와 해마다 들어오는 세운의 영향이 더 직접 드러난다고 봐요.`);
   } else {
-    daeunLines.push('달빛사주가 계산한 대운의 마지막 단계를 지나, 해마다 들어오는 세운의 영향을 더 직접 받는 때로 봐요.');
+    daeunLines.push('달달사주가 계산한 대운의 마지막 단계를 지나, 해마다 들어오는 세운의 영향을 더 직접 받는 때로 봐요.');
   }
   if (next && cur) {
     const ngrp = TEN_GOD_GROUP[next.stemTenGod];
@@ -420,7 +420,7 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
       ...infos.map((x) => `${x.year} ${x.hanja} 재물 ${x.wealth}·일 ${x.career}(${x.stemTenGod}${x.ev.fit.stem !== 'neutral' ? `, ${x.ev.fit.stem === 'yongsin' ? '용신' : x.ev.fit.stem === 'heesin' ? '희신' : '기신'}` : ''}${x.signals.length ? `, ${x.signals.map((k) => SIGNAL_TERM[k]).join(', ')}` : ''})`),
       ...(cur ? [`대운 ${cur.startYear}~${cur.endYear} ${cur.ganzhi.hanja}(${cur.stemTenGod})`] : []),
       ...(next ? [`대운 ${next.startYear}~${next.endYear} ${next.ganzhi.hanja}(${next.stemTenGod})`] : []),
-      '재물·일 점수와 등급은 달빛사주 기준',
+      '재물·일 점수와 등급은 달달사주 기준',
     ].join(' · '),
   };
 

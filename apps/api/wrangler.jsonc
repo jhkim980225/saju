@@ -1,4 +1,4 @@
-// 달빛사주 — Cloudflare Worker 하나로 웹(정적 파일)과 API 를 낸다. 배포: docs/DEPLOY.md
+// 달달사주 — Cloudflare Worker 하나로 웹(정적 파일)과 API 를 낸다. 배포: docs/DEPLOY.md
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "dalbit-saju",
@@ -50,9 +50,9 @@
   // 비밀이 아닌 설정. 키·비밀번호는 wrangler secret put <이름> (docs/ENV_KEYS.md)
   "vars": {
     "NODE_ENV": "production",
-    "APP_NAME": "달빛사주",
-    "PUBLIC_WEB_URL": "https://dalbitsaju.kr",
-    "CORS_ORIGINS": "https://dalbitsaju.kr,capacitor://localhost,https://localhost,http://localhost",
+    "APP_NAME": "달달사주",
+    "PUBLIC_WEB_URL": "https://daldalsaju.com",
+    "CORS_ORIGINS": "https://daldalsaju.com,capacitor://localhost,https://localhost,http://localhost",
     "PAYMENT_PROVIDER": "groble",
     "DAILY_PUSH_ENABLED": "true"
   }

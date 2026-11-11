@@ -13,7 +13,7 @@
 
 ## 뒷면
 
-`public/tarot/back.webp` — 달빛사주 디자인(남색 바탕, 금빛 이중 테두리, 가운데 초승달과 팔각 별, 위아래 대칭). SVG 를 sharp 로 webp 변환했다.
+`public/tarot/back.webp` — 달달사주 디자인(남색 바탕, 금빛 이중 테두리, 가운데 초승달과 팔각 별, 위아래 대칭). SVG 를 sharp 로 webp 변환했다.
 
 ## 이력
 

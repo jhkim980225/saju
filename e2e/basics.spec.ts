@@ -62,7 +62,7 @@ test('첫 화면에서는 사주 기초가 팝업으로 열리고, 전체 운세
   await expect(page).toHaveURL(/\/basics$/);
 });
 
-test('달빛사주 자체 계산 기준은 전통 개념과 따로 표시한다', async ({ page }) => {
+test('달달사주 자체 계산 기준은 전통 개념과 따로 표시한다', async ({ page }) => {
   await page.goto('/basics');
   // 신강·신약 점수, 대운 시작 나이, 용신 계산 방식
   await expect(page.getByText(/일간의 강약을 0~100점으로 환산해/)).toBeVisible();

@@ -126,7 +126,7 @@ export function CompatibilityPage() {
                   <p className="tabular mt-3 font-serif text-6xl font-semibold">{r.result.score}</p>
                   <p className="mt-1 text-sm font-semibold text-gold">{r.gradeLabel}</p>
                   <p className="mt-4 font-serif text-lg leading-snug">{r.headline}</p>
-                  <p className="mt-2 text-xs text-ink-3">두 사람의 태어난 날 글자(일간·일지)와 띠의 관계, 오행의 보완 정도를 달빛사주 기준으로 환산한 점수예요(100점 만점, 서비스 자체 지표).</p>
+                  <p className="mt-2 text-xs text-ink-3">두 사람의 태어난 날 글자(일간·일지)와 띠의 관계, 오행의 보완 정도를 달달사주 기준으로 환산한 점수예요(100점 만점, 서비스 자체 지표).</p>
                   <p className="mt-6 text-left text-sm text-ink-3">항목별 점수 — 막대가 길수록 잘 맞는 편입니다.</p>
                   <ul className="mt-3 space-y-3 text-left">
                     {(Object.keys(CAT_LABEL) as (keyof typeof CAT_LABEL)[]).map((k) => (

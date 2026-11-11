@@ -705,7 +705,7 @@ export interface TarotCardDto {
   keywords: string[];
   /** 전통적인 카드 뜻 한 줄 */
   meaning: string;
-  /** 달빛사주 방식의 오행 연결 */
+  /** 달달사주 방식의 오행 연결 */
   element: 'wood' | 'fire' | 'earth' | 'metal' | 'water';
   yesNo: 'yes' | 'no' | 'maybe';
 }

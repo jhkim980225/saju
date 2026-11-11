@@ -2,7 +2,7 @@
  * 규칙 기반 해석 생성기 — 계산 엔진 결과 + 콘텐츠 문구를 조합해 사람이 읽을 풀이를 만든다.
  * AI(Claude)가 설정되면 ai.ts 가 이 결과를 초안으로 삼아 문장을 다듬는다.
  * 문체(docs/PLAIN_KOREAN.md): 정식 명리학 용어를 쓰고, 한 화면에서 처음 나올 때 뜻을 붙인다(defineTerms).
- * 점수·등급·오행 개수·신강·신약 점수·용신 계산·대운 시작 나이처럼 달빛사주가 정한 기준은 화면에서 한 번 '달빛사주 기준'이라고 밝힌다.
+ * 점수·등급·오행 개수·신강·신약 점수·용신 계산·대운 시작 나이처럼 달달사주가 정한 기준은 화면에서 한 번 '달달사주 기준'이라고 밝힌다.
  */
 import { YEARLY_CATEGORY } from './content/fortuneTemplates.js';
 import { TEN_GOD_PLAIN } from './content/tenGods.js';
@@ -64,7 +64,7 @@ export function targetFortuneYear(now = new Date()): number {
 }
 
 export const DISCLAIMER =
-  '이 풀이는 명리학 이론을 바탕으로 한 참고용 해석입니다. 점수와 등급 같은 지표는 달빛사주 기준으로 계산한 것이며, 중요한 결정은 풀이에만 의존하지 말고 충분히 검토한 뒤 내려 주세요.';
+  '이 풀이는 명리학 이론을 바탕으로 한 참고용 해석입니다. 점수와 등급 같은 지표는 달달사주 기준으로 계산한 것이며, 중요한 결정은 풀이에만 의존하지 말고 충분히 검토한 뒤 내려 주세요.';
 
 export const EL_NAME: Record<Element, string> = { wood: '목(木)', fire: '화(火)', earth: '토(土)', metal: '금(金)', water: '수(水)' };
 export const EL_SHORT: Record<Element, string> = { wood: '나무', fire: '불', earth: '흙', metal: '쇠', water: '물' };
@@ -239,7 +239,7 @@ function overviewSection(chart: SajuChart, name: string | null): ReadingSection 
     keywords: [...dm.keywords.slice(0, 3), STRENGTH_PLAIN[chart.strength.level].chip],
     paragraphs: [
       `${nameSubject(name, '은')}${STEM_PLAIN[chart.dayMaster.index]!.line}`,
-      `달빛사주의 억부 중심 간이 계산으로는 ${EL_KO[yong]}(${ELEMENT_PLAIN[yong].name}) 기운이 사주의 균형에 가장 도움이 된다고 보며, 생활 습관으로 옮기면 '${need.need}'에 가깝습니다. 아래 '용신' 항목에서 구체적인 방법을 안내합니다.`,
+      `달달사주의 억부 중심 간이 계산으로는 ${EL_KO[yong]}(${ELEMENT_PLAIN[yong].name}) 기운이 사주의 균형에 가장 도움이 된다고 보며, 생활 습관으로 옮기면 '${need.need}'에 가깝습니다. 아래 '용신' 항목에서 구체적인 방법을 안내합니다.`,
     ],
     basis: `${chart.pillars.day.ganzhi.hangul}(${chart.pillars.day.ganzhi.hanja})일주 · 일간 ${dm.name} · 가장 강한 기운 ${EL_NAME[chart.elements.dominant]} · 용신 ${EL_NAME[chart.yongsin.yongsin]}`,
   };
@@ -277,7 +277,7 @@ function elementsSection(chart: SajuChart): ReadingSection {
   for (const el of none) paragraphs.push(`${EL_KO[el]} 기운은 하나도 없어요. ${ELEMENT_PLAIN[el].none}`);
   if (many.length === 0 && none.length === 0) paragraphs.push('다섯 오행이 고르게 분포해 있어, 상황에 따라 유연하게 대응하기 쉬운 구조로 봐요.');
   paragraphs.push(
-    `이 개수는 ${n} 글자를 단순히 센 달빛사주 기준 집계로, 지장간과 태어난 계절의 영향은 반영하지 않았어요.${
+    `이 개수는 ${n} 글자를 단순히 센 달달사주 기준 집계로, 지장간과 태어난 계절의 영향은 반영하지 않았어요.${
       none.length ? ' 또한 없는 오행이 곧 채워야 할 기운을 뜻하지는 않습니다. 사주에 필요한 기운은 일간의 강약을 함께 따져 정하며, 바로 아래에서 설명합니다.' : ''
     }`,
   );
@@ -294,7 +294,7 @@ function elementsSection(chart: SajuChart): ReadingSection {
     title: '오행 분포',
     summary,
     paragraphs,
-    basis: `오행 개수(천간·지지 ${n} 글자 기준, 달빛사주 집계) ${ELEMENT_KEYS.map((k) => `${EL_NAME[k].slice(0, 1)}${e.count[k]}`).join(' ')} · 지장간·월령을 반영한 비중은 사주분석서에서 다뤄요`,
+    basis: `오행 개수(천간·지지 ${n} 글자 기준, 달달사주 집계) ${ELEMENT_KEYS.map((k) => `${EL_NAME[k].slice(0, 1)}${e.count[k]}`).join(' ')} · 지장간·월령을 반영한 비중은 사주분석서에서 다뤄요`,
   };
 }
 
@@ -306,11 +306,11 @@ function yongsinSection(chart: SajuChart, name: string | null): ReadingSection {
   const el = ELEMENT_PLAIN[y.yongsin];
   const k = EL_KO[y.yongsin];
   const n = charCount(chart);
-  // 용신을 고른 까닭 — 달빛사주의 억부 중심 간이 계산(엔진 determineYongsin 과 같은 규칙)
+  // 용신을 고른 까닭 — 달달사주의 억부 중심 간이 계산(엔진 determineYongsin 과 같은 규칙)
   const reason =
     y.method === '중화'
-      ? `${STRENGTH_PHRASE[s.level]}(달빛사주 기준 100점 만점에 ${s.score}점)에 해당해, 지장간과 계절까지 반영한 비중이 가장 약한 ${k} 기운을 보완하는 방식으로 정했어요.`
-      : `${STRENGTH_PHRASE[s.level]}(달빛사주 기준 100점 만점에 ${s.score}점)에 해당해, ${YONGSIN_ROLE[groupOfElement(chart, y.yongsin)]} ${k} 기운이 균형에 도움이 된다고 봅니다.`;
+      ? `${STRENGTH_PHRASE[s.level]}(달달사주 기준 100점 만점에 ${s.score}점)에 해당해, 지장간과 계절까지 반영한 비중이 가장 약한 ${k} 기운을 보완하는 방식으로 정했어요.`
+      : `${STRENGTH_PHRASE[s.level]}(달달사주 기준 100점 만점에 ${s.score}점)에 해당해, ${YONGSIN_ROLE[groupOfElement(chart, y.yongsin)]} ${k} 기운이 균형에 도움이 된다고 봅니다.`;
   return {
     key: 'yongsin',
     title: '용신 — 나에게 필요한 기운',
@@ -320,11 +320,11 @@ function yongsinSection(chart: SajuChart, name: string | null): ReadingSection {
       `용신(用神)은 사주의 균형과 흐름에 가장 도움이 된다고 보는 오행을 말합니다. 단순히 사주에 없거나 부족한 오행을 뜻하지는 않아요. ${nameSubject(name, '의')}용신은 ${k}(${el.name}) 기운으로 봐요.`,
       `${reason} 신강·신약 점수는 일간을 돕는 기운의 비중을 0~100점으로 환산한 서비스 자체 지표예요.`,
       `생활 습관으로 옮기면 '${el.need}'에 가깝습니다. ${el.needMore}${chart.elements.count[y.yongsin] === 0 ? ` 사주의 ${n} 글자 가운데 ${k} 기운은 하나도 없어, 운에서 이 기운이 들어오는 시기를 더 의미 있게 봅니다.` : ''}`,
-      `용신을 정하는 방법은 일간의 강약을 조절하는 억부, 계절의 차고 더움을 조절하는 조후, 사주의 구조를 보는 격국 등 여러 가지이며 학파에 따라 결과가 다를 수 있습니다. 달빛사주는 억부를 중심으로 한 간이 계산으로 용신을 정하고${y.method === '중화' ? '' : '(강약이 균형에 가까우면 비중이 가장 약한 오행으로 정해요)'}, 조후와 격국은 반영하지 않은 참고용 판단이에요.`,
+      `용신을 정하는 방법은 일간의 강약을 조절하는 억부, 계절의 차고 더움을 조절하는 조후, 사주의 구조를 보는 격국 등 여러 가지이며 학파에 따라 결과가 다를 수 있습니다. 달달사주는 억부를 중심으로 한 간이 계산으로 용신을 정하고${y.method === '중화' ? '' : '(강약이 균형에 가까우면 비중이 가장 약한 오행으로 정해요)'}, 조후와 격국은 반영하지 않은 참고용 판단이에요.`,
       '일상에서는 이런 것부터 해 보세요.',
     ],
     tips: c.tips.slice(0, 4),
-    basis: `용신 ${EL_NAME[y.yongsin]} · 희신 ${EL_NAME[y.heesin].slice(0, -1)}, 용신을 생하는 오행) · 기신 ${EL_NAME[y.gisin].slice(0, -1)}, 용신을 극하는 오행) · 일간의 강약 ${s.level} ${s.score}점(달빛사주 지표) · ${y.method === '중화' ? '강약이 균형에 가까워 비중이 가장 약한 오행' : '억부법(간이)'}`,
+    basis: `용신 ${EL_NAME[y.yongsin]} · 희신 ${EL_NAME[y.heesin].slice(0, -1)}, 용신을 생하는 오행) · 기신 ${EL_NAME[y.gisin].slice(0, -1)}, 용신을 극하는 오행) · 일간의 강약 ${s.level} ${s.score}점(달달사주 지표) · ${y.method === '중화' ? '강약이 균형에 가까워 비중이 가장 약한 오행' : '억부법(간이)'}`,
   };
 }
 
@@ -361,7 +361,7 @@ function shinsalSection(chart: SajuChart): ReadingSection {
       key: 'shinsal',
       title: '신살 — 타고난 특별한 기운',
       summary: '두드러진 신살이 없는 사주예요',
-      paragraphs: ['신살(神殺)은 특정 글자의 조합에 붙이는 이름으로, 성향을 해석할 때 참고하는 보조 요소입니다. 달빛사주가 살펴보는 신살 가운데 해당하는 것이 없으며, 신살이 없다고 해서 좋거나 나쁜 것은 아니에요.'],
+      paragraphs: ['신살(神殺)은 특정 글자의 조합에 붙이는 이름으로, 성향을 해석할 때 참고하는 보조 요소입니다. 달달사주가 살펴보는 신살 가운데 해당하는 것이 없으며, 신살이 없다고 해서 좋거나 나쁜 것은 아니에요.'],
     };
   }
   // 도움이 되는 기운을 먼저, 조심할 기운은 하나만 — 첫 화면에서 겁주지 않게
@@ -400,7 +400,7 @@ function wealthSection(chart: SajuChart, name: string | null): ReadingSection {
     summary: g.재성 ? '돈이 들고 나는 흐름을 잘 읽는 편이에요' : '실력을 쌓을수록 수입이 늘어나기 쉬운 사주예요',
     paragraphs: p,
     score,
-    basis: `재성 ${g.재성} · 식상 ${g.식상} · 비겁 ${g.비겁} (일간을 뺀 천간·지지의 십성 개수, 지지는 지장간 본기 기준) · 분야별 점수는 이 개수로 환산한 달빛사주 지표`,
+    basis: `재성 ${g.재성} · 식상 ${g.식상} · 비겁 ${g.비겁} (일간을 뺀 천간·지지의 십성 개수, 지지는 지장간 본기 기준) · 분야별 점수는 이 개수로 환산한 달달사주 지표`,
   };
 }
 
@@ -492,7 +492,7 @@ function daeunSection(chart: SajuChart, now = new Date(), name: string | null = 
   const periods = chart.daeun.periods.slice(0, 8);
   const current = periods.find((p) => year >= p.startYear && year <= p.endYear);
   const paragraphs: string[] = [
-    `대운(大運)은 태어난 달의 기둥에서 출발해 10년마다 바뀌는 운의 큰 흐름입니다. ${nameSubject(name, '의')}첫 대운은 만 ${chart.daeun.startAge}세에 ${started ? '시작됐어요' : '시작돼요'}. 시작 나이는 성별과 태어난 해의 음양, 출생일과 절기 사이의 날수에 따라 사람마다 다릅니다. 달빛사주는 출생일과 절입일(절기가 바뀌는 날) 사이의 날수를 3으로 나누어 계산하고, 대운의 진행 방향에 따라 다음 또는 지난 절입일을 기준으로 삼아요. 시기별 등급은 그 시기의 간지와 사주의 관계를 점수로 환산한 달빛사주 기준이에요.`,
+    `대운(大運)은 태어난 달의 기둥에서 출발해 10년마다 바뀌는 운의 큰 흐름입니다. ${nameSubject(name, '의')}첫 대운은 만 ${chart.daeun.startAge}세에 ${started ? '시작됐어요' : '시작돼요'}. 시작 나이는 성별과 태어난 해의 음양, 출생일과 절기 사이의 날수에 따라 사람마다 다릅니다. 달달사주는 출생일과 절입일(절기가 바뀌는 날) 사이의 날수를 3으로 나누어 계산하고, 대운의 진행 방향에 따라 다음 또는 지난 절입일을 기준으로 삼아요. 시기별 등급은 그 시기의 간지와 사주의 관계를 점수로 환산한 달달사주 기준이에요.`,
   ];
   // 같은 묶음의 10년이 다시 나오면 긴 풀이는 처음 한 번만
   const told = new Set<TenGodGroup>();
@@ -515,7 +515,7 @@ function daeunSection(chart: SajuChart, now = new Date(), name: string | null = 
     summary: current ? `지금은 ${current.startYear}~${current.endYear}년의 10년을 지나고 있어요` : `만 ${chart.daeun.startAge}세에 첫 번째 10년이 시작돼요`,
     paragraphs,
     keywords: [`현재 만 ${Math.max(0, year - birthYear)}세`],
-    basis: `대운수 ${chart.daeun.startAge}(출생일과 절입일 사이 날수 ÷ 3, 달빛사주 계산) · ${chart.daeun.direction === 'forward' ? '순행' : '역행'}${current ? ` · 지금 ${current.ganzhi.hangul}(${current.ganzhi.hanja}) 대운` : ''} · ${periods.map((p) => `${p.ganzhi.hangul} ${p.stemTenGod}`).join(', ')}`,
+    basis: `대운수 ${chart.daeun.startAge}(출생일과 절입일 사이 날수 ÷ 3, 달달사주 계산) · ${chart.daeun.direction === 'forward' ? '순행' : '역행'}${current ? ` · 지금 ${current.ganzhi.hangul}(${current.ganzhi.hanja}) 대운` : ''} · ${periods.map((p) => `${p.ganzhi.hangul} ${p.stemTenGod}`).join(', ')}`,
   };
 }
 
@@ -637,10 +637,10 @@ const HIGHLIGHT_TERM: Record<FortuneHighlight, string> = {
   gongmang: '공망',
 };
 
-/** 용신·희신·기신이 근거에 나올 때 붙이는 계산 방식 — 달빛사주의 간이 계산임을 밝힌다 */
-const YONGSIN_METHOD_NOTE = '용신·희신·기신은 억부 중심의 달빛사주 간이 계산 기준(조후·격국 미반영, 강약이 균형에 가까우면 비중이 가장 약한 오행)';
+/** 용신·희신·기신이 근거에 나올 때 붙이는 계산 방식 — 달달사주의 간이 계산임을 밝힌다 */
+const YONGSIN_METHOD_NOTE = '용신·희신·기신은 억부 중심의 달달사주 간이 계산 기준(조후·격국 미반영, 강약이 균형에 가까우면 비중이 가장 약한 오행)';
 
-/** '사주로 보면' 한 줄 — 오늘·올해 공통. 끝에 점수·등급이 달빛사주 기준임을 밝힌다 */
+/** '사주로 보면' 한 줄 — 오늘·올해 공통. 끝에 점수·등급이 달달사주 기준임을 밝힌다 */
 function luckBasis(label: string, ev: FortuneEvaluation): string {
   const p = ev.pillar;
   return [
@@ -649,7 +649,7 @@ function luckBasis(label: string, ev: FortuneEvaluation): string {
     `12운성 ${p.twelveStage}`,
     ...ev.highlights.map((h) => HIGHLIGHT_TERM[h]),
     ...(ev.fit.stem !== 'neutral' || ev.fit.branch !== 'neutral' ? [YONGSIN_METHOD_NOTE] : []),
-    '총운·분야별 점수와 등급은 이 관계들을 점수로 환산한 달빛사주 기준이에요',
+    '총운·분야별 점수와 등급은 이 관계들을 점수로 환산한 달달사주 기준이에요',
   ].join(' · ');
 }
 
@@ -929,7 +929,7 @@ export function buildCompatibilitySections(a: SajuChart, b: SajuChart, r: Compat
         `${names.b} 일간 ${dmB.name}`,
         ...new Set(freePos.map((l) => l.term)),
         ...(r.factors.some((f) => /^(yongsin|gisin)_/.test(f.key)) ? [YONGSIN_METHOD_NOTE] : []),
-        '궁합 점수와 등급은 일간·일지·띠·오행·용신·배우자성의 관계를 합산한 달빛사주 기준이에요',
+        '궁합 점수와 등급은 일간·일지·띠·오행·용신·배우자성의 관계를 합산한 달달사주 기준이에요',
       ].join(' · '),
     },
     lock(

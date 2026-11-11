@@ -42,7 +42,7 @@ export const CATALOG: CatalogItem[] = [
     grants: ['report:mini'],
     perUserLimit: 1,
     badge: '첫 구매 특가',
-    iosProductId: 'kr.dalbitsaju.report.mini',
+    iosProductId: 'com.daldalsaju.report.mini',
     androidProductId: 'report_saju_mini',
   },
   {
@@ -55,7 +55,7 @@ export const CATALOG: CatalogItem[] = [
     credits: 3,
     grants: ['report:lifetime'],
     badge: '가장 인기',
-    iosProductId: 'kr.dalbitsaju.report.lifetime',
+    iosProductId: 'com.daldalsaju.report.lifetime',
     androidProductId: 'report_saju_lifetime',
   },
   {
@@ -68,7 +68,7 @@ export const CATALOG: CatalogItem[] = [
     grants: ['report:yearly:2027'],
     saleEndsAt: '2026-12-31T14:59:59.000Z',
     badge: '얼리버드',
-    iosProductId: 'kr.dalbitsaju.report.newyear2027',
+    iosProductId: 'com.daldalsaju.report.newyear2027',
     androidProductId: 'report_newyear_2027',
   },
   {
@@ -78,7 +78,7 @@ export const CATALOG: CatalogItem[] = [
     type: 'one_time',
     price: 5900,
     grants: ['report:compatibility'],
-    iosProductId: 'kr.dalbitsaju.report.compat',
+    iosProductId: 'com.daldalsaju.report.compat',
     androidProductId: 'report_compat',
   },
   // ── 주제별 리포트 (docs/research/01-competitor-features.md S8) — 프로필 하나, 일회성 ──
@@ -89,7 +89,7 @@ export const CATALOG: CatalogItem[] = [
     type: 'one_time',
     price: 4900,
     grants: ['report:love'],
-    iosProductId: 'kr.dalbitsaju.report.love',
+    iosProductId: 'com.daldalsaju.report.love',
     androidProductId: 'report_love',
   },
   {
@@ -99,7 +99,7 @@ export const CATALOG: CatalogItem[] = [
     type: 'one_time',
     price: 4900,
     grants: ['report:career_wealth'],
-    iosProductId: 'kr.dalbitsaju.report.careerwealth',
+    iosProductId: 'com.daldalsaju.report.careerwealth',
     androidProductId: 'report_career_wealth',
   },
   {
@@ -112,7 +112,7 @@ export const CATALOG: CatalogItem[] = [
     credits: 10,
     grants: ['report:lifetime', 'report:yearly:2027', 'ticket:compatibility'],
     badge: '29% 할인',
-    iosProductId: 'kr.dalbitsaju.bundle.newyear2027',
+    iosProductId: 'com.daldalsaju.bundle.newyear2027',
     androidProductId: 'bundle_newyear_2027',
   },
   {
@@ -122,7 +122,7 @@ export const CATALOG: CatalogItem[] = [
     type: 'credit_pack',
     price: 3900,
     credits: 10,
-    iosProductId: 'kr.dalbitsaju.chat.10',
+    iosProductId: 'com.daldalsaju.chat.10',
     androidProductId: 'chat_pack_10',
   },
   {
@@ -134,7 +134,7 @@ export const CATALOG: CatalogItem[] = [
     listPrice: 11700,
     credits: 30,
     badge: 'BEST',
-    iosProductId: 'kr.dalbitsaju.chat.30',
+    iosProductId: 'com.daldalsaju.chat.30',
     androidProductId: 'chat_pack_30',
   },
   // ── 타로 (docs/research/05-tarot-market.md §7.4) — 리딩 1건을 여는 소모성 상품 ──
@@ -146,7 +146,7 @@ export const CATALOG: CatalogItem[] = [
     price: 990,
     credits: 1,
     grants: ['tarot:reading'],
-    iosProductId: 'kr.dalbitsaju.tarot.question3',
+    iosProductId: 'com.daldalsaju.tarot.question3',
     androidProductId: 'tarot_question_3',
   },
   {
@@ -157,7 +157,7 @@ export const CATALOG: CatalogItem[] = [
     price: 2900,
     credits: 1,
     grants: ['tarot:reading'],
-    iosProductId: 'kr.dalbitsaju.tarot.love5',
+    iosProductId: 'com.daldalsaju.tarot.love5',
     androidProductId: 'tarot_love_5',
   },
   {
@@ -168,7 +168,7 @@ export const CATALOG: CatalogItem[] = [
     price: 990,
     credits: 1,
     grants: ['tarot:reading'],
-    iosProductId: 'kr.dalbitsaju.tarot.choice3',
+    iosProductId: 'com.daldalsaju.tarot.choice3',
     androidProductId: 'tarot_choice_3',
   },
   {
@@ -179,7 +179,7 @@ export const CATALOG: CatalogItem[] = [
     price: 2900,
     credits: 1,
     grants: ['tarot:reading'],
-    iosProductId: 'kr.dalbitsaju.tarot.compat5',
+    iosProductId: 'com.daldalsaju.tarot.compat5',
     androidProductId: 'tarot_compat_5',
   },
   {
@@ -190,7 +190,7 @@ export const CATALOG: CatalogItem[] = [
     price: 4900,
     credits: 3,
     grants: ['tarot:reading'],
-    iosProductId: 'kr.dalbitsaju.tarot.celtic10',
+    iosProductId: 'com.daldalsaju.tarot.celtic10',
     androidProductId: 'tarot_celtic_10',
   },
   // ── 택일 (docs/research/05-tarot-market.md §2.2 사주아이 '990원 택일') — 택일 결과 1건의 상세를 여는 소모성 상품 ──
@@ -201,7 +201,7 @@ export const CATALOG: CatalogItem[] = [
     type: 'one_time',
     price: 990,
     grants: ['taekil:reading'],
-    iosProductId: 'kr.dalbitsaju.report.taekil',
+    iosProductId: 'com.daldalsaju.report.taekil',
     androidProductId: 'report_taekil',
   },
 ];

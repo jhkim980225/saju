@@ -78,7 +78,7 @@ export function YearlyPage() {
                   <Badge tone="gold">총운 {d.evaluation.scores.total}점</Badge>
                   {d.gradeLabel && <Badge>{d.gradeLabel}</Badge>}
                 </div>
-                <p className="mt-2 text-xs text-ink-3">점수와 등급은 그해의 세운(그해의 간지)과 내 사주의 관계를 달빛사주 기준으로 환산한 서비스 자체 지표예요.</p>
+                <p className="mt-2 text-xs text-ink-3">점수와 등급은 그해의 세운(그해의 간지)과 내 사주의 관계를 달달사주 기준으로 환산한 서비스 자체 지표예요.</p>
                 {d.keyPoints && <KeyPointsCard title={`한눈에 보는 ${year}년`} items={d.keyPoints} />}
               </section>
               {d.sections.map((s) => (

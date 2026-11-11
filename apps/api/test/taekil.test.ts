@@ -49,10 +49,10 @@ describe('택일', () => {
 
   it('상품 — 990원, 결과 1건을 여는 상품, 스토어 ID', async () => {
     const p = (await api('GET', '/products')).body.find((x: any) => x.id === 'report_taekil');
-    expect(p).toMatchObject({ price: 990, requiresReading: true, requiresProfile: false, iosProductId: 'kr.dalbitsaju.report.taekil', androidProductId: 'report_taekil', grants: ['taekil:reading'] });
-    // 스토어 상품 ID 규칙: iOS 는 kr.dalbitsaju.*, Android 는 카탈로그 ID 와 같다
+    expect(p).toMatchObject({ price: 990, requiresReading: true, requiresProfile: false, iosProductId: 'com.daldalsaju.report.taekil', androidProductId: 'report_taekil', grants: ['taekil:reading'] });
+    // 스토어 상품 ID 규칙: iOS 는 com.daldalsaju.*, Android 는 카탈로그 ID 와 같다
     for (const c of CATALOG.filter((x) => x.iosProductId)) {
-      expect(c.iosProductId).toMatch(/^kr\.dalbitsaju\./);
+      expect(c.iosProductId).toMatch(/^com\.daldalsaju\./);
       expect(c.androidProductId).toBe(c.id);
     }
   });

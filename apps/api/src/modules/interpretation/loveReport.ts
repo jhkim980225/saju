@@ -4,7 +4,7 @@
  * 문체 기준(docs/PLAIN_KOREAN.md): 사주를 처음 접하는 성인이 읽는 전문 서비스의 글.
  * - 장마다 결론을 먼저 말한다. 정식 명리학 용어를 쓰되 처음 나올 때 뜻을 붙이고(termTracker), 한자·간지·점수는 basis('사주로 보면')에 둔다.
  * - 이름이 있으면 "○○님은"으로 부르고, 없으면 주어를 뺀다("당신"은 쓰지 않는다).
- * - 시기는 "2029년 가을쯤"처럼, 점수는 '아주 좋음 / 좋음 / 보통 / 잔잔함'(달빛사주 기준)으로 말한다.
+ * - 시기는 "2029년 가을쯤"처럼, 점수는 '아주 좋음 / 좋음 / 보통 / 잔잔함'(달달사주 기준)으로 말한다.
  *
  * 구성(12장): 요약 → 사랑할 때의 나(일간) → 가까운 사이에서의 나(일지) → 관계를 움직이는 마음(십성)
  *   → 끌림과 매력(도화·홍염) → 나에게 맞는 사람(용신·희신·신강도·일지 육합) → 가까워지는 속도
@@ -39,7 +39,7 @@ import { targetFortuneYear } from './reading.js';
 import { EL_NAME, EL_TERM, GROUPS, gradeWord, groupCount, listPp, monthsText, pp, prt, ro, scoreBand, seasonOf, stemName, stemTerm, termTracker, yearsText } from './topicReportKit.js';
 
 const POSITION_TERM: Record<PillarPosition, string> = { year: '년주', month: '월주', day: '일주', hour: '시주' };
-/** 관계를 차분히 다음 단계로 옮기기 좋은 12운성(달빛사주 기준) */
+/** 관계를 차분히 다음 단계로 옮기기 좋은 12운성(달달사주 기준) */
 const STEADY: TwelveStage[] = ['관대', '건록', '제왕', '쇠'];
 const SIGNAL_ORDER: LoveYearSignal[] = ['combine', 'stemCombine', 'dohwa', 'half', 'trine', 'jae', 'gwan', 'proper', 'siksang', 'steady', 'clash', 'punish', 'wonjin', 'harmBreak'];
 const POSITIVE: LoveYearSignal[] = ['combine', 'half', 'trine', 'stemCombine', 'dohwa', 'jae', 'gwan', 'proper', 'siksang', 'steady'];
@@ -72,7 +72,7 @@ interface LoveYear {
   bond: number;
 }
 
-/** 한 해의 인연·약속 점수(달빛사주 기준) — 성별을 쓰지 않는다(엔진의 scores.love 대신 총운 + 일지·일간 관계 + 재성·관성) */
+/** 한 해의 인연·약속 점수(달달사주 기준) — 성별을 쓰지 않는다(엔진의 scores.love 대신 총운 + 일지·일간 관계 + 재성·관성) */
 function loveYear(chart: SajuChart, year: number): LoveYear {
   const ev = evaluateFortune(chart, yearPillarOf(year), `love-${year}`);
   const p = ev.pillar;
@@ -260,7 +260,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
       `인연 최고 ${best.year} ${best.hanja}(${best.love}점)`,
       `약속 최고 ${bestBond.year} ${bestBond.hanja}(${bestBond.bond}점)`,
       ...(daeunNow ? [`지금 대운 ${daeunNow.ganzhi.hanja}(${daeunNow.stemTenGod})`] : []),
-      '점수는 달빛사주 기준 · 전통 명리는 성별에 따라 재성·관성 가운데 하나를 배우자의 별로 읽지만, 이 리포트는 둘 다 인연으로 함께 읽어요',
+      '점수는 달달사주 기준 · 전통 명리는 성별에 따라 재성·관성 가운데 하나를 배우자의 별로 읽지만, 이 리포트는 둘 다 인연으로 함께 읽어요',
     ].join(' · '),
   };
 
@@ -397,7 +397,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
       `${partner.together} ${C.partnerGive[dmEl]}`,
       `주로 ${partner.meet}`,
       `${t('희신')}인 ${el(y.heesin)}의 성향으로 보면, ${C.heesin[y.heesin]}`,
-      `${t('신강·신약', '으로')} 보면 ${level}에 해당해요. 이 단계는 달빛사주가 일간을 돕는 기운의 비중으로 나눈 것입니다. ${C.partnerStrength[level]}`,
+      `${t('신강·신약', '으로')} 보면 ${level}에 해당해요. 이 단계는 달달사주가 일간을 돕는 기운의 비중으로 나눈 것입니다. ${C.partnerStrength[level]}`,
       // 손발이 맞는 기질이 지치게 하는 기질과 같은 기운이면 서로 어긋나 보이니 말하지 않는다
       ...(comboBranch && comboBranch.element !== y.gisin ? [`일지와 ${t('육합', '을', '를')} 이루는 글자의 오행으로 보면, 특히 ${C.combineTemperament[comboBranch.element]} 사람과는 자연스럽게 손발이 맞기 쉬워요.`] : []),
       ...(lacking.length
@@ -432,7 +432,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
       C.rhythm[dbEl],
       give >= receive + 2 ? C.giveReceive.give : receive >= give + 2 ? C.giveReceive.receive : C.giveReceive.even,
     ],
-    basis: `일간의 힘 ${level}(돕는 기운 ${Math.round(chart.strength.score)}%, 달빛사주 기준) · 가장 많은 십성 ${dominant} · 일지 오행 ${EL_TERM[dbEl]} · 주는 기운(식상+재성) ${give} · 받는 기운(인성) ${receive}`,
+    basis: `일간의 힘 ${level}(돕는 기운 ${Math.round(chart.strength.score)}%, 달달사주 기준) · 가장 많은 십성 ${dominant} · 일지 오행 ${EL_TERM[dbEl]} · 주는 기운(식상+재성) ${give} · 받는 기운(인성) ${receive}`,
   };
 
   // ── 8. 부딪히기 쉬운 지점 ────────────────────────────────
@@ -526,7 +526,7 @@ export function buildLoveReport(chart: SajuChart, now = new Date(), rawName?: st
     basis: [
       ...years.map((x) => `${x.year} ${x.hanja} 인연 ${x.love}·약속 ${x.bond}${x.signals.length ? `(${x.signals.map((s) => SIGNAL_TERM[s]).join(', ')})` : ''}`),
       ...periods.map((p) => `대운 ${p.startYear}~${p.endYear} ${p.ganzhi.hanja}(${p.stemTenGod}·${p.branchTenGod})`),
-      '인연·약속 점수와 등급은 달빛사주 기준',
+      '인연·약속 점수와 등급은 달달사주 기준',
     ].join(' · '),
   };
 

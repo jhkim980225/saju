@@ -1,4 +1,4 @@
-# 제품 요구사항 (PRD) — 달빛사주(月光四柱)
+# 제품 요구사항 (PRD) — 달달사주
 
 > 마케팅·광고팀(`research/01`, `research/03`)과 홍보·브랜딩팀(`research/02`, `research/04`)의 기존 사주 서비스 분석을 바탕으로 팀장이 확정한 제품 결정입니다.
 
@@ -49,8 +49,8 @@
 | `tarot_choice_3` / `tarot_compat_5` / `tarot_celtic_10` | 타로 2차 깊은 풀이 — 양자택일 · 궁합 타로(질문권 1회) · 켈틱 크로스(질문권 3회) | 990원 / 2,900원 / 4,900원 |
 | `report_taekil` | 택일 상세 풀이(택일 결과 1건) | 990원 |
 
-- 타로 '전문가' 표기: 가공 인물·경력 주장 없이 "1909년 웨이트-스미스 덱의 전통 해석 · 달빛사주 콘텐츠팀 작성"으로 표기한다(표시광고법, `research/05` §6). 실제 자문가를 영입하면 감수 범위만 실명으로 표기.
-- 타로 카드 앞면은 1909년 웨이트-스미스 덱 원판 스캔(패멀라 콜먼 스미스, 공개 저작물)을 쓴다(2026-10-21, 수묵 AI 그림에서 교체). 뒷면은 달빛사주 디자인. 출처·변환 방법은 [`TAROT_ART.md`](./TAROT_ART.md), 앱 안 '달빛사주 타로는 이렇게 읽어요'에 출처를 밝힌다.
+- 타로 '전문가' 표기: 가공 인물·경력 주장 없이 "1909년 웨이트-스미스 덱의 전통 해석 · 달달사주 콘텐츠팀 작성"으로 표기한다(표시광고법, `research/05` §6). 실제 자문가를 영입하면 감수 범위만 실명으로 표기.
+- 타로 카드 앞면은 1909년 웨이트-스미스 덱 원판 스캔(패멀라 콜먼 스미스, 공개 저작물)을 쓴다(2026-10-21, 수묵 AI 그림에서 교체). 뒷면은 달달사주 디자인. 출처·변환 방법은 [`TAROT_ART.md`](./TAROT_ART.md), 앱 안 '달달사주 타로는 이렇게 읽어요'에 출처를 밝힌다.
 
 - 결제: 웹은 **그로블**(2026-10-15 결정 — 사업자 등록 없이 판매, Pro 기본형 총 수수료 약 8.7% / 구독형 약 4.8% + 구독료, VAT 포함). 토스페이먼츠·포트원 V2 연동은 대안으로 남겨 둠(KG이니시스·네이버페이는 운세 업종 입점 불가). 앱은 IAP 필수(Apple 소규모 사업자 프로그램 15%), 구매 전 로그인 필수, 앱 내 웹 결제 유도 금지.
 - 광고: **무료 결과 하단 + 홈(오늘) 인피드만**. 입력·결제·유료 리포트·AI 상담 화면 금지, 프리미엄 사용자 제외. 앱 리워드 광고 하루 3회.
@@ -69,11 +69,11 @@
 
 - [ ] 웹 결제: **그로블**(2026-10-15 결정, 사업자 등록 없이 판매) — 판매자 인증, 상품마다 결제창(가격 = `catalog.ts`), 웹훅 등록·시크릿, 실결제·환불 1건 확인 → [`PAYMENTS.md`](./PAYMENTS.md) §3.5. 앱은 인앱결제 유지
 - [ ] App Store/Play 상품 등록(가격 단계 확인: 3,900·5,900·7,900원), Apple 4.3(b) 대응(위젯·알림·오프라인 보관함)
-- [ ] 서비스명 상표·도메인 확인("달빛사주")
+- [ ] 서비스명 상표·도메인 확인("달달사주")
 - [ ] 약관·개인정보처리방침·환불정책 법무 검토, AI 생성물 표시(인공지능 기본법), 광고성 푸시 동의(정보통신망법)
 - [ ] 운영 키 설정 — [`ENV_KEYS.md`](./ENV_KEYS.md)
 - [ ] iOS 빌드·서명 (Mac 의 Xcode 또는 GitHub Actions `ios` 잡) — [`APP_PORTING.md`](./APP_PORTING.md)
 - [ ] AdMob 실제 앱 ID·광고 단위로 교체 (현재 Google 테스트 ID)
 - [ ] 키 발급 후 실연동 확인: 카드 인증까지 실결제 1건, 소셜 로그인 4종, 푸시 수신, 보상형 광고 SSV 콜백
-- [ ] 타로: 스토어 소모성 상품 등록(`kr.dalbitsaju.tarot.question3`·`kr.dalbitsaju.tarot.love5`·`kr.dalbitsaju.tarot.choice3`·`kr.dalbitsaju.tarot.compat5`·`kr.dalbitsaju.tarot.celtic10`, Play 는 서버 ID 와 같은 `tarot_*`), KIPRIS 상표 확인('Rider-Waite' 미사용 유지), AI 생성 이미지·풀이 고지 문구 법무 확인
+- [ ] 타로: 스토어 소모성 상품 등록(`com.daldalsaju.tarot.question3`·`com.daldalsaju.tarot.love5`·`com.daldalsaju.tarot.choice3`·`com.daldalsaju.tarot.compat5`·`com.daldalsaju.tarot.celtic10`, Play 는 서버 ID 와 같은 `tarot_*`), KIPRIS 상표 확인('Rider-Waite' 미사용 유지), AI 생성 이미지·풀이 고지 문구 법무 확인
 - [x] 띠·별자리·꿈해몽 SEO (2026-10-19): 빌드 뒤 `apps/web/scripts/prerender.mts` 가 466개 화면(띠 60·별자리 60·꿈 337·안내 9)의 제목·설명·canonical·og 가 든 정적 `dist/<경로>/index.html` 과 `sitemap.xml`·`robots.txt` 를 만든다(주소 기준 `PUBLIC_WEB_URL`, 배포 때 웹 빌드 환경 변수 — `PUBLIC_WEB_URL=https://도메인 npm run deploy`). 본문은 JS 가 그린다. 남은 것: 운영 도메인 확정 후 네이버 서치어드바이저·구글 서치콘솔에 sitemap 등록. AdSense `web_content_mid` 슬롯 키(`VITE_ADSENSE_SLOT_CONTENT_MID`·`VITE_ADFIT_UNIT_CONTENT_MID`) 발급

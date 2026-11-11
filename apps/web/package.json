@@ -2,7 +2,7 @@
   "name": "@saju/web",
   "version": "0.1.0",
   "private": true,
-  "description": "달빛사주 웹 프론트엔드 (React + Vite) — Capacitor 로 iOS/Android 앱 포팅",
+  "description": "달달사주 웹 프론트엔드 (React + Vite) — Capacitor 로 iOS/Android 앱 포팅",
   "type": "module",
   "scripts": {
     "dev": "vite",

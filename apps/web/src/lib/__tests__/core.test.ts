@@ -5,7 +5,7 @@ import { t } from '../copy';
 describe('copy t()', () => {
   it('중첩 키와 변수 치환', () => {
     expect(t('result.title', { name: '서윤' })).toBe('서윤님의 사주');
-    expect(t('brand.name')).toBe('달빛사주');
+    expect(t('brand.name')).toBe('달달사주');
   });
   it('없는 키는 키 그대로', () => {
     expect(t('nope.missing')).toBe('nope.missing');

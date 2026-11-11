@@ -26,7 +26,7 @@ export function HoroscopeHubPage() {
   const today = todayKst();
   const overview = useQuery({ queryKey: ['horoscope', 'overview', 'today', today.iso], queryFn: () => api.horoscopeOverview('today', today.iso), staleTime: 10 * 60_000 });
   usePageMeta({
-    title: '별자리 운세 — 12별자리 오늘의 운세 | 달빛사주',
+    title: '별자리 운세 — 12별자리 오늘의 운세 | 달달사주',
     description: '양자리부터 물고기자리까지 열두 별자리의 오늘·내일·이번 주·이번 달·올해 운세. 생일로 내 별자리를 찾고, 달과 행성의 자리로 푼 근거까지 무료로 보여 드려요.',
     path: '/horoscope',
   });
@@ -162,7 +162,7 @@ function HoroscopeDetail({ sign, period }: { sign: StarSign; period: FreeFortune
   const q = useQuery({ queryKey: ['horoscope', sign.slug, period, today.iso], queryFn: () => api.horoscope(sign.slug, period, today.iso), staleTime: 10 * 60_000 });
   const title = `${sign.name} ${PERIOD_TITLE[period]}`;
   usePageMeta({
-    title: `${title} — 별자리 운세 | 달빛사주`,
+    title: `${title} — 별자리 운세 | 달달사주`,
     description: `${sign.name}(${starSignDates(sign)}) ${PERIOD_TITLE[period]}. 달·태양·목성·토성이 지나는 별자리가 ${sign.name}에서 몇 번째 자리인지로 풀었어요. 재미로 보는 무료 별자리 운세예요.`,
     path: horoscopePath(sign.slug, period),
   });

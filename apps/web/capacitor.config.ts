@@ -7,14 +7,14 @@ import type { CapacitorConfig } from '@capacitor/cli';
 import type { KeyboardResize } from '@capacitor/keyboard';
 
 /**
- * 달빛사주 iOS/Android 앱 설정 — 절차는 docs/APP_PORTING.md.
+ * 달달사주 iOS/Android 앱 설정 — 절차는 docs/APP_PORTING.md.
  * 웹 빌드(dist)를 네이티브 웹뷰에 싣는다: `npm run build:app -w @saju/web` (vite build --mode app → cap sync)
  */
 const NIGHT = '#060B24'; // 밤하늘 남색 — 기본 테마 배경 (theme-color 와 동일)
 
 const config: CapacitorConfig = {
-  appId: 'kr.dalbitsaju.app',
-  appName: '달빛사주',
+  appId: 'com.daldalsaju.app',
+  appName: '달달사주',
   webDir: 'dist',
   // 웹뷰 로딩 전 흰 화면 대신 밤하늘 남색
   backgroundColor: NIGHT,

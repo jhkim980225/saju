@@ -1,4 +1,4 @@
-# 달빛사주 앱 포팅 가이드 (Capacitor 8 · iOS / Android)
+# 달달사주 앱 포팅 가이드 (Capacitor 8 · iOS / Android)
 
 앱팀 문서. 웹 프론트엔드(`apps/web`, React 19 + Vite 7)를 Capacitor 웹뷰에 실어 iOS·Android 앱으로 냅니다.
 웹 코드는 그대로 쓰고, 앱에서만 필요한 기능은 `apps/web/src/native/` 가 `lib/platform.ts` 의 `NativeBridge` 계약에 맞춰 주입합니다.
@@ -16,11 +16,11 @@
 | 네이티브 프로젝트 생성 | ✅ `android/`, `ios/` 생성 · 플러그인 11개 연결 (2026-10-15 보안 저장소 추가로 12개) | `npx cap add android` / `npx cap add ios` |
 | §4 네이티브 설정 적용 | ✅ AndroidManifest(App Links·커스텀 스킴·BILLING·AdMob 앱 ID·FCM 채널·알림 아이콘), Info.plist(AdMob 앱 ID·URL 스킴·SKAdNetwork·암호화 신고), AppDelegate(푸시 토큰 전달), PrivacyInfo.xcprivacy | AdMob 앱 ID 는 **Google 공식 테스트 ID** — 출시 전 실제 ID 로 교체 |
 | Android 디버그 APK 빌드 | ✅ `app-debug.apk` 11.5MB (JDK 21 + Android SDK 36, Gradle 8.14.3) | `cd apps/web/android && ./gradlew assembleDebug` |
-| APK 검사 | ✅ 패키지 `kr.dalbitsaju.app`, minSdk 24 / targetSdk 36, 권한(INTERNET·BILLING·POST_NOTIFICATIONS·AD_ID), 딥링크 intent-filter, 웹 자산 포함, 소스맵 제외 | `aapt dump badging / xmltree` |
+| APK 검사 | ✅ 패키지 `com.daldalsaju.app`, minSdk 24 / targetSdk 36, 권한(INTERNET·BILLING·POST_NOTIFICATIONS·AD_ID), 딥링크 intent-filter, 웹 자산 포함, 소스맵 제외 | `aapt dump badging / xmltree` |
 | 에뮬레이터 실행 (Pixel 6 · Android 36) | ✅ 콜드 스타트 2~5초, 크래시 0건 — `google-services.json` 없이도 시작 시 종료되지 않음 | `adb install` → `am start` → `logcat -b crash` |
 | 실제 백엔드 연동 (라이브 리로드) | ✅ 게스트 세션 생성 → 사주 입력·저장 → 오늘의 운세 표시, 네이티브 저장소(Preferences)에 세션 영속 | `CAP_SERVER_URL=http://10.0.2.2:5173` + WebView 원격 디버깅(CDP) |
 | 네이티브 플러그인 초기화 | ✅ FirebaseMessaging 리스너, NativePurchases(`autoFinishTransactions:false`), StatusBar, SplashScreen 호출 확인 | logcat `Capacitor/Plugin` |
-| 딥링크 | ✅ `kr.dalbitsaju.app://manse` → `/manse`, `kr.dalbitsaju.app://compatibility` → `/compatibility` | `adb shell am start -a VIEW -d …` |
+| 딥링크 | ✅ `com.daldalsaju.app://manse` → `/manse`, `com.daldalsaju.app://compatibility` → `/compatibility` | `adb shell am start -a VIEW -d …` |
 | 하드웨어 뒤로가기 | ✅ 바텀시트 닫힘 → 탭 기록 역순 이동(궁합→마이→오늘) → 홈에서 앱 최소화 | `adb shell input tap/keyevent 4` |
 | 세션 토큰 보안 저장소 (2026-10-15) | ✅ `assembleDebug` 성공(병합 Manifest 에 `fullBackupContent`·`dataExtractionRules`). **업데이트 이전**: 이전 버전 상태(Preferences 평문 `yd.session`)를 주입 → 첫 실행에 Keystore 암호문(`WSSecureStorageSharedPreferences.xml`, 평문 토큰 없음)으로 옮기고 Preferences 에서 삭제 → 콜드 재시작 후 마이 탭에 같은 회원 표시. **로그인 유지**: 새 설치 → 게스트 세션 생성 → 콜드 재시작 후 같은 사용자 ID, `/auth/guest` 재호출 없이 `GET /profiles` 200. iOS Keychain 은 미검증(macOS 필요) | Android 36 에뮬레이터, `run-as` 로 Preferences 주입, WebView CDP, 라이브 리로드(로컬 API) |
 | iOS 빌드 | ⏳ macOS + Xcode 필요(이 저장소 개발 PC 는 Windows) → **`.github/workflows/ci.yml` 의 `ios` 잡이 macOS 러너에서 서명 없이 시뮬레이터 빌드**(`xcodebuild -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO`). Windows 에서는 SPM 플러그인 심볼릭 링크 생성 권한이 없어(`EPERM symlink`) `CapApp-SPM/Package.swift` 가 갱신되지 않음 → **macOS 에서 `npm run build:app:ios` 실행 시 자동 생성** | — |
@@ -52,7 +52,7 @@
 
 ```
 apps/web
-├─ capacitor.config.ts          appId kr.dalbitsaju.app · appName 달빛사주 · webDir dist · 플러그인 설정
+├─ capacitor.config.ts          appId com.daldalsaju.app · appName 달달사주 · webDir dist · 플러그인 설정
 ├─ resources/icon*.png          앱 아이콘 원본 1024×1024 (남색 밤하늘 + 황금 초승달 — /image 로고에서 잘라 냄)
 ├─ resources/splash.png         스플래시 원본 2732×2732
 └─ src/native/
@@ -172,19 +172,19 @@ Capawesome Secure Preferences 는 후원자 전용 레지스트리(npm 미공개
 
 | 변수 | 필수 | 설명 |
 |---|---|---|
-| `VITE_API_BASE_URL` | **필수** | API **절대 주소**(예: `https://dalbitsaju.kr/api/v1` — 웹과 API 를 Cloudflare Worker 하나가 같은 도메인으로 낸다). 앱 웹뷰 origin 은 `capacitor://localhost`(iOS) / `https://localhost`(Android)라서 상대 경로 `/api/v1` 은 실패합니다. 비어 있으면 앱 시작 시 콘솔 오류를 남깁니다. |
-| `VITE_PUBLIC_WEB_URL` | **필수** | 웹 서비스 주소(예: `https://dalbitsaju.kr`). 소셜 로그인 `redirectUri` 기준(`appWebOrigin()`), 유니버설 링크/App Links 허용 호스트 |
-| `VITE_DEEPLINK_HOSTS` | 선택 | 딥링크로 받을 추가 도메인(쉼표 구분, 예: `www.dalbitsaju.kr`) |
-| `VITE_APP_URL_SCHEME` | 선택 | 추가 커스텀 스킴(예: `dalbitsaju`). `kr.dalbitsaju.app://` 는 항상 허용 |
+| `VITE_API_BASE_URL` | **필수** | API **절대 주소**(예: `https://daldalsaju.com/api/v1` — 웹과 API 를 Cloudflare Worker 하나가 같은 도메인으로 낸다). 앱 웹뷰 origin 은 `capacitor://localhost`(iOS) / `https://localhost`(Android)라서 상대 경로 `/api/v1` 은 실패합니다. 비어 있으면 앱 시작 시 콘솔 오류를 남깁니다. |
+| `VITE_PUBLIC_WEB_URL` | **필수** | 웹 서비스 주소(예: `https://daldalsaju.com`). 소셜 로그인 `redirectUri` 기준(`appWebOrigin()`), 유니버설 링크/App Links 허용 호스트 |
+| `VITE_DEEPLINK_HOSTS` | 선택 | 딥링크로 받을 추가 도메인(쉼표 구분, 예: `www.daldalsaju.com`) |
+| `VITE_APP_URL_SCHEME` | 선택 | 추가 커스텀 스킴(예: `daldalsaju`). `com.daldalsaju.app://` 는 항상 허용 |
 | `VITE_ADMOB_UNIT_REWARDED_CHAT_IOS` / `_ANDROID` | 출시 시 | 보상형 광고 단위 ID. 비우면 Google **테스트** 단위로 동작 |
 | `VITE_ADMOB_UNIT_BANNER_RESULT_IOS` / `_ANDROID` | 출시 시 | 결과 화면 배너 단위 ID. 비우면 테스트 단위 |
 | `VITE_ADMOB_TESTING` | 선택 | `1` 이면 실제 단위 ID 로도 테스트 광고 요청(내부 테스트 빌드용) |
 
 ```dotenv
 # apps/web/.env.app — VITE_* 는 앱 번들에 그대로 들어가는 공개 값입니다(비밀 키 금지)
-VITE_API_BASE_URL=https://dalbitsaju.kr/api/v1
-VITE_PUBLIC_WEB_URL=https://dalbitsaju.kr
-VITE_APP_URL_SCHEME=dalbitsaju
+VITE_API_BASE_URL=https://daldalsaju.com/api/v1
+VITE_PUBLIC_WEB_URL=https://daldalsaju.com
+VITE_APP_URL_SCHEME=daldalsaju
 VITE_ADMOB_UNIT_REWARDED_CHAT_IOS=ca-app-pub-XXXXXXXXXXXXXXXX/NNNNNNNNNN
 VITE_ADMOB_UNIT_REWARDED_CHAT_ANDROID=ca-app-pub-XXXXXXXXXXXXXXXX/NNNNNNNNNN
 VITE_ADMOB_UNIT_BANNER_RESULT_IOS=ca-app-pub-XXXXXXXXXXXXXXXX/NNNNNNNNNN
@@ -196,7 +196,7 @@ VITE_ADMOB_UNIT_BANNER_RESULT_ANDROID=ca-app-pub-XXXXXXXXXXXXXXXX/NNNNNNNNNN
 **서버 쪽(apps/api `.env`)**
 
 - `CORS_ORIGINS` 기본값에 `capacitor://localhost`, `https://localhost` 가 이미 들어 있습니다. 운영에서 값을 덮어쓴다면 **두 origin 을 반드시 포함**하세요(`http://localhost` 는 라이브 리로드용).
-- `APPLE_BUNDLE_ID=kr.dalbitsaju.app`(IAP 검증·Apple id_token `aud`), `GOOGLE_PLAY_PACKAGE_NAME=kr.dalbitsaju.app`, `APPLE_IAP_*`, `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`, `FCM_*` — §7, §8.
+- `APPLE_BUNDLE_ID=com.daldalsaju.app`(IAP 검증·Apple id_token `aud`), `GOOGLE_PLAY_PACKAGE_NAME=com.daldalsaju.app`, `APPLE_IAP_*`, `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`, `FCM_*` — §7, §8.
 
 ---
 
@@ -236,9 +236,9 @@ npm run cap:doctor     # 버전·환경 점검
 ### 4.1 iOS (Xcode → `ios/App/App.xcodeproj` 또는 `npm run cap:open:ios`)
 
 1. **Signing & Capabilities**
-   - Bundle Identifier `kr.dalbitsaju.app`, Team 선택, Display Name `달빛사주`
-   - `+ Capability`: **Push Notifications**, **Background Modes → Remote notifications**, **In-App Purchase**, **Associated Domains**(`applinks:dalbitsaju.kr`), (네이티브 Apple 로그인 시) **Sign in with Apple**
-2. **Firebase**: Firebase 콘솔에서 iOS 앱(번들 ID `kr.dalbitsaju.app`) 등록 → `GoogleService-Info.plist` 를 `ios/App/App/` 에 넣고 Xcode 에서 App 타깃에 추가.
+   - Bundle Identifier `com.daldalsaju.app`, Team 선택, Display Name `달달사주`
+   - `+ Capability`: **Push Notifications**, **Background Modes → Remote notifications**, **In-App Purchase**, **Associated Domains**(`applinks:daldalsaju.com`), (네이티브 Apple 로그인 시) **Sign in with Apple**
+2. **Firebase**: Firebase 콘솔에서 iOS 앱(번들 ID `com.daldalsaju.app`) 등록 → `GoogleService-Info.plist` 를 `ios/App/App/` 에 넣고 Xcode 에서 App 타깃에 추가.
    ⚠ 이 파일 없이 실행하면 FirebaseMessaging 플러그인이 `FirebaseApp.configure()` 에서 **앱이 시작 즉시 종료**됩니다.
 3. **AppDelegate.swift** — 푸시 토큰 전달 (플러그인 README)
 
@@ -267,12 +267,12 @@ npm run cap:doctor     # 버전·환경 점검
    <!-- ATT 팝업을 띄울 경우에만 필요. 현재 코드는 ATT 를 요청하지 않고 비개인화 광고(npa)로 요청한다 -->
    <key>NSUserTrackingUsageDescription</key>
    <string>맞춤형 광고를 보여 드리는 데 사용돼요. 허용하지 않아도 모든 기능을 쓸 수 있어요.</string>
-   <!-- 커스텀 스킴 딥링크 (kr.dalbitsaju.app:// , dalbitsaju://) -->
+   <!-- 커스텀 스킴 딥링크 (com.daldalsaju.app:// , daldalsaju://) -->
    <key>CFBundleURLTypes</key>
    <array>
      <dict>
-       <key>CFBundleURLName</key><string>kr.dalbitsaju.app</string>
-       <key>CFBundleURLSchemes</key><array><string>kr.dalbitsaju.app</string><string>dalbitsaju</string></array>
+       <key>CFBundleURLName</key><string>com.daldalsaju.app</string>
+       <key>CFBundleURLSchemes</key><array><string>com.daldalsaju.app</string><string>daldalsaju</string></array>
      </dict>
    </array>
    <key>CFBundleDevelopmentRegion</key><string>ko</string>
@@ -284,8 +284,8 @@ npm run cap:doctor     # 버전·환경 점검
 
 ### 4.2 Android (`npm run cap:open:android`)
 
-1. `android/app/build.gradle` 의 `applicationId` 가 `kr.dalbitsaju.app` 인지 확인(`cap add` 가 appId 로 생성).
-2. **Firebase**: Android 앱(패키지 `kr.dalbitsaju.app`) 등록 → `google-services.json` 을 `android/app/` 에 둡니다. Capacitor 템플릿이 파일이 있을 때만 `com.google.gms.google-services` 플러그인을 적용합니다.
+1. `android/app/build.gradle` 의 `applicationId` 가 `com.daldalsaju.app` 인지 확인(`cap add` 가 appId 로 생성).
+2. **Firebase**: Android 앱(패키지 `com.daldalsaju.app`) 등록 → `google-services.json` 을 `android/app/` 에 둡니다. Capacitor 템플릿이 파일이 있을 때만 `com.google.gms.google-services` 플러그인을 적용합니다.
 3. **`android/app/src/main/AndroidManifest.xml`** (`<application>` 안)
 
    ```xml
@@ -305,15 +305,15 @@ npm run cap:doctor     # 버전·환경 점검
      <action android:name="android.intent.action.VIEW" />
      <category android:name="android.intent.category.DEFAULT" />
      <category android:name="android.intent.category.BROWSABLE" />
-     <data android:scheme="https" android:host="dalbitsaju.kr" />
+     <data android:scheme="https" android:host="daldalsaju.com" />
    </intent-filter>
    <!-- 커스텀 스킴 -->
    <intent-filter>
      <action android:name="android.intent.action.VIEW" />
      <category android:name="android.intent.category.DEFAULT" />
      <category android:name="android.intent.category.BROWSABLE" />
-     <data android:scheme="kr.dalbitsaju.app" />
-     <data android:scheme="dalbitsaju" />
+     <data android:scheme="com.daldalsaju.app" />
+     <data android:scheme="daldalsaju" />
    </intent-filter>
    ```
 
@@ -331,22 +331,22 @@ npm run cap:doctor     # 버전·환경 점검
 
 | 들어오는 링크 | 처리 |
 |---|---|
-| `https://dalbitsaju.kr/today` (유니버설 링크/App Links) | `/today` |
-| `kr.dalbitsaju.app://auth/callback/kakao?code=…&state=…` | `/auth/callback/kakao?code=…&state=…` (host 가 첫 경로 조각) |
+| `https://daldalsaju.com/today` (유니버설 링크/App Links) | `/today` |
+| `com.daldalsaju.app://auth/callback/kakao?code=…&state=…` | `/auth/callback/kakao?code=…&state=…` (host 가 첫 경로 조각) |
 | 푸시 `data.link` = `/reports/abc` 또는 절대 URL | `/reports/abc` |
 | 허용 목록 밖 경로·다른 도메인·모르는 스킴 | 무시 |
 
 허용 경로: `/auth/callback/*`, `/payments/*`, `/today`, `/saju`, `/yearly/*`, `/compatibility`, `/ask`, `/my`, `/reports/*`, `/store`, `/manse`, `/result`, `/input`, `/login`, `/signup`, `/legal/*` (`/fortune/today` → `/today` 별칭). 새 화면을 딥링크로 열려면 `ALLOWED_PATHS` 에 추가하세요.
 `/auth/callback/*`, `/payments/*` 로 돌아오면 인앱 브라우저(`Browser.close()`, iOS)를 자동으로 닫습니다. 콜드 스타트 링크는 `App.getLaunchUrl()` 로도 받고, 2초 안의 같은 URL 은 한 번만 처리합니다.
 
-**apple-app-site-association** — `https://dalbitsaju.kr/.well-known/apple-app-site-association` (확장자 없음, `Content-Type: application/json`, **리다이렉트 없이 200**)
+**apple-app-site-association** — `https://daldalsaju.com/.well-known/apple-app-site-association` (확장자 없음, `Content-Type: application/json`, **리다이렉트 없이 200**)
 
 ```json
 {
   "applinks": {
     "details": [
       {
-        "appIDs": ["ABCDE12345.kr.dalbitsaju.app"],
+        "appIDs": ["ABCDE12345.com.daldalsaju.app"],
         "components": [
           { "/": "/auth/callback/*", "comment": "소셜 로그인 복귀" },
           { "/": "/payments/*" },
@@ -363,7 +363,7 @@ npm run cap:doctor     # 버전·환경 점검
 
 `ABCDE12345` 는 Apple Team ID. 랜딩(`/`)·약관 등 웹으로 보여 줄 페이지는 넣지 않습니다(앱 설치자가 웹 링크를 못 여는 문제 방지).
 
-**assetlinks.json** — `https://dalbitsaju.kr/.well-known/assetlinks.json`
+**assetlinks.json** — `https://daldalsaju.com/.well-known/assetlinks.json`
 
 ```json
 [
@@ -371,7 +371,7 @@ npm run cap:doctor     # 버전·환경 점검
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "kr.dalbitsaju.app",
+      "package_name": "com.daldalsaju.app",
       "sha256_cert_fingerprints": [
         "AA:BB:…(Play 앱 서명 키 SHA-256)",
         "CC:DD:…(업로드 키 SHA-256)"
@@ -386,10 +386,10 @@ npm run cap:doctor     # 버전·환경 점검
 **테스트**
 
 ```bash
-xcrun simctl openurl booted "https://dalbitsaju.kr/today"
-xcrun simctl openurl booted "kr.dalbitsaju.app://reports/abc"
-adb shell am start -W -a android.intent.action.VIEW -d "https://dalbitsaju.kr/today" kr.dalbitsaju.app
-adb shell pm get-app-links kr.dalbitsaju.app        # verified 인지 확인
+xcrun simctl openurl booted "https://daldalsaju.com/today"
+xcrun simctl openurl booted "com.daldalsaju.app://reports/abc"
+adb shell am start -W -a android.intent.action.VIEW -d "https://daldalsaju.com/today" com.daldalsaju.app
+adb shell pm get-app-links com.daldalsaju.app        # verified 인지 확인
 ```
 
 ---
@@ -401,7 +401,7 @@ adb shell pm get-app-links kr.dalbitsaju.app        # verified 인지 확인
 ```
 앱 ── state 생성·sessionStorage 저장 ──▶ api.oauthUrl(p, `${appWebOrigin()}/auth/callback/${p}`, state)
 앱 ── native.openExternal(url) ──▶ SFSafariViewController / Custom Tabs 에서 제공자 로그인
-제공자 ── 302 https://dalbitsaju.kr/auth/callback/{p}?code&state ──▶ (유니버설 링크/App Links) 앱 appUrlOpen
+제공자 ── 302 https://daldalsaju.com/auth/callback/{p}?code&state ──▶ (유니버설 링크/App Links) 앱 appUrlOpen
 앱 ── openDeepLink: Browser.close() + /auth/callback/{p}?code&state 로 라우팅 ──▶ OAuthCallbackPage
 OAuthCallbackPage ── state 비교 → api.oauthCallback(p, { code, state, redirectUri: 같은 HTTPS 주소 })
 ```
@@ -420,7 +420,7 @@ else window.location.assign(url);
 // OAuthCallbackPage 의 redirectUri 도 같은 origin 으로 만들 것
 ```
 
-- **유니버설 링크가 안 열리는 경우 대비**: 리다이렉트만으로는 iOS 가 유니버설 링크를 열지 않는 경우가 있습니다. 앱에서 시작한 로그인은 `state` 앞에 `app.` 을 붙이고, 웹 콜백 페이지가 (앱 밖 브라우저에서) `app.` state 를 보면 `kr.dalbitsaju.app://auth/callback/{p}?code=…&state=…` 로 이동하고 "앱으로 돌아가기" 버튼도 함께 보여 주세요. 앱은 같은 경로로 처리합니다.
+- **유니버설 링크가 안 열리는 경우 대비**: 리다이렉트만으로는 iOS 가 유니버설 링크를 열지 않는 경우가 있습니다. 앱에서 시작한 로그인은 `state` 앞에 `app.` 을 붙이고, 웹 콜백 페이지가 (앱 밖 브라우저에서) `app.` state 를 보면 `com.daldalsaju.app://auth/callback/{p}?code=…&state=…` 로 이동하고 "앱으로 돌아가기" 버튼도 함께 보여 주세요. 앱은 같은 경로로 처리합니다.
 - **보안**: 현재 `OAuthCallbackPage` 는 저장된 state 가 없으면 비교를 건너뜁니다. 딥링크로 외부에서 콜백 경로를 열 수 있으므로 **저장된 state 가 없으면 실패 처리**하도록 바꿔 주세요(로그인 CSRF 방지).
 - Apple 심사 4.8: 카카오·네이버·구글 로그인을 넣으면 **Sign in with Apple** 도 제공해야 합니다(웹 방식으로도 가능, form_post 처리는 AUTH_PUSH §2).
 
@@ -434,21 +434,21 @@ else window.location.assign(url);
 
 | 서버 ID | 이름 | 가격(원) | App Store 상품 ID | Play 상품 ID | 유형 |
 |---|---|---:|---|---|---|
-| `report_saju_mini` | 첫 사주 미니 리포트 (계정당 1회) | 990 | `kr.dalbitsaju.report.mini` | `report_saju_mini` | 소모성 |
-| `report_saju_lifetime` | 평생 사주 정밀 리포트 | 9,900 | `kr.dalbitsaju.report.lifetime` | `report_saju_lifetime` | 소모성 |
-| `report_newyear_2027` | 2027 丁未년 신년운세 | 5,900 | `kr.dalbitsaju.report.newyear2027` | `report_newyear_2027` | 소모성 |
-| `report_compat` | 사주 궁합 리포트 | 5,900 | `kr.dalbitsaju.report.compat` | `report_compat` | 소모성 |
-| `report_love` | 연애·결혼운 리포트 (프로필 1명) | 4,900 | `kr.dalbitsaju.report.love` | `report_love` | 소모성 |
-| `report_career_wealth` | 재물·직업운 리포트 (프로필 1명) | 4,900 | `kr.dalbitsaju.report.careerwealth` | `report_career_wealth` | 소모성 |
-| `bundle_newyear_2027` | 2027 신년 패키지 | 16,900 | `kr.dalbitsaju.bundle.newyear2027` | `bundle_newyear_2027` | 소모성 |
-| `chat_pack_10` | AI 상담 질문권 10회 | 3,900 | `kr.dalbitsaju.chat.10` | `chat_pack_10` | 소모성 |
-| `chat_pack_30` | AI 상담 질문권 30회 | 9,900 | `kr.dalbitsaju.chat.30` | `chat_pack_30` | 소모성 |
-| `tarot_question_3` | 질문 타로 3장 깊은 풀이 (리딩 1건, 질문권 1회) | 990 | `kr.dalbitsaju.tarot.question3` | `tarot_question_3` | 소모성 |
-| `tarot_love_5` | 연애 속마음·재회 타로 5장 (리딩 1건, 질문권 1회) | 2,900 | `kr.dalbitsaju.tarot.love5` | `tarot_love_5` | 소모성 |
-| `tarot_choice_3` | 양자택일 타로 3장 깊은 풀이 (리딩 1건, 질문권 1회) | 990 | `kr.dalbitsaju.tarot.choice3` | `tarot_choice_3` | 소모성 |
-| `tarot_compat_5` | 궁합 타로 5장 깊은 풀이 (리딩 1건, 질문권 1회) | 2,900 | `kr.dalbitsaju.tarot.compat5` | `tarot_compat_5` | 소모성 |
-| `tarot_celtic_10` | 켈틱 크로스 10장 깊은 풀이 (리딩 1건, 질문권 3회) | 4,900 | `kr.dalbitsaju.tarot.celtic10` | `tarot_celtic_10` | 소모성 |
-| `report_taekil` | 택일 상세 풀이 (택일 결과 1건, `readingId` 필요) | 990 | `kr.dalbitsaju.report.taekil` | `report_taekil` | 소모성 |
+| `report_saju_mini` | 첫 사주 미니 리포트 (계정당 1회) | 990 | `com.daldalsaju.report.mini` | `report_saju_mini` | 소모성 |
+| `report_saju_lifetime` | 평생 사주 정밀 리포트 | 9,900 | `com.daldalsaju.report.lifetime` | `report_saju_lifetime` | 소모성 |
+| `report_newyear_2027` | 2027 丁未년 신년운세 | 5,900 | `com.daldalsaju.report.newyear2027` | `report_newyear_2027` | 소모성 |
+| `report_compat` | 사주 궁합 리포트 | 5,900 | `com.daldalsaju.report.compat` | `report_compat` | 소모성 |
+| `report_love` | 연애·결혼운 리포트 (프로필 1명) | 4,900 | `com.daldalsaju.report.love` | `report_love` | 소모성 |
+| `report_career_wealth` | 재물·직업운 리포트 (프로필 1명) | 4,900 | `com.daldalsaju.report.careerwealth` | `report_career_wealth` | 소모성 |
+| `bundle_newyear_2027` | 2027 신년 패키지 | 16,900 | `com.daldalsaju.bundle.newyear2027` | `bundle_newyear_2027` | 소모성 |
+| `chat_pack_10` | AI 상담 질문권 10회 | 3,900 | `com.daldalsaju.chat.10` | `chat_pack_10` | 소모성 |
+| `chat_pack_30` | AI 상담 질문권 30회 | 9,900 | `com.daldalsaju.chat.30` | `chat_pack_30` | 소모성 |
+| `tarot_question_3` | 질문 타로 3장 깊은 풀이 (리딩 1건, 질문권 1회) | 990 | `com.daldalsaju.tarot.question3` | `tarot_question_3` | 소모성 |
+| `tarot_love_5` | 연애 속마음·재회 타로 5장 (리딩 1건, 질문권 1회) | 2,900 | `com.daldalsaju.tarot.love5` | `tarot_love_5` | 소모성 |
+| `tarot_choice_3` | 양자택일 타로 3장 깊은 풀이 (리딩 1건, 질문권 1회) | 990 | `com.daldalsaju.tarot.choice3` | `tarot_choice_3` | 소모성 |
+| `tarot_compat_5` | 궁합 타로 5장 깊은 풀이 (리딩 1건, 질문권 1회) | 2,900 | `com.daldalsaju.tarot.compat5` | `tarot_compat_5` | 소모성 |
+| `tarot_celtic_10` | 켈틱 크로스 10장 깊은 풀이 (리딩 1건, 질문권 3회) | 4,900 | `com.daldalsaju.tarot.celtic10` | `tarot_celtic_10` | 소모성 |
+| `report_taekil` | 택일 상세 풀이 (택일 결과 1건, `readingId` 필요) | 990 | `com.daldalsaju.report.taekil` | `report_taekil` | 소모성 |
 
 - App Store 상품 ID 는 **삭제해도 재사용할 수 없습니다.** 등록 전에 catalog 의 ID 를 확정하세요(번들 ID 와 접두사가 달라도 문제없음).
 - 스토어 가격은 각 스토어의 원화 가격 포인트에서 고릅니다. 3,900·5,900원 포인트가 있는지 확인하고, 없으면 catalog 가격을 맞춥니다(research/03 §5.2).
@@ -460,7 +460,7 @@ else window.location.assign(url);
 
 1. **계약/세금/은행**(유료 앱 계약) 완료, **Small Business Program** 신청(수수료 15%).
 2. 앱 → **수익화 → 앱 내 구입**: 위 표대로 "소모품(Consumable)" 생성, 가격·한국어 표시명·설명·심사용 스크린샷 입력.
-3. **사용자 및 액세스 → 통합 → App Store Connect API → 앱 내 구입** 키 생성 → 서버 `APPLE_IAP_ISSUER_ID`, `APPLE_IAP_KEY_ID`, `APPLE_IAP_PRIVATE_KEY`, `APPLE_BUNDLE_ID=kr.dalbitsaju.app`.
+3. **사용자 및 액세스 → 통합 → App Store Connect API → 앱 내 구입** 키 생성 → 서버 `APPLE_IAP_ISSUER_ID`, `APPLE_IAP_KEY_ID`, `APPLE_IAP_PRIVATE_KEY`, `APPLE_BUNDLE_ID=com.daldalsaju.app`.
 4. (필수) **App Store Server Notifications V2** URL 등록 — 프로덕션·샌드박스 모두 `{API}/api/v1/payments/iap/notifications/apple`, 버전 2. 스토어 환불 시 지급분이 회수됩니다(`docs/PAYMENTS.md` 3.3, 5.1).
 5. 테스트: Xcode StoreKit Configuration 파일(로컬) → 샌드박스 테스터 계정. 앱 심사는 샌드박스로 운영 서버를 호출하므로 서버의 "운영 → 샌드박스 재시도"가 필요합니다(이미 구현).
 6. 첫 IAP 는 **앱 버전과 함께 심사 제출**해야 합니다(버전 페이지의 "앱 내 구입" 섹션에 추가).
@@ -470,7 +470,7 @@ else window.location.assign(url);
 1. **결제 프로필** 생성(판매자 계정).
 2. `com.android.vending.BILLING` 이 포함된 빌드를 **내부 테스트 트랙에 먼저 업로드**해야 상품을 만들 수 있습니다.
 3. **수익 창출 → 제품 → 일회성 제품(인앱 상품)**: 위 표의 Play 상품 ID 로 생성·활성화. (소모 여부는 스토어가 아니라 앱이 `consumePurchase` 로 결정)
-4. **설정 → API 액세스**: 서비스 계정 연결, 권한 "재무 데이터 보기, 주문 및 구독 관리" → 키 JSON 을 `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`, `GOOGLE_PLAY_PACKAGE_NAME=kr.dalbitsaju.app`.
+4. **설정 → API 액세스**: 서비스 계정 연결, 권한 "재무 데이터 보기, 주문 및 구독 관리" → 키 JSON 을 `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`, `GOOGLE_PLAY_PACKAGE_NAME=com.daldalsaju.app`.
 5. (필수) **실시간 개발자 알림(RTDN)** — Pub/Sub 토픽 + 인증을 켠 푸시 구독(`{API}/api/v1/payments/iap/notifications/google`) → 서버 `GOOGLE_PLAY_RTDN_AUDIENCE`, `GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT`. 환불·지불 거절 시 지급분이 회수됩니다(`docs/PAYMENTS.md` 3.4, 5.1).
 6. **라이선스 테스터** 등록(테스트 카드로 결제, orderId 없음 → 서버가 토큰 해시로 대체).
 
@@ -513,7 +513,7 @@ finishPurchase(receipt)           iOS finishTransaction / Android consumePurchas
 
 서버 설정은 AUTH_PUSH §6. 앱 쪽 체크리스트:
 
-1. Firebase 프로젝트에 iOS(`kr.dalbitsaju.app`) / Android(`kr.dalbitsaju.app`) 앱 등록 → `GoogleService-Info.plist` → `ios/App/App/`, `google-services.json` → `android/app/` (§4).
+1. Firebase 프로젝트에 iOS(`com.daldalsaju.app`) / Android(`com.daldalsaju.app`) 앱 등록 → `GoogleService-Info.plist` → `ios/App/App/`, `google-services.json` → `android/app/` (§4).
 2. **APNs 인증 키(.p8)** 를 Firebase 콘솔(프로젝트 설정 → 클라우드 메시징 → Apple 앱 구성)에 업로드. Xcode 에 Push Notifications + Background Modes(Remote notifications).
 3. JS 동작 (`src/native/push.ts`)
    - `native.requestPush()` — 권한 요청 → (Android) 채널 `yd_default` 생성 → **FCM 토큰** 반환. OS 권한 팝업 전에 프리프롬프트(무엇을·언제·얼마나 자주)를 화면에서 먼저 보여 주세요(UX §7.14-13). 첫 결과를 본 뒤에 요청합니다.
@@ -531,7 +531,7 @@ finishPurchase(receipt)           iOS finishTransaction / Android consumePurchas
 
 1. AdMob 에서 iOS·Android 앱을 각각 만들고 **앱 ID**(`ca-app-pub-…~…`)를 Info.plist `GADApplicationIdentifier` / AndroidManifest `com.google.android.gms.ads.APPLICATION_ID` 에 넣습니다(§4). **앱 ID 가 없으면 시작 시 종료**되므로 개발 중에도 테스트 앱 ID 를 넣으세요.
 2. 광고 단위: 보상형 `app_rewarded_chat`, 배너 `app_banner_result` (research/03 §5.7) → `.env.app` 의 `VITE_ADMOB_UNIT_*`. 비어 있으면 Google 테스트 단위 + `isTesting` 으로 요청합니다.
-3. **app-ads.txt** 를 웹 도메인 루트(`https://dalbitsaju.kr/app-ads.txt`)에 두고, 스토어 등록정보의 개발자 웹사이트를 같은 도메인으로 맞춥니다.
+3. **app-ads.txt** 를 웹 도메인 루트(`https://daldalsaju.com/app-ads.txt`)에 두고, 스토어 등록정보의 개발자 웹사이트를 같은 도메인으로 맞춥니다.
 4. **보상형 SSV**: AdMob 콘솔에서 보상형 단위에 SSV 콜백 URL(서버, 결제·광고팀 TODO)을 등록하면 `showRewardedAd()` 가 보내는 `ssv.userId`(서버 사용자 ID)·`customData` 가 콜백으로 옵니다. **질문권 지급은 서버가 SSV 로 확인한 뒤** 무상 버킷에 적립하세요(클라이언트 `true` 만 믿지 않기).
 5. 사용법 (`@/native`)
 
@@ -560,7 +560,7 @@ finishPurchase(receipt)           iOS finishTransaction / Android consumePurchas
 
 ## 10. 아이콘 · 스플래시
 
-원본 로고: 저장소 루트 `image/달빛사주_ 황금 초승달 로고.png`(남색 밤하늘 + 황금 초승달 + 붓글씨 "달빛사주", 1254×1254).
+원본 로고: 저장소 루트 `image/달달사주_ 황금 초승달 로고.png`(남색 밤하늘 + 황금 초승달 + 붓글씨 "달달사주", 1254×1254).
 여기서 잘라 낸 결과물(2026-10-16):
 
 | 파일 | 쓰임 |
@@ -613,7 +613,7 @@ rm -rf .assets
 
 **심사 노트(App Review Information → Notes) 예시**
 
-> 달빛사주 is not a generic horoscope app. It computes a person's Four Pillars (사주팔자) with a deterministic, open calculation engine that shows every correction step (solar term boundaries, true solar time), works offline for the chart itself, and uses the computed chart as structured input for its readings. Native features: daily push digest with deep links, home-screen widget (if shipped), haptics, share sheet, in-app purchases via StoreKit 2. Demo account: review@dalbitsaju.kr / ******** (purchases require sign-in).
+> 달달사주 is not a generic horoscope app. It computes a person's Four Pillars (사주팔자) with a deterministic, open calculation engine that shows every correction step (solar term boundaries, true solar time), works offline for the chart itself, and uses the computed chart as structured input for its readings. Native features: daily push digest with deep links, home-screen widget (if shipped), haptics, share sheet, in-app purchases via StoreKit 2. Demo account: review@daldalsaju.com / ******** (purchases require sign-in).
 
 - **데모 계정**을 반드시 제공합니다(IAP 는 로그인 필수).
 - 운세 콘텐츠는 "오락·참고용" 고지를 결과 화면·약관에 둡니다.
@@ -622,7 +622,7 @@ rm -rf .assets
 
 - 앱 안에서 찾기 쉬운 위치: **마이 탭 → 하단 "회원 탈퇴"** (`MyPage` 의 `deleteAccount` → `DELETE /auth/me`). 설정 깊숙이 숨기지 말고, 탈퇴 전 데이터 삭제 범위·구매 내역 처리 안내를 보여 주세요.
 - Apple 로그인 회원 탈퇴 시 **토큰 철회(revoke)** 가 필요합니다(AUTH_PUSH §3-4-7, 서버 TODO).
-- Google Play 는 앱 내 삭제 경로와 **별도로 웹에서 삭제를 요청할 수 있는 URL**(데이터 보안 양식)을 요구합니다(예: `https://dalbitsaju.kr/legal/delete-account`).
+- Google Play 는 앱 내 삭제 경로와 **별도로 웹에서 삭제를 요청할 수 있는 URL**(데이터 보안 양식)을 요구합니다(예: `https://daldalsaju.com/legal/delete-account`).
 
 ### 11.3 결제 관련 (3.1.1 / 3.1.3)
 
@@ -643,7 +643,7 @@ rm -rf .assets
 
 **빌드·설정**
 - [ ] `.env.app` 의 `VITE_API_BASE_URL` 이 **https 절대 주소**, `VITE_PUBLIC_WEB_URL` 설정
-- [ ] 서버 `CORS_ORIGINS` 에 `capacitor://localhost`, `https://localhost` 포함, `APPLE_BUNDLE_ID`·`GOOGLE_PLAY_PACKAGE_NAME` = `kr.dalbitsaju.app`
+- [ ] 서버 `CORS_ORIGINS` 에 `capacitor://localhost`, `https://localhost` 포함, `APPLE_BUNDLE_ID`·`GOOGLE_PLAY_PACKAGE_NAME` = `com.daldalsaju.app`
 - [ ] `npm run build:app -w @saju/web` 성공, `npx cap doctor` 정상
 - [ ] 아이콘·스플래시 생성(§10), 라이트/다크 모두 확인
 - [ ] 버전: iOS `CFBundleShortVersionString`/`CFBundleVersion`, Android `versionName`/`versionCode` 증가

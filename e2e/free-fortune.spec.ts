@@ -28,7 +28,7 @@ test('띠별 운세: 태어난 해로 띠 찾기 → 기간 전환 → 다른 �
 
   await expect(page).toHaveURL(/\/zodiac\/tiger\/today$/);
   await expect(h1(page)).toHaveText('호랑이띠 오늘의 운세');
-  await expect(page).toHaveTitle('호랑이띠 오늘의 운세 — 띠별 운세 | 달빛사주');
+  await expect(page).toHaveTitle('호랑이띠 오늘의 운세 — 띠별 운세 | 달달사주');
   await expect(periodTab(page, '오늘')).toHaveAttribute('aria-current', 'page');
   await expect(page.getByText('이렇게 풀이한 근거')).toBeVisible();
   // 본문에는 간지 한자가 없고, 근거는 펼쳐야 보인다
@@ -78,7 +78,7 @@ test('별자리 운세: 생일로 별자리 찾기 → 기간 전환 → 다른 
 
   await expect(page).toHaveURL(/\/horoscope\/leo\/today$/);
   await expect(h1(page)).toHaveText('사자자리 오늘의 운세');
-  await expect(page).toHaveTitle('사자자리 오늘의 운세 — 별자리 운세 | 달빛사주');
+  await expect(page).toHaveTitle('사자자리 오늘의 운세 — 별자리 운세 | 달달사주');
   await expect(page.getByText('천체 위치로 본 근거')).toBeVisible();
   await expect(page.getByText(/^달 · .+자리/).first()).toBeVisible();
   await expect(page.getByText(/간이 천문 계산/).first()).toBeVisible();

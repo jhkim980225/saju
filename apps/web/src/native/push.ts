@@ -26,7 +26,7 @@ async function ensureAndroidChannel() {
   if (storePlatform() !== 'android') return;
   await FirebaseMessaging.createChannel({
     id: ANDROID_CHANNEL_ID,
-    name: '달빛사주 알림',
+    name: '달달사주 알림',
     description: '오늘의 운세, 리포트 완성 등 안내',
     importance: 4 as Importance, // High — 헤드업 알림
     visibility: 1 as Visibility, // Public

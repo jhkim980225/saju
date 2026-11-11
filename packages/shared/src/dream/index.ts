@@ -50,7 +50,7 @@ export const DREAM_TONE_HINT: Record<DreamTone, string> = {
 /** 사전·꿈풀이 공통 고지 — 꿈은 예언이 아니다 */
 export const DREAM_DISCLAIMER = '꿈은 앞날을 알려 주는 예언이 아니에요. 전통적으로 전해 오는 해석이므로 참고로만 읽어 주세요.';
 /** 사전 문안 출처 표기 — 가공 인물 없이 */
-export const DREAM_SOURCE_NOTE = '전해 오는 민속 해석을 바탕으로 달빛사주 콘텐츠팀이 정리한 풀이입니다.';
+export const DREAM_SOURCE_NOTE = '전해 오는 민속 해석을 바탕으로 달달사주 콘텐츠팀이 정리한 풀이입니다.';
 
 const toSlug = (keyword: string) => keyword.trim().replace(/\s+/g, '-');
 

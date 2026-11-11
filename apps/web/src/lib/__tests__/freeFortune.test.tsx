@@ -99,7 +99,7 @@ describe('띠 상세 화면', () => {
     expect(screen.getByText(/태어난 해마다 이번 주에 잘 맞는 요일이 달라요/)).toBeInTheDocument();
     expect(screen.getByText(/^1986년생\(丙寅\) · /).closest('details')?.open).toBe(false);
 
-    expect(document.title).toBe('호랑이띠 이번 주 운세 — 띠별 운세 | 달빛사주');
+    expect(document.title).toBe('호랑이띠 이번 주 운세 — 띠별 운세 | 달달사주');
     expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toContain('1986');
     expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toMatch(/\/zodiac\/tiger\/week$/);
     // 무료 개인 운세로 이어지는 안내

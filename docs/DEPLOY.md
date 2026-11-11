@@ -56,7 +56,7 @@ PUBLIC_WEB_URL=https://도메인 npm run deploy            # 웹 빌드(사전 �
 ```
 
 - `npm run deploy` 는 `npm run build -w @saju/web`(타입검사 → Vite 빌드 → 사전 렌더링) 뒤 `apps/api` 에서 `wrangler deploy` 를 실행한다.
-- 웹 빌드는 빌드 시점의 값을 읽는다. 사전 렌더링(`apps/web/scripts/prerender.mts`)의 canonical·og·`sitemap.xml` 주소는 `PUBLIC_WEB_URL` 환경 변수(없으면 `https://dalbitsaju.kr`)를 쓴다. 광고·분석·Firebase 같은 공개 키(`VITE_*`)는 `apps/web/.env` 에서 읽는다. `VITE_API_BASE_URL` 은 비워 둔다(같은 Worker 의 `/api/v1`).
+- 웹 빌드는 빌드 시점의 값을 읽는다. 사전 렌더링(`apps/web/scripts/prerender.mts`)의 canonical·og·`sitemap.xml` 주소는 `PUBLIC_WEB_URL` 환경 변수(없으면 `https://daldalsaju.com`)를 쓴다. 광고·분석·Firebase 같은 공개 키(`VITE_*`)는 `apps/web/.env` 에서 읽는다. `VITE_API_BASE_URL` 은 비워 둔다(같은 Worker 의 `/api/v1`).
 
 배포가 끝나면 Custom Domain 을 붙인다.
 

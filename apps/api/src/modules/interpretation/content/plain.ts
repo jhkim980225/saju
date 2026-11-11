@@ -143,7 +143,7 @@ export const ELEMENT_PLAIN: Record<Element, ElementPlain> = {
 
 /**
  * 일간의 강약(신강·신약) — chip 은 화면의 짧은 꼬리표('…사주예요', '…사주와 …사주의 만남'처럼 받침 없이 끝내고, 12자 이내).
- * reason 은 이 강약일 때 달빛사주가 용신을 고르는 방향(억부 중심의 간이 계산).
+ * reason 은 이 강약일 때 달달사주가 용신을 고르는 방향(억부 중심의 간이 계산).
  */
 export const STRENGTH_PLAIN: Record<StrengthLevel, { chip: string; reason: string }> = {
   극신강: { chip: '일간이 매우 강한 사주', reason: '일간의 힘이 매우 강한 편이라, 그 힘을 덜어 내거나 제어하는 오행이 균형에 도움이 된다고 봅니다.' },

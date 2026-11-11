@@ -12,7 +12,7 @@
  * - 궁합 타로: 나의 자리는 내 일간, 상대 자리는 상대 일간, 둘 사이 자리는 두 사람 모두에 견준다
  * - 켈틱 크로스: 십자(1~6)와 기둥(7~10)으로 나눠 이야기를 잇는다
  *
- * 사주 결합은 "달빛사주 방식" 연결임을 화면에 밝힌다 — 타로의 원소와 오행을 잇는 전통은 없다.
+ * 사주 결합은 "달달사주 방식" 연결임을 화면에 밝힌다 — 타로의 원소와 오행을 잇는 전통은 없다.
  * 사주 결합 문장은 docs/PLAIN_KOREAN.md 기준 — 일간·오행·용신 같은 정식 용어를 쓰고, 섹션에서 처음 나올 때 뜻을 붙인다.
  * 한자는 정의 자리의 괄호에만, 글자별 근거(庚金·용신 木·카드 원소)는 basis('사주로 보면')에 둔다.
  * 총평의 슈트 이야기는 전통 원소(완드 불·컵 물·소드 공기·펜타클 흙)로 말한다 — 오행 연결은 사주 섹션에서만.
@@ -27,7 +27,7 @@ import { YES_NO_LABEL, leanOf } from './yesno.js';
 export const TAROT_DISCLAIMER =
   '타로는 지금의 마음과 상황을 정리해 보는 참고 도구입니다. 미래를 확정하지 않으므로, 중요한 결정은 본인의 판단과 전문가의 조언을 함께 고려해 주세요.';
 
-// ── 달빛사주 방식 원소 연결 ───────────────────────────────────
+// ── 달달사주 방식 원소 연결 ───────────────────────────────────
 
 /** 완드 = 잎이 돋은 나무 지팡이(木), 컵 = 물(水), 소드 = 공기를 金으로(金), 펜타클 = 흙(土). 전통 원소로는 완드가 불이다 */
 const SUIT_ELEMENT = { wands: 'wood', cups: 'water', swords: 'metal', pentacles: 'earth' } as const satisfies Record<string, Element>;
@@ -59,11 +59,11 @@ const MAJOR_ELEMENT: readonly [Element, string][] = [
   ['fire', '불의 카드'],
   ['earth', '토성(土星)의 카드'],
 ];
-/** 연결 방식의 자세한 근거 — '사주로 보면'(basis) 안에만. 전통 원소와 달빛사주의 오행 연결을 구분해 적는다 */
+/** 연결 방식의 자세한 근거 — '사주로 보면'(basis) 안에만. 전통 원소와 달달사주의 오행 연결을 구분해 적는다 */
 export const ELEMENT_NOTE =
-  '타로의 원소와 사주의 오행을 달빛사주 방식으로 연결한 해석이에요. 전통 타로(황금여명회 체계)에서 완드는 불, 컵은 물, 소드는 공기, 펜타클은 흙의 원소입니다. 달빛사주는 완드를 그림 속 나무 지팡이에 따라 木으로, 컵은 水, 소드는 공기를 金으로 보아 金, 펜타클은 土로 잇고, 메이저 카드는 전통적으로 대응하는 행성(수성·금성·화성·목성·토성·해·달)의 오행과 별자리의 원소를 따랐어요.';
+  '타로의 원소와 사주의 오행을 달달사주 방식으로 연결한 해석이에요. 전통 타로(황금여명회 체계)에서 완드는 불, 컵은 물, 소드는 공기, 펜타클은 흙의 원소입니다. 달달사주는 완드를 그림 속 나무 지팡이에 따라 木으로, 컵은 水, 소드는 공기를 金으로 보아 金, 펜타클은 土로 잇고, 메이저 카드는 전통적으로 대응하는 행성(수성·금성·화성·목성·토성·해·달)의 오행과 별자리의 원소를 따랐어요.';
 /** 본문에 보이는 안내 — 전통에 없는 해석임을 밝힌다 */
-export const ELEMENT_NOTE_PLAIN = '카드에 오행을 대응시키는 방식은 달빛사주 기준입니다. 전통 타로에는 없는 해석이므로 참고로 봐 주세요.';
+export const ELEMENT_NOTE_PLAIN = '카드에 오행을 대응시키는 방식은 달달사주 기준입니다. 전통 타로에는 없는 해석이므로 참고로 봐 주세요.';
 
 /** 슈트의 전통 원소와 주제(라이더-웨이트-스미스·황금여명회 체계) — 총평에서 같은 슈트가 몰렸을 때 */
 const SUIT_THEME: Record<TarotSuit, { name: string; element: string; theme: string }> = {
@@ -279,7 +279,7 @@ function sajuLines(chart: SajuChart, placed: TarotPlacedCardDto[], spread: Tarot
   const dm = chart.dayMaster;
   const w = whoOf(name);
   const y = chart.yongsin.yongsin;
-  const intro = `사주로 보면 ${w.named ? `${w.of} ` : ''}${GLOSS.dayMaster}은 ${dmName(chart, '이에요', '예요')}. ${ELEMENT_NATURE[dm.element]} 기운으로 봐요. 달빛사주는 카드마다 ${GLOSS.elements} 가운데 하나를 대응시켜, 그 오행이 일간과 어떤 관계인지 살폈어요.`;
+  const intro = `사주로 보면 ${w.named ? `${w.of} ` : ''}${GLOSS.dayMaster}은 ${dmName(chart, '이에요', '예요')}. ${ELEMENT_NATURE[dm.element]} 기운으로 봐요. 달달사주는 카드마다 ${GLOSS.elements} 가운데 하나를 대응시켜, 그 오행이 일간과 어떤 관계인지 살폈어요.`;
   const paragraphs = [intro];
   const rels = placed.map((p) => relationTo(dm.element, p.element));
   // 용신과 견주는 카드 — 보통 마지막 자리, 양자택일은 어느 선택지도 편들지 않도록 '지금의 나' 자리
@@ -346,7 +346,7 @@ function compatSajuLines(me: TarotPerson, partner: TarotPerson, placed: TarotPla
   const [a, b] = [me.chart, partner.chart];
   const [m, pn] = [`${me.name}님`, `${partner.name}님`];
   const paragraphs = [
-    `사주로 보면 ${m}의 ${GLOSS.dayMaster}은 ${dmName(a)}, ${pn}의 일간은 ${dmName(b, '이에요', '예요')}. 달빛사주는 카드마다 ${GLOSS.elements} 가운데 하나를 대응시켜, 그 오행이 두 사람의 일간과 각각 어떤 관계인지 살폈어요.`,
+    `사주로 보면 ${m}의 ${GLOSS.dayMaster}은 ${dmName(a)}, ${pn}의 일간은 ${dmName(b, '이에요', '예요')}. 달달사주는 카드마다 ${GLOSS.elements} 가운데 하나를 대응시켜, 그 오행이 두 사람의 일간과 각각 어떤 관계인지 살폈어요.`,
   ];
   // 생·극의 뜻은 관계마다 처음 한 번만
   const seen = new Set<Relation>();
@@ -535,7 +535,7 @@ export function buildTarotReading(input: {
     const lean = leanOf(input.drawn[0]!);
     const who = `${p.orientation === 'reversed' ? '역방향으로 나온 ' : ''}${cj(p.nameKo, '은', '는')} 「${p.keywords[0]}」의 카드라`;
     /** 카드별 기울기 표는 전통 뜻을 바탕으로 서비스가 나눈 것 — 한 번 밝힌다 */
-    const own = '카드별 예·아니오 기울기는 전통 의미를 바탕으로 달빛사주가 정한 기준입니다.';
+    const own = '카드별 예·아니오 기울기는 전통 의미를 바탕으로 달달사주가 정한 기준입니다.';
     const leanText: Record<TarotYesNoLean, string> = {
       yes: `${who}, 이 질문에서는 '예' 쪽으로 기울어 있어요. 정해진 답이라기보다 지금 상황이 그쪽에 가깝다는 뜻이에요. ${own}`,
       maybe: `${who}, 지금은 어느 한쪽으로 정해지지 않은 조건부 흐름이에요. 아래 조건을 챙길수록 바라는 쪽으로 가기 쉬워요. ${own}`,

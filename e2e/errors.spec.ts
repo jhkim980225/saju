@@ -8,7 +8,7 @@ test('존재하지 않는 경로는 404 화면을 보여 주고 처음으로 돌
   expect(res?.status()).toBe(200); // SPA fallback — 화면에서 404 처리
   await expect(page.getByText('페이지를 찾을 수 없어요')).toBeVisible();
   await expect(page.getByText('주소가 바뀌었거나 사라진 페이지예요.')).toBeVisible();
-  await expect(page).toHaveTitle(/달빛사주/);
+  await expect(page).toHaveTitle(/달달사주/);
 
   await page.getByRole('button', { name: '처음으로' }).click();
   await expect(page).toHaveURL(/\/$/);

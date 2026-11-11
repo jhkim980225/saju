@@ -11,7 +11,7 @@ import type { TojeongDto, TojeongMonthFlow } from '@saju/shared';
 import { gwaeOf } from './content/index.js';
 
 export const TOJEONG_DISCLAIMER =
-  '토정비결은 조선 후기부터 새해마다 한 해의 운수를 살펴보던 세시 풍속입니다. 이 풀이는 옛 글귀를 바탕으로 달빛사주가 현대어로 풀어 쓴 참고용 해석이에요. 중요한 결정은 본인의 판단과 전문가의 조언을 함께 고려해 주세요.';
+  '토정비결은 조선 후기부터 새해마다 한 해의 운수를 살펴보던 세시 풍속입니다. 이 풀이는 옛 글귀를 바탕으로 달달사주가 현대어로 풀어 쓴 참고용 해석이에요. 중요한 결정은 본인의 판단과 전문가의 조언을 함께 고려해 주세요.';
 
 /** 그달의 흐름 — 신년운세 등급('좋은 해·무난한 해·조심할 해')과 같은 말로 맞춘다. 웹 apps/web/src/lib/tojeong.ts FLOW_LABEL 과 같아야 한다 */
 export const TOJEONG_FLOW_LABEL: Record<TojeongMonthFlow, string> = { rise: '좋은 달', even: '무난한 달', care: '조심할 달' };

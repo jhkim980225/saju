@@ -51,7 +51,7 @@ export const stemName = (chart: SajuChart) => `${chart.dayMaster.hangul}${EL_NAM
 
 /**
  * 처음 나올 때 붙이는 뜻 — 사주 기초 화면(apps/web/src/lib/sajuBasics.ts)과 같은 내용을 짧게.
- * 전통 개념만 담는다. 달빛사주 자체 계산(점수·등급·용신 계산법·대운 시작 나이)은 본문에서 따로 밝힌다.
+ * 전통 개념만 담는다. 달달사주 자체 계산(점수·등급·용신 계산법·대운 시작 나이)은 본문에서 따로 밝힌다.
  */
 export const TERM_DEF: Record<string, string> = {
   일간: '태어난 날의 천간으로, 사주에서 나 자신을 나타내는 글자',
@@ -135,7 +135,7 @@ export function groupCount(chart: SajuChart): Record<TenGodGroup, number> {
 
 /** 점수대 — gradeWord 와 같은 기준이라 목록 줄의 등급과 풀이 문장이 어긋나지 않는다 */
 export const scoreBand = (n: number): 'high' | 'mid' | 'low' => (n >= 65 ? 'high' : n >= 50 ? 'mid' : 'low');
-/** 점수(0~100) → 등급(달빛사주 기준). low 는 주제마다 다르게(연애: 잔잔함, 재물: 낮음) */
+/** 점수(0~100) → 등급(달달사주 기준). low 는 주제마다 다르게(연애: 잔잔함, 재물: 낮음) */
 export const gradeWord = (score: number, low: string) => (score >= 80 ? '아주 좋음' : score >= 65 ? '좋음' : score >= 50 ? '보통' : low);
 
 /** 양력 달 → 계절 */

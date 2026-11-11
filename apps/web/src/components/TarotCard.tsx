@@ -2,7 +2,7 @@ import type { TarotCardDto } from '@saju/shared';
 import { t } from '@/lib/copy';
 import { cx } from './ui';
 
-/** 카드 비율 11:19(원판 카드 비율) — 앞면은 1909년 웨이트-스미스 덱 원판 스캔(패멀라 콜먼 스미스, 공개 저작물), 뒷면은 달빛사주 디자인. 출처·변환: docs/TAROT_ART.md */
+/** 카드 비율 11:19(원판 카드 비율) — 앞면은 1909년 웨이트-스미스 덱 원판 스캔(패멀라 콜먼 스미스, 공개 저작물), 뒷면은 달달사주 디자인. 출처·변환: docs/TAROT_ART.md */
 const FRAME = 'aspect-[11/19] overflow-hidden rounded-xl border border-line-strong bg-surface shadow-[0_2px_8px_rgba(31,29,26,0.08)]';
 
 export const orientationLabel = (o: TarotCardDto['orientation']) => (o === 'reversed' ? t('tarot.reveal.reversed') : t('tarot.reveal.upright'));

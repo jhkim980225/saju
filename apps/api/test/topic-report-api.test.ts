@@ -57,8 +57,8 @@ describe('상품', () => {
     const products = (await api('GET', '/products')).body as any[];
     const love = products.find((p) => p.id === 'report_love');
     const cw = products.find((p) => p.id === 'report_career_wealth');
-    expect(love).toMatchObject({ type: 'one_time', price: 4900, listPrice: null, credits: 0, grants: ['report:love'], comingSoon: false, purchasable: true, requiresProfile: true, requiresPartner: false, iosProductId: 'kr.dalbitsaju.report.love', androidProductId: 'report_love' });
-    expect(cw).toMatchObject({ type: 'one_time', price: 4900, listPrice: null, credits: 0, grants: ['report:career_wealth'], comingSoon: false, purchasable: true, requiresProfile: true, requiresPartner: false, iosProductId: 'kr.dalbitsaju.report.careerwealth', androidProductId: 'report_career_wealth' });
+    expect(love).toMatchObject({ type: 'one_time', price: 4900, listPrice: null, credits: 0, grants: ['report:love'], comingSoon: false, purchasable: true, requiresProfile: true, requiresPartner: false, iosProductId: 'com.daldalsaju.report.love', androidProductId: 'report_love' });
+    expect(cw).toMatchObject({ type: 'one_time', price: 4900, listPrice: null, credits: 0, grants: ['report:career_wealth'], comingSoon: false, purchasable: true, requiresProfile: true, requiresPartner: false, iosProductId: 'com.daldalsaju.report.careerwealth', androidProductId: 'report_career_wealth' });
     expect(love.description).toMatch(/10년/);
     expect(cw.description).toMatch(/10년/);
   });
@@ -148,7 +148,7 @@ describe('재물·직업운 리포트', () => {
     expect(r.status).toBe(200);
     expect(r.body.granted.entitlements).toEqual([`report:career_wealth:${me}`]);
     expect((await api('GET', '/reports', { token })).body.map((x: { type: string }) => x.type)).toEqual(['career_wealth']);
-    const ios = await api('POST', '/payments/iap/verify', { token, body: { platform: 'ios', productId: 'kr.dalbitsaju.report.love', receipt: `mock:as-love-${me}`, profileId: me } });
+    const ios = await api('POST', '/payments/iap/verify', { token, body: { platform: 'ios', productId: 'com.daldalsaju.report.love', receipt: `mock:as-love-${me}`, profileId: me } });
     expect(ios.body.granted.entitlements).toEqual([`report:love:${me}`]);
     expect((await api('GET', '/reports', { token })).body.map((x: { type: string }) => x.type).sort()).toEqual(['career_wealth', 'love']);
   });

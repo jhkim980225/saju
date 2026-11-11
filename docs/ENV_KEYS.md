@@ -17,7 +17,7 @@
 | `JWT_ACCESS_SECRET` | api·secret | 액세스 토큰 서명 | `openssl rand -base64 48` (32자 이상) | 개발용 기본값 사용, **운영에서는 기동 실패** |
 | `JWT_REFRESH_SECRET` | api·secret | 리프레시 토큰 | 위와 동일(다른 값) | 위와 동일 |
 | `PUBLIC_WEB_URL` | api·vars | 결제·소셜로그인 리다이렉트, 비밀번호 재설정 메일 링크의 기준 주소 | 운영 웹 도메인 (https) | `http://localhost:5173` |
-| `PUBLIC_WEB_URL` | web 빌드 | 사전 렌더링(`apps/web/scripts/prerender.mts`)의 canonical·og·`sitemap.xml` 주소 기준. 배포 때 셸 환경 변수로 넘긴다(`PUBLIC_WEB_URL=https://도메인 npm run deploy`) | 운영 웹 도메인 (https) | `https://dalbitsaju.kr` |
+| `PUBLIC_WEB_URL` | web 빌드 | 사전 렌더링(`apps/web/scripts/prerender.mts`)의 canonical·og·`sitemap.xml` 주소 기준. 배포 때 셸 환경 변수로 넘긴다(`PUBLIC_WEB_URL=https://도메인 npm run deploy`) | 운영 웹 도메인 (https) | `https://daldalsaju.com` |
 | `CORS_ORIGINS` | api·vars | 허용 오리진. 웹은 Worker 와 같은 출처라 필요 없고 Capacitor 앱 때문에 둔다 | 웹 도메인 + `capacitor://localhost,https://localhost,http://localhost` | 로컬 기본값 |
 | `PAYMENT_PROVIDER` | api·vars | 결제사 선택 | **`groble`**(2026-10-15 결정). 대안 `toss`·`portone` | `mock` — **운영에서는 기동 실패** |
 | `VITE_API_BASE_URL` | web | API 주소. 웹은 같은 Worker 가 API 를 내므로 비워 둔다 | 앱 빌드는 운영 절대 주소 필수(`https://도메인/api/v1`) | 같은 출처 `/api/v1` |
@@ -77,7 +77,7 @@
 | 키 | 위치 | 용도 | 발급처 | 없으면 |
 |---|---|---|---|---|
 | `RESEND_API_KEY` | api·secret | 비밀번호 재설정 링크 메일 발송(`POST https://api.resend.com/emails`, 새 의존성 없이 fetch) | [Resend](https://resend.com) > API Keys | `POST /auth/password/forgot` 501, 웹 "비밀번호 찾기"는 **문의 안내**로 대체 |
-| `MAIL_FROM` | api·secret | 발신자. 예: `달빛사주 <no-reply@dalbitsaju.kr>` | Resend > Domains 에서 **발신 도메인 인증(DNS: SPF·DKIM)** 뒤 그 도메인의 주소. 인증 전에는 `onboarding@resend.dev` 로 본인 계정 메일에만 시험 발송 가능 | 위와 동일 (두 키가 모두 있어야 `features.mail=true`) |
+| `MAIL_FROM` | api·secret | 발신자. 예: `달달사주 <no-reply@daldalsaju.com>` | Resend > Domains 에서 **발신 도메인 인증(DNS: SPF·DKIM)** 뒤 그 도메인의 주소. 인증 전에는 `onboarding@resend.dev` 로 본인 계정 메일에만 시험 발송 가능 | 위와 동일 (두 키가 모두 있어야 `features.mail=true`) |
 | `SUPPORT_EMAIL` | api·secret | 고객 문의 주소 — 메일 연동이 없을 때 "비밀번호 찾기" 화면에 "{주소}로 가입한 이메일을 적어 문의해 주세요" 안내. `GET /config` 의 `supportEmail` | — | 주소 없이 '문의하기' 문구만 |
 
 동작: 가입 여부와 관계없이 200(계정 유무 비노출) → 이메일 계정이면 32바이트 토큰을 만들어 sha256 해시만 `password_resets` 에 저장(30분 만료, 1회 사용, 이전 미사용 링크는 무효화) → `{PUBLIC_WEB_URL}/password/reset?token=…` 링크 발송. 재설정에 성공하면 그 사용자의 refresh token 을 모두 폐기한다. 흐름 설명: [`docs/AUTH_PUSH.md`](./AUTH_PUSH.md) 5절.
@@ -109,7 +109,7 @@
 | `SIGNUP_BONUS_CREDITS` | api·vars | 가입 축하 무상 질문권 | 0 |
 | `ACCESS_TOKEN_TTL_SEC` / `REFRESH_TOKEN_TTL_DAYS` | api·vars | 토큰 수명 | 3600 / 30 |
 | `NODE_ENV` | api·vars | 운영 모드. `wrangler.jsonc` 는 `production`, 로컬 `apps/api/.env` 는 `development` 로 덮어쓴다. 운영 모드는 JWT 시크릿·결제사 설정을 검사하고 요청 수 제한을 켠다 | `development` |
-| `APP_NAME` | api·vars | 서비스 이름 | `달빛사주` |
+| `APP_NAME` | api·vars | 서비스 이름 | `달달사주` |
 
 **요청 수 제한**은 환경 변수가 아니라 `apps/api/wrangler.jsonc` 의 `ratelimits`(Cloudflare Rate Limiting 바인딩)에서 정한다. 접속 IP(`cf-connecting-ip`) 기준이고 운영 모드에서만 켜진다.
 

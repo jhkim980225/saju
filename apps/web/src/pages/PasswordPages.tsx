@@ -41,7 +41,7 @@ const BackToLogin = () => (
 
 /** 메일 연동이 없을 때 — 문의 안내 (supportEmail 이 없으면 '문의하기' 링크만) */
 function ContactNotice({ supportEmail }: { supportEmail: string | null }) {
-  const query = `?subject=${encodeURIComponent('[달빛사주] 비밀번호 재설정 문의')}&body=${encodeURIComponent('가입한 이메일: ')}`;
+  const query = `?subject=${encodeURIComponent('[달달사주] 비밀번호 재설정 문의')}&body=${encodeURIComponent('가입한 이메일: ')}`;
   return (
     <Card className="space-y-3">
       <p className="font-semibold">지금은 메일로 재설정할 수 없습니다.</p>

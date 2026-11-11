@@ -16,7 +16,7 @@ const opt = z
 
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  APP_NAME: z.string().default('달빛사주'),
+  APP_NAME: z.string().default('달달사주'),
   /** CORS 허용 오리진(콤마 구분). Capacitor 앱 오리진도 포함 */
   CORS_ORIGINS: z.string().default('http://localhost:5173,capacitor://localhost,http://localhost,https://localhost'),
   /** 결제·소셜로그인 리다이렉트, 비밀번호 재설정 메일 링크의 기준이 되는 웹 주소 */
@@ -103,7 +103,7 @@ const schema = z.object({
 
   // 메일 (Resend HTTPS API) — 비밀번호 재설정 링크 발송
   RESEND_API_KEY: opt,
-  /** 발신자. 예: `달빛사주 <no-reply@dalbitsaju.kr>` (Resend 에 도메인 인증 필요) */
+  /** 발신자. 예: `달달사주 <no-reply@daldalsaju.com>` (Resend 에 도메인 인증 필요) */
   MAIL_FROM: opt,
   /** 고객 문의 주소 — 메일 연동이 없을 때 비밀번호 찾기 화면에 안내 */
   SUPPORT_EMAIL: opt,

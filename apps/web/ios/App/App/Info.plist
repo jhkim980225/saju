@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>ko</string>
 	<key>CFBundleDisplayName</key>
-        <string>달빛사주</string>
+        <string>달달사주</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -78,16 +78,16 @@
 	</array>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>맞춤형 광고를 보여 드리는 데 사용돼요. 허용하지 않아도 모든 기능을 쓸 수 있어요.</string>
-	<!-- 커스텀 스킴 딥링크 (kr.dalbitsaju.app:// , dalbitsaju://) -->
+	<!-- 커스텀 스킴 딥링크 (com.daldalsaju.app:// , daldalsaju://) -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>kr.dalbitsaju.app</string>
+			<string>com.daldalsaju.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>kr.dalbitsaju.app</string>
-				<string>dalbitsaju</string>
+				<string>com.daldalsaju.app</string>
+				<string>daldalsaju</string>
 			</array>
 		</dict>
 	</array>

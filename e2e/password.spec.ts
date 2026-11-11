@@ -11,7 +11,7 @@ test('로그인 화면의 링크로 비밀번호 찾기에 가면 메일 연동�
   await expect(page).toHaveURL(/\/password\/forgot$/);
   await expect(page.getByRole('heading', { name: '비밀번호 찾기' })).toBeVisible();
   await expect(page.getByText('지금은 메일로 재설정할 수 없습니다.')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'help@dalbitsaju.test' })).toHaveAttribute('href', /^mailto:help@dalbitsaju\.test\?subject=/);
+  await expect(page.getByRole('link', { name: 'help@daldalsaju.test' })).toHaveAttribute('href', /^mailto:help@daldalsaju\.test\?subject=/);
   // 이메일 입력 폼은 없다
   await expect(page.getByRole('textbox')).toHaveCount(0);
 

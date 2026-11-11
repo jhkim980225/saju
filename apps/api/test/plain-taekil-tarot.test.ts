@@ -108,7 +108,7 @@ describe('타로 — 사주로 본 카드는 일간·오행·용신을 뜻과 �
             else expect(visible.join(' '), where).not.toContain('님');
             // 첫 문단은 결론이 아니라 '무엇을 견줬는지' — 요약(결론)과 같지 않게
             expect(saju.paragraphs[0]).not.toContain(saju.summary);
-            expect(saju.basis, where).toMatch(/^일간 .+ · 용신 .+ · 카드 원소 .+달빛사주 방식/);
+            expect(saju.basis, where).toMatch(/^일간 .+ · 용신 .+ · 카드 원소 .+달달사주 방식/);
             // 같은 카드를 주어로 두 문장 연달아 쓰지 않는다
             const subjects = saju.paragraphs.map((p) => p.match(/^(.+?)(은|는) /)?.[1] ?? '');
             subjects.forEach((s, i) => i > 0 && s && expect(s, `${where}: ${saju.paragraphs[i]}`).not.toBe(subjects[i - 1]));

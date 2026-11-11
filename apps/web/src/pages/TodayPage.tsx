@@ -104,7 +104,7 @@ export function TodayPage() {
                   <Badge tone={d.evaluation.grade === 'great' || d.evaluation.grade === 'good' ? 'gold' : 'default'}>{d.gradeLabel}</Badge>
                   <span className="tabular text-sm text-ink-3">총운 {d.evaluation.scores.total}점</span>
                 </div>
-                <p className="mt-2 text-xs text-ink-3">점수와 등급은 오늘의 일진과 내 사주의 관계를 달빛사주 기준으로 환산한 서비스 자체 지표예요.</p>
+                <p className="mt-2 text-xs text-ink-3">점수와 등급은 오늘의 일진과 내 사주의 관계를 달달사주 기준으로 환산한 서비스 자체 지표예요.</p>
                 <p className="prose-reading mt-4 text-[17px] leading-relaxed">{d.message}</p>
               </section>
 

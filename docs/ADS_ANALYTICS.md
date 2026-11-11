@@ -112,7 +112,7 @@
 ### 2.6 카카오 디벨로퍼스 (카카오톡 공유) — `VITE_KAKAO_JS_KEY`
 
 1. <https://developers.kakao.com> → 내 애플리케이션 → 앱 만들기 → **앱 키 → JavaScript 키** → `VITE_KAKAO_JS_KEY`
-2. **플랫폼 → Web → 사이트 도메인**에 실제로 공유를 호출하는 모든 출처를 등록합니다. 운영(`https://dalbitsaju.kr`, `https://www.dalbitsaju.kr`), 스테이징, 개발(`http://localhost:5173`)이 해당합니다.
+2. **플랫폼 → Web → 사이트 도메인**에 실제로 공유를 호출하는 모든 출처를 등록합니다. 운영(`https://daldalsaju.com`, `https://www.daldalsaju.com`), 스테이징, 개발(`http://localhost:5173`)이 해당합니다.
    - **주의**: 등록하지 않은 도메인에서는 SDK 호출이 실패합니다. 공유 카드의 링크(`webUrl`/`mobileWebUrl`) 도메인도 등록된 도메인이어야 카드 클릭이 정상 동작합니다.
    - JavaScript 키는 공개 키이고, 이 도메인 제한이 사실상 유일한 보호 장치입니다.
 3. 쿼터: 공식 FAQ 기준 "주어진 쿼터 내 무료"입니다. 초과하면 유료 설정이 필요합니다(정확한 수치는 미확인, 리서치 §4).
@@ -182,7 +182,7 @@ AdSense 승인 후 **루트 도메인**에 `ads.txt` 를 게시해야 수익이 
    ```
 
 2. 카카오 애드핏 관리 화면에서 ads.txt 문구를 안내하면 같은 파일에 줄을 추가합니다(미확인).
-3. Vite 는 `public/` 을 빌드 루트로 복사하므로 `https://dalbitsaju.kr/ads.txt` 로 서빙됩니다.
+3. Vite 는 `public/` 을 빌드 루트로 복사하므로 `https://daldalsaju.com/ads.txt` 로 서빙됩니다.
    - 호스팅의 SPA 폴백(모든 경로 → `index.html`)이 `ads.txt` 를 가로채지 않는지, `text/plain` 으로 응답하는지 확인합니다.
    - `www` 와 루트 도메인을 모두 쓴다면 둘 다에서 열려야 합니다.
 4. 앱(AdMob)은 스토어 등록정보의 개발자 웹사이트 루트에 `app-ads.txt` 가 필요합니다(앱팀).

@@ -22,7 +22,7 @@ test('꿈해몽 사전: 메뉴 → 검색 → 키워드 페이지(제목·상황
   // 키워드 페이지 — 화면별 제목, 상황별 풀이, 같은 분류의 다른 꿈
   await expect(page).toHaveURL(SNAKE);
   await expect(page.getByRole('heading', { level: 1, name: '뱀 꿈 해몽' })).toBeVisible();
-  await expect(page).toHaveTitle('뱀 꿈 해몽 — 뜻과 상황별 풀이 | 달빛사주');
+  await expect(page).toHaveTitle('뱀 꿈 해몽 — 뜻과 상황별 풀이 | 달달사주');
   await expect(page.getByRole('heading', { name: '상황별 풀이' })).toBeVisible();
   expect(await page.getByRole('article').getByRole('heading', { level: 3 }).count()).toBeGreaterThanOrEqual(2);
   await expect(page.getByText('꿈은 앞날을 알려 주는 예언이 아니에요', { exact: false })).toBeVisible();

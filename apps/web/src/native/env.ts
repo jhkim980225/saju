@@ -4,13 +4,13 @@
  */
 const env = import.meta.env as Record<string, string | undefined>;
 
-/** Capacitor appId — 커스텀 스킴(kr.dalbitsaju.app://)의 기본값으로도 쓴다 */
-export const APP_ID = 'kr.dalbitsaju.app';
+/** Capacitor appId — 커스텀 스킴(com.daldalsaju.app://)의 기본값으로도 쓴다 */
+export const APP_ID = 'com.daldalsaju.app';
 
 const trimSlash = (s: string) => s.replace(/\/+$/, '');
 
 /**
- * 웹 서비스 공개 주소 (예: https://dalbitsaju.kr).
+ * 웹 서비스 공개 주소 (예: https://daldalsaju.com).
  * 앱 웹뷰의 origin 은 capacitor://localhost / https://localhost 이므로
  * 소셜 로그인 redirectUri·공유 링크·유니버설 링크 호스트는 이 값을 기준으로 만든다.
  */

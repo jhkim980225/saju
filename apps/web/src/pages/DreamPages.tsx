@@ -43,7 +43,7 @@ import { usePurchase } from '@/hooks/usePurchase';
 import { ApiError, api } from '@/lib/api';
 import { t } from '@/lib/copy';
 
-const SITE = '달빛사주';
+const SITE = '달달사주';
 const CRISIS_NOTE = t('ask.crisisNote');
 /** 많이 찾는 꿈 — 사전에 없는 것은 건너뛴다 */
 const POPULAR = ['뱀', '돼지', '이빨', '똥', '죽는-꿈', '호랑이', '물', '불', '전-애인', '쫓기는-꿈', '떨어지는-꿈', '시험', '아기', '돈', '조상', '귀신'];

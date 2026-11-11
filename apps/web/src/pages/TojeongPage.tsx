@@ -27,7 +27,7 @@ import {
 
 type Source = { kind: 'profile'; profile: ProfileDto } | { kind: 'birth'; birth: TojeongBirthDto; name?: string };
 
-const PAGE_TITLE = (year: number) => `${year} 토정비결 무료 — 생년월일로 보는 한 해 운세 | 달빛사주`;
+const PAGE_TITLE = (year: number) => `${year} 토정비결 무료 — 생년월일로 보는 한 해 운세 | 달달사주`;
 const PAGE_DESCRIPTION = (year: number) => `생년월일만 넣으면 ${year}년 토정비결 총평과 음력 열두 달 흐름을 무료로 볼 수 있어요. 풀이 번호(괘)를 뽑은 계산 과정도 함께 보여 드려요.`;
 
 /** 검색 유입용 페이지라 탭 제목·설명을 이 화면 동안만 바꿔 둔다(나갈 때 원래대로) */

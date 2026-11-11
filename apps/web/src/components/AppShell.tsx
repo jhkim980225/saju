@@ -28,7 +28,7 @@ export function DesktopNav() {
   return (
     <header className="safe-top sticky top-0 z-40 hidden border-b border-line bg-canvas/95 backdrop-blur lg:block print:hidden">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-8">
-        <Link to="/" aria-label="달빛사주 처음으로" className="shrink-0">
+        <Link to="/" aria-label="달달사주 처음으로" className="shrink-0">
           <Wordmark />
         </Link>
         <nav className="flex flex-1 items-center justify-between" aria-label="주요 메뉴">

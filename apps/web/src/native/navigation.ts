@@ -44,7 +44,7 @@ function isAllowedPath(pathname: string): boolean {
 /**
  * 딥링크 URL → 앱 내부 경로(pathname+search+hash). 처리할 수 없으면 null.
  *  - https://{웹 도메인}/today            (유니버설 링크 / App Links)
- *  - kr.dalbitsaju.app://auth/callback/kakao?code=… (커스텀 스킴: host 가 첫 경로 조각)
+ *  - com.daldalsaju.app://auth/callback/kakao?code=… (커스텀 스킴: host 가 첫 경로 조각)
  *  - /reports/abc                          (푸시 data.link 같은 상대 경로)
  */
 export function resolveDeepLink(raw: string): string | null {
