@@ -53,6 +53,8 @@ export function createRewardsService(config: AppConfig, db: Db, commerce: Commer
   };
 
   return {
+    /** 오늘(KST) 0시 — 광고 보상 하루 한도를 세는 기준 */
+    todayStart: startOfTodayKst,
     /** 오늘 받은 광고 보상 횟수 */
     async todayCount(userId: string): Promise<number> {
       return (
@@ -101,8 +103,16 @@ export function createRewardsService(config: AppConfig, db: Db, commerce: Commer
 
       const [user] = await db.select({ id: users.id, deletedAt: users.deletedAt }).from(users).where(eq(users.id, userId));
       if (!user || user.deletedAt) return { granted: false, reason: 'UNKNOWN_USER' };
-      if ((await this.todayCount(userId)) >= config.REWARDED_AD_DAILY_LIMIT) return { granted: false, reason: 'DAILY_LIMIT' };
-      const credits = await commerce.grantFreeCredits(userId, config.REWARDED_AD_CREDITS, REWARD_MEMO);
+      let credits: number | null;
+      try {
+        // 하루 한도는 지급 묶음 실행 시점에 확인한다 — 서로 다른 거래가 동시에 와도 한도를 넘지 않는다
+        credits = await commerce.grantDailyCapped(userId, config.REWARDED_AD_CREDITS, REWARD_MEMO, config.REWARDED_AD_DAILY_LIMIT, startOfTodayKst());
+      } catch (e) {
+        // 지급하지 못했으니 기록을 지운다 — AdMob 이 같은 거래를 다시 보내면 그때 지급한다
+        await db.delete(webhookEvents).where(eq(webhookEvents.id, eventId));
+        throw e;
+      }
+      if (credits === null) return { granted: false, reason: 'DAILY_LIMIT' };
       return { granted: true, credits };
     },
   };

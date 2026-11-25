@@ -1,15 +1,17 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { UserDto } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
+import { atomic } from '../../db/atomic.js';
 import { isUniqueViolation, type Db } from '../../db/client.js';
 import { chatMessages, creditLedger, entitlements, passwordResets, profiles, pushTokens, refreshTokens, reports, tarotReadings, users, type User } from '../../db/schema.js';
 import { conflict, notFound } from '../../lib/errors.js';
 import { newId } from '../../lib/ids.js';
 import { balanceNow } from '../commerce/service.js';
+import type { OpsService } from '../ops/service.js';
 
 const GUEST_NAMES = ['별빛', '새벽', '달무리', '은하', '노을', '바람', '구름', '햇살'];
 
-export function createUserService(config: AppConfig, db: Db) {
+export function createUserService(config: AppConfig, db: Db, ops?: Pick<OpsService, 'signup'>) {
   const get = async (id: string): Promise<User> => {
     const [u] = await db.select().from(users).where(eq(users.id, id));
     if (!u || u.deletedAt) throw notFound('사용자를 찾을 수 없어요.');
@@ -48,6 +50,25 @@ export function createUserService(config: AppConfig, db: Db) {
 
   const emailTakenError = () => conflict('이미 가입된 이메일이에요.');
 
+  /**
+   * 게스트 행을 회원으로 바꾼다 — 아직 게스트일 때만(실행 시점 확인). 바꿨으면 true.
+   * 가입 버튼을 두 번 누르는 등 같은 게스트의 전환 요청이 겹쳐도 전환과 가입 보너스는 한 번이다
+   */
+  const convertGuest = async (guestId: string, patch: Partial<typeof users.$inferInsert>) =>
+    (
+      await db
+        .update(users)
+        .set({ ...patch, registeredAt: Date.now(), updatedAt: Date.now() })
+        .where(and(eq(users.id, guestId), eq(users.provider, 'guest'), isNull(users.deletedAt)))
+        .returning({ id: users.id })
+    ).length === 1;
+
+  /** 소셜 계정(제공자 + 제공자 사용자 ID)으로 이미 있는 회원 */
+  const findSocial = async (provider: string, providerUserId: string) => {
+    const [u] = await db.select().from(users).where(and(eq(users.provider, provider), eq(users.providerUserId, providerUserId)));
+    return u && !u.deletedAt ? u : undefined;
+  };
+
   return {
     get,
     toDto,
@@ -77,17 +98,20 @@ export function createUserService(config: AppConfig, db: Db) {
         if (input.guestUserId) {
           const [guest] = await db.select().from(users).where(eq(users.id, input.guestUserId));
           if (guest && guest.provider === 'guest' && !guest.deletedAt) {
-            await db
-              .update(users)
-              .set({ email, passwordHash: input.passwordHash, provider: 'email', nickname: input.nickname ?? guest.nickname, marketingConsent: input.marketingConsent ?? false, updatedAt: Date.now() })
-              .where(eq(users.id, guest.id));
-            await grantSignupBonus(guest.id);
-            return get(guest.id);
+            if (await convertGuest(guest.id, { email, passwordHash: input.passwordHash, provider: 'email', nickname: input.nickname ?? guest.nickname, marketingConsent: input.marketingConsent ?? false })) {
+              await grantSignupBonus(guest.id);
+              ops?.signup({ provider: 'email', converted: true });
+              return get(guest.id);
+            }
+            // 다른 요청이 먼저 전환했다 — 같은 이메일이면 같은 가입이 두 번 들어온 것(두 번 누름)이라 409 로 알린다
+            const [after] = await db.select({ email: users.email }).from(users).where(eq(users.id, guest.id));
+            if (after?.email === email) throw emailTakenError();
           }
         }
         const id = newId();
-        await db.insert(users).values({ id, email, passwordHash: input.passwordHash, nickname: input.nickname ?? email.split('@')[0]!.slice(0, 20), provider: 'email', marketingConsent: input.marketingConsent ?? false });
+        await db.insert(users).values({ id, email, passwordHash: input.passwordHash, nickname: input.nickname ?? email.split('@')[0]!.slice(0, 20), provider: 'email', marketingConsent: input.marketingConsent ?? false, registeredAt: Date.now() });
         await grantSignupBonus(id);
+        ops?.signup({ provider: 'email', converted: false });
         return get(id);
       } catch (e) {
         // 같은 이메일로 동시에 가입한 경우 — 확인과 저장 사이에 다른 요청이 먼저 들어갔다
@@ -97,8 +121,8 @@ export function createUserService(config: AppConfig, db: Db) {
     },
     /** 소셜 로그인 사용자 찾기/생성 (게스트 전환 지원) */
     async upsertSocialUser(input: { provider: string; providerUserId: string; email: string | null; nickname: string | null; refreshToken?: string | null; guestUserId?: string }): Promise<{ user: User; created: boolean }> {
-      const [found] = await db.select().from(users).where(and(eq(users.provider, input.provider), eq(users.providerUserId, input.providerUserId)));
-      if (found && !found.deletedAt) {
+      const found = await findSocial(input.provider, input.providerUserId);
+      if (found) {
         if (input.refreshToken) await db.update(users).set({ providerRefreshToken: input.refreshToken }).where(eq(users.id, found.id));
         return { user: found, created: false };
       }
@@ -109,17 +133,32 @@ export function createUserService(config: AppConfig, db: Db) {
       if (input.guestUserId) {
         const [guest] = await db.select().from(users).where(eq(users.id, input.guestUserId));
         if (guest && guest.provider === 'guest' && !guest.deletedAt) {
-          await db
-            .update(users)
-            .set({ provider: input.provider, providerUserId: input.providerUserId, providerRefreshToken: input.refreshToken ?? null, email: emailTaken ? null : email, nickname, updatedAt: Date.now() })
-            .where(eq(users.id, guest.id));
-          await grantSignupBonus(guest.id);
-          return { user: await get(guest.id), created: true };
+          try {
+            if (await convertGuest(guest.id, { provider: input.provider, providerUserId: input.providerUserId, providerRefreshToken: input.refreshToken ?? null, email: emailTaken ? null : email, nickname })) {
+              await grantSignupBonus(guest.id);
+              ops?.signup({ provider: input.provider, converted: true });
+              return { user: await get(guest.id), created: true };
+            }
+          } catch (e) {
+            if (!isUniqueViolation(e)) throw e;
+          }
+          // 같은 소셜 계정의 로그인이 겹쳐 다른 요청이 먼저 전환(또는 생성)했다 — 그 계정으로 로그인한다
+          const again = await findSocial(input.provider, input.providerUserId);
+          if (again) return { user: again, created: false };
         }
       }
       const id = newId();
-      await db.insert(users).values({ id, provider: input.provider, providerUserId: input.providerUserId, providerRefreshToken: input.refreshToken ?? null, email: emailTaken ? null : email, nickname });
+      try {
+        await db.insert(users).values({ id, provider: input.provider, providerUserId: input.providerUserId, providerRefreshToken: input.refreshToken ?? null, email: emailTaken ? null : email, nickname, registeredAt: Date.now() });
+      } catch (e) {
+        if (!isUniqueViolation(e)) throw e;
+        // 같은 소셜 계정의 첫 로그인이 동시에 두 번 들어왔다 — 먼저 만든 계정으로 로그인한다(보너스도 그쪽에서 한 번)
+        const again = await findSocial(input.provider, input.providerUserId);
+        if (again) return { user: again, created: false };
+        throw e;
+      }
       await grantSignupBonus(id);
+      ops?.signup({ provider: input.provider, converted: false });
       return { user: await get(id), created: true };
     },
     /**
@@ -131,36 +170,41 @@ export function createUserService(config: AppConfig, db: Db) {
      */
     async mergeGuestInto(guestUserId: string | undefined, userId: string): Promise<number> {
       if (!guestUserId || guestUserId === userId) return 0;
-      const [guest] = await db.select().from(users).where(eq(users.id, guestUserId));
-      if (!guest || guest.provider !== 'guest' || guest.deletedAt) return 0;
-      const freeCredits = Math.max(0, guest.credits - guest.paidCredits);
-      if (freeCredits > 0) {
-        await db.batch([
-          db.update(users).set({ credits: sql`${users.credits} - ${freeCredits}` }).where(eq(users.id, guestUserId)),
-          db.insert(creditLedger).values({ id: newId(), userId: guestUserId, delta: -freeCredits, reason: 'admin', memo: '로그인한 회원 계정으로 이동', balanceAfter: balanceNow(guestUserId) }),
-          db.update(users).set({ credits: sql`${users.credits} + ${freeCredits}` }).where(eq(users.id, userId)),
-          db.insert(creditLedger).values({ id: newId(), userId, delta: freeCredits, reason: 'admin', memo: '게스트로 받은 질문권 이동', balanceAfter: balanceNow(userId) }),
-        ]);
-      }
-      const [moved] = await db.batch([
-        db.update(profiles).set({ userId, isPrimary: false, updatedAt: Date.now() }).where(eq(profiles.userId, guestUserId)).returning({ id: profiles.id }),
-        db.update(reports).set({ userId }).where(eq(reports.userId, guestUserId)),
-        db.update(chatMessages).set({ userId }).where(eq(chatMessages.userId, guestUserId)),
+      // 같은 게스트로 로그인이 겹쳐도(두 번 누름·두 탭) 옮기기는 한 번 — 게스트가 실행 시점에도 그대로(삭제 전, 질문권 그대로)여야 한다
+      return atomic(db, async (u) => {
+        const [guest] = await db.select().from(users).where(eq(users.id, guestUserId));
+        if (!guest || guest.provider !== 'guest' || guest.deletedAt) return 0;
+        u.expect(
+          sql`exists (select 1 from ${users} where ${users.id} = ${guestUserId} and ${users.provider} = 'guest' and ${users.deletedAt} is null and ${users.credits} = ${guest.credits} and ${users.paidCredits} = ${guest.paidCredits})`,
+        );
+        const freeCredits = Math.max(0, guest.credits - guest.paidCredits);
+        if (freeCredits > 0) {
+          u.write(db.update(users).set({ credits: sql`${users.credits} - ${freeCredits}` }).where(eq(users.id, guestUserId)));
+          u.write(db.insert(creditLedger).values({ id: newId(), userId: guestUserId, delta: -freeCredits, reason: 'admin', memo: '로그인한 회원 계정으로 이동', balanceAfter: balanceNow(guestUserId) }));
+          u.write(db.update(users).set({ credits: sql`${users.credits} + ${freeCredits}` }).where(eq(users.id, userId)));
+          u.write(db.insert(creditLedger).values({ id: newId(), userId, delta: freeCredits, reason: 'admin', memo: '게스트로 받은 질문권 이동', balanceAfter: balanceNow(userId) }));
+        }
+        const moved = (await db.select({ id: profiles.id }).from(profiles).where(eq(profiles.userId, guestUserId))).length;
+        u.write(db.update(profiles).set({ userId, isPrimary: false, updatedAt: Date.now() }).where(eq(profiles.userId, guestUserId)));
+        u.write(db.update(reports).set({ userId }).where(eq(reports.userId, guestUserId)));
+        u.write(db.update(chatMessages).set({ userId }).where(eq(chatMessages.userId, guestUserId)));
         // 회원이 같은 날 같은 질문을 이미 뽑은 게스트 리딩은 지우고(유니크 충돌), 나머지를 옮긴다.
         // (D1 의 batch 는 db.run(sql) 문을 받지 못해 'update or ignore' 대신 쿼리 빌더 두 문장으로 쓴다)
-        db
-          .delete(tarotReadings)
-          .where(
-            and(
-              eq(tarotReadings.userId, guestUserId),
-              sql`exists (select 1 from ${tarotReadings} as m where m.user_id = ${userId} and m.date_key = ${tarotReadings.dateKey} and m.question_key = ${tarotReadings.questionKey})`,
+        u.write(
+          db
+            .delete(tarotReadings)
+            .where(
+              and(
+                eq(tarotReadings.userId, guestUserId),
+                sql`exists (select 1 from ${tarotReadings} as m where m.user_id = ${userId} and m.date_key = ${tarotReadings.dateKey} and m.question_key = ${tarotReadings.questionKey})`,
+              ),
             ),
-          ),
-        db.update(tarotReadings).set({ userId }).where(eq(tarotReadings.userId, guestUserId)),
-        db.delete(refreshTokens).where(eq(refreshTokens.userId, guestUserId)),
-        db.update(users).set({ deviceId: null, deletedAt: Date.now(), nickname: '병합된 게스트', updatedAt: Date.now() }).where(eq(users.id, guestUserId)),
-      ]);
-      return moved.length;
+        );
+        u.write(db.update(tarotReadings).set({ userId }).where(eq(tarotReadings.userId, guestUserId)));
+        u.write(db.delete(refreshTokens).where(eq(refreshTokens.userId, guestUserId)));
+        u.write(db.update(users).set({ deviceId: null, deletedAt: Date.now(), nickname: '병합된 게스트', updatedAt: Date.now() }).where(eq(users.id, guestUserId)));
+        return moved;
+      });
     },
     async update(id: string, patch: { nickname?: string; marketingConsent?: boolean; pushEnabled?: boolean }): Promise<User> {
       await db.update(users).set({ ...patch, updatedAt: Date.now() }).where(eq(users.id, id));

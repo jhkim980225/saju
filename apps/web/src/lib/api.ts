@@ -185,7 +185,8 @@ export const api = {
   reportProgress: (id: string) => get<ReportProgressDto>(`/reports/${id}/progress`, 'required'),
   createReport: (dto: ReportCreateDto) => post<ReportDto>('/reports', dto, 'required'),
   chatHistory: (profileId: string) => get<ChatMessageDto[]>(`/chat?profileId=${profileId}`, 'required'),
-  chatSend: (profileId: string, message: string) => post<ChatReplyDto>('/chat', { profileId, message }, 'required'),
+  /** requestId 는 보낼 때마다 새로 만든다 — 같은 요청이 두 번 도착해도 서버가 질문권을 한 번만 차감한다 */
+  chatSend: (profileId: string, message: string, requestId: string) => post<ChatReplyDto>('/chat', { profileId, message, requestId }, 'required'),
 
   // 타로
   tarotDaily: (profileId?: string) => get<TarotReadingDto>(`/tarot/daily${profileId ? `?profileId=${profileId}` : ''}`, 'required'),

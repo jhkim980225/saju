@@ -1,0 +1,1 @@
+ALTER TABLE `refresh_tokens` ADD `replaced_by` text;

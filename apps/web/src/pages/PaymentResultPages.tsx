@@ -27,6 +27,10 @@ export function PaymentSuccessPage() {
   // 승인 후 저장소에서 지우므로, 돌아갈 경로 등은 첫 렌더 시점 값을 고정해서 쓴다
   const [pending] = useState(pendingCheckout);
   const [state, setState] = useState<{ status: 'loading' | 'waiting' | 'timeout' | 'done' | 'error'; result?: PaymentResultDto; message?: string }>({ status: 'loading' });
+  /** 진행 중인 결제를 확인하러 온 경우(구매 버튼을 다시 눌렀는데 같은 상품의 결제가 진행 중) — 같은 주문으로 결제창을 다시 열 수 있다 */
+  const resuming = params.get('resume') === '1' && Boolean(pending?.resume);
+  const [reopening, setReopening] = useState(false);
+  const [reopenError, setReopenError] = useState<string | null>(null);
   const ran = useRef(false);
   const alive = useRef(true);
   useEffect(() => {
@@ -96,6 +100,30 @@ export function PaymentSuccessPage() {
 
   const goBack = () => navigate(pending?.returnTo ?? '/my/payments', { replace: true });
 
+  /** "결제하지 않았어요" — 같은 주문(같은 ref)으로 결제창을 다시 연다. 새 주문을 만들지 않으므로 결제가 두 번 확정되지 않는다 */
+  const reopenCheckout = async () => {
+    if (!pending?.resume) return;
+    setReopening(true);
+    setReopenError(null);
+    try {
+      const checkout = await api.createOrder({ ...pending.resume, resumeOrderId: pending.orderId });
+      if (!checkout.checkout.redirectUrl) throw new Error(t('payment.failBody'));
+      window.location.assign(checkout.checkout.redirectUrl);
+    } catch (e) {
+      const reason = e instanceof ApiError ? (e.details as { reason?: string } | undefined)?.reason : undefined;
+      // 그사이 결제가 확인됐다 — 확인 화면이 곧 완료로 바뀐다
+      if (reason === 'ALREADY_PAID') void waitForWebhook(pending.orderId);
+      else setReopenError(e instanceof Error ? e.message : t('payment.failBody'));
+    } finally {
+      setReopening(false);
+    }
+  };
+  const reopenButton = resuming && (
+    <Button onClick={() => void reopenCheckout()} loading={reopening}>
+      {t('payment.reopenCheckout')}
+    </Button>
+  );
+
   return (
     <Page className="flex min-h-page flex-col items-center justify-center text-center">
       {state.status === 'loading' && (
@@ -106,12 +134,17 @@ export function PaymentSuccessPage() {
       )}
       {state.status === 'waiting' && (
         <div className="space-y-4">
+          {resuming && <h1 className="font-serif text-2xl font-semibold">{t('payment.inProgressTitle')}</h1>}
           <Spinner label={t('payment.processingTitle')} />
-          <p className="text-sm text-ink-3">{t('payment.waitingBody')}</p>
-          {/* 결제창에서 그냥 돌아온 경우(진입 페이지)도 같은 화면으로 온다 — 기다리지 않고 나갈 수 있게 */}
-          <Button variant="secondary" onClick={goBack}>
-            {t('payment.notPaidBack')}
-          </Button>
+          <p className="text-sm text-ink-3">{resuming ? t('payment.inProgressBody') : t('payment.waitingBody')}</p>
+          {reopenError && <p className="text-sm text-danger">{reopenError}</p>}
+          <div className="grid gap-2">
+            {reopenButton}
+            {/* 결제창에서 그냥 돌아온 경우(진입 페이지)도 같은 화면으로 온다 — 기다리지 않고 나갈 수 있게 */}
+            <Button variant="secondary" onClick={goBack}>
+              {resuming ? t('common.back') : t('payment.notPaidBack')}
+            </Button>
+          </div>
         </div>
       )}
       {state.status === 'timeout' && (
@@ -124,6 +157,8 @@ export function PaymentSuccessPage() {
             </Button>
             <Button onClick={() => pending?.orderId && void waitForWebhook(pending.orderId)}>{t('payment.recheck')}</Button>
           </div>
+          {reopenError && <p className="text-sm text-danger">{reopenError}</p>}
+          {reopenButton}
         </div>
       )}
       {state.status === 'done' && (

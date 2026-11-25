@@ -107,6 +107,11 @@ const schema = z.object({
   MAIL_FROM: opt,
   /** 고객 문의 주소 — 메일 연동이 없을 때 비밀번호 찾기 화면에 안내 */
   SUPPORT_EMAIL: opt,
+  /**
+   * 운영 알림 웹훅(Discord 웹훅 주소 등, {"content": "..."} 를 POST) — 중복 결제·금액 불일치처럼 운영자가 환불해야 하는 일이 생기면 바로 알린다.
+   * 비어 있으면 로그만 남긴다
+   */
+  OPS_ALERT_WEBHOOK_URL: opt.refine((v) => v === undefined || /^https:\/\//.test(v), 'https:// 로 시작하는 주소를 적어 주세요.'),
 
   // 광고 (서버 주도 노출 제어)
   ADS_ENABLED: bool,

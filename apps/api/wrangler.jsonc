@@ -53,7 +53,8 @@
   ],
 
   // 매일 23:00 UTC = 08:00 KST 오늘의 운세 푸시(DAILY_PUSH_ENABLED=true 이고 FCM 키가 있을 때만 보낸다)
-  "triggers": { "crons": ["0 23 * * *"] },
+  // 10분마다: 결제 확인 지연 알림·묶음 알림 정리(src/worker.ts). 08:00 KST 에는 운영 하루 요약도 보낸다
+  "triggers": { "crons": ["0 23 * * *", "*/10 * * * *"] },
 
   // 비밀이 아닌 설정. 키·비밀번호는 wrangler secret put <이름> (docs/ENV_KEYS.md)
   "vars": {

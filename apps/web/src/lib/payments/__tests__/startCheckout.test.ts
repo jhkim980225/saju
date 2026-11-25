@@ -4,8 +4,9 @@
  */
 import type { CheckoutDto, ProductDto } from '@saju/shared';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { ApiError } from '../../api';
 import { STORAGE_KEYS, storage } from '../../storage';
-import { startCheckout } from '..';
+import { RESUME_CHECKOUT_PATH, startCheckout } from '..';
 
 const m = vi.hoisted(() => ({ createOrder: vi.fn<(dto: unknown) => Promise<CheckoutDto>>() }));
 vi.mock('../../api', async (importOriginal) => {
@@ -46,6 +47,28 @@ describe('startCheckout — 그로블', () => {
     await expect(startCheckout({ product, returnTo: '/ask' })).resolves.toBe('redirected');
     expect(assign).toHaveBeenCalledWith(url);
     expect(storage.getJSON(STORAGE_KEYS.pendingCheckout)).toMatchObject({ orderId: 'ORD-20261015-GROBLE0002', provider: 'groble', returnTo: '/ask' });
+  });
+
+  it('같은 상품의 결제가 진행 중이면(409 PAYMENT_IN_PROGRESS) 결제창 대신 그 주문의 결제 확인 화면으로 보낸다', async () => {
+    m.createOrder.mockRejectedValue(
+      new ApiError(409, 'CONFLICT', '같은 상품의 결제가 진행 중이에요.', { reason: 'PAYMENT_IN_PROGRESS', orderId: 'ORD-20261015-GROBLE0001', amount: 3900, productId: product.id }),
+    );
+    await expect(startCheckout({ product, profileId: 'p1', returnTo: '/ask' })).resolves.toBe('redirected');
+    expect(assign).toHaveBeenCalledTimes(1);
+    expect(assign).toHaveBeenCalledWith(RESUME_CHECKOUT_PATH);
+    expect(storage.getJSON(STORAGE_KEYS.pendingCheckout)).toMatchObject({
+      orderId: 'ORD-20261015-GROBLE0001',
+      provider: 'groble',
+      returnTo: '/ask',
+      resume: { productId: product.id, profileId: 'p1' },
+    });
+  });
+
+  it('이미 가진 콘텐츠(409 ALREADY_OWNED) 등 다른 오류는 이동하지 않고 그대로 알린다', async () => {
+    m.createOrder.mockRejectedValue(new ApiError(409, 'CONFLICT', '이미 구매한 콘텐츠예요.', { reason: 'ALREADY_OWNED' }));
+    await expect(startCheckout({ product, returnTo: '/ask' })).rejects.toThrow('이미 구매한 콘텐츠예요');
+    expect(assign).not.toHaveBeenCalled();
+    expect(storage.getJSON(STORAGE_KEYS.pendingCheckout)).toBeNull();
   });
 
   it('서버가 결제 링크를 주지 않으면 이동하지 않고 알린다', async () => {

@@ -379,9 +379,17 @@ export interface ReportSummaryDto {
 // AI 상담
 // ---------------------------------------------------------------------------
 
+/**
+ * 요청 ID — 앱이 보낼 때마다 새로 만든다(crypto.randomUUID). 같은 요청이 두 번 도착해도(응답 유실 뒤 재시도·두 번 누름)
+ * 서버가 질문권을 한 번만 차감하도록 알아보는 표시다
+ */
+export const REQUEST_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
+export const requestIdSchema = z.string().regex(REQUEST_ID_PATTERN, '요청 ID 형식이 올바르지 않아요.');
+
 export const chatSendSchema = z.object({
   profileId: z.string(),
   message: z.string().trim().min(1).max(500),
+  requestId: requestIdSchema.optional(),
 });
 export interface ChatMessageDto {
   id: string;
@@ -444,6 +452,11 @@ export const orderCreateSchema = z.object({
   /** 타로 상세 리딩 대상 리딩 ID */
   readingId: z.string().optional(),
   couponCode: z.string().max(40).optional(),
+  /**
+   * 진행 중인 결제를 이어서 할 때 그 주문 ID — 서버가 같은 상품의 결제가 진행 중이라고 알려 주면(409 PAYMENT_IN_PROGRESS)
+   * 사용자가 "결제하지 않았다"고 확인한 뒤 같은 주문으로 결제창을 다시 연다(새 주문을 만들지 않는다)
+   */
+  resumeOrderId: z.string().max(64).optional(),
 });
 export type OrderCreateDto = z.input<typeof orderCreateSchema>;
 

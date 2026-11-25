@@ -52,7 +52,7 @@
 | POST | `/reports` | ✓ | `{ type: lifetime|yearly|compatibility|love|career_wealth, profileId, partnerProfileId?, year? }` — 권한 없으면 **402 + details.productId**(`love` → `report_love`, `career_wealth` → `report_career_wealth`), 궁합 1회권 자동 사용(이미 열린 조합은 차감 없음). `love`·`career_wealth` 는 프로필 하나에 대한 주제별 리포트로, 권한 키는 `report:love:<profileId>`·`report:career_wealth:<profileId>`(산 프로필만 열림). 규칙 기반 본문을 바로 돌려주고, AI 가 설정돼 있으면 `status: 'polishing'` + `progress: { done, total }`(덩어리 수)로 뒤에서 다듬는다. 같은 조건은 저장본(결제 직후 미리 만든 것 포함)을 돌려준다 |
 | GET | `/reports`, `/reports/:id` | ✓ | 보관함. 리포트는 결제 확정(웹 승인·인앱결제·웹훅) 직후 자동으로 만들어진다(궁합 1회권·미니 리포트 제외 — 연애·결혼운·재물·직업운 포함). 환불되면 목록에서 빠지고 `/reports/:id` 는 402 |
 | GET | `/reports/:id/progress` | ✓ | `{ status: polishing|ready, progress: { done, total } | null }` — 다듬는 동안 본문 없이 폴링(화면은 2초 간격). ready 가 되면 `/reports/:id` 를 다시 받는다 |
-| GET / POST / DELETE | `/chat?profileId` | ✓ | 상담 기록 / 질문(질문권 1회, 부족하면 402 INSUFFICIENT_CREDITS) / 기록 삭제 |
+| GET / POST / DELETE | `/chat?profileId` | ✓ | 상담 기록 / 질문 `{ profileId, message, requestId? }`(질문권 1회, 부족하면 402 INSUFFICIENT_CREDITS. 같은 `requestId` 는 한 번만 차감하고 처음 답을 돌려줌, 처리 중이면 409) / 기록 삭제 |
 
 ## 타로
 | 메서드 | 경로 | 인증 | 설명 |
@@ -95,7 +95,7 @@
 ## 꿈해몽
 | 메서드 | 경로 | 인증 | 설명 |
 |---|---|---|---|
-| POST | `/dream/interpret` | ✓ | AI 꿈풀이 `{ text(5~500자), profileId?, withoutSaju? }` → `DreamInterpretationDto { symbols, headline, paragraphs, generator: ai|rule, creditsCharged, creditsLeft, profileName, crisis, notice, disclaimer }`. 꿈 이야기에서 사전 상징을 찾아(규칙 기반 근거) AI(`ANTHROPIC_MODEL`)가 풀이. **AI 연동 시 질문권 1회**(AI 상담과 같은 `AI_CHAT_CREDIT_COST`, 부족하면 402 INSUFFICIENT_CREDITS), AI 실패 시 기본 풀이 — 서비스 쪽 장애면 무상 환급(하루 5번까지), 거절이면 차감 유지(`creditsCharged` 에 반영). **AI 미설정이면 사전 해석을 엮은 기본 풀이, 차감 없음.** 사주는 지정 프로필 → 대표 프로필 순(AI 풀이에만 사용), 남의 프로필은 400. 꿈 이야기는 저장하지 않음 |
+| POST | `/dream/interpret` | ✓ | AI 꿈풀이 `{ text(5~500자), profileId?, withoutSaju?, requestId? }` — `requestId`(영문·숫자·`-_` 8~64자, 보낼 때마다 새로)가 같은 요청은 한 번만 차감하고 처음 풀이를 돌려준다(처리 중이면 409) → `DreamInterpretationDto { symbols, headline, paragraphs, generator: ai|rule, creditsCharged, creditsLeft, profileName, crisis, notice, disclaimer }`. 꿈 이야기에서 사전 상징을 찾아(규칙 기반 근거) AI(`ANTHROPIC_MODEL`)가 풀이. **AI 연동 시 질문권 1회**(AI 상담과 같은 `AI_CHAT_CREDIT_COST`, 부족하면 402 INSUFFICIENT_CREDITS), AI 실패 시 기본 풀이 — 서비스 쪽 장애면 무상 환급(하루 5번까지), 거절이면 차감 유지(`creditsCharged` 에 반영). **AI 미설정이면 사전 해석을 엮은 기본 풀이, 차감 없음.** 사주는 지정 프로필 → 대표 프로필 순(AI 풀이에만 사용), 남의 프로필은 400. 꿈 이야기는 저장하지 않음 |
 
 - 사전(300여 항목·검색·분류)은 API 가 아니라 `@saju/shared/dream`(`packages/shared/src/dream/`)을 웹이 직접 번들한다 — 웹 `/dream`, `/dream/:slug`(별칭 주소는 대표 키워드로 이동), `/dream/ask`. 계약 타입도 같은 곳에 있다.
 
@@ -117,7 +117,7 @@
 | 메서드 | 경로 | 인증 | 설명 |
 |---|---|---|---|
 | GET | `/products` | opt | 상품 카탈로그(현재가·할인 마감·계정당 구매 가능 여부) |
-| POST | `/orders` | ✓(회원) | `{ productId, profileId?, partnerProfileId? }` → 결제창 파라미터(`CheckoutDto`) |
+| POST | `/orders` | ✓(회원) | `{ productId, profileId?, partnerProfileId?, readingId?, resumeOrderId? }` → 결제창 파라미터(`CheckoutDto`). 409 `details.reason`: `PAYMENT_IN_PROGRESS`(같은 상품·대상의 결제를 30분 안에 시작함, `orderId` 를 `resumeOrderId` 로 보내면 같은 주문의 결제창), `ALREADY_OWNED`(이미 가진 리포트·풀이), `ALREADY_PAID`(이어서 결제하려던 주문이 결제 확인됨). 결제창 링크형 결제사(그로블)만 진행 중 확인을 한다 |
 | GET | `/orders`, `/orders/:id` | ✓ | 주문 내역 |
 | POST | `/payments/confirm` | ✓ | `{ provider, orderId, amount, paymentKey? }` 서버 승인 + 금액 검증 + 지급 (멱등) |
 | POST | `/payments/fail` | ✓ | 결제창 취소/실패 기록 |

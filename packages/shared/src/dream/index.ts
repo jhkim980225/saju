@@ -95,6 +95,11 @@ export const dreamInterpretSchema = z.object({
   profileId: z.string().optional(),
   /** true 면 사주 없이 꿈만 본다 */
   withoutSaju: z.boolean().optional(),
+  /** 요청 ID — 같은 요청이 두 번 와도 질문권을 한 번만 차감한다(@saju/shared 의 REQUEST_ID_PATTERN 과 같은 형식) */
+  requestId: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{8,64}$/, '요청 ID 형식이 올바르지 않아요.')
+    .optional(),
 });
 export type DreamInterpretDto = z.input<typeof dreamInterpretSchema>;
 

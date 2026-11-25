@@ -10,6 +10,7 @@ import { createChatService } from './modules/chat/service.js';
 import { createGateways, type GatewayDeps } from './modules/commerce/providers/index.js';
 import { createCommerceService } from './modules/commerce/service.js';
 import { createMailService } from './modules/mail/service.js';
+import { createOpsService } from './modules/ops/service.js';
 import { createProfileService } from './modules/profiles/service.js';
 import { createPushService } from './modules/push/service.js';
 import { createReportService, type StartJob } from './modules/reports/service.js';
@@ -37,14 +38,19 @@ export interface ServiceDeps {
 }
 
 export function createServices(config: AppConfig, db: Db, deps: ServiceDeps = {}) {
-  const users = createUserService(config, db);
+  // 운영 알림·집계(가입·결제·환불·장애 알림, 하루 요약) — 다른 서비스가 사건을 알린다
+  const ops = createOpsService(config, db);
+  const users = createUserService(config, db, ops);
   const mail = createMailService(config);
   const auth = createAuthService(config, db, users, mail);
   const oauth = createOAuthService(config);
   const profiles = createProfileService(db);
   const gateways = createGateways(config, deps.gateways);
-  const commerce = createCommerceService(config, db, gateways);
-  const ai = createAiService(config);
+  const commerce = createCommerceService(config, db, gateways, ops);
+  const ai = createAiService(config, {
+    onUsage: (kind, model, usage) => ops.aiUsage(kind, model, usage),
+    onFailure: (kind, where) => ops.aiFailure(kind, where),
+  });
   const startJob: StartJob =
     deps.startJob ??
     ((job) =>
@@ -66,7 +72,7 @@ export function createServices(config: AppConfig, db: Db, deps: ServiceDeps = {}
   const tossAuth = createTossAuthService(config, toss, users);
   const tossIap = createTossIapService(config, db, commerce, toss);
   const tossRewards = createTossRewardsService(config, db, commerce, rewards, toss);
-  return { users, mail, auth, oauth, profiles, gateways, commerce, ai, reports, chat, push, rewards, tarot, taekil, toss, tossAuth, tossIap, tossRewards };
+  return { ops, users, mail, auth, oauth, profiles, gateways, commerce, ai, reports, chat, push, rewards, tarot, taekil, toss, tossAuth, tossIap, tossRewards };
 }
 
 export type Services = ReturnType<typeof createServices>;

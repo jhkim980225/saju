@@ -12,6 +12,7 @@ import { qk, useConfig, useProfiles, useWallet } from '@/hooks/queries';
 import { SessionGateError, useSessionGate } from '@/hooks/useSessionGate';
 import { usePurchase } from '@/hooks/usePurchase';
 import { ApiError, api } from '@/lib/api';
+import { uuid } from '@/lib/uuid';
 import { track } from '@/lib/analytics';
 import { t } from '@/lib/copy';
 import { STORAGE_KEYS, storage } from '@/lib/storage';
@@ -37,7 +38,7 @@ export function AskPage() {
 
   const history = useQuery({ queryKey: ['chat', profile?.id], queryFn: () => api.chatHistory(profile!.id), enabled: Boolean(profile) });
   const send = useMutation({
-    mutationFn: (message: string) => api.chatSend(profile!.id, message),
+    mutationFn: (message: string) => api.chatSend(profile!.id, message, uuid()),
     onMutate: (message) => setOptimistic({ id: 'pending', role: 'user', content: message, createdAt: new Date().toISOString() }),
     onSuccess: async () => {
       track('chat_sent');

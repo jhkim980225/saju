@@ -16,7 +16,7 @@ const dummyHash = () => (dummy ??= hashPassword('not-a-real-password-for-timing'
 
 export function authRoutes({ ctx, authenticate, optionalAuth, authLimit: strict }: RouteKit) {
   const { users, auth, oauth } = ctx.services;
-  const loginThrottle = createLoginThrottle(ctx.db);
+  const loginThrottle = createLoginThrottle(ctx.db, Date.now, () => ctx.services.ops.loginLocked());
   const app = new Hono<AppEnv>();
 
   /** 게스트(비회원) 시작 — 앱 첫 실행 시 기기 ID 로 호출 */

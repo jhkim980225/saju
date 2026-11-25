@@ -30,6 +30,7 @@ describe('토스 보상형 광고 지급 (일회용 토큰)', () => {
       { id: 'toss-1', nickname: '토스1', provider: 'toss', providerUserId: 'h1' },
       { id: 'toss-2', nickname: '토스2', provider: 'toss', providerUserId: 'h2' },
       { id: 'toss-3', nickname: '토스3', provider: 'toss', providerUserId: 'h3' },
+      { id: 'toss-4', nickname: '토스4', provider: 'toss', providerUserId: 'h4' },
       { id: 'web-1', nickname: '웹', provider: 'email' },
     ]);
     const commerce = createCommerceService(config, db, createGateways(config));
@@ -84,6 +85,14 @@ describe('토스 보상형 광고 지급 (일회용 토큰)', () => {
     expect(await svc.claim('toss-1', a.token)).toEqual({ granted: true, kind: 'credit', credits: 2 });
     expect(await svc.claim('toss-1', b.token)).toEqual({ granted: false, reason: 'DAILY_LIMIT' });
     await expect(svc.start('toss-1', { kind: 'credit' })).rejects.toMatchObject({ statusCode: 409, details: { reason: 'DAILY_LIMIT' } });
+  });
+
+  it('미리 받아 둔 토큰 여러 개로 동시에 요청해도 하루 한도를 넘지 않는다', async () => {
+    const tokens = await Promise.all(Array.from({ length: 5 }, () => svc.start('toss-4', { kind: 'credit' })));
+    watch();
+    const rs = await Promise.all(tokens.map((t) => svc.claim('toss-4', t.token)));
+    expect(rs.filter((r) => r.granted)).toHaveLength(2);
+    expect(rs.filter((r) => !r.granted && r.reason === 'DAILY_LIMIT')).toHaveLength(3);
   });
 
   it('무료 콘텐츠 열기는 슬롯마다 하루 1회 — 질문권 한도와는 따로 센다', async () => {

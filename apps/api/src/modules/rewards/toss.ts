@@ -107,8 +107,16 @@ export function createTossRewardsService(config: AppConfig, db: Db, commerce: Co
         .onConflictDoNothing()
         .returning({ id: webhookEvents.id });
       if (recorded.length === 0) return { granted: false, reason: 'DUPLICATE' };
-      if ((await rewards.todayCount(userId)) >= config.REWARDED_AD_DAILY_LIMIT) return { granted: false, reason: 'DAILY_LIMIT' };
-      const credits = await commerce.grantFreeCredits(userId, config.REWARDED_AD_CREDITS, REWARD_MEMO);
+      let credits: number | null;
+      try {
+        // 하루 한도는 지급 묶음 실행 시점에 확인한다 — 미리 받아 둔 토큰 여러 개로 동시에 요청해도 한도를 넘지 않는다
+        credits = await commerce.grantDailyCapped(userId, config.REWARDED_AD_CREDITS, REWARD_MEMO, config.REWARDED_AD_DAILY_LIMIT, rewards.todayStart());
+      } catch (e) {
+        // 지급하지 못했으니 토큰 사용 기록을 지운다 — 앱이 같은 토큰으로 다시 요청하면 그때 지급한다
+        await db.delete(webhookEvents).where(eq(webhookEvents.id, `tossad:${jti}`));
+        throw e;
+      }
+      if (credits === null) return { granted: false, reason: 'DAILY_LIMIT' };
       return { granted: true, kind: 'credit', credits };
     },
   };

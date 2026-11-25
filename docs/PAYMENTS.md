@@ -212,6 +212,43 @@ sequenceDiagram
 - 통신 실패와 타임아웃은 `NETWORK_ERROR`("결제사와 통신에 실패했어요…")입니다.
 - 이미 취소된 결제를 다시 취소하는 경우(`ALREADY_CANCELED_PAYMENT`, `PAYMENT_ALREADY_CANCELLED`)는 성공으로 봅니다. 그래서 환불 재시도가 안전합니다.
 
+### 2.1 중복 알림·중복 결제 (멱등성)
+
+그로블은 같은 ref 로 두 번 결제하는 것을 막지 않습니다(문서: sellerReference 는 멱등 키가 아님). 결제·환불 API 도 없어서 **결제창으로 보내기 전에** 우리 쪽에서 막습니다.
+
+**결제 전 차단** (`createOrder`, `test/duplicate-payment.test.ts`)
+
+| 경우 | 처리 |
+|---|---|
+| 같은 상품·같은 대상(프로필·리딩)의 미결 주문이 30분(`CHECKOUT_RESUME_WINDOW_MS`) 안에 있음 | 새 주문을 만들지 않고 409 `PAYMENT_IN_PROGRESS { orderId, amount, productId }`. 웹은 그 주문의 결제 확인 화면(`/payments/success?resume=1`)으로 보내 결제 확인을 기다리고, 사용자가 "결제하지 않았어요, 결제창 다시 열기"를 누르면 `resumeOrderId` 로 **같은 주문·같은 ref** 의 결제창을 다시 연다 |
+| 두 탭에서 동시에 주문 | 주문을 넣은 뒤 다시 확인해 먼저 만든 하나만 남기고 나머지는 `canceled(DUPLICATE_CHECKOUT)` + 409 |
+| 이미 가진 리포트·풀이를 같은 대상으로 다시 주문 | 409 `ALREADY_OWNED` (리포트에 덤으로 딸린 질문권은 따지지 않음. 질문권 팩·1회권이 든 묶음은 해당 없음) |
+| 이어서 결제하려는 주문이 그사이 결제 확인됨 | 409 `ALREADY_PAID` → 화면이 완료로 바뀐다 |
+
+**그래도 생긴 중복 결제** (브라우저 뒤로 가기로 그로블 결제창에 돌아가 다시 결제하는 경우 등, 우리가 막을 수 없는 경우)
+
+| 경우 | 처리 |
+|---|---|
+| 질문권 팩을 같은 ref 로 한 번 더 결제 | 환불 대신 그 결제를 **새 주문으로 지급**(`metadata.repeatOf` = 원주문). 새 주문에 결제 키를 먼저 붙여(유니크) 같은 알림이 여러 번 와도 1회. 그 결제를 환불하면 새 주문만 회수 |
+| 리포트 등 그 밖의 상품을 같은 ref 로 한 번 더 결제 | 지급하지 않고 `DUPLICATE_PAYMENT` 기록 + **운영 알림**(`OPS_ALERT_WEBHOOK_URL`) → 운영자가 그로블 판매자 화면에서 환불 |
+| 같은 리포트를 서로 다른 두 주문으로 각각 결제 | 두 번째 주문은 `failed(ALREADY_OWNED)` + 기록 + 운영 알림 |
+| 금액·결제창 불일치, 계정당 한도 초과 | 지급하지 않고 운영 알림 |
+
+운영 알림에는 주문 ID·결제 키·금액만 넣고 이메일·연락처는 넣지 않습니다.
+
+**알림 중복** (`test/idempotency.test.ts`, 진짜 D1 은 `TEST_D1=1`)
+
+| 경우 | 처리 |
+|---|---|
+| 같은 웹훅이 여러 번(같은 이벤트 ID, 동시 포함) | `webhook_events` 기록 + 지급 묶음의 "주문이 아직 pending/failed" 확인으로 지급·원장은 1회 |
+| 같은 결제의 웹훅이 이벤트 ID 만 다르게 재발송 | 위와 같음(주문 상태로 판정) |
+| 환불 웹훅이 여러 번 | `revokeOrder` 가 paid 주문일 때만 바꿔 회수는 1회 |
+| 결제 완료와 환불 웹훅이 동시에 | 지급 묶음이 실행 시점에 `<provider>:voided:<결제 키>` 가 없어야 실행되고, 환불 쪽은 표시를 남긴 뒤 그사이 지급됐으면 회수한다. 어느 순서로 겹쳐도 최종 결과는 `refunded`, 지급 없음 |
+| 이미 지급된 주문에 다른 결제 키의 결제 완료 | 위 "그래도 생긴 중복 결제" 표. 기록은 `webhook_events` 의 `groble:duplicate:<merchantUid>`(`eventType=DUPLICATE_PAYMENT`, payload 에 주문 ID·금액·사유) |
+| 지급된 주문에 금액이 다른 알림 | 주문을 실패로 덮어쓰지 않는다(위 중복 결제와 같게 처리) |
+
+중복 결제 확인 쿼리: `npx wrangler d1 execute DB --remote --command "select id, payload, created_at from webhook_events where event_type = 'DUPLICATE_PAYMENT'"`
+
 ---
 
 ## 3. 가입·심사 체크리스트

@@ -1,10 +1,11 @@
 /**
  * Cloudflare Worker 진입점 — 웹(정적 파일)과 API 를 한 Worker 로 낸다(wrangler.jsonc).
  *  - fetch: /api/*·/health 만 이 코드가 받는다(assets.run_worker_first). 나머지 주소는 정적 파일(apps/web/dist)
- *  - scheduled: 매일 08:00 KST 오늘의 운세 푸시
+ *  - scheduled: 매일 08:00 KST 오늘의 운세 푸시·운영 하루 요약, 10분마다 결제 확인 지연·묶음 알림 정리
  *  - queue: 리포트 AI 다듬기(응답 뒤 작업)
  */
 import { buildApp, type App } from './app.js';
+import { withBackground } from './lib/alert.js';
 import { loadConfig } from './config/env.js';
 import { d1Db } from './db/client.js';
 import { ensureCatalog } from './db/seed.js';
@@ -19,6 +20,18 @@ export interface Env {
   RATE_LIMIT_ADMIN?: RateLimit;
   /** 토스 파트너 API 용 mTLS 인증서 바인딩(wrangler.jsonc mtls_certificates). 없으면 토스 기능은 꺼진다 */
   TOSS_MTLS?: Fetcher;
+}
+
+/** 매일 08:00 KST(23:00 UTC) 예약 실행 — wrangler.jsonc triggers.crons 와 같은 글이어야 한다 */
+const DAILY_CRON = '0 23 * * *';
+
+/** 예약 작업 하나 — 실패해도 다음 작업은 이어서 한다 */
+async function run(name: string, task: () => Promise<unknown>) {
+  try {
+    await task();
+  } catch (error) {
+    console.error(`[scheduled] ${name} 실패`, error instanceof Error ? error.message : String(error));
+  }
 }
 
 /** 인스턴스(isolate)마다 한 번 조립한다 — env 는 인스턴스 안에서 같다 */
@@ -51,28 +64,46 @@ function boot(env: Env) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const { app, ready } = boot(env);
     await ready;
-    return app.fetch(request);
+    return app.fetch(request, env, ctx);
   },
 
-  async scheduled(_controller, env) {
+  async scheduled(controller, env, ctx) {
     const { app, ready } = boot(env);
     await ready;
     const { config, services } = app.ctx;
-    if (config.features.push && config.DAILY_PUSH_ENABLED) await runDailyPush(services);
-    // 토스 인앱 결제에는 환불 알림이 없다 — 하루 한 번 최근 주문의 환불 여부를 다시 확인한다
-    if (services.tossIap.enabled()) console.info('[toss] 환불 확인', await services.tossIap.syncRefunds());
+    await withBackground(
+      (task) => ctx.waitUntil(task),
+      async () => {
+        // 10분마다 — 결제 확인 지연, 끝난 묶음 창의 'N건 더' 알림. 23:00 UTC 에는 두 예약이 함께 실행되므로 하루 작업 쪽에서는 하지 않는다
+        if (controller.cron !== DAILY_CRON) {
+          await run('결제 확인 지연', () => services.ops.checkPendingPayments());
+          await run('묶음 알림 정리', () => services.ops.flushWindows());
+          return;
+        }
+        await run('운영 하루 요약', () => services.ops.sendDailySummary());
+        await run('운영 집계 정리', () => services.ops.cleanup());
+        if (config.features.push && config.DAILY_PUSH_ENABLED) await run('오늘의 운세 푸시', () => runDailyPush(services));
+        // 토스 인앱 결제에는 환불 알림이 없다 — 하루 한 번 최근 주문의 환불 여부를 다시 확인한다
+        if (services.tossIap.enabled()) await run('토스 환불 확인', async () => console.info('[toss] 환불 확인', await services.tossIap.syncRefunds()));
+      },
+    );
   },
 
-  async queue(batch, env) {
+  async queue(batch, env, ctx) {
     const { app, ready } = boot(env);
     await ready;
-    for (const message of batch.messages) {
-      // 다듬기는 실패해도 규칙 기반 본문으로 마무리하고 끝난다 — 다시 보낼 일이 없다
-      if (message.body.kind === 'polish') await app.ctx.services.reports.runPolish(message.body.reportId);
-      message.ack();
-    }
+    await withBackground(
+      (task) => ctx.waitUntil(task),
+      async () => {
+        for (const message of batch.messages) {
+          // 다듬기는 실패해도 규칙 기반 본문으로 마무리하고 끝난다 — 다시 보낼 일이 없다
+          if (message.body.kind === 'polish') await app.ctx.services.reports.runPolish(message.body.reportId);
+          message.ack();
+        }
+      },
+    );
   },
 } satisfies ExportedHandler<Env, BackgroundJob>;

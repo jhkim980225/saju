@@ -103,11 +103,13 @@ describe('동시 요청', () => {
     expect(new Set(opened.map((r) => r.body.id))).toEqual(new Set([rows[0]!.id]));
   });
 
-  it('같은 refresh 토큰을 동시에 쓰면 한 요청만 새 토큰을 받는다', async () => {
+  it('같은 refresh 토큰을 동시에 써도(탭 두 개) 로그아웃되지 않는다 — 모두 서로 다른 새 토큰을 받고, 토큰은 한 번만 회전된다', async () => {
     const { refreshToken } = await member();
     const rs = await Promise.all(Array.from({ length: 3 }, () => api('POST', '/auth/refresh', { body: { refreshToken } })));
-    expect(rs.filter((r) => r.status === 200)).toHaveLength(1);
-    expect(rs.filter((r) => r.status === 401)).toHaveLength(2);
+    expect(statuses(rs)).toEqual([200, 200, 200]);
+    expect(new Set(rs.map((r) => r.body.refreshToken)).size).toBe(3);
+    // 받은 토큰은 모두 다음 갱신에 쓸 수 있다(전체 세션 폐기가 일어나지 않았다)
+    for (const r of rs) expect((await api('POST', '/auth/refresh', { body: { refreshToken: r.body.refreshToken } })).status).toBe(200);
   });
 
   it('같은 이메일로 동시에 가입하면 하나만 만들어지고 나머지는 409', async () => {

@@ -32,6 +32,8 @@ export const users = sqliteTable(
     marketingConsent: integer('marketing_consent', { mode: 'boolean' }).notNull().default(false),
     pushEnabled: integer('push_enabled', { mode: 'boolean' }).notNull().default(true),
     deletedAt: integer('deleted_at'),
+    /** 회원이 된 시각(epoch ms) — 바로 가입은 생성 시각, 게스트에서 전환하면 전환 시각. 게스트는 null (운영 요약의 가입 수) */
+    registeredAt: integer('registered_at'),
     ...timestamps,
   },
   (t) => [
@@ -48,6 +50,8 @@ export const refreshTokens = sqliteTable(
     tokenHash: text('token_hash').notNull(),
     expiresAt: integer('expires_at').notNull(),
     revokedAt: integer('revoked_at'),
+    /** 회전(refresh)으로 폐기됐을 때 이어 받은 토큰 행 ID — 동시 갱신·응답 유실을 탈취와 구분하는 데 쓴다 */
+    replacedBy: text('replaced_by'),
     userAgent: text('user_agent'),
     createdAt: integer('created_at').notNull().default(sql`(unixepoch() * 1000)`),
   },
@@ -313,6 +317,18 @@ export const loginFailures = sqliteTable('login_failures', {
   count: integer('count').notNull(),
   /** 이번 집계 창이 시작된 시각(epoch ms) */
   windowStart: integer('window_start').notNull(),
+});
+
+/**
+ * 운영 집계(modules/ops/service.ts) — 하루 단위 횟수(d:<KST 날짜>:<이름>)와 알림 묶음 창(b:<종류>:<창 번호>).
+ * 하루 요약이 읽고, 오래된 행은 매일 지운다. 개인정보는 넣지 않는다.
+ */
+export const opsCounters = sqliteTable('ops_counters', {
+  key: text('key').primaryKey(),
+  value: integer('value').notNull().default(0),
+  /** 묶음 창의 알림 문구(창이 끝난 뒤 '같은 알림 N건 더'를 보낼 때 쓴다) */
+  note: text('note'),
+  updatedAt: integer('updated_at').notNull(),
 });
 
 /**

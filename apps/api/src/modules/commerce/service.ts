@@ -8,7 +8,9 @@ import { ERROR_CODES } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
 import { safeErrorText } from '../../lib/log.js';
 import { atomic, type Unit } from '../../db/atomic.js';
-import type { Db } from '../../db/client.js';
+import { isUniqueViolation, type Db } from '../../db/client.js';
+import { createOpsAlert } from '../../lib/alert.js';
+import type { OpsService } from '../ops/service.js';
 import { creditLedger, entitlements, orders, products, profiles, users, webhookEvents, type Order, type Product } from '../../db/schema.js';
 import { AppError, badRequest, conflict, forbidden, insufficientCredits, notConfigured, notFound } from '../../lib/errors.js';
 import { newId, newOrderId } from '../../lib/ids.js';
@@ -30,6 +32,12 @@ const DAY = 86_400_000;
 const KST_OFFSET = 9 * 3_600_000;
 /** 오늘(KST) 0시의 epoch ms */
 export const startOfSeoulDay = (now = Date.now()) => Math.floor((now + KST_OFFSET) / DAY) * DAY - KST_OFFSET;
+
+/**
+ * 결제창 링크로 결제하는 결제사(그로블)는 같은 주문으로 두 번 결제하는 것을 막지 못한다(ref 는 멱등 키가 아니다).
+ * 그래서 같은 상품·같은 대상의 결제를 이 시간 안에 다시 시작하면 새 주문을 만들지 않고 진행 중인 주문으로 안내한다(409 PAYMENT_IN_PROGRESS)
+ */
+export const CHECKOUT_RESUME_WINDOW_MS = 30 * 60_000;
 
 /** AI 장애 환급 — 사용자마다 하루(KST) 최대 횟수. 장애가 아닌데 환급이 되풀이되는 경우(실패 유도 등)를 막는다 */
 export const AI_REFUND_DAILY_LIMIT = 5;
@@ -93,7 +101,9 @@ export function compatKey(a: string, b: string) {
   return `report:compatibility:${x}:${y}`;
 }
 
-export function createCommerceService(config: AppConfig, db: Db, gateways: Gateways) {
+export function createCommerceService(config: AppConfig, db: Db, gateways: Gateways, ops?: OpsService) {
+  /** 운영자가 처리해야 하는 결제(환불 필요) 알림 — 웹훅 처리 안에서 보내고 끝날 때까지 기다린다 */
+  const alert = ops?.alert ?? createOpsAlert(config);
   const getProduct = async (id: string): Promise<Product> => {
     const [p] = await db.select().from(products).where(and(eq(products.id, id), eq(products.active, true)));
     if (!p) throw notFound('상품을 찾을 수 없어요.');
@@ -144,6 +154,30 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
     const [o] = await db.select().from(orders).where(and(eq(orders.id, orderId), eq(orders.userId, userId)));
     if (!o) throw notFound('주문을 찾을 수 없어요.');
     return o;
+  };
+
+  /** 주문의 결제창 파라미터 — 새 주문과 이어서 결제하는 주문 모두 */
+  const checkoutFor = (user: typeof users.$inferSelect, saved: Order): CheckoutDto => {
+    const gateway = gateways.byId[saved.provider as keyof Gateways['byId']] ?? gateways.active;
+    const web = config.PUBLIC_WEB_URL.replace(/\/$/, '');
+    return {
+      order: orderDto(saved),
+      provider: gateway.id,
+      checkout: {
+        clientKey: gateway.id === 'toss' ? config.TOSS_CLIENT_KEY : undefined,
+        storeId: gateway.id === 'portone' ? config.PORTONE_STORE_ID : undefined,
+        channelKey: gateway.id === 'portone' ? config.PORTONE_CHANNEL_KEY : undefined,
+        customerKey: saved.userId,
+        orderId: saved.id,
+        orderName: saved.orderName,
+        amount: saved.amount,
+        successUrl: `${web}/payments/success`,
+        failUrl: `${web}/payments/fail`,
+        customerEmail: user.email ?? undefined,
+        customerName: user.nickname,
+        redirectUrl: gateway.checkoutUrl?.(saved.productId, saved.id) ?? undefined,
+      },
+    };
   };
 
   /** 타로 리딩 소유·상품 일치 확인 — 타로 서비스가 만들어진 뒤 setReadingCheck 로 연결된다 */
@@ -210,6 +244,24 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
       if (g === 'taekil:reading') return `taekil:reading:${meta.readingId}`;
       return `${g}:${meta.profileId}`;
     });
+  };
+
+  /** 다시 사면 새로 받는 것이 있는 상품(질문권 팩) — 같은 결제창으로 한 번 더 결제해도 새 주문으로 지급하면 된다 */
+  const isRepeatable = (p: Product) => p.type === 'credit_pack' && p.perUserLimit === null && p.grants.length === 0;
+
+  /**
+   * 이 상품을 이 대상(프로필·리딩)으로 사면 받을 리포트·풀이를 이미 모두 가졌나 — 다시 결제할 이유가 없으면 true.
+   * 리포트에 덤으로 딸린 질문권은 따지지 않는다(질문권만 더 필요하면 질문권 팩을 산다).
+   * 질문권 팩·구독, 1회권(ticket)처럼 주문마다 새로 생기는 권한이 든 상품은 false
+   */
+  const ownsAllGrants = async (userId: string, product: Product, metadata: unknown) => {
+    if (product.type !== 'one_time') return false;
+    const keys = entitlementKeys(product, { id: '', metadata } as Order);
+    if (keys.length === 0 || keys.some((k) => k.startsWith('ticket:') || k.includes('undefined'))) return false;
+    const now = Date.now();
+    const rows = await db.select({ key: entitlements.key, expiresAt: entitlements.expiresAt }).from(entitlements).where(and(eq(entitlements.userId, userId), inArray(entitlements.key, keys)));
+    const owned = new Set(rows.filter((r) => r.expiresAt === null || r.expiresAt > now).map((r) => r.key));
+    return keys.every((k) => owned.has(k));
   };
 
   /**
@@ -296,6 +348,13 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
     return true;
   };
 
+  /**
+   * 스토어·결제사가 무효화(환불·취소)한 거래 표시 — 앱이 검증하기 전에(또는 결제 완료 알림보다 먼저) 환불된 구매를 나중에 지급하지 않도록.
+   * payload 를 뒤지지 않고 기본 키(provider:voided:거래 키)로 바로 찾는다
+   */
+  const voidedKey = (provider: string, transactionId: string) => `${provider}:voided:${transactionId}`;
+  const isVoided = async (provider: string, transactionId: string) => (await db.select({ id: webhookEvents.id }).from(webhookEvents).where(eq(webhookEvents.id, voidedKey(provider, transactionId)))).length > 0;
+
   type Granted = Awaited<ReturnType<typeof fulfill>>;
 
   /**
@@ -321,11 +380,22 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
    * - 묶음이 실행된 뒤에만 지급 알림을 보낸다(웹 승인·인앱결제·웹훅 모두 여기를 지난다)
    */
   type Payment = { paymentKey: string | null; method: string | null; paidAt: number };
-  type Settled = { ok: true; granted: Granted } | { ok: false; reason: 'ALREADY_SETTLED' | 'PER_USER_LIMIT' };
+  type Settled = { ok: true; granted: Granted } | { ok: false; reason: 'ALREADY_SETTLED' | 'PER_USER_LIMIT' | 'VOIDED' };
   const settle = async (order: Order, pay: Payment, channel: Channel): Promise<Settled> => {
     const result = await settleTx(order, pay, channel);
-    if (result.ok) await notifyFulfilled(order, result.granted);
+    if (result.ok) {
+      ops?.paid({ productName: order.orderName, amount: order.amount, provider: order.provider, orderId: order.id, repeat: Boolean((order.metadata as { repeatOf?: string } | null)?.repeatOf) });
+      await notifyFulfilled(order, result.granted);
+    }
     return result;
+  };
+  const notifyRevoked = (order: Order, status: 'refunded' | 'canceled', reason: string) =>
+    ops?.refunded({ productName: order.orderName, amount: order.amount, provider: order.provider, orderId: order.id, status, reason });
+  /** 회수(revokeOrder)를 한 묶음으로 실행하고, 실제로 회수했으면 운영 알림을 보낸다. 회수했으면 true */
+  const revokeAndNotify = async (order: Order, status: 'refunded' | 'canceled', reason: string): Promise<boolean> => {
+    const done = await atomic(db, (u) => revokeOrder(u, order, status, reason));
+    if (done) notifyRevoked(order, status, reason);
+    return done;
   };
   const settleTx = (order: Order, pay: Payment, channel: Channel): Promise<Settled> =>
     atomic(db, async (u): Promise<Settled> => {
@@ -341,6 +411,12 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
       const current = await orderStatus(order.id);
       if (current !== 'pending' && current !== 'failed') return { ok: false as const, reason: 'ALREADY_SETTLED' as const };
       expectOrderStatus(u, order.id, ['pending', 'failed']);
+      if (pay.paymentKey) {
+        // 이 결제의 환불·취소 알림이 먼저(또는 동시에) 왔으면 지급하지 않는다 — 묶음 실행 시점에도 표시가 없어야 한다
+        const voided = voidedKey(order.provider, pay.paymentKey);
+        if (await isVoided(order.provider, pay.paymentKey)) return { ok: false as const, reason: 'VOIDED' as const };
+        u.expect(sql`not exists (select 1 from ${webhookEvents} where ${webhookEvents.id} = ${voided})`);
+      }
       u.write(
         db
           .update(orders)
@@ -371,18 +447,56 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
     await db.update(webhookEvents).set({ processedAt: Date.now() }).where(eq(webhookEvents.id, key));
   };
   /**
-   * 스토어·결제사가 무효화(환불·취소)한 거래 표시 — 앱이 검증하기 전에(또는 결제 완료 알림보다 먼저) 환불된 구매를 나중에 지급하지 않도록.
-   * payload 를 뒤지지 않고 기본 키(provider:voided:거래 키)로 바로 찾는다
+   * 지급하지 않은 결제(중복 결제·이미 가진 콘텐츠) 기록 + 운영 알림 — 그로블은 환불 API 가 없어 운영자가 판매자 화면에서 환불한다.
+   * 결제 키마다 한 번만 기록·알림한다
    */
-  const voidedKey = (provider: string, transactionId: string) => `${provider}:voided:${transactionId}`;
-  const isVoided = async (provider: string, transactionId: string) => (await db.select({ id: webhookEvents.id }).from(webhookEvents).where(eq(webhookEvents.id, voidedKey(provider, transactionId)))).length > 0;
+  const recordUnfulfilled = async (providerId: string, order: Order, event: { id: string; paymentKey?: string | null; amount?: number | null }, reason: 'DUPLICATE_PAYMENT' | 'ALREADY_OWNED') => {
+    if (!event.paymentKey) return;
+    const inserted = await db
+      .insert(webhookEvents)
+      .values({ id: `${providerId}:duplicate:${event.paymentKey}`, provider: providerId, eventType: 'DUPLICATE_PAYMENT', payload: { event: event.id, orderId: order.id, amount: event.amount ?? null, reason }, processedAt: Date.now() })
+      .onConflictDoNothing()
+      .returning({ id: webhookEvents.id });
+    if (inserted.length === 0) return;
+    const why = reason === 'ALREADY_OWNED' ? '이미 가진 콘텐츠를 다시 결제' : '이미 처리된 주문에 결제가 한 번 더 들어옴';
+    await alert(`⚠️ 환불 필요 — ${why}. 지급하지 않았어요. 결제사 ${providerId}, 주문 ${order.id}, 결제 ${event.paymentKey}, ${event.amount ?? '?'}원`);
+  };
+  /**
+   * 질문권 팩을 같은 결제창 링크(같은 ref)로 한 번 더 결제한 경우 — 환불 대신 그 결제를 새 주문으로 지급한다.
+   * 새 주문에 결제 키를 먼저 붙여 두므로(유니크) 같은 결제의 알림이 여러 번 와도 지급은 한 번이다
+   */
+  const settleRepeat = async (providerId: string, original: Order, event: { paymentKey: string; amount: number }) => {
+    const id = newOrderId();
+    try {
+      await db.insert(orders).values({
+        id,
+        userId: original.userId,
+        productId: original.productId,
+        orderName: original.orderName,
+        amount: event.amount,
+        status: 'pending',
+        provider: providerId,
+        providerPaymentKey: event.paymentKey,
+        metadata: { ...((original.metadata ?? {}) as object), repeatOf: original.id },
+      });
+    } catch (e) {
+      if (isUniqueViolation(e)) return; // 이 결제는 이미 새 주문으로 처리했다
+      throw e;
+    }
+    const [repeat] = await db.select().from(orders).where(eq(orders.id, id));
+    const settled = await settle(repeat!, { paymentKey: event.paymentKey, method: null, paidAt: Date.now() }, 'web');
+    if (!settled.ok && settled.reason === 'VOIDED') {
+      await db.update(orders).set({ status: 'refunded', canceledAt: Date.now(), failureReason: 'REFUNDED_BEFORE_PAID', updatedAt: Date.now() }).where(and(eq(orders.id, id), eq(orders.status, 'pending')));
+    }
+    console.warn(`[commerce] 같은 결제창으로 한 번 더 결제한 질문권 팩 — 새 주문으로 지급 (${providerId} 원주문=${original.id} 새 주문=${id} key=${event.paymentKey})`);
+  };
 
   return {
     getProduct,
     productDto,
     orderDto,
     /** 토스 인앱 결제(tossIap.ts)가 같은 검증·지급·회수 흐름을 쓰도록 내어 주는 내부 도구 */
-    internals: { getProduct, paidCount, assertOwnedProfile, assertReading, getOwnedOrder, settle, failIfPending, revokeOrder, balance, emptyGrant: EMPTY_GRANT },
+    internals: { getProduct, paidCount, assertOwnedProfile, assertReading, getOwnedOrder, settle, failIfPending, revokeOrder, revokeAndNotify, balance, emptyGrant: EMPTY_GRANT },
 
     async listProducts(userId?: string): Promise<ProductDto[]> {
       const rows = await db.select().from(products).where(eq(products.active, true)).orderBy(asc(products.sortOrder));
@@ -409,45 +523,70 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
       // 링크형 결제사(그로블)는 상품마다 결제창이 따로 있어야 한다 — 연결 안 된 상품은 주문을 만들기 전에 막는다
       if (gateway.checkoutUrl && !gateway.productRef?.(product.id)) throw notConfigured(`${product.name} 결제창`, gateway.envKeys);
 
-      const order: typeof orders.$inferInsert = {
-        id: newOrderId(),
-        userId,
-        productId: product.id,
-        orderName: product.name,
-        amount: currentPrice(product),
-        status: 'pending',
-        provider: gateway.id,
-        metadata: { profileId: dto.profileId, partnerProfileId: dto.partnerProfileId, year: dto.year, readingId: dto.readingId, couponCode: dto.couponCode },
+      const metadata = { profileId: dto.profileId, partnerProfileId: dto.partnerProfileId, year: dto.year, readingId: dto.readingId, couponCode: dto.couponCode };
+      // 이미 가진 리포트·풀이를 다시 사는 것은 결제 전에 막는다(다시 결제해도 새로 받는 것이 없다)
+      if (await ownsAllGrants(userId, product, metadata)) throw conflict('이미 구매한 콘텐츠예요. 보관함에서 바로 볼 수 있어요.', { reason: 'ALREADY_OWNED' });
+
+      const amount = currentPrice(product);
+      /** 같은 상품·같은 대상·같은 금액으로 최근에 시작한 미결 주문(결제창 링크형 결제사만) — 오래된 것부터 */
+      const openCheckouts = async () => {
+        if (!gateway.checkoutUrl) return [];
+        const rows = await db
+          .select()
+          .from(orders)
+          .where(and(eq(orders.userId, userId), eq(orders.productId, product.id), eq(orders.provider, gateway.id), eq(orders.status, 'pending'), gte(orders.createdAt, Date.now() - CHECKOUT_RESUME_WINDOW_MS)))
+          .orderBy(asc(orders.createdAt), asc(orders.id));
+        return rows.filter((o) => {
+          const m = (o.metadata ?? {}) as Record<string, unknown>;
+          return o.amount === amount && (m.profileId ?? null) === (dto.profileId ?? null) && (m.partnerProfileId ?? null) === (dto.partnerProfileId ?? null) && (m.readingId ?? null) === (dto.readingId ?? null);
+        });
       };
+      const inProgress = (o: Order) =>
+        conflict('같은 상품의 결제가 진행 중이에요. 결제를 마치셨다면 확인될 때까지 잠시 기다려 주세요.', { reason: 'PAYMENT_IN_PROGRESS', orderId: o.id, amount: o.amount, productId: product.id });
+
+      const [open] = await openCheckouts();
+      if (open) {
+        // 사용자가 "결제하지 않았다"고 확인하고 이어서 결제하면 같은 주문(같은 ref)으로 결제창을 다시 연다
+        if (dto.resumeOrderId === open.id) return checkoutFor(user, open);
+        throw inProgress(open);
+      }
+      if (dto.resumeOrderId) {
+        const [prev] = await db.select({ status: orders.status }).from(orders).where(and(eq(orders.id, dto.resumeOrderId), eq(orders.userId, userId)));
+        if (prev?.status === 'paid') throw conflict('이미 결제가 확인된 주문이에요.', { reason: 'ALREADY_PAID', orderId: dto.resumeOrderId });
+      }
+
+      const order: typeof orders.$inferInsert = { id: newOrderId(), userId, productId: product.id, orderName: product.name, amount, status: 'pending', provider: gateway.id, metadata };
       await db.insert(orders).values(order);
-      const saved = await getOwnedOrder(userId, order.id);
-      const web = config.PUBLIC_WEB_URL.replace(/\/$/, '');
-      return {
-        order: orderDto(saved),
-        provider: gateway.id,
-        checkout: {
-          clientKey: gateway.id === 'toss' ? config.TOSS_CLIENT_KEY : undefined,
-          storeId: gateway.id === 'portone' ? config.PORTONE_STORE_ID : undefined,
-          channelKey: gateway.id === 'portone' ? config.PORTONE_CHANNEL_KEY : undefined,
-          customerKey: userId,
-          orderId: saved.id,
-          orderName: saved.orderName,
-          amount: saved.amount,
-          successUrl: `${web}/payments/success`,
-          failUrl: `${web}/payments/fail`,
-          customerEmail: user.email ?? undefined,
-          customerName: user.nickname,
-          redirectUrl: gateway.checkoutUrl?.(product.id, saved.id) ?? undefined,
-        },
-      };
+      if (gateway.checkoutUrl) {
+        // 두 탭에서 동시에 눌러 주문이 둘 생겼으면 먼저 만든 하나만 남긴다
+        const [first] = await openCheckouts();
+        if (first && first.id !== order.id) {
+          await db.update(orders).set({ status: 'canceled', canceledAt: Date.now(), failureReason: 'DUPLICATE_CHECKOUT', updatedAt: Date.now() }).where(and(eq(orders.id, order.id), eq(orders.status, 'pending')));
+          throw inProgress(first);
+        }
+      }
+      return checkoutFor(user, await getOwnedOrder(userId, order.id));
     },
 
     async listOrders(userId: string): Promise<OrderDto[]> {
       return (await db.select().from(orders).where(eq(orders.userId, userId)).orderBy(desc(orders.createdAt))).map(orderDto);
     },
 
+    /**
+     * 주문 조회 — 결제 확인 화면이 결제 완료를 기다리며 부른다. 결제창 링크형 결제사(그로블)의 대기 주문이면
+     * 처음 조회한 시각(awaitingAt)을 남겨, 30분이 지나도 결제 알림이 오지 않을 때 운영자에게 알린다(ops.checkPendingPayments)
+     */
     async getOrder(userId: string, orderId: string): Promise<OrderDto> {
-      return orderDto(await getOwnedOrder(userId, orderId));
+      const order = await getOwnedOrder(userId, orderId);
+      const meta = (order.metadata ?? {}) as { awaitingAt?: number };
+      const linkGateway = Boolean(gateways.byId[order.provider as keyof Gateways['byId']]?.checkoutUrl);
+      if (order.status === 'pending' && linkGateway && meta.awaitingAt === undefined) {
+        await db
+          .update(orders)
+          .set({ metadata: sql`json_set(coalesce(${orders.metadata}, '{}'), '$.awaitingAt', ${Date.now()})` })
+          .where(and(eq(orders.id, order.id), eq(orders.status, 'pending'), sql`json_extract(${orders.metadata}, '$.awaitingAt') is null`));
+      }
+      return orderDto(order);
     },
 
     /** 결제 승인 — 금액 검증 → 결제사 승인 → 지급 (멱등) */
@@ -545,6 +684,10 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
         await failIfPending(id, 'PER_USER_LIMIT');
         throw conflict('이미 구매한 상품이에요. (계정당 1회) 스토어 결제는 완료 처리되지 않아 자동 환불돼요.');
       }
+      if (!settled.ok && settled.reason === 'VOIDED') {
+        await failIfPending(id, 'REVOKED');
+        throw new AppError(402, ERROR_CODES.PAYMENT_FAILED, '환불되었거나 취소된 구매예요.', { code: 'REVOKED' });
+      }
       const granted = settled.ok ? settled.granted : EMPTY_GRANT;
       return { order: orderDto(await getOwnedOrder(userId, id)), granted, creditsBalance: await balance(userId) };
     },
@@ -554,7 +697,10 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
       const gateway = gateways.byId[providerId as keyof Gateways['byId']];
       if (!gateway || (providerId === 'mock' && config.isProd)) throw notFound('알 수 없는 결제사예요.');
       const event = await gateway.parseWebhook({ headers, rawBody });
-      if (!event) throw badRequest('웹훅 검증에 실패했어요.');
+      if (!event) {
+        await ops?.webhookRejected(providerId);
+        throw badRequest('웹훅 검증에 실패했어요.');
+      }
       const eventKey = `${providerId}:${event.id}`;
       if (await alreadyProcessed(eventKey, providerId, event.type, event.raw)) return { duplicate: true };
       const found = event.orderId
@@ -578,14 +724,33 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
           .insert(webhookEvents)
           .values({ id: voidedKey(providerId, event.paymentKey), provider: providerId, eventType: 'VOIDED', payload: { event: event.id, type: event.type }, processedAt: Date.now() })
           .onConflictDoNothing();
+        // 완료 알림이 동시에 처리돼 표시 직전에 지급까지 끝났을 수 있다 — 그러면 지금 회수한다(지급 쪽은 표시를 보면 지급하지 않는다)
+        const [settledMeanwhile] = await db.select().from(orders).where(and(eq(orders.provider, providerId), eq(orders.providerPaymentKey, event.paymentKey)));
+        if (settledMeanwhile?.status === 'paid') {
+          await revokeAndNotify(settledMeanwhile, event.status === 'refunded' ? 'refunded' : 'canceled', `웹훅(${event.type})`);
+        }
       }
       if (order && voids && order.status === 'paid') {
         if (event.partial) {
           // 부분 환불(질문권 팩 미사용분 등) — 얼마나 회수할지는 운영자가 정한다. 기록만 남긴다
           console.warn(`[commerce] 부분 환불 웹훅 — 자동 회수하지 않음 (${providerId} order=${order.id} amount=${event.amount ?? '-'})`);
+          await alert(`↩️ 부분 환불 · ${order.orderName} 중 ${event.amount ?? '?'}원 · ${providerId} · 자동으로 회수하지 않았어요. 회수할 질문권을 확인해 주세요 · 주문 ${order.id}`);
         } else {
           // 결제사 관리자 화면 등에서 취소·환불된 경우에도 지급분을 회수한다
-          await atomic(db, (u) => revokeOrder(u, order, event.status === 'refunded' ? 'refunded' : 'canceled', `웹훅(${event.type})`));
+          await revokeAndNotify(order, event.status === 'refunded' ? 'refunded' : 'canceled', `웹훅(${event.type})`);
+        }
+      } else if (order && event.status === 'paid' && order.status !== 'pending' && order.status !== 'failed') {
+        // 이미 지급(또는 환불)된 주문에 결제 완료 알림 — 같은 결제의 재전송이면 할 일이 없다.
+        // 결제 키가 다르면 같은 결제창 링크(같은 ref)로 한 번 더 결제한 것이다 — 두 번 지급하지 않고, 운영자가 그 결제를 환불하도록 남긴다
+        if (event.paymentKey && event.paymentKey !== order.providerPaymentKey) {
+          const [product] = await db.select().from(products).where(eq(products.id, order.productId));
+          const expectedRef = gateway.productRef?.(order.productId);
+          const sameCheckout = event.amount === order.amount && (expectedRef === undefined || event.productRef === expectedRef);
+          if (product && isRepeatable(product) && sameCheckout && event.amount !== null && event.amount !== undefined) {
+            await settleRepeat(providerId, order, { paymentKey: event.paymentKey, amount: event.amount });
+          } else {
+            await recordUnfulfilled(providerId, order, event, 'DUPLICATE_PAYMENT');
+          }
         }
       } else if (order && event.status === 'paid' && (order.status === 'pending' || order.status === 'failed')) {
         // 승인 응답 유실 등으로 지급되지 않은 결제를 복구(그로블은 이것이 유일한 확정 경로)
@@ -613,12 +778,30 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
           await db
             .update(orders)
             .set({ status: 'failed', failureReason: mismatch, providerPaymentKey: event.paymentKey ?? order.providerPaymentKey, updatedAt: Date.now() })
-            .where(eq(orders.id, order.id));
-          console.warn(`[commerce] 결제 웹훅 불일치로 지급하지 않음 (${providerId} order=${order.id} ${mismatch})`);
+            .where(and(eq(orders.id, order.id), inArray(orders.status, ['pending', 'failed'])));
+          await alert(`⚠️ 환불 필요 — 결제 금액·상품이 주문과 달라 지급하지 않았어요. 결제사 ${providerId}, 주문 ${order.id}, 결제 ${event.paymentKey ?? '-'}, ${mismatch}`);
+          await markProcessed(eventKey);
+          return { duplicate: false };
+        }
+        const [orderProduct] = await db.select().from(products).where(eq(products.id, order.productId));
+        if (orderProduct && (await ownsAllGrants(order.userId, orderProduct, order.metadata))) {
+          // 다른 주문으로 이미 받은 콘텐츠다(두 주문을 각각 결제) — 지급할 것이 없으니 실패로 닫고 환불 대상으로 남긴다
+          await db
+            .update(orders)
+            .set({ status: 'failed', failureReason: 'ALREADY_OWNED', providerPaymentKey: event.paymentKey ?? order.providerPaymentKey, updatedAt: Date.now() })
+            .where(and(eq(orders.id, order.id), inArray(orders.status, ['pending', 'failed'])));
+          await recordUnfulfilled(providerId, order, event, 'ALREADY_OWNED');
           await markProcessed(eventKey);
           return { duplicate: false };
         }
         const settled = await settle(order, { paymentKey: event.paymentKey, method: null, paidAt: Date.now() }, 'web');
+        if (!settled.ok && settled.reason === 'VOIDED') {
+          await db
+            .update(orders)
+            .set({ status: 'refunded', canceledAt: Date.now(), failureReason: 'REFUNDED_BEFORE_PAID', providerPaymentKey: event.paymentKey, updatedAt: Date.now() })
+            .where(and(eq(orders.id, order.id), inArray(orders.status, ['pending', 'failed'])));
+          console.warn(`[commerce] 환불·취소 알림이 먼저 처리된 결제라 지급하지 않음 (${providerId} order=${order.id} key=${event.paymentKey})`);
+        }
         if (!settled.ok && settled.reason === 'PER_USER_LIMIT') {
           if (event.paymentKey) await gateway.cancel({ paymentKey: event.paymentKey, reason: '계정당 구매 한도 초과' }).catch(() => undefined);
           // 자동 취소가 안 되는 결제사(그로블)도 있으니 결제 키와 사유를 남겨 운영자가 환불할 수 있게 한다
@@ -626,6 +809,7 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
             .update(orders)
             .set({ status: 'failed', failureReason: 'PER_USER_LIMIT', providerPaymentKey: event.paymentKey ?? order.providerPaymentKey, updatedAt: Date.now() })
             .where(and(eq(orders.id, order.id), inArray(orders.status, ['pending', 'failed'])));
+          await alert(`⚠️ 환불 필요 — 계정당 구매 한도를 넘은 결제라 지급하지 않았어요. 결제사 ${providerId}, 주문 ${order.id}, 결제 ${event.paymentKey ?? '-'}`);
         }
       }
       await markProcessed(eventKey);
@@ -646,8 +830,10 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
       if (await alreadyProcessed(eventKey, provider, n.type, n.raw)) return { duplicate: true, type: n.type, applied: false };
 
       let applied = false;
+      let revokedOrder: Order | undefined;
       if (n.action !== 'none' && n.transactionIds.length > 0) {
         const [order] = await db.select().from(orders).where(and(eq(orders.provider, provider), inArray(orders.providerPaymentKey, n.transactionIds)));
+        if (n.action === 'revoke') revokedOrder = order;
         applied = await atomic(db, async (u) => {
           let changed = false;
           if (n.action === 'revoke') {
@@ -663,6 +849,7 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
           return changed;
         });
       }
+      if (applied && revokedOrder) notifyRevoked(revokedOrder, n.revokeStatus ?? 'refunded', n.reason);
       await markProcessed(eventKey);
       return { duplicate: false, type: n.type, applied };
     },
@@ -687,7 +874,7 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
         if (unused < product.credits) cancelAmount = Math.floor((order.amount * unused) / product.credits);
       }
       if (order.providerPaymentKey) await gateway.cancel({ paymentKey: order.providerPaymentKey, reason, amount: cancelAmount });
-      await atomic(db, (u) => revokeOrder(u, order, 'refunded', reason));
+      await revokeAndNotify(order, 'refunded', reason);
       return orderDto((await db.select().from(orders).where(eq(orders.id, order.id)))[0]!);
     },
 
@@ -766,6 +953,22 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
         addCredits(u, userId, amount, { reason: 'bonus', source: 'free', channel: 'system', memo, refType: AI_REFUND_REF, refId });
         return true;
       });
+    },
+    /**
+     * 하루 한도가 있는 무상 지급(광고 보상) — since 이후 같은 memo 의 지급이 limit 번 미만일 때만, 묶음 실행 시점에도 확인한다.
+     * 보상 요청이 동시에 여러 개 들어와도 한도를 넘지 않는다. 지급했으면 잔액, 한도에 걸리면 null
+     */
+    async grantDailyCapped(userId: string, amount: number, memo: string, limit: number, since: number): Promise<number | null> {
+      if (!(await db.select({ id: users.id }).from(users).where(eq(users.id, userId))).length) throw notFound('사용자를 찾을 수 없어요.');
+      const todays = and(eq(creditLedger.userId, userId), eq(creditLedger.reason, 'bonus'), eq(creditLedger.memo, memo), gte(creditLedger.createdAt, since));
+      const granted = await atomic(db, async (u) => {
+        const n = (await db.select({ n: count() }).from(creditLedger).where(todays))[0]?.n ?? 0;
+        if (n >= limit) return false;
+        u.expect(sql`(select count(*) from ${creditLedger} where ${todays}) < ${limit}`);
+        addCredits(u, userId, amount, { reason: 'bonus', source: 'free', channel: 'system', memo });
+        return true;
+      });
+      return granted ? balance(userId) : null;
     },
     async grantFreeCredits(userId: string, amount: number, memo: string): Promise<number> {
       if (!(await db.select({ id: users.id }).from(users).where(eq(users.id, userId))).length) throw notFound('사용자를 찾을 수 없어요.');

@@ -15,7 +15,7 @@ export const LOGIN_WINDOW_MS = 15 * 60_000;
 
 const keyOf = (email: string) => createHash('sha256').update(email.trim().toLowerCase()).digest('hex');
 
-export function createLoginThrottle(db: Db, now: () => number = Date.now) {
+export function createLoginThrottle(db: Db, now: () => number = Date.now, onLocked?: () => void) {
   return {
     /** 막힌 이메일이면 429 — 비밀번호를 확인하기 전에 부른다 */
     async assertAllowed(email: string) {
@@ -29,7 +29,7 @@ export function createLoginThrottle(db: Db, now: () => number = Date.now) {
     async recordFailure(email: string) {
       const t = now();
       const windowFrom = t - LOGIN_WINDOW_MS;
-      await db
+      const [row] = await db
         .insert(loginFailures)
         .values({ emailHash: keyOf(email), count: 1, windowStart: t })
         .onConflictDoUpdate({
@@ -38,7 +38,10 @@ export function createLoginThrottle(db: Db, now: () => number = Date.now) {
             count: sql`case when ${loginFailures.windowStart} < ${windowFrom} then 1 else ${loginFailures.count} + 1 end`,
             windowStart: sql`case when ${loginFailures.windowStart} < ${windowFrom} then ${t} else ${loginFailures.windowStart} end`,
           },
-        });
+        })
+        .returning({ count: loginFailures.count });
+      // 이번 실패로 잠겼다(하루 요약의 '로그인 잠금' 횟수)
+      if (row?.count === LOGIN_MAX_FAILURES) onLocked?.();
     },
     /** 맞혔을 때 — 기록을 지운다 */
     async clear(email: string) {

@@ -14,6 +14,12 @@ import type { UserService } from '../users/service.js';
 const DAY = 86_400_000;
 /** 비밀번호 재설정 링크 유효 시간 */
 export const PASSWORD_RESET_TTL_MS = 30 * 60_000;
+/**
+ * 회전된 refresh 토큰을 다시 써도 탈취로 보지 않는 시간. 탭 두 개가 같은 토큰으로 동시에 갱신하거나,
+ * 서버는 회전했는데 응답이 유실돼 앱이 같은 토큰으로 다시 요청하는 경우다. 이어 받은 토큰이 아직 살아 있을 때만 봐준다
+ * (비밀번호 변경·로그아웃으로 끊긴 세션은 이어 받은 토큰도 폐기돼 있어 해당하지 않는다).
+ */
+export const REFRESH_REUSE_GRACE_MS = 30_000;
 export const PASSWORD_RESET_INVALID = '링크가 만료됐거나 이미 사용됐습니다. 다시 요청해 주세요.';
 
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -46,12 +52,12 @@ export function buildPasswordResetMail(link: string, appName: string): { subject
 }
 
 export function createAuthService(config: AppConfig, db: Db, users: UserService, mail: MailService) {
-  const issue = async (user: User, userAgent?: string): Promise<AuthTokensDto> => {
+  const issue = async (user: User, userAgent?: string, rowId = newId()): Promise<AuthTokensDto> => {
     const accessToken = await signAccessToken({ sub: user.id, role: user.role === 'admin' ? 'admin' : 'user', provider: user.provider }, config.JWT_ACCESS_SECRET, config.ACCESS_TOKEN_TTL_SEC);
     const refreshToken = randomToken(48);
     await db
       .insert(refreshTokens)
-      .values({ id: newId(), userId: user.id, tokenHash: hashToken(refreshToken), expiresAt: Date.now() + config.REFRESH_TOKEN_TTL_DAYS * DAY, userAgent: userAgent?.slice(0, 200) ?? null });
+      .values({ id: rowId, userId: user.id, tokenHash: hashToken(refreshToken), expiresAt: Date.now() + config.REFRESH_TOKEN_TTL_DAYS * DAY, userAgent: userAgent?.slice(0, 200) ?? null });
     return { accessToken, refreshToken, expiresIn: config.ACCESS_TOKEN_TTL_SEC, user: users.toDto(user) };
   };
 
@@ -62,25 +68,36 @@ export function createAuthService(config: AppConfig, db: Db, users: UserService,
 
   return {
     issue,
-    /** refresh token 회전. 이미 폐기된 토큰이 재사용되면 탈취로 보고 전체 세션을 폐기한다 */
+    /**
+     * refresh token 회전. 이미 폐기된 토큰이 재사용되면 탈취로 보고 전체 세션을 폐기한다.
+     * 단, 방금(REFRESH_REUSE_GRACE_MS 안) 회전된 토큰이고 이어 받은 토큰이 살아 있으면 동시 갱신·응답 유실로 보고 새 토큰을 준다.
+     */
     async refresh(refreshToken: string, userAgent?: string): Promise<AuthTokensDto> {
       const [row] = await db.select().from(refreshTokens).where(eq(refreshTokens.tokenHash, hashToken(refreshToken)));
       if (!row) throw unauthorized('다시 로그인해 주세요.');
-      const reused = async () => {
-        await revokeAllSessions(row.userId);
-        return unauthorized('보안을 위해 다시 로그인해 주세요.');
-      };
-      if (row.revokedAt) throw await reused();
       if (row.expiresAt < Date.now()) throw unauthorized('로그인이 만료되었어요. 다시 로그인해 주세요.');
       if (!(await users.isActive(row.userId))) throw unauthorized('탈퇴했거나 존재하지 않는 계정이에요.');
-      // 아직 폐기되지 않았을 때만 폐기 — 같은 토큰이 동시에 두 번 쓰이면 뒤의 요청은 재사용으로 본다
+      /** 폐기된 토큰을 다시 쓴 요청 — 방금 회전된 것이면 새 토큰, 아니면 탈취로 보고 전체 세션 폐기 */
+      const reusedOrGrace = async (): Promise<AuthTokensDto> => {
+        const [cur] = await db.select({ revokedAt: refreshTokens.revokedAt, replacedBy: refreshTokens.replacedBy }).from(refreshTokens).where(eq(refreshTokens.id, row.id));
+        if (cur?.revokedAt && cur.replacedBy && Date.now() - cur.revokedAt <= REFRESH_REUSE_GRACE_MS) {
+          const [next] = await db.select({ revokedAt: refreshTokens.revokedAt }).from(refreshTokens).where(eq(refreshTokens.id, cur.replacedBy));
+          // 이어 받은 행이 아직 없으면 먼저 온 요청이 막 발급하는 중이다
+          if (!next || !next.revokedAt) return issue(await users.get(row.userId), userAgent);
+        }
+        await revokeAllSessions(row.userId);
+        throw unauthorized('보안을 위해 다시 로그인해 주세요.');
+      };
+      if (row.revokedAt) return reusedOrGrace();
+      // 아직 폐기되지 않았을 때만 폐기하고, 이어 받을 토큰 행 ID 를 함께 적는다 — 동시에 두 번 쓰이면 뒤의 요청은 위의 판정을 받는다
+      const nextId = newId();
       const rotated = await db
         .update(refreshTokens)
-        .set({ revokedAt: Date.now() })
+        .set({ revokedAt: Date.now(), replacedBy: nextId })
         .where(and(eq(refreshTokens.id, row.id), isNull(refreshTokens.revokedAt)))
         .returning({ id: refreshTokens.id });
-      if (rotated.length !== 1) throw await reused();
-      return issue(await users.get(row.userId), userAgent);
+      if (rotated.length !== 1) return reusedOrGrace();
+      return issue(await users.get(row.userId), userAgent, nextId);
     },
     async logout(refreshToken: string) {
       await db.update(refreshTokens).set({ revokedAt: Date.now() }).where(eq(refreshTokens.tokenHash, hashToken(refreshToken)));

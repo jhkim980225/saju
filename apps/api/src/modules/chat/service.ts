@@ -9,7 +9,9 @@ import type { ChatMessageDto, ChatReplyDto } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
 import type { Db } from '../../db/client.js';
 import { chatMessages } from '../../db/schema.js';
+import { conflict } from '../../lib/errors.js';
 import { newId } from '../../lib/ids.js';
+import { createRequestClaims } from '../../lib/requestClaim.js';
 import { isAiFailure, type AiService } from '../ai/service.js';
 import type { CommerceService } from '../commerce/service.js';
 import { EL_NAME, buildBasicReading, dayMasterContent, dayPillarContent, type ReadingAccess } from '../interpretation/reading.js';
@@ -80,6 +82,9 @@ export function ruleBasedAnswer(chart: SajuChart, message: string, access: Readi
 
 export function createChatService(config: AppConfig, db: Db, profiles: ProfileService, commerce: CommerceService, ai: AiService, access: (userId: string, profileId: string) => Promise<ReadingAccess>) {
   const toDto = (m: typeof chatMessages.$inferSelect): ChatMessageDto => ({ id: m.id, role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content, createdAt: new Date(m.createdAt).toISOString() });
+  const claims = createRequestClaims(db);
+  type ChatClaim = { replyId: string; generator: ChatReplyDto['generator'] };
+  const inProgress = () => conflict('같은 질문을 처리하고 있어요. 잠시 후 대화 내용을 다시 확인해 주세요.', { reason: 'REQUEST_IN_PROGRESS' });
 
   return {
     async history(userId: string, profileId: string): Promise<ChatMessageDto[]> {
@@ -87,8 +92,33 @@ export function createChatService(config: AppConfig, db: Db, profiles: ProfileSe
       return (await db.select().from(chatMessages).where(and(eq(chatMessages.userId, userId), eq(chatMessages.profileId, profileId))).orderBy(asc(chatMessages.createdAt), asc(chatMessages.id))).map(toDto);
     },
 
-    async send(userId: string, input: { profileId: string; message: string }): Promise<ChatReplyDto> {
+    /**
+     * 질문 보내기. requestId 가 있으면 같은 요청이 두 번 와도(응답 유실 뒤 재시도·두 번 누름) 한 번만 차감하고,
+     * 두 번째 요청에는 처음 만든 답변을 그대로 돌려준다(처리 중이면 409)
+     */
+    async send(userId: string, input: { profileId: string; message: string; requestId?: string }): Promise<ChatReplyDto> {
       const profile = await profiles.getOwned(userId, input.profileId);
+      if (!input.requestId) return this.answer(userId, profile, input.message);
+      const claim = await claims.claim<ChatClaim>('chat', userId, input.requestId);
+      if (!claim.claimed) {
+        if (!claim.result) throw inProgress();
+        const [reply] = await db.select().from(chatMessages).where(and(eq(chatMessages.id, claim.result.replyId), eq(chatMessages.userId, userId)));
+        if (!reply) throw conflict('이미 처리한 질문이에요. 대화 내용을 확인해 주세요.', { reason: 'REQUEST_DONE' });
+        return { reply: toDto(reply), creditsLeft: (await commerce.wallet(userId)).credits, generator: claim.result.generator };
+      }
+      try {
+        const out = await this.answer(userId, profile, input.message);
+        await claims.complete(claim.key, { replyId: out.reply.id, generator: out.generator } satisfies ChatClaim);
+        return out;
+      } catch (e) {
+        // 처리하지 못했으니 같은 요청 ID 로 다시 보낼 수 있게 선점을 푼다
+        await claims.release(claim.key).catch(() => undefined);
+        throw e;
+      }
+    },
+
+    /** 차감 → 답변 생성 → 저장 (send 의 본체) */
+    async answer(userId: string, profile: Awaited<ReturnType<ProfileService['getOwned']>>, message: string): Promise<ChatReplyDto> {
       const chart = profiles.chartOf(profile);
       const cost = config.AI_CHAT_CREDIT_COST;
       const userMsgId = newId();
@@ -104,11 +134,11 @@ export function createChatService(config: AppConfig, db: Db, profiles: ProfileSe
       ).map((m) => ({ role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const), content: m.content }));
 
       const now = Date.now();
-      await db.insert(chatMessages).values({ id: userMsgId, userId, profileId: profile.id, role: 'user', content: input.message, createdAt: now });
+      await db.insert(chatMessages).values({ id: userMsgId, userId, profileId: profile.id, role: 'user', content: message, createdAt: now });
 
-      const result = ai.enabled ? await ai.chat({ chart, profileName: profile.name, chartSummary: chartSummary(chart), history, message: input.message }) : null;
+      const result = ai.enabled ? await ai.chat({ chart, profileName: profile.name, chartSummary: chartSummary(chart), history, message: message }) : null;
       const aiReply = result && !isAiFailure(result) ? result : null;
-      const text = aiReply?.text ?? ruleBasedAnswer(chart, input.message, await access(userId, profile.id), profile.name);
+      const text = aiReply?.text ?? ruleBasedAnswer(chart, message, await access(userId, profile.id), profile.name);
       const generator = aiReply ? 'ai' : 'rule';
       if (charged && isAiFailure(result) && result.failed === 'unavailable') await commerce.refundAiFailure(userId, cost, 'AI 상담 실패 환급', userMsgId);
       const creditsLeft = (await commerce.wallet(userId)).credits;

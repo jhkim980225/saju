@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { REFRESH_REUSE_GRACE_MS } from '../src/modules/auth/service.js';
 import type { App } from '../src/app.js';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
@@ -123,13 +124,23 @@ describe('회원 흐름 — 게스트 → 가입 → 결제 → 리포트', () =
     expect((await api('POST', '/auth/login', { body: { email: 'minsu@example.com', password: 'password123' } })).status).toBe(200);
   });
 
-  it('refresh token 회전 + 재사용 탐지', async () => {
+  it('refresh token 회전 + 재사용 탐지 (방금 회전된 토큰은 응답 유실로 보고 봐준다)', async () => {
     const r1 = await api('POST', '/auth/refresh', { body: { refreshToken: refresh } });
     expect(r1.status).toBe(200);
-    const reuse = await api('POST', '/auth/refresh', { body: { refreshToken: refresh } });
-    expect(reuse.status).toBe(401);
-    // 재사용 탐지로 새 토큰도 폐기됨
+    // 응답이 유실돼 같은 토큰으로 다시 요청 — 30초 안이고 이어 받은 토큰이 살아 있으니 새 토큰을 준다
+    const retry = await api('POST', '/auth/refresh', { body: { refreshToken: refresh } });
+    expect(retry.status).toBe(200);
+    expect(retry.body.refreshToken).not.toBe(r1.body.refreshToken);
+    // 유예 시간이 지난 뒤의 재사용은 탈취로 본다
+    const later = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + REFRESH_REUSE_GRACE_MS + 1_000);
+    try {
+      expect((await api('POST', '/auth/refresh', { body: { refreshToken: refresh } })).status).toBe(401);
+    } finally {
+      later.mockRestore();
+    }
+    // 재사용 탐지로 새 토큰들도 폐기됨
     expect((await api('POST', '/auth/refresh', { body: { refreshToken: r1.body.refreshToken } })).status).toBe(401);
+    expect((await api('POST', '/auth/refresh', { body: { refreshToken: retry.body.refreshToken } })).status).toBe(401);
   });
 
   it('오늘의 운세 (대표 프로필)', async () => {

@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { dreamInterpretSchema } from '@saju/shared/dream';
 import { readJson, requireUser, type AppEnv, type RouteKit } from '../../lib/http.js';
+import { createRequestClaims } from '../../lib/requestClaim.js';
 import { parse } from '../../lib/validate.js';
 import { createDreamService } from './service.js';
 
@@ -10,7 +11,7 @@ import { createDreamService } from './service.js';
  */
 export function dreamRoutes({ ctx, authenticate }: RouteKit) {
   const { config, services } = ctx;
-  const dream = createDreamService(config, services.profiles, services.commerce, services.ai);
+  const dream = createDreamService(config, services.profiles, services.commerce, services.ai, createRequestClaims(ctx.db));
   const app = new Hono<AppEnv>();
 
   /** AI 꿈풀이 — AI 연동 시 질문권 1회 차감, 미연동이면 사전 기반 기본 풀이(무료) */

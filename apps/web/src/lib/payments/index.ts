@@ -9,7 +9,7 @@
  * 결제 승인은 /payments/success 페이지에서 서버 confirm API 로 처리한다(그로블 제외).
  */
 import type { CheckoutDto, PaymentResultDto, ProductDto } from '@saju/shared';
-import { api } from '../api';
+import { ApiError, api } from '../api';
 import { IS_TOSS, isNativeApp, native, nativePlatform } from '../platform';
 import { STORAGE_KEYS, storage } from '../storage';
 import { finishPurchase, recoverUnfinishedPurchases } from '../../native';
@@ -39,7 +39,12 @@ export interface PendingCheckout {
   /** 결제 후 돌아갈 경로(읽던 위치 유지) */
   returnTo: string;
   profileName?: string;
+  /** 같은 주문으로 결제창을 다시 열 때 서버에 보낼 대상(진행 중인 결제 이어서 하기) */
+  resume?: { productId: string; profileId?: string; partnerProfileId?: string; readingId?: string };
 }
+
+/** 진행 중인 결제 화면 주소 — 서버가 같은 상품의 결제가 진행 중이라고 알려 준 경우 */
+export const RESUME_CHECKOUT_PATH = '/payments/success?resume=1';
 
 export async function startCheckout(input: { product: ProductDto; profileId?: string; partnerProfileId?: string; readingId?: string; returnTo: string; profileName?: string }): Promise<PaymentResultDto | 'redirected'> {
   // 토스 미니앱: 토스 인앱 결제만 쓴다(외부 결제창 이동 금지)
@@ -60,8 +65,23 @@ export async function startCheckout(input: { product: ProductDto; profileId?: st
     return result;
   }
 
-  const checkout: CheckoutDto = await api.createOrder({ productId: input.product.id, profileId: input.profileId, partnerProfileId: input.partnerProfileId, readingId: input.readingId });
-  const pending: PendingCheckout = { orderId: checkout.order.id, productId: input.product.id, amount: checkout.order.amount, provider: checkout.provider, returnTo: input.returnTo, profileName: input.profileName };
+  const resume = { productId: input.product.id, profileId: input.profileId, partnerProfileId: input.partnerProfileId, readingId: input.readingId };
+  let checkout: CheckoutDto;
+  try {
+    checkout = await api.createOrder(resume);
+  } catch (e) {
+    // 같은 상품의 결제를 방금 시작했다(그로블은 같은 주문으로 두 번 결제하는 것을 막지 못한다) — 새로 결제하지 않고
+    // 그 주문의 결제 확인 화면으로 보낸다. 결제하지 않았다면 그 화면에서 같은 주문으로 결제창을 다시 연다
+    const d = e instanceof ApiError ? (e.details as { reason?: string; orderId?: string; amount?: number } | undefined) : undefined;
+    if (e instanceof ApiError && e.status === 409 && d?.reason === 'PAYMENT_IN_PROGRESS' && d.orderId) {
+      const pending: PendingCheckout = { orderId: d.orderId, productId: input.product.id, amount: d.amount ?? input.product.price, provider: 'groble', returnTo: input.returnTo, profileName: input.profileName, resume };
+      storage.setJSON(STORAGE_KEYS.pendingCheckout, pending);
+      window.location.assign(RESUME_CHECKOUT_PATH);
+      return 'redirected';
+    }
+    throw e;
+  }
+  const pending: PendingCheckout = { orderId: checkout.order.id, productId: input.product.id, amount: checkout.order.amount, provider: checkout.provider, returnTo: input.returnTo, profileName: input.profileName, resume };
   storage.setJSON(STORAGE_KEYS.pendingCheckout, pending);
 
   const { checkout: c } = checkout;

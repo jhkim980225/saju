@@ -42,6 +42,7 @@ import { usePageMeta } from '@/hooks/usePageMeta';
 import { SessionGateError, useSessionGate } from '@/hooks/useSessionGate';
 import { usePurchase } from '@/hooks/usePurchase';
 import { ApiError, api } from '@/lib/api';
+import { uuid } from '@/lib/uuid';
 import { honorOf, t } from '@/lib/copy';
 
 const SITE = '달달사주';
@@ -502,7 +503,7 @@ export function DreamAskPage() {
   const crisisNow = DREAM_CRISIS_PATTERN.test(text) || Boolean(result?.crisis);
 
   const interpret = useMutation({
-    mutationFn: () => api.dreamInterpret({ text: trimmed, ...(selected ? { profileId: selected.id } : {}), ...(choice === 'none' ? { withoutSaju: true } : {}) }),
+    mutationFn: () => api.dreamInterpret({ text: trimmed, requestId: uuid(), ...(selected ? { profileId: selected.id } : {}), ...(choice === 'none' ? { withoutSaju: true } : {}) }),
     onSuccess: async (r) => {
       setResult(r);
       saveLast({ text: trimmed, result: r });

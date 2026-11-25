@@ -7,6 +7,7 @@ import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
 import { secureHeaders } from 'hono/secure-headers';
 import { safeErrorText } from './lib/log.js';
+import { withBackground } from './lib/alert.js';
 import { ERROR_CODES } from '@saju/shared';
 import { SajuInputError } from '@saju/core';
 import type { AppConfig } from './config/env.js';
@@ -48,8 +49,11 @@ export interface InjectResponse {
   json: () => unknown;
 }
 
+/** Worker 의 요청 실행 정보 — 응답 뒤 작업(waitUntil)에 쓴다 */
+export type ExecutionCtx = NonNullable<Parameters<Hono['fetch']>[2]>;
+
 export interface App {
-  fetch: (request: Request) => Response | Promise<Response>;
+  fetch: (request: Request, env?: unknown, executionCtx?: ExecutionCtx) => Response | Promise<Response>;
   ctx: AppContext;
   /** 테스트·스크립트용 — 네트워크 없이 요청 하나를 보내 본다 */
   inject(request: { method: string; url: string; headers?: Record<string, string>; payload?: unknown }): Promise<InjectResponse>;
@@ -92,7 +96,15 @@ export function buildApp(opts: { config: AppConfig; db: Db; deps?: ServiceDeps; 
   const app = new Hono<AppEnv>();
   app.use('*', async (c, next) => {
     c.set('user', null);
-    await next();
+    // 운영 알림 등 응답 뒤 작업을 이 요청의 waitUntil 로 맡긴다(lib/alert.ts). 테스트·Node 는 executionCtx 가 없다
+    let ec: ExecutionCtx | undefined;
+    try {
+      ec = c.executionCtx;
+    } catch {
+      ec = undefined;
+    }
+    if (ec) await withBackground((task) => ec.waitUntil(task), next);
+    else await next();
   });
   app.use('*', secureHeaders());
   app.use(
@@ -122,6 +134,7 @@ export function buildApp(opts: { config: AppConfig; db: Db; deps?: ServiceDeps; 
       return c.json({ error: { code: ERROR_CODES.VALIDATION, message: err.message || '잘못된 요청이에요.' } }, err.status);
     }
     console.error(`[api] ${c.req.method} ${c.req.path}`, safeErrorText(err));
+    services.ops.serverError(c.req.method, c.req.path, err);
     return c.json({ error: { code: ERROR_CODES.INTERNAL, message: '일시적인 오류가 발생했어요. 잠시 후 다시 시도해 주세요.' } }, 500);
   });
   app.notFound((c) => c.json({ error: { code: ERROR_CODES.NOT_FOUND, message: `경로를 찾을 수 없어요: ${c.req.method} ${c.req.path}` } }, 404));
@@ -154,7 +167,7 @@ export function buildApp(opts: { config: AppConfig; db: Db; deps?: ServiceDeps; 
   app.route('/api/v1', api);
 
   return {
-    fetch: (request) => app.fetch(request),
+    fetch: (request, env, executionCtx) => app.fetch(request, env, executionCtx),
     ctx,
     async inject({ method, url, headers, payload }) {
       const h = new Headers(headers);

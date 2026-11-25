@@ -19,7 +19,8 @@ import {
   type DreamTone,
 } from '@saju/shared/dream';
 import type { AppConfig } from '../../config/env.js';
-import { badRequest } from '../../lib/errors.js';
+import { badRequest, conflict } from '../../lib/errors.js';
+import type { RequestClaims } from '../../lib/requestClaim.js';
 import { newId } from '../../lib/ids.js';
 import { isAiFailure, type AiService } from '../ai/service.js';
 import { chartSummary } from '../chat/service.js';
@@ -92,7 +93,7 @@ export function composeRuleBased(matches: DreamMatch[], crisis: boolean): { head
   };
 }
 
-export function createDreamService(config: AppConfig, profiles: ProfileService, commerce: CommerceService, ai: AiService) {
+export function createDreamService(config: AppConfig, profiles: ProfileService, commerce: CommerceService, ai: AiService, claims?: RequestClaims) {
   /** 사주를 함께 볼 원국 — 지정 프로필(없으면 대표 프로필). 사주 없이 보기를 고르면 null */
   const chartFor = async (userId: string, dto: DreamInterpretDto): Promise<{ chart: SajuChart; name: string } | null> => {
     if (dto.withoutSaju) return null;
@@ -109,7 +110,29 @@ export function createDreamService(config: AppConfig, profiles: ProfileService, 
   };
 
   return {
+    /**
+     * 꿈풀이. requestId 가 있으면 같은 요청이 두 번 와도(응답 유실 뒤 재시도·두 번 누름) 한 번만 차감하고,
+     * 두 번째 요청에는 처음 풀이를 그대로 돌려준다(처리 중이면 409)
+     */
     async interpret(userId: string, dto: DreamInterpretDto): Promise<DreamInterpretationDto> {
+      if (!dto.requestId || !claims) return this.compose(userId, dto);
+      const claim = await claims.claim<DreamInterpretationDto>('dream', userId, dto.requestId);
+      if (!claim.claimed) {
+        if (!claim.result) throw conflict('같은 꿈풀이를 처리하고 있어요. 잠시 후 다시 확인해 주세요.', { reason: 'REQUEST_IN_PROGRESS' });
+        return { ...claim.result, creditsLeft: (await commerce.wallet(userId)).credits };
+      }
+      try {
+        const out = await this.compose(userId, dto);
+        await claims.complete(claim.key, out);
+        return out;
+      } catch (e) {
+        await claims.release(claim.key).catch(() => undefined);
+        throw e;
+      }
+    },
+
+    /** 차감 → 풀이 생성 (interpret 의 본체) */
+    async compose(userId: string, dto: DreamInterpretDto): Promise<DreamInterpretationDto> {
       const text = dto.text.trim();
       const matches = extractDreamSymbols(text, 6);
       const crisis = DREAM_CRISIS_PATTERN.test(text);

@@ -245,7 +245,7 @@ export function createTossIapService(config: AppConfig, db: Db, commerce: Commer
         try {
           const s = await client.getOrderStatus(order.providerPaymentKey);
           if (s.status !== 'REFUNDED') continue;
-          if (await atomic(db, (u) => kit.revokeOrder(u, order, 'refunded', '토스 인앱 결제 환불'))) revoked++;
+          if (await kit.revokeAndNotify(order, 'refunded', '토스 인앱 결제 환불')) revoked++;
         } catch (e) {
           failed++;
           console.warn('[toss] 환불 확인 실패', { orderId: order.id, reason: e instanceof Error ? e.message : String(e) });

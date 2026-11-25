@@ -78,6 +78,7 @@
 |---|---|---|---|---|
 | `RESEND_API_KEY` | api·secret | 비밀번호 재설정 링크 메일 발송(`POST https://api.resend.com/emails`, 새 의존성 없이 fetch) | [Resend](https://resend.com) > API Keys | `POST /auth/password/forgot` 501, 웹 "비밀번호 찾기"는 **문의 안내**로 대체 |
 | `MAIL_FROM` | api·secret | 발신자. 예: `달달사주 <no-reply@daldalsaju.com>` | Resend > Domains 에서 **발신 도메인 인증(DNS: SPF·DKIM)** 뒤 그 도메인의 주소. 인증 전에는 `onboarding@resend.dev` 로 본인 계정 메일에만 시험 발송 가능 | 위와 동일 (두 키가 모두 있어야 `features.mail=true`) |
+| `OPS_ALERT_WEBHOOK_URL` | api·secret | 운영 알림 웹훅(Discord 웹훅 주소 등, `{"content": "..."}` POST). 회원 가입, 결제 완료, 환불, **환불이 필요한 결제**(중복 결제·이미 가진 콘텐츠 재결제·금액 불일치·구매 한도 초과), 결제 확인 지연, AI 장애, 서버 오류, 웹훅 검증 실패를 바로 알리고 매일 08:00 KST 에 어제 요약을 보낸다(DEPLOY.md §4 운영 알림). 개인정보는 넣지 않는다 | Discord 채널 설정 → 연동 → 웹후크 → 새 웹후크 → URL 복사 | 로그(`[ops-alert]`)만 남김 |
 | `SUPPORT_EMAIL` | api·secret | 고객 문의 주소 — 메일 연동이 없을 때 "비밀번호 찾기" 화면에 "{주소}로 가입한 이메일을 적어 문의해 주세요" 안내. `GET /config` 의 `supportEmail` | — | 주소 없이 '문의하기' 문구만 |
 
 동작: 가입 여부와 관계없이 200(계정 유무 비노출) → 이메일 계정이면 32바이트 토큰을 만들어 sha256 해시만 `password_resets` 에 저장(30분 만료, 1회 사용, 이전 미사용 링크는 무효화) → `{PUBLIC_WEB_URL}/password/reset?token=…` 링크 발송. 재설정에 성공하면 그 사용자의 refresh token 을 모두 폐기한다. 흐름 설명: [`docs/AUTH_PUSH.md`](./AUTH_PUSH.md) 5절.

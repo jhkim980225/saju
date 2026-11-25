@@ -302,7 +302,25 @@ export const DREAM_SYSTEM = `꿈해몽 서비스 "달달사주"의 AI 해석가�
 
 ${PLAIN_VOICE}`;
 
-export function createAiService(config: AppConfig): AiService {
+/** AI 호출 결과 알림(운영 집계) — 사용량은 하루 요약의 예상 비용, 장애는 바로 알림 */
+export interface AiHooks {
+  onUsage?: (kind: 'report' | 'chat' | 'tarot' | 'dream', model: string, usage: Anthropic.Messages.Usage | Anthropic.Beta.BetaUsage) => void;
+  onFailure?: (kind: 'credit' | 'auth' | 'rate' | 'outage', where: string) => void;
+}
+
+/** Anthropic 오류를 운영 알림 종류로 — 요청 내용 탓(형식 오류 등)이면 null */
+export function aiFailureKind(error: unknown): 'credit' | 'auth' | 'rate' | 'outage' | null {
+  if (!(error instanceof Anthropic.APIError)) return null;
+  // 연결 실패·시간 초과(APIConnectionError)는 상태 코드가 없다
+  const status = (error as { status?: number }).status;
+  if (status === 401 || status === 403) return 'auth';
+  if (status === 429) return 'rate';
+  if (status === 400) return /credit balance/i.test(error.message) ? 'credit' : null;
+  if (status === undefined || status >= 500) return 'outage';
+  return null;
+}
+
+export function createAiService(config: AppConfig, hooks: AiHooks = {}): AiService {
   if (!config.ANTHROPIC_API_KEY) {
     return {
       enabled: false,
@@ -329,6 +347,8 @@ export function createAiService(config: AppConfig): AiService {
   const reportSlots = createLimiter(REPORT_GLOBAL_CONCURRENCY);
 
   const logError = (where: string, error: unknown) => {
+    const failure = aiFailureKind(error);
+    if (failure) hooks.onFailure?.(failure, where);
     if (error instanceof Anthropic.RateLimitError) console.warn(`[ai:${where}] rate limited`);
     else if (error instanceof Anthropic.AuthenticationError) console.error(`[ai:${where}] ANTHROPIC_API_KEY 가 유효하지 않아요`);
     else if (error instanceof Anthropic.BadRequestError) console.error(`[ai:${where}] bad request: ${error.message}`);
@@ -373,6 +393,7 @@ export function createAiService(config: AppConfig): AiService {
             ],
           });
           outputTokens += response.usage.output_tokens;
+          hooks.onUsage?.('report', response.model ?? model, response.usage);
           if (response.stop_reason === 'refusal' || !response.parsed_output) return null;
           return response.parsed_output.sections;
         } catch (error) {
@@ -406,6 +427,7 @@ export function createAiService(config: AppConfig): AiService {
           },
           { timeout: 60_000 },
         );
+        hooks.onUsage?.('chat', response.model ?? model, response.usage);
         if (response.stop_reason === 'refusal') return REFUSED;
         const text = response.content
           .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')
@@ -430,6 +452,7 @@ export function createAiService(config: AppConfig): AiService {
 
 ${JSON.stringify(input)}` }],
         });
+        hooks.onUsage?.('tarot', response.model ?? premiumModel, response.usage);
         const paragraphs = response.parsed_output?.paragraphs.map((p) => p.trim()).filter(Boolean) ?? [];
         if (response.stop_reason === 'refusal' || paragraphs.length === 0) return null;
         return paragraphs.slice(0, 4);
@@ -451,6 +474,7 @@ ${JSON.stringify(input)}` }],
           },
           { timeout: 60_000 },
         );
+        hooks.onUsage?.('dream', response.model ?? model, response.usage);
         // 거절·형식에 맞지 않는 응답·빈 풀이 — 응답은 왔으니 요청 내용 탓으로 본다(환급하지 않음)
         if (response.stop_reason === 'refusal' || !response.parsed_output) return REFUSED;
         const paragraphs = response.parsed_output.paragraphs.map((p) => p.trim()).filter(Boolean).slice(0, 5);
