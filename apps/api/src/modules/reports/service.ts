@@ -13,6 +13,7 @@ import type { ReadingSection, ReportCreateDto, ReportDto, ReportProgressDto, Rep
 import type { Db } from '../../db/client.js';
 import { profiles as profilesTable, reports, type Report } from '../../db/schema.js';
 import { badRequest, notFound, paymentRequired } from '../../lib/errors.js';
+import { safeErrorText } from '../../lib/log.js';
 import { newId } from '../../lib/ids.js';
 import { polishChunkCount, type AiService } from '../ai/service.js';
 import { compatKey, type CommerceService, type FulfilledEvent } from '../commerce/service.js';
@@ -112,7 +113,7 @@ export function createReportService(db: Db, profiles: ProfileService, commerce: 
         .then(async () => {
           await db.update(reports).set({ polishDone: done, polishTotal: total, polishLeaseUntil: Date.now() + POLISH_LEASE_MS }).where(stillPolishing(reportId));
         })
-        .catch((error: unknown) => console.error('[reports] 다듬기 진행 기록 실패', error));
+        .catch((error: unknown) => console.error('[reports] 다듬기 진행 기록 실패', safeErrorText(error)));
     };
     const finish = async (set: Partial<Pick<Report, 'content' | 'generator' | 'model'>>) => {
       await writes;
@@ -120,7 +121,7 @@ export function createReportService(db: Db, profiles: ProfileService, commerce: 
         // 다듬는 사이 탈퇴로 행이 지워졌을 수 있다 — 아직 다듬는 중인 행만 바꾼다
         await db.update(reports).set({ ...set, polishLeaseUntil: null }).where(stillPolishing(reportId));
       } catch (error) {
-        console.error('[reports] 다듬은 본문 저장 실패', error);
+        console.error('[reports] 다듬은 본문 저장 실패', safeErrorText(error));
       }
     };
     let job: ReturnType<AiService['enhanceSections']>;
@@ -135,7 +136,7 @@ export function createReportService(db: Db, profiles: ProfileService, commerce: 
       const e = await job;
       await finish({ content: e.sections, generator: e.generator, model: e.model });
     } catch (error) {
-      console.error('[reports] AI 다듬기 실패 — 규칙 기반 본문으로 마무리', error);
+      console.error('[reports] AI 다듬기 실패 — 규칙 기반 본문으로 마무리', safeErrorText(error));
       await finish({ generator: 'rule' });
     }
   };
@@ -276,7 +277,7 @@ export function createReportService(db: Db, profiles: ProfileService, commerce: 
         try {
           await create(e.userId, dto);
         } catch (error) {
-          console.warn(`[reports] 결제 후 미리 만들기 실패 (${key})`, error);
+          console.warn(`[reports] 결제 후 미리 만들기 실패 (${key})`, safeErrorText(error));
         }
       }
     },

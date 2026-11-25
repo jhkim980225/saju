@@ -91,6 +91,8 @@ export function createAuthService(config: AppConfig, db: Db, users: UserService,
      * 재설정 메일 요청. 계정 유무를 응답으로 드러내지 않으므로 이메일 계정이 아니면 조용히 끝낸다.
      * 메일 연동이 없으면 501 (웹은 문의 안내로 대체).
      */
+    /** 재설정 메일을 보낼 수 있는가(Resend 설정) */
+    mailEnabled: () => mail.enabled,
     async requestPasswordReset(email: string): Promise<void> {
       if (!mail.enabled) throw notConfigured('비밀번호 재설정 메일(Resend)', MAIL_ENV_KEYS);
       const user = await users.findByEmail(email);
@@ -119,12 +121,17 @@ export function createAuthService(config: AppConfig, db: Db, users: UserService,
       });
       await revokeAllSessions(row.userId);
     },
-    /** 로그인 상태에서 현재 비밀번호를 확인하고 변경 (이메일 계정만). 현재 세션은 유지한다 */
-    async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+    /**
+     * 로그인 상태에서 현재 비밀번호를 확인하고 변경 (이메일 계정만).
+     * 다른 기기의 로그인은 모두 끊고(탈취 대응), 지금 기기에는 새 토큰을 준다.
+     */
+    async changePassword(userId: string, currentPassword: string, newPassword: string, userAgent?: string): Promise<AuthTokensDto> {
       const user = await users.get(userId);
       if (user.provider !== 'email' || !user.passwordHash) throw badRequest('이메일로 가입한 계정만 비밀번호를 바꿀 수 있어요.');
       if (!(await verifyPassword(currentPassword, user.passwordHash))) throw badRequest('현재 비밀번호가 일치하지 않아요.');
       await db.update(usersTable).set({ passwordHash: await hashPassword(newPassword), updatedAt: Date.now() }).where(eq(usersTable.id, user.id));
+      await revokeAllSessions(user.id);
+      return issue(await users.get(user.id), userAgent);
     },
   };
 }

@@ -2,10 +2,11 @@
  * 커머스 코어 — 상품 / 주문 / 결제 승인 / 지급(fulfillment) / 질문권 원장 / 권한(entitlement).
  * 결제사 연동은 providers/* 게이트웨이가 담당하고, 여기서는 금액 검증과 지급의 원자성을 보장한다.
  */
-import { and, asc, count, desc, eq, inArray, like, notInArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, like, notInArray, sql } from 'drizzle-orm';
 import type { CheckoutDto, OrderCreateDto, OrderDto, PaymentProvider, PaymentResultDto, ProductDto, WalletDto } from '@saju/shared';
 import { ERROR_CODES } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
+import { safeErrorText } from '../../lib/log.js';
 import { atomic, type Unit } from '../../db/atomic.js';
 import type { Db } from '../../db/client.js';
 import { creditLedger, entitlements, orders, products, profiles, users, webhookEvents, type Order, type Product } from '../../db/schema.js';
@@ -26,6 +27,14 @@ export interface FulfilledEvent {
 }
 
 const DAY = 86_400_000;
+const KST_OFFSET = 9 * 3_600_000;
+/** 오늘(KST) 0시의 epoch ms */
+export const startOfSeoulDay = (now = Date.now()) => Math.floor((now + KST_OFFSET) / DAY) * DAY - KST_OFFSET;
+
+/** AI 장애 환급 — 사용자마다 하루(KST) 최대 횟수. 장애가 아닌데 환급이 되풀이되는 경우(실패 유도 등)를 막는다 */
+export const AI_REFUND_DAILY_LIMIT = 5;
+/** 원장(credit_ledger.ref_type)에 남기는 AI 장애 환급 표시 — 하루 환급 횟수를 이것으로 센다 */
+export const AI_REFUND_REF = 'ai_refund';
 
 type FulfilledListener = (e: FulfilledEvent) => Promise<void> | void;
 /** 결과 하나를 여는 상품(타로·택일)의 소유·상품 일치 확인 — 맞지 않으면 예외 */
@@ -301,7 +310,7 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
       await fulfilledListener({ userId: order.userId, entitlements: granted.entitlements, profileId: meta.profileId, partnerProfileId: meta.partnerProfileId });
     } catch (e) {
       // 결제·지급은 이미 끝났다 — 후처리 실패가 결제 응답을 깨지 않게 한다
-      console.error('[commerce] 지급 후처리 실패', e);
+      console.error('[commerce] 지급 후처리 실패', safeErrorText(e));
     }
   };
 
@@ -361,7 +370,10 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
   const markProcessed = async (key: string) => {
     await db.update(webhookEvents).set({ processedAt: Date.now() }).where(eq(webhookEvents.id, key));
   };
-  /** 스토어가 무효화(환불·취소)한 거래 표시 — 앱이 검증하기 전에 환불된 구매를 나중에 지급하지 않도록 */
+  /**
+   * 스토어·결제사가 무효화(환불·취소)한 거래 표시 — 앱이 검증하기 전에(또는 결제 완료 알림보다 먼저) 환불된 구매를 나중에 지급하지 않도록.
+   * payload 를 뒤지지 않고 기본 키(provider:voided:거래 키)로 바로 찾는다
+   */
   const voidedKey = (provider: string, transactionId: string) => `${provider}:voided:${transactionId}`;
   const isVoided = async (provider: string, transactionId: string) => (await db.select({ id: webhookEvents.id }).from(webhookEvents).where(eq(webhookEvents.id, voidedKey(provider, transactionId)))).length > 0;
 
@@ -558,7 +570,16 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
         // (우리 주문이 없는 환불 알림은 같은 계정을 쓰는 다른 서비스의 것일 수 있어 경고하지 않는다)
         console.warn(`[commerce] 주문을 찾지 못한 결제 웹훅 (${providerId} ${event.type} order=${event.orderId ?? '-'} key=${event.paymentKey ?? '-'})`);
       }
-      if (order && (event.status === 'canceled' || event.status === 'refunded') && order.status === 'paid') {
+      const voids = event.status === 'canceled' || event.status === 'refunded';
+      if (voids && !event.partial && event.paymentKey && order?.status !== 'paid') {
+        // 결제 완료 알림보다 먼저 온 전액 환불·취소 — 주문을 찾지 못했거나 아직 지급 전이다.
+        // 나중에 같은 결제(결제 키)의 완료 알림이 와도 지급하지 않도록 표시해 둔다(인앱결제 voidedKey 와 같은 장치)
+        await db
+          .insert(webhookEvents)
+          .values({ id: voidedKey(providerId, event.paymentKey), provider: providerId, eventType: 'VOIDED', payload: { event: event.id, type: event.type }, processedAt: Date.now() })
+          .onConflictDoNothing();
+      }
+      if (order && voids && order.status === 'paid') {
         if (event.partial) {
           // 부분 환불(질문권 팩 미사용분 등) — 얼마나 회수할지는 운영자가 정한다. 기록만 남긴다
           console.warn(`[commerce] 부분 환불 웹훅 — 자동 회수하지 않음 (${providerId} order=${order.id} amount=${event.amount ?? '-'})`);
@@ -568,7 +589,17 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
         }
       } else if (order && event.status === 'paid' && (order.status === 'pending' || order.status === 'failed')) {
         // 승인 응답 유실 등으로 지급되지 않은 결제를 복구(그로블은 이것이 유일한 확정 경로)
-        // — 결제사가 확인한 금액과 상품(결제창)이 주문과 같을 때만
+        // — 결제사가 확인한 금액과 상품(결제창)이 주문과 같고, 이 결제의 환불·취소 알림이 먼저 오지 않았을 때만
+        if (event.paymentKey && (await isVoided(providerId, event.paymentKey))) {
+          // 알림 순서가 뒤바뀐 경우(그로블은 순서를 보장하지 않는다) — 이미 환불된 결제라 지급하지 않고 환불로 닫는다
+          await db
+            .update(orders)
+            .set({ status: 'refunded', canceledAt: Date.now(), failureReason: 'REFUNDED_BEFORE_PAID', providerPaymentKey: event.paymentKey, updatedAt: Date.now() })
+            .where(and(eq(orders.id, order.id), inArray(orders.status, ['pending', 'failed'])));
+          console.warn(`[commerce] 환불·취소 알림이 먼저 온 결제라 지급하지 않음 (${providerId} order=${order.id} key=${event.paymentKey})`);
+          await markProcessed(eventKey);
+          return { duplicate: false };
+        }
         const expectedRef = gateway.productRef?.(order.productId);
         const mismatch =
           event.amount !== order.amount
@@ -719,6 +750,22 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
         if (fromPaid > 0) addCredits(u, userId, -fromPaid, { reason: 'consume', source: 'paid', channel: 'system', memo, refType: 'chat', refId });
       });
       return balance(userId);
+    },
+    /**
+     * AI 장애로 답하지 못한 상담·꿈풀이의 질문권 환급(무상) — 사용자마다 하루(KST) AI_REFUND_DAILY_LIMIT 번까지.
+     * 원장의 환급 기록(refType=ai_refund)으로 세고, 묶음 실행 시점에도 상한 안인지 다시 확인한다(동시 요청으로 넘지 않게).
+     * 돌려줬으면 true, 상한에 걸리면 false(차감한 채로 둔다)
+     */
+    async refundAiFailure(userId: string, amount: number, memo: string, refId?: string): Promise<boolean> {
+      const since = startOfSeoulDay();
+      const todayRefunds = and(eq(creditLedger.userId, userId), eq(creditLedger.refType, AI_REFUND_REF), gte(creditLedger.createdAt, since));
+      return atomic(db, async (u) => {
+        const used = (await db.select({ n: count() }).from(creditLedger).where(todayRefunds))[0]?.n ?? 0;
+        if (used >= AI_REFUND_DAILY_LIMIT) return false;
+        u.expect(sql`(select count(*) from ${creditLedger} where ${todayRefunds}) < ${AI_REFUND_DAILY_LIMIT}`);
+        addCredits(u, userId, amount, { reason: 'bonus', source: 'free', channel: 'system', memo, refType: AI_REFUND_REF, refId });
+        return true;
+      });
     },
     async grantFreeCredits(userId: string, amount: number, memo: string): Promise<number> {
       if (!(await db.select({ id: users.id }).from(users).where(eq(users.id, userId))).length) throw notFound('사용자를 찾을 수 없어요.');

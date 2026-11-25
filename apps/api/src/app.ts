@@ -6,6 +6,7 @@ import { bodyLimit } from 'hono/body-limit';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
 import { secureHeaders } from 'hono/secure-headers';
+import { safeErrorText } from './lib/log.js';
 import { ERROR_CODES } from '@saju/shared';
 import { SajuInputError } from '@saju/core';
 import type { AppConfig } from './config/env.js';
@@ -120,7 +121,7 @@ export function buildApp(opts: { config: AppConfig; db: Db; deps?: ServiceDeps; 
     if (err instanceof HTTPException && err.status < 500) {
       return c.json({ error: { code: ERROR_CODES.VALIDATION, message: err.message || '잘못된 요청이에요.' } }, err.status);
     }
-    console.error(`[api] ${c.req.method} ${c.req.path}`, err);
+    console.error(`[api] ${c.req.method} ${c.req.path}`, safeErrorText(err));
     return c.json({ error: { code: ERROR_CODES.INTERNAL, message: '일시적인 오류가 발생했어요. 잠시 후 다시 시도해 주세요.' } }, 500);
   });
   app.notFound((c) => c.json({ error: { code: ERROR_CODES.NOT_FOUND, message: `경로를 찾을 수 없어요: ${c.req.method} ${c.req.path}` } }, 404));
@@ -129,6 +130,11 @@ export function buildApp(opts: { config: AppConfig; db: Db; deps?: ServiceDeps; 
 
   const api = new Hono<AppEnv>();
   api.use('*', rateLimit(limits.general, 'api'));
+  // 로그인한 요청의 응답(내 사주·리포트·결제 내역 등)은 브라우저·중간 캐시에 남기지 않는다
+  api.use('*', async (c, next) => {
+    await next();
+    if (c.req.header('authorization') && !c.res.headers.has('cache-control')) c.header('Cache-Control', 'private, no-store');
+  });
   api.route('/', configRoutes(kit));
   api.route('/auth', authRoutes(kit));
   api.route('/profiles', profileRoutes(kit));

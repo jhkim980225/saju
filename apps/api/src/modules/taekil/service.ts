@@ -7,22 +7,47 @@
  * - 저장: 마이그레이션 없이 reports 테이블에 type='taekil' 로 둔다. 계산 결과(selection)를 그대로 저장해
  *   엔진이 바뀌어도 산 결과는 그대로다. reports 서비스는 모르는 type 을 열람 불가로 보므로 리포트 목록·조회에는 섞이지 않는다.
  * - AI(설정 시): 상세가 열린 뒤 서술형 섹션만 한 번 다듬어 저장한다. 날짜별 근거는 규칙 기반 그대로 둔다.
+ *   실패하면 다시 열 때 재시도하되 결과당 AI_POLISH_MAX_ATTEMPTS 번까지, 직전 시도 뒤 AI_POLISH_RETRY_MS 가 지나야 한다.
+ *   시도 횟수·다음 시도 시각은 택일 행에서 쓰지 않는 reports.polish_done·polish_lease_until 에 둔다(조건부 갱신으로 한 곳만 맡는다).
+ * - 생성 상한: 사용자마다 하루(KST) TAEKIL_DAILY_CREATE_LIMIT 건 — 무료로 무제한 쌓이지 않게. 같은 입력(저장본 안내)은 세지 않는다.
+ *   같은 입력 판정은 content.key 식 인덱스(reports_taekil_key_idx)로 찾아 행 전체를 읽지 않는다. 저장된 결과는 지우지 않는다.
  */
-import { and, desc, eq } from 'drizzle-orm';
+import { and, count, desc, eq, gte, isNull, lt, lte, ne, or, sql } from 'drizzle-orm';
 import { TAEKIL_PURPOSES, TaekilInputError, parseYmd, selectTaekilDays, taekilDateRange, ymdKey, type SajuChart, type TaekilPurpose, type TaekilSelection } from '@saju/core';
-import { TAEKIL_LIMITS, TAEKIL_PRODUCT_ID, type ReadingSection, type TaekilCreateDto, type TaekilResultDto, type TaekilSummaryDto } from '@saju/shared';
+import { ERROR_CODES, TAEKIL_LIMITS, TAEKIL_PRODUCT_ID, type ReadingSection, type TaekilCreateDto, type TaekilResultDto, type TaekilSummaryDto } from '@saju/shared';
 import type { Db } from '../../db/client.js';
+import { safeErrorText } from '../../lib/log.js';
 import { reports, type Report } from '../../db/schema.js';
-import { badRequest, notFound } from '../../lib/errors.js';
+import { atomic } from '../../db/atomic.js';
+import { AppError, badRequest, notFound } from '../../lib/errors.js';
 import { newId } from '../../lib/ids.js';
 import type { AiService } from '../ai/service.js';
-import type { CommerceService } from '../commerce/service.js';
+import { startOfSeoulDay, type CommerceService } from '../commerce/service.js';
 import type { ProfileService } from '../profiles/service.js';
 import { todayInSeoul } from '../saju/routes.js';
 import { AI_SECTION_KEYS, TAEKIL_DISCLAIMER, basisOf, buildSections, dayDtos, headlineOf, lockedSections, type TaekilTextContext } from './content.js';
 
 export const TAEKIL_REPORT_TYPE = 'taekil';
 export const taekilKey = (id: string) => `taekil:reading:${id}`;
+/** 사용자마다 하루(KST) 새로 만들 수 있는 택일 결과 수 */
+export const TAEKIL_DAILY_CREATE_LIMIT = 30;
+/** AI 다듬기 — 결과 하나에 부르는 최대 횟수 */
+export const AI_POLISH_MAX_ATTEMPTS = 3;
+/** AI 다듬기 — 직전 시도(실패)에서 다음 시도까지 기다리는 시간. 시도를 맡는 동안의 담당 기한도 겸한다 */
+export const AI_POLISH_RETRY_MS = 10 * 60_000;
+/** 같은 입력 판정 키 — reports_taekil_key_idx 인덱스 식과 글자까지 같아야 인덱스를 탄다 */
+const storedKey = sql`json_extract("content", '$.key')`;
+/**
+ * 같은 입력의 저장본 찾기 — 판정 키 인덱스(reports_taekil_key_idx)로 그 행만 읽는다.
+ * type 조건 앞의 단항 + 는 그 열의 인덱스를 고르지 않게 한다(사용자·종류·시각 인덱스로 이 사용자의 택일을 전부 훑지 않게)
+ */
+export const taekilByKey = (db: Db, userId: string, key: string) =>
+  db
+    .select()
+    .from(reports)
+    .where(and(eq(reports.userId, userId), sql`${storedKey} = ${key}`, sql`+${reports.type} = ${TAEKIL_REPORT_TYPE}`))
+    .orderBy(desc(reports.createdAt), desc(reports.id))
+    .limit(1);
 
 /** reports.content 에 저장하는 모양 */
 interface StoredTaekil {
@@ -54,22 +79,59 @@ export function createTaekilService(db: Db, profiles: ProfileService, commerce: 
 
   const ctxOf = (s: StoredTaekil): TaekilTextContext => ({ purpose: s.purpose, mode: s.mode, profileName: s.profileName, partnerName: s.partnerName, chart: s.chart, sel: s.selection });
 
-  /** 상세가 열린 뒤 서술형 섹션을 AI 로 한 번 다듬어 저장 (키가 없거나 실패하면 null → 규칙 기반 그대로) */
+  /**
+   * 상세가 열린 뒤 서술형 섹션을 AI 로 한 번 다듬어 저장 (키가 없거나 실패하면 null → 규칙 기반 그대로).
+   * 부르기 전에 조건부 갱신으로 시도를 맡는다(시도 횟수 +1, 다음 시도 시각을 뒤로) — 여러 인스턴스가 동시에 열어도 한 곳만 부르고,
+   * 실패가 이어져도 AI_POLISH_MAX_ATTEMPTS 번·AI_POLISH_RETRY_MS 간격을 넘겨 부르지 않는다
+   */
   const ensureAi = async (r: Report, draft: ReadingSection[]): Promise<ReadingSection[] | null> => {
     const s = stored(r);
     if (s.ai?.sections.length) return s.ai.sections;
     if (!ai.enabled) return null;
     const running = inflight.get(r.id);
     if (running) return running;
-    const job = ai
-      .enhanceSections({ title: r.title, chart: s.chart, draft: draft.filter((x) => AI_SECTION_KEYS.includes(x.key)) })
-      .then(async (res) => {
-        if (res.generator !== 'ai') return null;
+    const job = (async () => {
+      const now = Date.now();
+      const [claimed] = await db
+        .update(reports)
+        .set({ polishDone: sql`${reports.polishDone} + 1`, polishLeaseUntil: now + AI_POLISH_RETRY_MS })
+        .where(
+          and(
+            eq(reports.id, r.id),
+            ne(reports.generator, 'ai'),
+            lt(reports.polishDone, AI_POLISH_MAX_ATTEMPTS),
+            or(isNull(reports.polishLeaseUntil), lte(reports.polishLeaseUntil, now)),
+          ),
+        )
+        .returning({ id: reports.id });
+      if (!claimed) {
+        // 다른 요청이 그사이 다듬어 저장했을 수 있다
         const [fresh] = await db.select().from(reports).where(eq(reports.id, r.id));
-        if (fresh) await db.update(reports).set({ content: { ...(fresh.content as StoredTaekil), ai: { sections: res.sections, model: res.model } }, generator: 'ai', model: res.model }).where(eq(reports.id, r.id));
-        return res.sections;
+        return fresh ? (stored(fresh).ai?.sections ?? null) : null;
+      }
+      try {
+        const res = await ai.enhanceSections({ title: r.title, chart: s.chart, draft: draft.filter((x) => AI_SECTION_KEYS.includes(x.key)) });
+        if (res.generator === 'ai') {
+          const [fresh] = await db.select().from(reports).where(eq(reports.id, r.id));
+          if (fresh) {
+            await db
+              .update(reports)
+              .set({ content: { ...(fresh.content as StoredTaekil), ai: { sections: res.sections, model: res.model } }, generator: 'ai', model: res.model, polishLeaseUntil: null })
+              .where(eq(reports.id, r.id));
+          }
+          return res.sections;
+        }
+      } catch (error) {
+        console.error('[taekil] AI 다듬기 실패', safeErrorText(error));
+      }
+      // 실패 — 다음 시도는 지금부터 AI_POLISH_RETRY_MS 뒤 (AI 호출이 오래 걸렸어도 간격을 지킨다)
+      await db.update(reports).set({ polishLeaseUntil: Date.now() + AI_POLISH_RETRY_MS }).where(eq(reports.id, r.id));
+      return null;
+    })()
+      .catch((error: unknown) => {
+        console.error('[taekil] AI 다듬기 기록 실패', safeErrorText(error));
+        return null;
       })
-      .catch(() => null)
       .finally(() => inflight.delete(r.id));
     inflight.set(r.id, job);
     return job;
@@ -172,14 +234,20 @@ export function createTaekilService(db: Db, profiles: ProfileService, commerce: 
 
       // 같은 입력이면 저장본으로 안내(이미 산 결과를 다시 사지 않게)
       const key = [purpose, profile.id, partner?.id ?? '', mode, dates.join(',')].join('|');
-      const existing = (
-        await db
-          .select()
-          .from(reports)
-          .where(and(eq(reports.userId, userId), eq(reports.type, TAEKIL_REPORT_TYPE), eq(reports.profileId, profile.id)))
-          .orderBy(desc(reports.createdAt), desc(reports.id))
-      ).find((r) => stored(r).key === key);
+      const [existing] = await taekilByKey(db, userId, key);
       if (existing) return view(userId, existing);
+
+      // 하루 생성 상한 — 계산 전에 한 번, 저장 묶음 실행 시점에 한 번 더(동시 요청으로 넘지 않게) 확인한다
+      const madeToday = and(eq(reports.userId, userId), eq(reports.type, TAEKIL_REPORT_TYPE), gte(reports.createdAt, startOfSeoulDay()));
+      const assertDailyQuota = async () => {
+        const made = (await db.select({ n: count() }).from(reports).where(madeToday))[0]?.n ?? 0;
+        if (made >= TAEKIL_DAILY_CREATE_LIMIT) {
+          throw new AppError(429, ERROR_CODES.RATE_LIMITED, `택일은 하루 ${TAEKIL_DAILY_CREATE_LIMIT}번까지 새로 볼 수 있어요. 앞서 본 결과는 택일 기록에서 다시 열 수 있어요.`, {
+            limit: TAEKIL_DAILY_CREATE_LIMIT,
+          });
+        }
+      };
+      await assertDailyQuota();
 
       const selection = selectTaekilDays(chart, purpose, dates.map(parseYmd), { partner: partner?.chart ?? null });
       const from = dates[0]!;
@@ -188,7 +256,11 @@ export function createTaekilService(db: Db, profiles: ProfileService, commerce: 
       const title = partner ? `${profile.name}·${partner.name}님의 결혼 택일${range}` : `${profile.name}님의 ${TAEKIL_PURPOSES[purpose].label} 택일${range}`;
       const content: StoredTaekil = { v: 1, key, purpose, mode, from, to, profileName: profile.name, partnerName: partner?.name ?? null, chart, selection };
       const id = newId();
-      await db.insert(reports).values({ id, userId, profileId: profile.id, partnerProfileId: partner?.id ?? null, type: TAEKIL_REPORT_TYPE, year: null, title, content, generator: 'rule', model: null });
+      await atomic(db, async (u) => {
+        await assertDailyQuota();
+        u.expect(sql`(select count(*) from ${reports} where ${madeToday}) < ${TAEKIL_DAILY_CREATE_LIMIT}`);
+        u.write(db.insert(reports).values({ id, userId, profileId: profile.id, partnerProfileId: partner?.id ?? null, type: TAEKIL_REPORT_TYPE, year: null, title, content, generator: 'rule', model: null, createdAt: Date.now() }));
+      });
       return view(userId, await ownedRow(userId, id));
     },
 

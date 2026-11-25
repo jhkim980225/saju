@@ -194,8 +194,9 @@ export function createPushService(config: AppConfig, db: Db, deps: PushDeps = {}
         .values({ id: newId(), userId, token, platform })
         .onConflictDoUpdate({ target: pushTokens.token, set: { userId, platform } });
     },
-    async unregister(token: string) {
-      await db.delete(pushTokens).where(eq(pushTokens.token, token));
+    /** 자기 계정에 묶인 토큰만 지운다 — 남의 기기 토큰을 알아도 지울 수 없다 */
+    async unregister(userId: string, token: string) {
+      await db.delete(pushTokens).where(and(eq(pushTokens.token, token), eq(pushTokens.userId, userId)));
     },
     /** 한 사용자의 모든 기기로 발송. 수신 거부(pushEnabled=false)·탈퇴 사용자는 보내지 않음 */
     async sendToUser(userId: string, message: PushMessage): Promise<PushSendResult> {

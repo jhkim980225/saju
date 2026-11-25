@@ -4,12 +4,19 @@ import { SOCIAL_PROVIDERS, tossAuthSchema, changePasswordSchema, forgotPasswordS
 import { unauthorized } from '../../lib/errors.js';
 import { noContent, readJson, requireUser, type AppEnv, type RouteKit } from '../../lib/http.js';
 import { hashPassword, verifyPassword } from '../../lib/password.js';
+import { safeErrorText } from '../../lib/log.js';
 import { parse } from '../../lib/validate.js';
+import { createLoginThrottle } from './loginThrottle.js';
 
 const providerParam = z.object({ provider: z.enum(SOCIAL_PROVIDERS) });
 
+/** 없는 계정의 로그인에 쓰는 비교용 해시 — 인스턴스마다 한 번 만든다 */
+let dummy: Promise<string> | undefined;
+const dummyHash = () => (dummy ??= hashPassword('not-a-real-password-for-timing'));
+
 export function authRoutes({ ctx, authenticate, optionalAuth, authLimit: strict }: RouteKit) {
   const { users, auth, oauth } = ctx.services;
+  const loginThrottle = createLoginThrottle(ctx.db);
   const app = new Hono<AppEnv>();
 
   /** 게스트(비회원) 시작 — 앱 첫 실행 시 기기 ID 로 호출 */
@@ -33,10 +40,16 @@ export function authRoutes({ ctx, authenticate, optionalAuth, authLimit: strict 
 
   app.post('/login', strict, optionalAuth, async (c) => {
     const body = parse(loginSchema, await readJson(c));
+    // 계정(이메일) 단위 실패 횟수 제한 — IP 를 바꿔 가며 한 계정의 비밀번호를 맞히는 공격을 막는다
+    await loginThrottle.assertAllowed(body.email);
     const user = await users.findByEmail(body.email);
-    if (!user?.passwordHash || !(await verifyPassword(body.password, user.passwordHash))) {
+    // 계정이 없어도 같은 비용의 비교를 한다 — 응답 시간 차이로 가입 여부가 드러나지 않게
+    const ok = await verifyPassword(body.password, user?.passwordHash ?? (await dummyHash()));
+    if (!user?.passwordHash || !ok) {
+      await loginThrottle.recordFailure(body.email);
       throw unauthorized('이메일 또는 비밀번호가 일치하지 않아요.');
     }
+    await loginThrottle.clear(body.email);
     await users.mergeGuestInto(c.get('user')?.id, user.id);
     return c.json(await auth.issue(user, c.req.header('user-agent')));
   });
@@ -56,7 +69,14 @@ export function authRoutes({ ctx, authenticate, optionalAuth, authLimit: strict 
   /** 재설정 메일 요청 — 계정 유무와 관계없이 200 (계정 존재 여부 노출 금지). 메일 미설정이면 501 */
   app.post('/password/forgot', strict, async (c) => {
     const body = parse(forgotPasswordSchema, await readJson(c));
-    await auth.requestPasswordReset(body.email);
+    if (!auth.mailEnabled()) await auth.requestPasswordReset(body.email); // 설정 안내(NOT_CONFIGURED)를 그대로 돌려준다
+    // 메일 발송은 응답 뒤에 한다 — 계정이 있을 때만 발송 시간이 더해져 응답 시간으로 가입 여부가 드러나지 않게
+    const task = auth.requestPasswordReset(body.email).catch((error: unknown) => console.error('[auth] 재설정 메일 처리 실패', safeErrorText(error)));
+    try {
+      c.executionCtx.waitUntil(task);
+    } catch {
+      await task; // 테스트·Node 처럼 executionCtx 가 없으면 기다린다
+    }
     return c.json({ ok: true });
   });
 
@@ -70,8 +90,9 @@ export function authRoutes({ ctx, authenticate, optionalAuth, authLimit: strict 
   /** 로그인 상태에서 비밀번호 변경 (이메일 계정만, 현재 비밀번호 확인) */
   app.post('/password/change', strict, authenticate, async (c) => {
     const body = parse(changePasswordSchema, await readJson(c));
-    await auth.changePassword(requireUser(c).id, body.currentPassword, body.newPassword);
-    return c.json({ ok: true });
+    // 다른 기기 세션은 끊기고, 이 기기는 새 토큰으로 이어진다
+    const tokens = await auth.changePassword(requireUser(c).id, body.currentPassword, body.newPassword, c.req.header('user-agent'));
+    return c.json({ ok: true, ...tokens });
   });
 
   // ── 소셜 로그인 ───────────────────────────────────────────────

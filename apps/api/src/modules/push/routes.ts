@@ -17,7 +17,7 @@ export function pushRoutes({ ctx, authenticate }: RouteKit) {
 
   app.delete('/tokens', async (c) => {
     const body = parse(z.object({ token: z.string() }), await readJson(c));
-    await push.unregister(body.token);
+    await push.unregister(requireUser(c).id, body.token);
     return noContent(c);
   });
 

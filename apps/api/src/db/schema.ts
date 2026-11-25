@@ -197,10 +197,16 @@ export const reports = sqliteTable(
     /** 'rule' | 'ai' | 'polishing'(규칙 기반 본문을 저장해 두고 AI 가 다듬는 중 — 끝나면 'ai' 또는 'rule') */
     generator: text('generator').notNull(),
     model: text('model'),
-    /** AI 다듬기 진행 — 끝낸 덩어리 / 전체. 요청마다 다른 인스턴스가 받으므로 메모리가 아니라 DB 에 둔다 */
+    /**
+     * AI 다듬기 진행 — 끝낸 덩어리 / 전체. 요청마다 다른 인스턴스가 받으므로 메모리가 아니라 DB 에 둔다.
+     * 택일(type='taekil')은 덩어리로 나누지 않으므로 polishDone 을 AI 다듬기 시도 횟수로 쓴다(modules/taekil/service.ts)
+     */
     polishDone: integer('polish_done').notNull().default(0),
     polishTotal: integer('polish_total').notNull().default(0),
-    /** 다듬기 담당 기한(epoch ms) — 이 시각까지 진행 소식이 없으면 끊긴 것으로 보고 다시 맡는다 */
+    /**
+     * 다듬기 담당 기한(epoch ms) — 이 시각까지 진행 소식이 없으면 끊긴 것으로 보고 다시 맡는다.
+     * 택일은 AI 다듬기를 다시 시도할 수 있는 시각으로 쓴다(맡을 때 미뤄 두고, 실패하면 재시도 간격이 된다)
+     */
     polishLeaseUntil: integer('polish_lease_until'),
     createdAt: integer('created_at').notNull().default(sql`(unixepoch() * 1000)`),
   },
@@ -211,6 +217,10 @@ export const reports = sqliteTable(
     uniqueIndex('reports_target_uq')
       .on(t.userId, t.profileId, t.type, sql`coalesce("year", 0)`, sql`coalesce("partner_profile_id", '')`)
       .where(sql`"type" <> 'taekil'`),
+    // 택일 — 하루 생성 수 세기·목록(사용자·종류·시각)과, 같은 입력 판정(content.key)을 행 전체를 읽지 않고 찾는다.
+    // 같은 입력 판정은 유니크로 두지 않는다 — 이미 쌓인 중복 행(결제된 것일 수 있음)을 지우지 않고 마이그레이션하려고
+    index('reports_user_type_created_idx').on(t.userId, t.type, t.createdAt),
+    index('reports_taekil_key_idx').on(t.userId, sql`json_extract("content", '$.key')`),
   ],
 );
 
@@ -249,6 +259,10 @@ export const tarotReadings = sqliteTable(
     /** AI 종합 문단(유료 열람 시 1회 생성 후 저장) */
     aiParagraphs: text('ai_paragraphs', { mode: 'json' }).$type<string[]>(),
     model: text('model'),
+    /** AI 종합 문단 시도 횟수 — 실패가 이어져도 정해진 횟수까지만 부른다(modules/tarot/service.ts) */
+    aiAttempts: integer('ai_attempts').notNull().default(0),
+    /** AI 종합 문단을 다시 시도할 수 있는 시각(epoch ms) — 맡을 때 미뤄 두어 다른 요청이 겹쳐 부르지 않고, 실패하면 재시도 간격이 된다 */
+    aiRetryAt: integer('ai_retry_at'),
     createdAt: integer('created_at').notNull().default(sql`(unixepoch() * 1000)`),
     /** 궁합 타로 — 함께 본 상대 프로필 (삭제돼도 리딩은 남는다) */
     partnerProfileId: text('partner_profile_id'),
@@ -287,6 +301,18 @@ export const webhookEvents = sqliteTable('webhook_events', {
 export const appMeta = sqliteTable('app_meta', {
   key: text('key').primaryKey(),
   value: text('value').notNull(),
+});
+
+/**
+ * 이메일 로그인 실패 횟수(계정 단위 무차별 대입 방지, modules/auth/loginThrottle.ts).
+ * IP 기준 요청 제한(Cloudflare Rate Limiting)은 느슨하고 IP 를 바꾸면 피할 수 있어서 따로 센다.
+ * 이메일 원문 대신 SHA-256 해시를 키로 쓰고, 로그인에 성공하면 지운다.
+ */
+export const loginFailures = sqliteTable('login_failures', {
+  emailHash: text('email_hash').primaryKey(),
+  count: integer('count').notNull(),
+  /** 이번 집계 창이 시작된 시각(epoch ms) */
+  windowStart: integer('window_start').notNull(),
 });
 
 /**

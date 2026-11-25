@@ -1,5 +1,7 @@
 /**
  * AI 사주 상담 — 질문권 1회 차감. AI 미설정 시 규칙 기반 답변(차감 없음)으로 대체한다.
+ * AI 가 답하지 못하면 규칙 기반 답변을 주고, 질문권은 서비스 쪽 장애(unavailable)일 때만 돌려준다(하루 상한 안에서).
+ * 거절(refused)은 질문 내용 탓이라 차감한 채로 둔다 — 거절을 유도하는 질문으로 AI 를 공짜로 되풀이해 부르지 못하게.
  */
 import { and, asc, eq } from 'drizzle-orm';
 import type { Element, SajuChart } from '@saju/core';
@@ -8,7 +10,7 @@ import type { AppConfig } from '../../config/env.js';
 import type { Db } from '../../db/client.js';
 import { chatMessages } from '../../db/schema.js';
 import { newId } from '../../lib/ids.js';
-import type { AiService } from '../ai/service.js';
+import { isAiFailure, type AiService } from '../ai/service.js';
 import type { CommerceService } from '../commerce/service.js';
 import { EL_NAME, buildBasicReading, dayMasterContent, dayPillarContent, type ReadingAccess } from '../interpretation/reading.js';
 import type { ProfileService } from '../profiles/service.js';
@@ -90,8 +92,9 @@ export function createChatService(config: AppConfig, db: Db, profiles: ProfileSe
       const chart = profiles.chartOf(profile);
       const cost = config.AI_CHAT_CREDIT_COST;
       const userMsgId = newId();
-      // AI 호출 전에 질문권을 먼저 차감(동시 요청으로 AI 비용을 부풀리는 것 방지) — 실패하면 무상으로 돌려준다
-      if (ai.enabled && cost > 0) await commerce.consumeCredits(userId, cost, 'AI 사주 상담', userMsgId);
+      // AI 호출 전에 질문권을 먼저 차감(동시 요청으로 AI 비용을 부풀리는 것 방지) — 서비스 쪽 장애로 실패하면 무상으로 돌려준다
+      const charged = ai.enabled && cost > 0;
+      if (charged) await commerce.consumeCredits(userId, cost, 'AI 사주 상담', userMsgId);
       const history = (
         await db
           .select()
@@ -103,10 +106,11 @@ export function createChatService(config: AppConfig, db: Db, profiles: ProfileSe
       const now = Date.now();
       await db.insert(chatMessages).values({ id: userMsgId, userId, profileId: profile.id, role: 'user', content: input.message, createdAt: now });
 
-      const aiReply = ai.enabled ? await ai.chat({ chart, profileName: profile.name, chartSummary: chartSummary(chart), history, message: input.message }) : null;
+      const result = ai.enabled ? await ai.chat({ chart, profileName: profile.name, chartSummary: chartSummary(chart), history, message: input.message }) : null;
+      const aiReply = result && !isAiFailure(result) ? result : null;
       const text = aiReply?.text ?? ruleBasedAnswer(chart, input.message, await access(userId, profile.id), profile.name);
       const generator = aiReply ? 'ai' : 'rule';
-      if (ai.enabled && cost > 0 && !aiReply) await commerce.grantFreeCredits(userId, cost, 'AI 상담 실패 환급');
+      if (charged && isAiFailure(result) && result.failed === 'unavailable') await commerce.refundAiFailure(userId, cost, 'AI 상담 실패 환급', userMsgId);
       const creditsLeft = (await commerce.wallet(userId)).credits;
 
       const replyId = newId();

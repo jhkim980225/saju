@@ -2,6 +2,8 @@ import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 
 const scryptAsync = promisify(scrypt) as (pw: string, salt: Buffer, keylen: number, opts: object) => Promise<Buffer>;
+// N=2^14(메모리 약 16MB). OWASP 권장 N=2^17 은 한 번에 128MB 가 필요해 Workers isolate 한도(128MB)를 넘는다.
+// 값은 해시 문자열에 함께 저장되므로, 나중에 올려도 기존 해시는 그대로 검증된다.
 const PARAMS = { N: 16384, r: 8, p: 1 };
 
 /** scrypt 해시: scrypt$N$r$p$salt$hash (외부 네이티브 의존성 없음) */

@@ -18,6 +18,6 @@
   },
   "dependencies": {
     "@saju/core": "0.1.0",
-    "zod": "^4.1.0"
+    "zod": "^4.6.7"
   }
 }

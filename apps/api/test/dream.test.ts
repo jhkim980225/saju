@@ -269,7 +269,8 @@ describe('AI 꿈풀이 API — AI 키 있음 (AI 응답은 가짜로 대체)', (
     // 실제 Anthropic 호출 대신 — 서비스는 같은 ai 객체를 참조한다
     app.ctx.services.ai.dreamInterpret = async (input) => {
       calls.push(input);
-      return reply;
+      // reply 가 null 이면 서비스 쪽 장애(응답을 받지 못함)로 흉내 낸다
+      return reply ?? { failed: 'unavailable' as const };
     };
   });
   afterAll(async () => app.close());

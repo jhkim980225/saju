@@ -5,9 +5,10 @@
  *   양자택일은 선택지 A·B, 궁합 타로는 상대까지 같아야 같은 질문이다.
  * - 상세 리딩 권한: tarot:reading:<readingId> (구매) 또는 플러스 구독. 상품이 없는 펼침(오늘의 카드·예·아니오)은 전부 무료.
  * - 예·아니오는 무료 대신 하루 TAROT_YESNO_DAILY_FREE 회 — 넘으면 429 (details.readingId = 오늘 본 리딩).
- * - AI 종합 문단은 유료 열람 시 1회만 만들고 저장한다.
+ * - AI 종합 문단은 유료 열람 시 1회만 만들고 저장한다. 실패하면 규칙 기반 문단을 보여 주고, 다시 열 때 재시도하되
+ *   리딩당 AI_STORY_MAX_ATTEMPTS 번까지, 직전 시도 뒤 AI_STORY_RETRY_MS 가 지나야 한다(실패가 이어져도 비용이 계속 나지 않게).
  */
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import type { SajuChart } from '@saju/core';
 import {
   ERROR_CODES,
@@ -23,6 +24,7 @@ import {
   type TarotTopic,
 } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
+import { safeErrorText } from '../../lib/log.js';
 import { isUniqueViolation, type Db } from '../../db/client.js';
 import { tarotReadings, type TarotReading } from '../../db/schema.js';
 import { AppError, badRequest, conflict, notFound } from '../../lib/errors.js';
@@ -45,6 +47,10 @@ export function questionKey(spread: TarotSpread, topic: TarotTopic | null, quest
   return `${spread}|${topic ?? ''}|${normalize(question)}${extra ? `|${extra}` : ''}`;
 }
 export const tarotKey = (readingId: string) => `tarot:reading:${readingId}`;
+/** AI 종합 문단 — 리딩 하나에 부르는 최대 횟수 */
+export const AI_STORY_MAX_ATTEMPTS = 3;
+/** AI 종합 문단 — 직전 시도(실패)에서 다음 시도까지 기다리는 시간. 시도를 맡는 동안의 담당 기한도 겸한다 */
+export const AI_STORY_RETRY_MS = 10 * 60_000;
 /** 상품이 없는 펼침 방식(오늘의 카드·예·아니오)은 전부 무료 */
 const isFreeSpread = (spread: string) => !TAROT_SPREADS[spread as TarotSpread].productId;
 
@@ -112,28 +118,59 @@ export function createTarotService(config: AppConfig, db: Db, profiles: ProfileS
     }
   };
 
-  /** AI 종합 문단 — 열람 권한이 있을 때 한 번만 만들고 저장 (무료 펼침은 규칙 기반만) */
+  /**
+   * AI 종합 문단 — 열람 권한이 있을 때 한 번만 만들고 저장 (무료 펼침은 규칙 기반만).
+   * 부르기 전에 조건부 갱신으로 시도를 맡는다(횟수 +1, 다음 시도 시각을 뒤로) — 여러 인스턴스에서 동시에 열어도 한 곳만 부르고,
+   * 실패가 이어져도 AI_STORY_MAX_ATTEMPTS 번·AI_STORY_RETRY_MS 간격을 넘겨 부르지 않는다. 맡지 못하면 null(규칙 기반 문단).
+   * 같은 인스턴스의 동시 요청은 inflight 로 한 작업을 함께 기다린다.
+   */
   const ensureAiStory = async (r: TarotReading, built: ReturnType<typeof buildTarotReading>, people: { me: TarotPerson; partner: TarotPerson } | null, profileName: string | null): Promise<string[] | null> => {
     if (r.aiParagraphs?.length) return r.aiParagraphs;
     if (!ai.enabled || isFreeSpread(r.spread)) return null;
     const running = inflight.get(r.id);
     if (running) return running;
-    const job = ai
-      .tarotStory({
-        spreadName: TAROT_SPREADS[r.spread as TarotSpread].name,
-        topicLabel: r.topic ? TAROT_TOPICS[r.topic as TarotTopic].label : null,
-        question: r.question,
-        cards: built.cards.map((c) => ({ position: c.position.label, hint: c.position.hint, name: c.nameKo, orientation: c.orientation, meaning: c.meaning, line: c.line, keywords: c.keywords })),
-        basis: built.basis,
-        profileName,
-        ...(r.options ? { options: r.options } : {}),
-        ...(people ? { people: { me: people.me.name, partner: people.partner.name } } : {}),
-      })
-      .then(async (paragraphs) => {
-        if (paragraphs) await db.update(tarotReadings).set({ aiParagraphs: paragraphs, model: ai.premiumModel }).where(eq(tarotReadings.id, r.id));
+    const job = (async () => {
+      const now = Date.now();
+      const [claimed] = await db
+        .update(tarotReadings)
+        .set({ aiAttempts: sql`${tarotReadings.aiAttempts} + 1`, aiRetryAt: now + AI_STORY_RETRY_MS })
+        .where(
+          and(
+            eq(tarotReadings.id, r.id),
+            isNull(tarotReadings.aiParagraphs),
+            lt(tarotReadings.aiAttempts, AI_STORY_MAX_ATTEMPTS),
+            or(isNull(tarotReadings.aiRetryAt), lte(tarotReadings.aiRetryAt, now)),
+          ),
+        )
+        .returning({ id: tarotReadings.id });
+      if (!claimed) {
+        // 다른 요청이 그사이 만들어 저장했을 수 있다
+        const [fresh] = await db.select({ aiParagraphs: tarotReadings.aiParagraphs }).from(tarotReadings).where(eq(tarotReadings.id, r.id));
+        return fresh?.aiParagraphs?.length ? fresh.aiParagraphs : null;
+      }
+      let paragraphs: string[] | null = null;
+      try {
+        paragraphs = await ai.tarotStory({
+          spreadName: TAROT_SPREADS[r.spread as TarotSpread].name,
+          topicLabel: r.topic ? TAROT_TOPICS[r.topic as TarotTopic].label : null,
+          question: r.question,
+          cards: built.cards.map((c) => ({ position: c.position.label, hint: c.position.hint, name: c.nameKo, orientation: c.orientation, meaning: c.meaning, line: c.line, keywords: c.keywords })),
+          basis: built.basis,
+          profileName,
+          ...(r.options ? { options: r.options } : {}),
+          ...(people ? { people: { me: people.me.name, partner: people.partner.name } } : {}),
+        });
+      } catch (error) {
+        console.error('[tarot] AI 종합 문단 실패', safeErrorText(error));
+      }
+      if (paragraphs?.length) {
+        await db.update(tarotReadings).set({ aiParagraphs: paragraphs, model: ai.premiumModel, aiRetryAt: null }).where(eq(tarotReadings.id, r.id));
         return paragraphs;
-      })
-      .finally(() => inflight.delete(r.id));
+      }
+      // 실패 — 다음 시도는 지금부터 AI_STORY_RETRY_MS 뒤 (AI 호출이 오래 걸렸어도 간격을 지킨다)
+      await db.update(tarotReadings).set({ aiRetryAt: Date.now() + AI_STORY_RETRY_MS }).where(eq(tarotReadings.id, r.id));
+      return null;
+    })().finally(() => inflight.delete(r.id));
     inflight.set(r.id, job);
     return job;
   };

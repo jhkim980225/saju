@@ -95,7 +95,7 @@
 ## 꿈해몽
 | 메서드 | 경로 | 인증 | 설명 |
 |---|---|---|---|
-| POST | `/dream/interpret` | ✓ | AI 꿈풀이 `{ text(5~500자), profileId?, withoutSaju? }` → `DreamInterpretationDto { symbols, headline, paragraphs, generator: ai|rule, creditsCharged, creditsLeft, profileName, crisis, notice, disclaimer }`. 꿈 이야기에서 사전 상징을 찾아(규칙 기반 근거) AI(`ANTHROPIC_MODEL`)가 풀이. **AI 연동 시 질문권 1회**(AI 상담과 같은 `AI_CHAT_CREDIT_COST`, 부족하면 402 INSUFFICIENT_CREDITS), AI 실패 시 무상 환급 + 기본 풀이. **AI 미설정이면 사전 해석을 엮은 기본 풀이, 차감 없음.** 사주는 지정 프로필 → 대표 프로필 순(AI 풀이에만 사용), 남의 프로필은 400. 꿈 이야기는 저장하지 않음 |
+| POST | `/dream/interpret` | ✓ | AI 꿈풀이 `{ text(5~500자), profileId?, withoutSaju? }` → `DreamInterpretationDto { symbols, headline, paragraphs, generator: ai|rule, creditsCharged, creditsLeft, profileName, crisis, notice, disclaimer }`. 꿈 이야기에서 사전 상징을 찾아(규칙 기반 근거) AI(`ANTHROPIC_MODEL`)가 풀이. **AI 연동 시 질문권 1회**(AI 상담과 같은 `AI_CHAT_CREDIT_COST`, 부족하면 402 INSUFFICIENT_CREDITS), AI 실패 시 기본 풀이 — 서비스 쪽 장애면 무상 환급(하루 5번까지), 거절이면 차감 유지(`creditsCharged` 에 반영). **AI 미설정이면 사전 해석을 엮은 기본 풀이, 차감 없음.** 사주는 지정 프로필 → 대표 프로필 순(AI 풀이에만 사용), 남의 프로필은 400. 꿈 이야기는 저장하지 않음 |
 
 - 사전(300여 항목·검색·분류)은 API 가 아니라 `@saju/shared/dream`(`packages/shared/src/dream/`)을 웹이 직접 번들한다 — 웹 `/dream`, `/dream/:slug`(별칭 주소는 대표 키워드로 이동), `/dream/ask`. 계약 타입도 같은 곳에 있다.
 
@@ -122,7 +122,7 @@
 | POST | `/payments/confirm` | ✓ | `{ provider, orderId, amount, paymentKey? }` 서버 승인 + 금액 검증 + 지급 (멱등) |
 | POST | `/payments/fail` | ✓ | 결제창 취소/실패 기록 |
 | POST | `/payments/iap/verify` | ✓(회원) | `{ platform, productId, receipt, profileId? }` 인앱결제 검증·지급 (거래 ID 멱등) |
-| POST | `/payments/webhooks/:provider` | - | groble·toss·portone·mock 웹훅 (원문 서명 검증, 이벤트 멱등). groble: `X-Groble-Signature`(HMAC-SHA256 `"{timestamp}.{body}"`)·±5분, `payment.completed` → ref(주문 ID)·결제창·금액 대조 후 지급, `payment.refunded`(전액) → merchantUid 로 찾아 회수, 그 밖은 기록. 서명 실패 400 |
+| POST | `/payments/webhooks/:provider` | - | groble·toss·portone·mock 웹훅 (원문 서명 검증, 이벤트 멱등). groble: `X-Groble-Signature`(HMAC-SHA256 `"{timestamp}.{body}"`)·±5분, `payment.completed` → ref(주문 ID)·결제창·금액 대조 후 지급, `payment.refunded`(전액) → merchantUid 로 찾아 회수(완료 알림보다 먼저 오면 결제 키를 무효로 표시해, 뒤에 온 완료 알림은 지급 없이 주문을 `refunded` 로 닫음), 그 밖은 기록. 서명 실패 400 |
 | POST | `/payments/iap/notifications/apple` | - (Apple 서명) | App Store Server Notifications V2 `{ signedPayload }` — x5c 체인을 Apple Root CA - G3 까지 검증, `REFUND`·`REVOKE` → 지급분 회수, `REFUND_REVERSED` → 복구, 그 밖은 기록. notificationUUID 멱등. 위조 400, 키 없으면 501 |
 | POST | `/payments/iap/notifications/google` | - (Pub/Sub OIDC) | Google Play RTDN Pub/Sub 푸시 — `Authorization: Bearer` OIDC 토큰 검증(audience·서비스 계정), `voidedPurchaseNotification` → 지급분 회수, 그 밖은 기록. messageId 멱등. 인증 실패 401, 키 없으면 501 |
 | GET | `/wallet` | ✓ | 질문권(유상/무상)·원장·보유 권한 |
@@ -161,7 +161,7 @@
 ## 택일
 | 메서드 | 경로 | 인증 | 설명 |
 |---|---|---|---|
-| POST | `/taekil` | ✓ | `{ profileId, purpose: move|contract|exam|wedding|opening|travel, from, to }`(기간, 최대 92일) 또는 `{ ..., dates: string[] }`(후보 2~10개), 결혼만 `partnerProfileId?`. 날짜는 `YYYY-MM-DD`(KST), 오늘~2년 안. → **201** `TaekilResultDto`(무료 미리보기). 같은 입력은 저장본을 돌려준다 |
+| POST | `/taekil` | ✓ | `{ profileId, purpose: move|contract|exam|wedding|opening|travel, from, to }`(기간, 최대 92일) 또는 `{ ..., dates: string[] }`(후보 2~10개), 결혼만 `partnerProfileId?`. 날짜는 `YYYY-MM-DD`(KST), 오늘~2년 안. → **201** `TaekilResultDto`(무료 미리보기). 같은 입력은 저장본을 돌려준다. 새로 만드는 것은 사용자마다 하루(KST) 30건까지 — 넘으면 **429** `RATE_LIMITED`(`details.limit`) |
 | GET | `/taekil` | ✓ | 내 택일 목록(`TaekilSummaryDto[]`, `locked` 포함) — 보관함은 `locked=false` 만 보여 준다 |
 | GET | `/taekil/:id` | ✓ | 결과. 권한(`taekil:reading:<id>` 또는 플러스)이 없으면 `locked: true` |
 

@@ -2,7 +2,8 @@
  * 타로 덱 — 셔플·선택·오늘의 카드.
  *
  * 카드는 사용자가 고른 "자리"로 정해진다:
- *   1) /tarot/shuffle 이 임의 시드로 덱 토큰(HMAC 서명)을 발급한다. 카드 순서는 클라이언트에 보내지 않는다.
+ *   1) /tarot/shuffle 이 덱 토큰(HMAC 서명)을 발급한다. 토큰에는 임의 nonce 만 담고, 셔플 시드는 서버 비밀로 nonce 에서 끌어낸다
+ *      → 카드 순서도, 순서를 재현할 시드도 클라이언트는 알 수 없다(알고리즘을 알아도 원하는 카드의 자리를 고를 수 없다).
  *   2) 사용자가 뒤집힌 78장 중 N장의 자리를 고르면, 서버가 시드로 같은 순서를 재현해 그 자리의 카드를 꺼낸다.
  * 같은 토큰·같은 자리는 언제나 같은 카드 → 재시도로 카드를 바꿀 수 없고, 토큰은 짧게 만료된다.
  */
@@ -58,27 +59,34 @@ export function dailyCard(userId: string, isoDate: string): DrawnCard {
 // ── 덱 토큰 ────────────────────────────────────────────────
 
 const b64 = (b: Buffer) => b.toString('base64url');
+const NONCE_BYTES = 16;
 
-/** 덱 토큰 발급: base64url(seed).exp.sig — sig 는 사용자 ID 까지 묶어 다른 계정에서 재사용할 수 없다 */
+/** nonce → 셔플 시드. 서명과 섞이지 않게 용도 표시를 붙여 서버 비밀로 HMAC 한다(비밀을 모르면 시드를 알 수 없다) */
+const seedOf = (secret: string, nonce: Buffer) => createHmac('sha256', secret).update('tarot-deck-seed|').update(nonce).digest().subarray(0, 16);
+
+/**
+ * 덱 토큰 발급: base64url(nonce).exp.sig — 시드는 담지 않는다(seedOf 로 서버에서만 만든다).
+ * sig 는 사용자 ID 까지 묶어 다른 계정에서 재사용할 수 없다
+ */
 export function issueDeckToken(secret: string, userId: string, now = Date.now()): { token: string; expiresAt: number } {
-  const seed = randomBytes(16);
+  const nonce = randomBytes(NONCE_BYTES);
   const exp = now + TOKEN_TTL_MS;
-  const body = `${b64(seed)}.${exp}`;
+  const body = `${b64(nonce)}.${exp}`;
   const sig = createHmac('sha256', secret).update(`${userId}|${body}`).digest();
   return { token: `${body}.${b64(sig)}`, expiresAt: exp };
 }
 
-/** 덱 토큰 검증 → 시드. 위조·만료·다른 계정이면 null */
+/** 덱 토큰 검증 → 셔플 시드. 위조·만료·다른 계정이면 null */
 export function readDeckToken(secret: string, userId: string, token: string, now = Date.now()): Buffer | null {
   const parts = token.split('.');
   if (parts.length !== 3) return null;
-  const [seedPart, expPart, sigPart] = parts as [string, string, string];
-  const expected = createHmac('sha256', secret).update(`${userId}|${seedPart}.${expPart}`).digest();
+  const [noncePart, expPart, sigPart] = parts as [string, string, string];
+  const expected = createHmac('sha256', secret).update(`${userId}|${noncePart}.${expPart}`).digest();
   const given = Buffer.from(sigPart, 'base64url');
   if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
   if (!(Number(expPart) > now)) return null;
-  const seed = Buffer.from(seedPart, 'base64url');
-  return seed.length === 16 ? seed : null;
+  const nonce = Buffer.from(noncePart, 'base64url');
+  return nonce.length === NONCE_BYTES ? seedOf(secret, nonce) : null;
 }
 
 /** 토큰 지문 — 같은 덱 토큰으로 리딩을 두 번 만들지 못하게 저장해 둔다 */

@@ -10,7 +10,21 @@ import { z } from 'zod';
 import type { SajuChart } from '@saju/core';
 import type { ReadingSection } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
+import { safeErrorText } from '../../lib/log.js';
 import { introducesFigurative, introducesJargon } from '../interpretation/plainGuard.js';
+
+/**
+ * AI 가 쓸 수 있는 답을 주지 못한 까닭 — 상담·꿈풀이의 질문권 환급 여부를 가른다.
+ * - refused: 응답은 왔는데 쓸 답이 없다(모델 거절·정책 차단, 빈 응답, 형식에 맞지 않는 응답) — 요청 내용 탓으로 보고 환급하지 않는다
+ * - unavailable: 응답을 받지 못했다(네트워크·5xx·시간 초과·요청 한도·인증 오류 등 서비스 쪽 장애, 키 없음) — 환급 대상
+ */
+export type AiFailureReason = 'refused' | 'unavailable';
+export interface AiFailure {
+  failed: AiFailureReason;
+}
+export const isAiFailure = (r: unknown): r is AiFailure => typeof r === 'object' && r !== null && 'failed' in r;
+const REFUSED: AiFailure = { failed: 'refused' };
+const UNAVAILABLE: AiFailure = { failed: 'unavailable' };
 
 export interface ChatTurn {
   role: 'user' | 'assistant';
@@ -30,11 +44,12 @@ export interface AiService {
     draft: ReadingSection[];
     onProgress?: (done: number, total: number) => void;
   }): Promise<{ sections: ReadingSection[]; generator: 'ai' | 'rule'; model: string | null }>;
-  chat(input: { chart: SajuChart; profileName: string; chartSummary: string; history: ChatTurn[]; message: string }): Promise<{ text: string; generator: 'ai' | 'rule' } | null>;
+  /** 상담 답변. 실패하면 AiFailure — 까닭에 따라 호출부가 질문권 환급을 정한다 */
+  chat(input: { chart: SajuChart; profileName: string; chartSummary: string; history: ChatTurn[]; message: string }): Promise<{ text: string; generator: 'ai' } | AiFailure>;
   /** 타로 — 카드끼리 이어지는 이야기 문단. 실패하면 null (규칙 기반 문단 사용) */
   tarotStory(input: TarotStoryInput): Promise<string[] | null>;
-  /** 꿈풀이 — 사전에서 찾은 상징을 근거로 쓴 풀이. 실패하면 null (규칙 기반 풀이 사용) */
-  dreamInterpret(input: DreamAiInput): Promise<{ headline: string; paragraphs: string[] } | null>;
+  /** 꿈풀이 — 사전에서 찾은 상징을 근거로 쓴 풀이. 실패하면 AiFailure (규칙 기반 풀이 사용, 까닭에 따라 환급) */
+  dreamInterpret(input: DreamAiInput): Promise<{ headline: string; paragraphs: string[] } | AiFailure>;
 }
 
 export interface DreamAiInput {
@@ -297,13 +312,13 @@ export function createAiService(config: AppConfig): AiService {
         return { sections: draft, generator: 'rule', model: null };
       },
       async chat() {
-        return null;
+        return UNAVAILABLE;
       },
       async tarotStory() {
         return null;
       },
       async dreamInterpret() {
-        return null;
+        return UNAVAILABLE;
       },
     };
   }
@@ -318,7 +333,7 @@ export function createAiService(config: AppConfig): AiService {
     else if (error instanceof Anthropic.AuthenticationError) console.error(`[ai:${where}] ANTHROPIC_API_KEY 가 유효하지 않아요`);
     else if (error instanceof Anthropic.BadRequestError) console.error(`[ai:${where}] bad request: ${error.message}`);
     else if (error instanceof Anthropic.APIError) console.error(`[ai:${where}] API error ${error.status}: ${error.message}`);
-    else console.error(`[ai:${where}]`, error);
+    else console.error(`[ai:${where}]`, safeErrorText(error));
   };
 
   return {
@@ -391,16 +406,17 @@ export function createAiService(config: AppConfig): AiService {
           },
           { timeout: 60_000 },
         );
-        if (response.stop_reason === 'refusal') return null;
+        if (response.stop_reason === 'refusal') return REFUSED;
         const text = response.content
           .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')
           .map((b) => b.text)
           .join('\n')
           .trim();
-        return text ? { text, generator: 'ai' } : null;
+        // 응답은 왔는데 글이 비었다 — 요청 내용으로 유도할 수 있어 거절과 같게 본다(환급하지 않음)
+        return text ? { text, generator: 'ai' } : REFUSED;
       } catch (error) {
         logError('chat', error);
-        return null;
+        return UNAVAILABLE;
       }
     },
     async tarotStory(input) {
@@ -435,14 +451,15 @@ ${JSON.stringify(input)}` }],
           },
           { timeout: 60_000 },
         );
-        if (response.stop_reason === 'refusal' || !response.parsed_output) return null;
+        // 거절·형식에 맞지 않는 응답·빈 풀이 — 응답은 왔으니 요청 내용 탓으로 본다(환급하지 않음)
+        if (response.stop_reason === 'refusal' || !response.parsed_output) return REFUSED;
         const paragraphs = response.parsed_output.paragraphs.map((p) => p.trim()).filter(Boolean).slice(0, 5);
         const headline = response.parsed_output.headline.trim();
-        if (paragraphs.length === 0) return null;
+        if (paragraphs.length === 0) return REFUSED;
         return { headline: headline || paragraphs[0]!.slice(0, 40), paragraphs };
       } catch (error) {
         logError('dream', error);
-        return null;
+        return UNAVAILABLE;
       }
     },
   };

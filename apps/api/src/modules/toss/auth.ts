@@ -15,13 +15,15 @@ export const TOSS_PROVIDER = 'toss';
 const DEV_SECRET = 'dev-toss-user-key-secret';
 
 export function createTossAuthService(config: AppConfig, client: TossClient, users: UserService) {
-  const hashKey = (anonKey: string) => createHmac('sha256', config.TOSS_USER_KEY_SECRET ?? DEV_SECRET).update(anonKey).digest('hex');
+  // 운영에서는 개발용 고정 키를 쓰지 않는다 — 키가 없으면 토스 로그인을 켜지 않는다(누구나 아는 키면 계정 식별값을 위조할 수 있다)
+  const secret = config.TOSS_USER_KEY_SECRET ?? (config.isProd ? undefined : DEV_SECRET);
+  const hashKey = (anonKey: string) => createHmac('sha256', secret!).update(anonKey).digest('hex');
 
   return {
-    enabled: () => client.isConfigured(),
+    enabled: () => client.isConfigured() && Boolean(secret),
     /** 인증 코드 → 사용자(없으면 만든다). guestUserId 가 있으면 그 게스트 계정을 토스 계정으로 바꾼다 */
     async login(code: string, guestUserId?: string): Promise<User> {
-      if (!client.isConfigured()) throw notConfigured('토스 로그인', client.envKeys);
+      if (!client.isConfigured() || !secret) throw notConfigured('토스 로그인', client.envKeys);
       let anonKey: string;
       try {
         anonKey = await client.exchangeAnonKey(code);

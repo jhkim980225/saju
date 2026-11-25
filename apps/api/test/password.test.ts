@@ -152,7 +152,7 @@ describe('비밀번호 변경 (로그인 상태)', () => {
   let access: string;
   let refresh: string;
 
-  it('현재 비밀번호가 맞으면 바뀌고 현재 세션은 유지된다', async () => {
+  it('현재 비밀번호가 맞으면 바뀌고, 다른 기기 로그인은 끊기며 이 기기는 새 토큰으로 이어진다', async () => {
     const signup = await api('POST', '/auth/signup', { body: { email, password } });
     expect(signup.status).toBe(201);
     access = signup.body.accessToken;
@@ -160,13 +160,19 @@ describe('비밀번호 변경 (로그인 상태)', () => {
 
     const r = await api('POST', '/auth/password/change', { token: access, body: { currentPassword: password, newPassword: changed } });
     expect(r.status).toBe(200);
-    expect(r.body).toEqual({ ok: true });
+    expect(r.body.ok).toBe(true);
+    expect(r.body.accessToken).toBeTruthy();
+    expect(r.body.refreshToken).toBeTruthy();
 
     expect((await api('POST', '/auth/login', { body: { email, password } })).status).toBe(401);
     expect((await api('POST', '/auth/login', { body: { email, password: changed } })).status).toBe(200);
-    // 현재 기기의 세션은 그대로 쓸 수 있다
-    expect((await api('GET', '/auth/me', { token: access })).status).toBe(200);
-    expect((await api('POST', '/auth/refresh', { body: { refreshToken: refresh } })).status).toBe(200);
+    // 이 기기는 새로 받은 토큰으로 이어 간다
+    const next = await api('POST', '/auth/refresh', { body: { refreshToken: r.body.refreshToken } });
+    expect(next.status).toBe(200);
+    // 바꾸기 전에 받은 refresh 토큰(다른 기기라고 보면 된다)은 끊겼다. 이걸 쓰면 탈취로 보고 모든 세션을 폐기한다
+    expect((await api('POST', '/auth/refresh', { body: { refreshToken: refresh } })).status).toBe(401);
+    access = next.body.accessToken;
+    refresh = next.body.refreshToken;
   });
 
   it('현재 비밀번호가 틀리면 400', async () => {

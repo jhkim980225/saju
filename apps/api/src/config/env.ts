@@ -179,6 +179,11 @@ export function loadConfig(overrides: Record<string, string | undefined> = {}): 
   if (isProd && c.PAYMENT_PROVIDER === 'mock') {
     throw new Error('운영 환경에서는 PAYMENT_PROVIDER=mock 을 사용할 수 없습니다.');
   }
+  // 관리자 토큰이 짧으면(32자 미만) 운영에서는 관리자 API 를 끈다 — 서버 전체를 멈추지 않고 그 경로만 막는다
+  if (isProd && c.ADMIN_API_TOKEN && c.ADMIN_API_TOKEN.length < 32) {
+    console.error('[config] ADMIN_API_TOKEN 이 32자보다 짧아 관리자 API 를 껐어요. openssl rand -hex 24 로 다시 만들어 주세요.');
+    c.ADMIN_API_TOKEN = undefined;
+  }
   const googleIap = Boolean(c.GOOGLE_PLAY_PACKAGE_NAME && c.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON);
   return {
     ...c,

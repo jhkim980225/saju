@@ -55,6 +55,35 @@ QA팀(보안·로직 리뷰어)이 인메모리 API 재현으로 확인한 15개
 | 거부 사유 노출로 검증 우회 탐색 | 응답은 고정 문장, 사유는 서버 로그(`스토어 알림 거부`)에만 | ✅ |
 | Apple 인증서 폐기(OCSP) 미확인 | 체인·OID·유효기간·서명만 확인. Apple 리프 키 유출 시 폐기 반영이 늦을 수 있음 | 수용(문서화) |
 
+## 운영 점검 (2026-11-25, daldalsaju.com)
+
+운영 사이트에 실제 요청을 보낸 바깥 점검과 코드 검토를 함께 했다. 만든 시험 계정은 탈퇴로 지웠다.
+
+**바깥 점검에서 문제없음:** `.env`·`.git`·설정 파일은 SPA 대체 HTML 로만 나간다. 소스맵은 빌드에서 뺐다. CORS 는 허용 목록 밖의 출처에 `Access-Control-Allow-Origin` 을 주지 않는다. 권한 우회 32항목(다른 계정의 프로필·풀이·궁합·상담·타로, 게스트 결제, 가격 필드 주입, 결제 확인·그로블/토스/mock 웹훅 위조, 관리자 API 무단 호출, JWT 본문 변조·`alg=none`·refresh 토큰을 access 로, refresh 재사용, 깨진 JSON·긴 입력)이 모두 막혔다. 500 응답에 내부 정보가 없다.
+
+| 심각도 | 항목 | 조치 |
+|---|---|---|
+| High(실측) | Cloudflare Rate Limiting 바인딩이 매우 느슨하다(한도 5회 시험 Worker 에 42회 중 3회만 차단). 로그인 68회 실패가 막히지 않았다 | 계정(이메일 해시) 단위 실패 제한: 15분에 10회(`modules/auth/loginThrottle.ts`, `login_failures` 테이블, 없는 이메일도 같게). IP 기준은 WAF Rate limiting rule 을 대시보드에서 추가하기를 권장 |
+| Medium | zod 4.6.5 의 큰 배열 검증 메모리 고갈(GHSA-mrhx-c7xc-m3w5) + 오류 이슈 전체를 응답 → 940KB 요청에 응답 19MB·힙 +195MB | zod 4.6.7, 응답 details 는 앞 20개(`lib/validate.ts`) |
+| Low | 그로블 환불 알림이 결제 완료보다 먼저 오면 환불된 결제가 나중에 지급됨 | 못 찾은 전액 환불의 결제 키를 무효로 표시, 완료 처리 때 지급하지 않고 `REFUNDED_BEFORE_PAID` |
+| Low | AI 실패가 반복되면 유료 타로(Sonnet)·택일 상세를 열 때마다 다시 호출, 거절 유도로 상담·꿈풀이 질문권 환급 반복 | 결과당 최대 3회·10분 간격(조건부 갱신으로 인스턴스 간 1회), 거절은 차감·장애만 환급, 환급은 하루 5회 |
+| Low | 비밀번호 변경 뒤 다른 기기 세션 유지 | 변경 시 전체 세션 폐기, 현재 기기에 새 토큰 |
+| Low | 남의 푸시 토큰 해제 가능 | 자기 계정 토큰만 해제 |
+| Low | DB 오류 로그에 쿼리 값(개인정보) | `lib/log.ts` 의 safeErrorText 로 params·SQL 제거 |
+| Low | 택일 결과 무료 무제한 저장 | 사용자당 하루 30건, 중복 판정은 식 인덱스로 |
+| Low | 응답 시간으로 가입 여부 노출(로그인·비밀번호 찾기) | 없는 계정도 더미 해시 비교, 재설정 메일은 응답 뒤(waitUntil) |
+| Low | 운영에서 관리자 토큰 길이 미검사, 토스 로그인의 개발용 고정 키 | 32자 미만이면 관리자 API 끔, 운영에서 토스 키 없으면 토스 로그인 끔 |
+| Info | 타로 덱 토큰에 셔플 시드 평문 | 토큰에는 nonce 만, 시드는 서버 비밀 HMAC |
+| Info | CSP 없음, 개인 응답 캐시 헤더 없음 | 기본 CSP(`object-src`·`base-uri`·`frame-ancestors`·`form-action`), 로그인 요청 응답 `private, no-store` |
+| 회귀 | 같은 날 고친 게스트 병합의 `db.run(sql)` 이 D1 batch 에서 500 | 쿼리 빌더 두 문장으로 바꿈, `TEST_D1=1` 전체 통과 |
+
+**수용(문서화):**
+- scrypt N=2^14 유지 — OWASP 권장 N=2^17 은 128MB 로 Workers isolate 한도를 넘는다. 값은 해시에 함께 저장돼 나중에 올릴 수 있다.
+- 게스트 deviceId 는 폐기할 수 없는 자격 증명 — `crypto.randomUUID()` 라 추측 불가, 유출에는 XSS·기기 접근이 필요하고 그때는 토큰도 함께 유출된다.
+- 가입 시 "이미 가입된 이메일" 안내(사용성).
+
+**운영자 할 일(대시보드):** SSL/TLS → Edge Certificates → Minimum TLS Version 을 TLS 1.2 로(지금 1.0·1.1 접속 가능). Security → WAF → Rate limiting rules 에 `/api/v1/auth/` IP 기준 규칙 1개.
+
 ## 남은 권장 사항 (출시 후 개선)
 - Apple 인증서 OCSP 폐기 확인, Google Voided Purchases API 정기 대조(Pub/Sub 보관 기간을 넘는 장애 대비)
 - Google Play 구매의 서버 측 acknowledge

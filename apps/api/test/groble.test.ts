@@ -268,6 +268,39 @@ describe('그로블 결제 흐름', () => {
     expect(await credits(part.token)).toBe(10);
   });
 
+  it('환불 알림이 결제 완료 알림보다 먼저 오면 — 완료 알림이 와도 질문권·권한을 지급하지 않고 환불로 닫는다', async () => {
+    const credit = await member();
+    const a = await order(credit.token, 'chat_pack_10');
+    expect((await send(refunded('mu-early-refund-1'))).status).toBe(200);
+    expect(await status(credit.token, a.order.id)).toBe('pending');
+    expect((await send(completed(a.order.id, { merchantUid: 'mu-early-refund-1' }))).status).toBe(200);
+    expect(await status(credit.token, a.order.id)).toBe('refunded');
+    expect(await credits(credit.token)).toBe(0);
+    const saved = (await db.select().from(orders).where(eq(orders.id, a.order.id)))[0]!;
+    expect(saved.failureReason).toBe('REFUNDED_BEFORE_PAID');
+    expect(saved.providerPaymentKey).toBe('mu-early-refund-1');
+    expect(saved.paidAt).toBeNull();
+
+    // 권한(리포트)도 지급하지 않는다
+    const report = await member();
+    const b = await order(report.token, 'report_saju_lifetime', report.profileId);
+    await send(refunded('mu-early-refund-2', { amount: b.order.amount }));
+    await send(completed(b.order.id, { merchantUid: 'mu-early-refund-2', amount: b.order.amount, contentId: 'content-life-99' }));
+    expect(await status(report.token, b.order.id)).toBe('refunded');
+    const wallet = (await api('GET', '/wallet', { token: report.token })).body;
+    expect(wallet.entitlements).toEqual([]);
+    expect(wallet.credits).toBe(0);
+  });
+
+  it('부분 환불 알림이 먼저 온 결제는 막지 않는다(회수량은 운영자가 정한다)', async () => {
+    const { token } = await member();
+    const c = await order(token, 'chat_pack_10');
+    await send(refunded('mu-early-partial', { partial: true, amount: 1950 }));
+    await send(completed(c.order.id, { merchantUid: 'mu-early-partial' }));
+    expect(await status(token, c.order.id)).toBe('paid');
+    expect(await credits(token)).toBe(10);
+  });
+
   it('취소 요청(payment.cancel_requested)은 기록만 한다', async () => {
     const { token } = await member();
     const c = await order(token, 'chat_pack_10');

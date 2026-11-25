@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { App } from '../src/app.js';
 import { buildApp } from '../src/app.js';
@@ -80,6 +81,35 @@ describe('덱', () => {
     expect(readDeckToken('secret', 'user-a', token, now + 31 * 60_000)).toBeNull();
     const [s, e, sig] = token.split('.');
     expect(readDeckToken('secret', 'user-a', `${s}.${Number(e) + 1}.${sig}`, now)).toBeNull();
+    // nonce 를 바꿔 끼운 토큰(다른 덱을 노리는 위조)도 서명이 맞지 않아 거부
+    const other = issueDeckToken('secret', 'user-a', now).token.split('.')[0];
+    expect(readDeckToken('secret', 'user-a', `${other}.${e}.${sig}`, now)).toBeNull();
+  });
+
+  it('덱 토큰 — 같은 토큰은 언제나 같은 카드, 토큰만 보고는 카드 순서를 알 수 없다', () => {
+    const now = Date.now();
+    const { token } = issueDeckToken('secret', 'user-a', now);
+    const seed = readDeckToken('secret', 'user-a', token, now)!;
+    expect(readDeckToken('secret', 'user-a', token, now)).toEqual(seed);
+    const picks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    const real = drawAt(seed, picks);
+
+    // 토큰에 들어 있는 값(nonce·만료 시각·서명)을 그대로 시드로 써도 실제 순서가 나오지 않는다 — 시드는 서버 비밀로만 만든다
+    const parts = token.split('.');
+    const noncePart = parts[0]!;
+    const nonce = Buffer.from(noncePart, 'base64url');
+    expect(nonce).toHaveLength(16);
+    expect(nonce.equals(seed)).toBe(false);
+    for (const guess of [nonce, ...parts.map((p) => Buffer.from(p, 'base64url').subarray(0, 16)), Buffer.from(noncePart)]) {
+      expect(drawAt(guess, picks)).not.toEqual(real);
+    }
+    // 비밀이 다르면 같은 nonce 라도 다른 시드 — 비밀을 모르는 쪽은 순서를 재현할 수 없다
+    const body = `${parts[0]}.${parts[1]}`;
+    const otherSig = createHmac('sha256', 'other-secret').update(`user-a|${body}`).digest('base64url');
+    const otherSeed = readDeckToken('other-secret', 'user-a', `${body}.${otherSig}`, now)!;
+    expect(otherSeed).toHaveLength(16);
+    expect(otherSeed.equals(seed)).toBe(false);
+    expect(drawAt(otherSeed, picks)).not.toEqual(real);
   });
 
   it('같은 질문 판정 — 띄어쓰기·끝 문장부호 차이는 같은 질문', () => {

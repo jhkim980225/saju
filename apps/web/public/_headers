@@ -21,6 +21,8 @@
 
 # 모든 화면 — 보안 헤더(API 응답은 Worker 의 secureHeaders 가 붙인다)
 /*
+  # CSP 는 광고·분석·글꼴 스크립트를 막지 않는 범위만 건다: 플러그인 금지, <base> 바꿔치기 금지, 다른 사이트의 iframe 삽입 금지, 폼은 같은 사이트로만
+  Content-Security-Policy: object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'; upgrade-insecure-requests
   Strict-Transport-Security: max-age=15552000; includeSubDomains
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin

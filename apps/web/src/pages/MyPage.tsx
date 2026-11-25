@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { RELATION_LABEL } from '@saju/shared';
+import { RELATION_LABEL, type AuthTokensDto } from '@saju/shared';
 import { Page } from '@/components/AppShell';
 import { BottomSheet } from '@/components/BottomSheet';
 import { toast } from '@/components/Toast';
@@ -325,8 +325,10 @@ function PasswordChangeSheet({ open, onClose }: { open: boolean; onClose: () => 
     if (next === current) return setError('현재 비밀번호와 다른 비밀번호를 입력해 주세요.');
     setBusy(true);
     try {
-      await api.changePassword({ currentPassword: current, newPassword: next });
-      toast('비밀번호를 바꿨어요.');
+      const res = await api.changePassword({ currentPassword: current, newPassword: next });
+      // 다른 기기의 로그인은 끊겼다 — 이 기기는 새로 받은 토큰으로 이어 간다
+      if (res.accessToken && res.refreshToken && res.user) useSession.getState().setTokens(res as AuthTokensDto);
+      toast('비밀번호를 바꿨어요. 다른 기기에서는 다시 로그인해야 해요.');
       close();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('error.server.title'));

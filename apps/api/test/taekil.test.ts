@@ -4,7 +4,10 @@ import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
 import { createDb, runMigrations } from '../src/db/local.js';
 import { seedProducts } from '../src/db/seed.js';
+import { and, eq, sql } from 'drizzle-orm';
+import { entitlements, reports } from '../src/db/schema.js';
 import { CATALOG } from '../src/modules/commerce/catalog.js';
+import { TAEKIL_DAILY_CREATE_LIMIT, taekilByKey } from '../src/modules/taekil/service.js';
 
 let app: App;
 const BIRTH = { calendar: 'solar', year: 1990, month: 5, day: 15, hour: 14, minute: 30, gender: 'male' } as const;
@@ -188,5 +191,66 @@ describe('택일', () => {
     expect(v.status).toBe(200);
     expect(v.body.granted.entitlements).toEqual([`taekil:reading:${r.body.id}`]);
     expect((await api('GET', `/taekil/${r.body.id}`, { token })).body.locked).toBe(false);
+  });
+});
+
+describe('택일 — 하루 생성 상한·같은 입력 판정', () => {
+  it(`하루 ${TAEKIL_DAILY_CREATE_LIMIT}건까지 새로 만들고, 넘으면 429 — 같은 입력(저장본)·결제된 결과는 그대로`, async () => {
+    const guest = (await api('POST', '/auth/guest', { body: { deviceId: 'taekil-limit-device-01' } })).body;
+    const token = guest.accessToken as string;
+    const userId = guest.user.id as string;
+    const profileId = (await api('POST', '/profiles', { token, body: { name: '민수', relation: 'self', birth: BIRTH } })).body.id;
+    const candidates = (i: number) => [kstDay(1 + i), kstDay(40 + i)];
+    const ids: string[] = [];
+    for (let i = 0; i < TAEKIL_DAILY_CREATE_LIMIT; i++) {
+      const r = await api('POST', '/taekil', { token, body: { profileId, purpose: 'travel', dates: candidates(i) } });
+      expect(r.status, `${i}번째`).toBe(201);
+      ids.push(r.body.id);
+    }
+    // 같은 날 결제(열람 권한)한 결과
+    await app.ctx.db.insert(entitlements).values({ id: `ent-${ids[0]}`, userId, key: `taekil:reading:${ids[0]}`, orderId: null });
+
+    const over = await api('POST', '/taekil', { token, body: { profileId, purpose: 'travel', dates: candidates(TAEKIL_DAILY_CREATE_LIMIT) } });
+    expect(over.status).toBe(429);
+    expect(over.body.error.code).toBe('RATE_LIMITED');
+    expect(over.body.error.message).toContain(`하루 ${TAEKIL_DAILY_CREATE_LIMIT}번`);
+
+    // 같은 입력은 새로 만들지 않으니 상한과 상관없이 저장본으로 안내
+    const again = await api('POST', '/taekil', { token, body: { profileId, purpose: 'travel', dates: candidates(3) } });
+    expect(again.status).toBe(201);
+    expect(again.body.id).toBe(ids[3]);
+    const paid = await api('POST', '/taekil', { token, body: { profileId, purpose: 'travel', dates: candidates(0) } });
+    expect(paid.body).toMatchObject({ id: ids[0], locked: false });
+
+    // 저장된 결과는 하나도 지우지 않는다
+    const rows = await app.ctx.db.select({ id: reports.id }).from(reports).where(and(eq(reports.userId, userId), eq(reports.type, 'taekil')));
+    expect(rows).toHaveLength(TAEKIL_DAILY_CREATE_LIMIT);
+    expect((await api('GET', `/taekil/${ids[0]}`, { token })).body.locked).toBe(false);
+
+    // 다음 날(어제 만든 것으로 보이게 하면) 다시 만들 수 있다
+    await app.ctx.db.update(reports).set({ createdAt: Date.now() - 2 * 86_400_000 }).where(eq(reports.userId, userId));
+    expect((await api('POST', '/taekil', { token, body: { profileId, purpose: 'travel', dates: candidates(TAEKIL_DAILY_CREATE_LIMIT) } })).status).toBe(201);
+  });
+
+  it('동시에 만들어도 하루 상한을 넘지 않는다', async () => {
+    const guest = (await api('POST', '/auth/guest', { body: { deviceId: 'taekil-limit-device-02' } })).body;
+    const token = guest.accessToken as string;
+    const profileId = (await api('POST', '/profiles', { token, body: { name: '민수', relation: 'self', birth: BIRTH } })).body.id;
+    const results = await Promise.all(
+      Array.from({ length: TAEKIL_DAILY_CREATE_LIMIT + 5 }, (_, i) => api('POST', '/taekil', { token, body: { profileId, purpose: 'contract', dates: [kstDay(2 + i), kstDay(50 + i)] } })),
+    );
+    expect(results.filter((r) => r.status === 201)).toHaveLength(TAEKIL_DAILY_CREATE_LIMIT);
+    expect(results.filter((r) => r.status === 429)).toHaveLength(5);
+  });
+
+  it('같은 입력 판정은 판정 키 인덱스로 찾는다(이 사용자의 택일 행을 전부 읽지 않는다)', async () => {
+    const q = taekilByKey(app.ctx.db, 'user-x', 'move|p|||range|2027-01-01').toSQL();
+    const params = [...q.params];
+    const inlined = q.sql.replace(/\?/g, () => {
+      const v = params.shift();
+      return typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : String(v);
+    });
+    const plan = (await app.ctx.db.all(sql.raw(`explain query plan ${inlined}`))) as { detail: string }[];
+    expect(plan.map((p) => p.detail).join(' ')).toContain('reports_taekil_key_idx');
   });
 });

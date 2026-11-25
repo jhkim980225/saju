@@ -151,7 +151,8 @@ export const api = {
   // 비밀번호 — 재설정 메일 요청(가입 여부와 관계없이 200, 메일 미설정이면 501) / 메일 링크 토큰으로 재설정 / 로그인 상태에서 변경
   forgotPassword: (email: string) => post<{ ok: true }>('/auth/password/forgot', { email }, 'none'),
   resetPassword: (dto: ResetPasswordDto) => post<{ ok: true }>('/auth/password/reset', dto, 'none'),
-  changePassword: (dto: ChangePasswordDto) => post<{ ok: true }>('/auth/password/change', dto, 'required'),
+  /** 성공하면 다른 기기 로그인이 끊기고 이 기기용 새 토큰이 온다 */
+  changePassword: (dto: ChangePasswordDto) => post<{ ok: true } & Partial<AuthTokensDto>>('/auth/password/change', dto, 'required'),
 
   // 프로필
   profiles: () => get<ProfileDto[]>('/profiles', 'required'),

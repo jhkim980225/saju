@@ -146,8 +146,17 @@ export function createUserService(config: AppConfig, db: Db) {
         db.update(profiles).set({ userId, isPrimary: false, updatedAt: Date.now() }).where(eq(profiles.userId, guestUserId)).returning({ id: profiles.id }),
         db.update(reports).set({ userId }).where(eq(reports.userId, guestUserId)),
         db.update(chatMessages).set({ userId }).where(eq(chatMessages.userId, guestUserId)),
-        db.run(sql`update or ignore ${tarotReadings} set ${sql.identifier('user_id')} = ${userId} where ${tarotReadings.userId} = ${guestUserId}`),
-        db.delete(tarotReadings).where(eq(tarotReadings.userId, guestUserId)),
+        // 회원이 같은 날 같은 질문을 이미 뽑은 게스트 리딩은 지우고(유니크 충돌), 나머지를 옮긴다.
+        // (D1 의 batch 는 db.run(sql) 문을 받지 못해 'update or ignore' 대신 쿼리 빌더 두 문장으로 쓴다)
+        db
+          .delete(tarotReadings)
+          .where(
+            and(
+              eq(tarotReadings.userId, guestUserId),
+              sql`exists (select 1 from ${tarotReadings} as m where m.user_id = ${userId} and m.date_key = ${tarotReadings.dateKey} and m.question_key = ${tarotReadings.questionKey})`,
+            ),
+          ),
+        db.update(tarotReadings).set({ userId }).where(eq(tarotReadings.userId, guestUserId)),
         db.delete(refreshTokens).where(eq(refreshTokens.userId, guestUserId)),
         db.update(users).set({ deviceId: null, deletedAt: Date.now(), nickname: '병합된 게스트', updatedAt: Date.now() }).where(eq(users.id, guestUserId)),
       ]);

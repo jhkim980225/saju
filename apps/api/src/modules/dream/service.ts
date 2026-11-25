@@ -1,7 +1,8 @@
 /**
  * AI 꿈풀이 — 꿈 이야기에서 사전 상징을 찾아(규칙 기반 근거) AI 가 맞춤 풀이를 쓴다.
  *
- * - 질문권: AI 상담과 같은 장치·같은 단가(AI_CHAT_CREDIT_COST). AI 호출 전에 먼저 차감하고, AI 가 실패하면 무상으로 돌려준다.
+ * - 질문권: AI 상담과 같은 장치·같은 단가(AI_CHAT_CREDIT_COST). AI 호출 전에 먼저 차감하고, 서비스 쪽 장애(unavailable)로 실패하면
+ *   무상으로 돌려준다(하루 상한 안에서). 거절(refused)은 차감한 채 규칙 기반 풀이를 준다.
  * - AI 미설정(ANTHROPIC_API_KEY 없음): 사전 해석을 규칙으로 엮은 기본 풀이를 주고, 질문권은 차감하지 않는다.
  * - 사주: 프로필이 있으면(또는 지정하면) 사주 요약을 AI 에 함께 준다. 규칙 기반 풀이에는 쓰지 않는다.
  * - 꿈 이야기는 저장하지 않는다(민감할 수 있는 내용 — 응답으로만 돌려준다).
@@ -20,7 +21,7 @@ import {
 import type { AppConfig } from '../../config/env.js';
 import { badRequest } from '../../lib/errors.js';
 import { newId } from '../../lib/ids.js';
-import type { AiService } from '../ai/service.js';
+import { isAiFailure, type AiService } from '../ai/service.js';
 import { chartSummary } from '../chat/service.js';
 import type { CommerceService } from '../commerce/service.js';
 import type { ProfileService } from '../profiles/service.js';
@@ -114,9 +115,11 @@ export function createDreamService(config: AppConfig, profiles: ProfileService, 
       const crisis = DREAM_CRISIS_PATTERN.test(text);
       const owner = await chartFor(userId, dto);
       const cost = config.AI_CHAT_CREDIT_COST;
-      // AI 호출 전에 질문권을 먼저 차감(동시 요청으로 AI 비용을 부풀리는 것 방지) — 실패하면 무상으로 돌려준다
-      if (ai.enabled && cost > 0) await commerce.consumeCredits(userId, cost, 'AI 꿈풀이', newId());
-      const aiOut = ai.enabled
+      // AI 호출 전에 질문권을 먼저 차감(동시 요청으로 AI 비용을 부풀리는 것 방지) — 서비스 쪽 장애로 실패하면 무상으로 돌려준다
+      const charged = ai.enabled && cost > 0;
+      const refId = newId();
+      if (charged) await commerce.consumeCredits(userId, cost, 'AI 꿈풀이', refId);
+      const result = ai.enabled
         ? await ai.dreamInterpret({
             dream: text,
             symbols: matches.map((m) => ({
@@ -129,14 +132,15 @@ export function createDreamService(config: AppConfig, profiles: ProfileService, 
             saju: owner ? { profileName: owner.name, summary: chartSummary(owner.chart) } : null,
           })
         : null;
-      if (ai.enabled && cost > 0 && !aiOut) await commerce.grantFreeCredits(userId, cost, 'AI 꿈풀이 실패 환급');
+      const aiOut = result && !isAiFailure(result) ? result : null;
+      const refunded = charged && isAiFailure(result) && result.failed === 'unavailable' && (await commerce.refundAiFailure(userId, cost, 'AI 꿈풀이 실패 환급', refId));
       const out = aiOut ?? composeRuleBased(matches, crisis);
       return {
         symbols: matches.map(toDreamSymbolDto),
         headline: out.headline,
         paragraphs: out.paragraphs,
         generator: aiOut ? 'ai' : 'rule',
-        creditsCharged: aiOut ? cost : 0,
+        creditsCharged: charged && !refunded ? cost : 0,
         creditsLeft: (await commerce.wallet(userId)).credits,
         profileName: aiOut && owner ? owner.name : null,
         crisis,
