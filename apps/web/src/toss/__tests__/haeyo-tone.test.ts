@@ -81,8 +81,16 @@ function tossVisibleFiles(): string[] {
     .filter((rel) => /\.tsx?$/.test(rel) && !replaced.has(rel) && !excluded.has(rel) && !NOT_IN_TOSS.some((re) => re.test(rel)));
 }
 
-/** 웹·앱용 약관 본문(LEGAL)은 토스 화면에 나오지 않는다 */
+/**
+ * 웹·앱용 약관 본문은 토스 화면에 나오지 않는다 — lib/legal.ts 의 webTerms·webPrivacy(합니다체)는
+ * MiscPages 가 IS_TOSS 일 때 부르지 않아 토스 번들에서 빠진다(BUSINESS·businessLine 만 남는다).
+ */
 function withoutWebLegal(rel: string, source: string): string {
+  if (rel === 'lib/legal.ts') {
+    const start = source.indexOf('export function webTerms');
+    if (start < 0) throw new Error('lib/legal.ts 에서 webTerms 위치를 찾지 못했어요. 검사 범위를 다시 맞춰 주세요.');
+    return source.slice(0, start) + source.slice(start).replace(/[^\n]/g, '');
+  }
   if (rel !== 'pages/MiscPages.tsx') return source;
   const start = source.indexOf('const LEGAL');
   const end = source.indexOf('export function LegalPage');

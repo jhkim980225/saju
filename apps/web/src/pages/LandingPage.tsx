@@ -7,8 +7,11 @@ import { MoreMenu } from '@/components/MoreMenu';
 import { MoonEmblem, Wordmark } from '@/components/Seal';
 import { cx } from '@/components/ui';
 import { t } from '@/lib/copy';
+import { businessLine } from '@/lib/legal';
 import { isMember, useSession } from '@/lib/session';
 import { BirthForm } from './BirthFormPage';
+
+const BIZ_LINE = businessLine();
 
 /**
  * 첫 화면 — 다른 사주 서비스처럼 제목 한 줄 + 바로 입력하는 폼 + 다른 운세 버튼만 둔다.
@@ -59,6 +62,8 @@ export function LandingPage() {
               {t('my.privacy')}
             </Link>
           </p>
+          {/* 전자상거래법상 첫 화면에 표시할 사업자 정보 — apps/web/.env 의 VITE_BIZ_* 가 있을 때만 */}
+          {BIZ_LINE && <p>{BIZ_LINE}</p>}
         </footer>
       </Page>
       <BasicsDialog open={basics} onClose={() => setBasics(false)} />

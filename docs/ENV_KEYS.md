@@ -98,6 +98,7 @@
 | `VITE_META_PIXEL_ID` | web | 메타 광고 전환 | Meta 이벤트 관리자 |
 | `VITE_KAKAO_PIXEL_ID` | web | 카카오 광고 전환 | 카카오모먼트 |
 | `VITE_KAKAO_JS_KEY` | web | 카카오톡 공유 | 카카오 디벨로퍼스 > 앱 키 > JavaScript 키 (+ 플랫폼 > Web 사이트 도메인 등록) |
+| `VITE_BIZ_NAME`·`VITE_BIZ_REPRESENTATIVE`·`VITE_BIZ_REG_NO`·`VITE_BIZ_MAIL_ORDER_NO`·`VITE_BIZ_ADDRESS`·`VITE_BIZ_EMAIL`·`VITE_BIZ_PHONE`·`VITE_BIZ_PRIVACY_OFFICER`·`VITE_BIZ_EFFECTIVE_DATE` | web | 약관·처리방침·첫 화면 하단의 사업자 정보와 문의처(`src/lib/legal.ts`). 비어 있는 항목은 빼고 보인다. 문의처는 서버 `SUPPORT_EMAIL` 이 있으면 그 값이 먼저다 | 운영자가 직접 적는다. 공개 저장소에 올리지 않는 `apps/web/.env` 에만 둔다 |
 
 광고 정책(노출 위치·금지 위치·프리미엄 제외): [`docs/ADS_ANALYTICS.md`](./ADS_ANALYTICS.md)
 

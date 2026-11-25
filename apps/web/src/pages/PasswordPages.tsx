@@ -11,6 +11,7 @@ import { Button, Card, Field, IconButton, PageHeader, Spinner, TextInput } from 
 import { useConfig } from '@/hooks/queries';
 import { ApiError, api } from '@/lib/api';
 import { t } from '@/lib/copy';
+import { BUSINESS } from '@/lib/legal';
 import { useSession } from '@/lib/session';
 
 const INVALID_LINK = '재설정 링크가 올바르지 않습니다. 메일의 링크를 다시 확인하거나 새로 요청해 주세요.';
@@ -94,7 +95,7 @@ export function ForgotPasswordPage() {
 
   let content: React.ReactNode;
   if (config.isPending) content = <Spinner />;
-  else if (!mailOn) content = <ContactNotice supportEmail={config.data?.supportEmail ?? null} />;
+  else if (!mailOn) content = <ContactNotice supportEmail={config.data?.supportEmail || BUSINESS.EMAIL || null} />;
   else if (sent)
     content = (
       <Card>

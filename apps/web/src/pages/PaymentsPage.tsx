@@ -3,7 +3,8 @@ import { ArrowLeft } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { Page } from '@/components/AppShell';
 import { Badge, Button, Card, EmptyState, IconButton, PageHeader, Spinner } from '@/components/ui';
-import { qk, useWallet } from '@/hooks/queries';
+import { qk, useConfig, useWallet } from '@/hooks/queries';
+import { BUSINESS } from '@/lib/legal';
 import { api } from '@/lib/api';
 import { t } from '@/lib/copy';
 import { formatDateKo, won } from '@/lib/format';
@@ -18,6 +19,9 @@ export function PaymentsPage() {
   const navigate = useNavigate();
   const orders = useQuery({ queryKey: qk.orders, queryFn: api.orders });
   const wallet = useWallet();
+  const config = useConfig();
+  // 문의처: 서버 설정(SUPPORT_EMAIL)이 우선, 없으면 약관에 적은 사업자 이메일(VITE_BIZ_EMAIL)
+  const supportEmail = config.data?.supportEmail || BUSINESS.EMAIL || null;
   const visible = (orders.data ?? []).filter((o) => o.status !== 'pending');
   return (
     <div className="min-h-page">
@@ -84,7 +88,19 @@ export function PaymentsPage() {
           </p>
         ) : (
           <p className="text-xs leading-relaxed text-ink-3">
-            디지털 콘텐츠 특성상 열람한 리포트는 청약철회가 제한될 수 있어요. 환불 문의는 고객센터로 연락해 주세요.
+            디지털 콘텐츠 특성상 열람한 리포트는 청약철회가 제한될 수 있어요. 환불 문의는{' '}
+            {supportEmail ? (
+              <a href={`mailto:${supportEmail}`} className="underline">
+                {supportEmail}
+              </a>
+            ) : (
+              '고객센터'
+            )}
+            로 보내 주세요. 자세한 기준은{' '}
+            <Link to="/legal/terms" className="underline">
+              이용약관
+            </Link>
+            제5·6조에 있어요.
           </p>
         )}
       </Page>
