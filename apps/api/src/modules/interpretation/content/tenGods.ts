@@ -79,13 +79,13 @@ export const TEN_GOD_CONTENT: Record<TenGod, TenGodContent> = {
       '이 기운이 없으면 일과 쉼의 경계가 흐려져 쉬는 법을 잘 모를 수 있어요. 결과는 잘 내지만 과정을 즐기는 여유가 부족하게 느껴지기도 합니다. 좋아하는 취미 한 가지를 일정에 넣어 두는 것만으로도 생활의 만족도가 올라가요.',
     inLuck: {
       general:
-        '마음에 여유가 생기고, 하고 싶은 일을 즐겁게 해낼 힘이 생기는 편이에요. 새로운 취미나 배움을 시작하기 좋은 흐름입니다.',
+        '마음에 여유가 생기고, 하고 싶은 일을 즐겁게 해낼 힘이 생길 수 있어요. 새로운 취미나 배움을 시작하기 좋은 흐름입니다.',
       wealth:
         '기술과 재능이 수입으로 이어지기 좋은 때예요. 부업, 재능 판매, 전문성을 살린 프로젝트에 관심을 가져 보세요. 다만 이런 수입은 변동이 있으니 계획을 세워 움직이는 것이 좋아요.',
       love:
         '맛집을 찾아다니고 소소한 일상을 나누는 편안한 연애가 잘 어울려요. 표정이 밝아져 호감을 얻기 좋아요.',
       career:
-        '실무 능력과 전문성을 인정받기 좋은 때예요. 연구·요리·디자인·교육처럼 손과 머리로 결과물을 만드는 일에서 성과가 잘 나는 흐름입니다.',
+        '실무 능력과 전문성을 인정받기 좋은 때예요. 꼼꼼하게 마무리한 결과물이 그대로 평가로 이어지는 흐름입니다.',
       health:
         '식욕이 좋아지고 몸이 편안해지는 만큼 체중 관리에 신경 써 주세요. 즐겁게 먹되 천천히 씹어 먹는 습관이 좋아요.',
     },
@@ -109,13 +109,13 @@ export const TEN_GOD_CONTENT: Record<TenGod, TenGodContent> = {
       general:
         '표현하고 싶은 마음이 커지고 아이디어가 많이 떠오르기 쉬워요. 무언가를 바꾸고 싶은 마음이 강해지는 만큼, 말과 행동의 수위를 조절하는 것이 필요합니다.',
       wealth:
-        '아이디어와 기획력이 수입으로 이어지기 쉬워요. 콘텐츠·강의·디자인처럼 자신만의 방식이 담긴 결과물로 수입을 만들 수 있습니다. 다만 기분에 따른 지출은 조심하세요.',
+        '아이디어와 기획력이 수입으로 이어지기 쉬워요. 콘텐츠·강의·디자인처럼 자신만의 방식이 담긴 결과물로 수입을 만들 수 있습니다. 새 일에 드는 비용은 미리 한도를 정해 두세요.',
       love:
         '매력이 돋보여 주목받기 쉬워요. 솔직함은 장점이지만, 상대의 마음을 다치게 하지 않도록 말투를 한 번 더 살펴 주세요.',
       career:
         '기존 방식을 개선하자는 제안이 받아들여지기 쉬운 흐름이에요. 상사나 규정과 정면으로 부딪히기보다 근거와 대안을 함께 준비하면 설득력이 훨씬 커집니다.',
       health:
-        '말을 많이 하고 신경을 많이 써서 목과 신경이 쉽게 피로해질 수 있어요. 따뜻한 차와 충분한 수면으로 회복해 주세요.',
+        '말을 많이 하고 신경을 많이 써서 목소리가 쉽게 상하고 신경이 피로해질 수 있어요. 따뜻한 차와 충분한 수면으로 회복해 주세요.',
     },
     dailyAdvice: [
       '오늘은 떠오르는 아이디어를 바로 메모해 두세요. 나중에 쓸 만한 생각이 섞여 있을 수 있어요.',
@@ -296,15 +296,16 @@ export const TEN_GOD_CONTENT: Record<TenGod, TenGodContent> = {
 
 /**
  * 십성을 운(오늘·올해·이달)으로 만날 때 화면 본문에 쓰는 말.
- * - theme: "'○○'의 기운"처럼 따옴표 안에 넣는 명사구
+ * - theme: "'○○'의 기운"처럼 따옴표 안에 넣는 명사구 — 화면 표의 십성 라벨(packages/shared TEN_GOD_PLAIN_LABEL)과 같은 말이어야 한다(한 기운을 여러 이름으로 부르지 않게)
  * - relation: 이 십성이 무엇인지 — "정인은 {relation} 것을 말해요", "{relation} 정인"처럼 이어 쓰는 말(일간과의 관계·음양). 운의 첫 문단에서 한 번 밝힌다
  * - line: 그 기운이 들어올 때의 경향 한 문장(주어 없이, '날'·'해' 어디에 붙여도 읽히게) / lineLow: 운이 낮을 때 그 기운이 드러나는 모습(조심할 점)
  * - yearTip: 올해 해 보면 좋은 일 한 줄(신년운세 '한눈에 보는 ○○년')
  * - month: 열두 달 흐름에서 같은 등급 문구가 모자랄 때 쓰는 한 문장
  */
-export const TEN_GOD_PLAIN: Record<TenGod, { theme: string; relation: string; line: string; lineLow: string; yearTip: string; month: string }> = {
+export const TEN_GOD_PLAIN: Record<TenGod, { theme: string; relation: string; line: string; lineLow: string; yearTip: string; month: string; yearTitle: { up: string; flat: string; low: string } }> = {
   비견: {
-    theme: '독립과 자립',
+    yearTitle: { up: '내 이름을 건 일이 힘을 얻기 쉬운 해', flat: '내 속도로 해 나갈 일을 정하는 해', low: '혼자 다 하려 하기보다 나눠 맡을 해' },
+    theme: '자립·독립',
     relation: '일간과 같은 기운이면서 음양도 같은',
     line: '스스로 일을 꾸려 보고 싶은 마음이 커지고, 동료와 함께할 일이 늘기 쉬워요.',
     lineLow: '고집이 세지고, 몫을 나누는 문제로 신경 쓸 일이 생기기 쉬워요.',
@@ -312,7 +313,8 @@ export const TEN_GOD_PLAIN: Record<TenGod, { theme: string; relation: string; li
     month: '이번 달은 스스로 해 보고 싶은 일이 생기는 때예요. 혼자 다 하기보다 동료와 나눠 맡으세요.',
   },
   겁재: {
-    theme: '경쟁과 승부',
+    yearTitle: { up: '경쟁이 있는 일에서 존재감이 커지기 쉬운 해', flat: '겨룰 일과 넘길 일을 가려 쓰는 해', low: '경쟁보다 내 실속을 지킬 해' },
+    theme: '경쟁·도전',
     relation: '일간과 같은 기운이지만 음양이 다른',
     line: '경쟁심과 추진력이 커져 목표를 향해 적극적으로 움직이기 좋아요.',
     lineLow: '경쟁심이 커져 감정이 앞서거나 지출이 늘기 쉬워요.',
@@ -320,7 +322,8 @@ export const TEN_GOD_PLAIN: Record<TenGod, { theme: string; relation: string; li
     month: '이번 달은 경쟁할 일이 생기기 쉬워요. 이기는 것보다 잘 마무리하는 데 마음을 두세요.',
   },
   식신: {
-    theme: '여유와 즐거움',
+    yearTitle: { up: '좋아하는 일이 결과물로 이어지기 쉬운 해', flat: '손에 익은 일을 차분히 다듬는 해', low: '미뤄 둔 일을 하나씩 마무리할 해' },
+    theme: '재능·여유',
     relation: '일간이 생하는(도와주는) 기운 가운데 음양이 같은',
     line: '마음에 여유가 생기고, 좋아하는 일에 집중하기 좋아요.',
     lineLow: '마음이 느슨해져 할 일을 미루기 쉬워요.',
@@ -328,7 +331,8 @@ export const TEN_GOD_PLAIN: Record<TenGod, { theme: string; relation: string; li
     month: '이번 달은 마음에 여유가 생기는 달이에요. 미뤄 둔 취미를 다시 시작해 보세요.',
   },
   상관: {
-    theme: '표현과 변화',
+    yearTitle: { up: '아이디어와 표현이 성과로 이어지기 쉬운 해', flat: '하고 싶은 말을 다듬어 전하는 해', low: '말과 행동의 수위를 조절할 해' },
+    theme: '표현·변화',
     relation: '일간이 생하는(도와주는) 기운 가운데 음양이 다른',
     line: '표현력과 아이디어가 늘고, 기존 방식을 바꾸고 싶은 마음이 커지기 쉬워요.',
     lineLow: '말이 앞서 의도보다 날카롭게 들리기 쉬워요.',
@@ -336,7 +340,8 @@ export const TEN_GOD_PLAIN: Record<TenGod, { theme: string; relation: string; li
     month: '이번 달은 아이디어가 많이 떠오르는 달이에요. 말은 한 번 다듬어서 꺼내세요.',
   },
   편재: {
-    theme: '활동과 기회',
+    yearTitle: { up: '활동 범위를 넓혀 기회를 잡기 쉬운 해', flat: '바깥일과 실속 사이에서 균형을 잡는 해', low: '벌여 둔 일을 정리하고 실속을 챙길 해' },
+    theme: '사업·재물',
     relation: '일간이 극하는(제어하는) 기운 가운데 음양이 같은',
     line: '활동 범위가 넓어지고, 새로운 사람과 기회를 만나기 쉬워요.',
     lineLow: '바깥일과 약속이 늘어 돈과 체력을 많이 쓰기 쉬워요.',
@@ -344,7 +349,8 @@ export const TEN_GOD_PLAIN: Record<TenGod, { theme: string; relation: string; li
     month: '이번 달은 밖에서 기회가 생기기 쉬워요. 평소 가지 않던 자리에도 나가 보세요.',
   },
   정재: {
-    theme: '성실과 저축',
+    yearTitle: { up: '꾸준히 쌓은 것이 숫자로 돌아오기 쉬운 해', flat: '생활과 돈의 바탕을 다지는 해', low: '지출을 정리하고 기반을 지킬 해' },
+    theme: '성실·저축',
     relation: '일간이 극하는(제어하는) 기운 가운데 음양이 다른',
     line: '노력한 만큼 성과가 쌓이고, 생활이 안정되기 쉬워요.',
     lineLow: '돈과 일을 꼼꼼히 따지느라 마음이 빠듯해지기 쉬워요.',
@@ -352,7 +358,8 @@ export const TEN_GOD_PLAIN: Record<TenGod, { theme: string; relation: string; li
     month: '이번 달은 꾸준히 한 만큼 쌓이는 달이에요. 작은 저축 하나를 시작해 보세요.',
   },
   편관: {
-    theme: '도전과 돌파',
+    yearTitle: { up: '어려운 과제를 해내며 인정받기 쉬운 해', flat: '맡은 책임을 하나씩 감당해 가는 해', low: '부담을 나누고 체력을 지킬 해' },
+    theme: '시험·단련',
     relation: '일간을 극하는(제어하는) 기운 가운데 음양이 같은',
     line: '해야 할 일이 몰리기 쉽지만, 해내고 나면 역량이 한 단계 올라가요.',
     lineLow: '해야 할 일과 부담이 한꺼번에 몰리기 쉬워요.',
@@ -360,7 +367,8 @@ export const TEN_GOD_PLAIN: Record<TenGod, { theme: string; relation: string; li
     month: '이번 달은 해야 할 일이 몰릴 수 있어요. 가장 어려운 것부터 하나씩 끝내세요.',
   },
   정관: {
-    theme: '책임과 인정',
+    yearTitle: { up: '맡은 자리에서 인정받기 쉬운 해', flat: '원칙을 지키며 자리를 다지는 해', low: '책임의 범위를 분명히 할 해' },
+    theme: '인정·책임',
     relation: '일간을 극하는(제어하는) 기운 가운데 음양이 다른',
     line: '맡은 일을 원칙대로 해내면 인정받기 좋아요.',
     lineLow: '책임감 때문에 부담을 크게 느끼기 쉬워요.',
@@ -368,7 +376,8 @@ export const TEN_GOD_PLAIN: Record<TenGod, { theme: string; relation: string; li
     month: '이번 달은 맡은 일을 원칙대로 해내면 인정받기 좋은 달이에요.',
   },
   편인: {
-    theme: '직감과 영감',
+    yearTitle: { up: '깊이 파고든 공부가 쓰임을 얻기 쉬운 해', flat: '관심 분야를 깊게 공부하는 해', low: '생각을 정리하고 방향을 좁힐 해' },
+    theme: '탐구·직관',
     relation: '일간을 생하는(도와주는) 기운 가운데 음양이 같은',
     line: '직관이 예민해지고, 혼자 깊이 생각하고 싶어지기 쉬워요.',
     lineLow: '생각이 많아지고 예민해지기 쉬워요.',
@@ -376,7 +385,8 @@ export const TEN_GOD_PLAIN: Record<TenGod, { theme: string; relation: string; li
     month: '이번 달은 직관이 잘 맞는 편이에요. 떠오른 생각을 메모해 두세요.',
   },
   정인: {
-    theme: '배움과 도움',
+    yearTitle: { up: '배운 것과 자격이 힘이 되기 쉬운 해', flat: '배우고 준비하는 데 시간을 쓰는 해', low: '준비한 것을 작게라도 실행할 해' },
+    theme: '배움·도움',
     relation: '일간을 생하는(도와주는) 기운 가운데 음양이 다른',
     line: '배우고 익히는 일이 순조롭고, 주변의 도움도 받기 좋아요.',
     lineLow: '생각만 하다 실행이 늦어지기 쉬워요.',

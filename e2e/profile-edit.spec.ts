@@ -22,7 +22,7 @@ test('저장한 사주 수정: 기존 값이 채워지고, 저장 후 새 일주
   await expect(page).toHaveURL(new RegExp(`/saju/${me.id}$`));
   await page.reload(); // 캐시와 무관하게 서버 계산 결과 확인 (캐시 문제는 아래 fixme 참고)
   await expect(page.getByText(/^을사일주 · /)).toBeVisible();
-  await expect(page.getByText('양력 1995.03.15 14:30')).toBeVisible();
+  await expect(page.getByText('양력 1995.3.15 14:30')).toBeVisible();
 });
 
 // BUG-02: 사주 정보를 수정해 저장하면 /saju/:id 로 돌아오지만, 직전에 본 풀이가 캐시(staleTime 30초)에 남아
@@ -41,7 +41,7 @@ test('사주 정보를 수정하면 돌아온 화면에 바로 새 풀이가 보
   await page.getByRole('button', { name: '저장', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/saju/${me.id}$`));
   await expect(page.getByText(/^을사일주 · /)).toBeVisible();
-  await expect(page.getByText('양력 1995.03.15 14:30')).toBeVisible();
+  await expect(page.getByText('양력 1995.3.15 14:30')).toBeVisible();
 });
 
 test('저장한 사주 삭제: 확인 후 목록에서 사라지고 오늘 탭은 다른 사주로 바뀐다', async ({ page, api }) => {

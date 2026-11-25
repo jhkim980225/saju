@@ -19,6 +19,7 @@ import { t } from '@/lib/copy';
 import { isoDate, targetFortuneYear, todayKst, weekdayOf } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { STORAGE_KEYS, storage } from '@/lib/storage';
+import { useFutureDayGate } from '@/lib/tossBridge';
 
 const WEEK = ['월', '화', '수', '목', '금', '토', '일'];
 
@@ -60,6 +61,8 @@ export function TodayPage() {
   const [, mm, dd] = date.split('-').map(Number) as [number, number, number];
 
   const [shareOpen, setShareOpen] = useState(false);
+  // 토스 미니앱: 내일부터의 운세는 보상형 광고로 미리 본다 (웹·앱에서는 그대로 통과)
+  const futureGate = useFutureDayGate(today.iso);
 
   const top = d ? [...d.categories].sort((a, b) => b.score - a.score) : [];
 
@@ -126,14 +129,14 @@ export function TodayPage() {
 
               <Card className="mt-6">
                 <h3 className="font-semibold">{t('today.weekFlowTitle')}</h3>
-                <p className="mt-1 text-sm text-ink-3">원이 클수록 총운 점수가 높은 날입니다. 요일을 누르면 그날의 운세를 볼 수 있어요.</p>
+                <p className="mt-1 text-sm text-ink-3">원이 클수록 총운 점수가 높은 날이에요. 요일을 누르면 그날의 운세를 볼 수 있어요.</p>
                 <ol className="mt-4 grid grid-cols-7 gap-1 text-center">
                   {dates.map((iso, i) => {
                     const w = week[i]?.data;
                     const score = w?.evaluation.scores.total ?? 0;
                     return (
                       <li key={iso}>
-                        <button type="button" onClick={() => setDate(iso)} className={cx('flex w-full flex-col items-center gap-1.5 rounded-xl py-2', iso === date && 'bg-subtle')} aria-label={`${WEEK[i]}요일 ${score}점`}>
+                        <button type="button" onClick={() => futureGate.select(iso, setDate)} className={cx('flex w-full flex-col items-center gap-1.5 rounded-xl py-2', iso === date && 'bg-subtle')} aria-label={`${WEEK[i]}요일 ${score}점`}>
                           <span className={cx('text-xs', iso === today.iso ? 'font-bold text-ink' : 'text-ink-3')}>{WEEK[i]}</span>
                           <span className="relative grid size-7 place-items-center">
                             <span className="absolute inset-0 rounded-full border border-line-strong" />
@@ -149,7 +152,7 @@ export function TodayPage() {
 
               <Card className="mt-4">
                 <h3 className="font-semibold">분야별 운</h3>
-                <p className="mt-1 text-sm text-ink-3">100점에 가까울수록 흐름이 좋은 분야입니다. 50점보다 낮은 분야는 평소보다 신중하게 다루는 게 좋아요.</p>
+                <p className="mt-1 text-sm text-ink-3">100점에 가까울수록 흐름이 좋은 분야예요. 50점보다 낮은 분야는 평소보다 신중하게 다루는 게 좋아요.</p>
                 <ul className="mt-4 space-y-4">
                   {d.categories.map((c) => (
                     <li key={c.key}>
@@ -187,7 +190,7 @@ export function TodayPage() {
 
               <Card className="mt-4">
                 <h3 className="font-semibold">오늘 운세의 근거</h3>
-                <p className="mt-1 text-sm text-ink-3">날마다 그날의 간지(일진)가 바뀝니다. 오늘의 일진이 내 사주, 특히 일간(나를 나타내는 글자)과 어떤 관계인지를 보고 하루의 흐름을 해석해요.</p>
+                <p className="mt-1 text-sm text-ink-3">날마다 그날의 간지(일진)가 바뀌어요. 오늘의 일진이 내 사주, 특히 일간(나를 나타내는 글자)과 어떤 관계인지를 보고 하루의 흐름을 해석해요.</p>
                 <div className="mt-3 space-y-2 text-[15px] leading-relaxed text-ink-2">
                   {(d.why ?? []).map((w) => (
                     <p key={w}>{w}</p>
@@ -243,6 +246,7 @@ export function TodayPage() {
           }}
         />
       )}
+      {futureGate.sheet}
       <BottomSheet open={pickProfile} onClose={() => setPickProfile(false)} title={t('today.profileSwitch')}>
         <ul className="divide-y divide-line">
           {list.map((p) => (

@@ -15,9 +15,12 @@
 import {
   ELEMENT_INFO,
   GRADE_LABEL,
+  STEMS,
   TEN_GOD_GROUP,
   evaluateFortune,
+  generatedBy,
   hashSeed,
+  mainHiddenStem,
   wolun,
   yearPillarOf,
   type CompatibilityFactor,
@@ -47,12 +50,13 @@ import { ELEMENT_PLAIN, SHINSAL_ORDER, STEM_PLAIN, displayName, nameSubject, per
 import {
   CHILD_HINT,
   DAEUN_TIP,
+  HIGHLIGHT_TERM as HIGHLIGHT_TERM_REPORT,
+  PAST_HINT,
   GROUP_PLAIN,
   POSITION_PLAIN,
   RELATION_KIND_MEANING,
   RELATION_PLAIN,
   ROMANCE_KEEP,
-  MONTH_SUMMARY,
   STABILITY_KEEP,
   STAGE_SHORT,
   TEN_GOD_PLAIN,
@@ -76,6 +80,7 @@ import {
   yearBriefSection,
 } from './reading.js';
 import { LUCKY_COLOR_PLAIN } from './content/plainFortune.js';
+import { daeunEval, dominantGroup, groupShare, heesinCaveat, isLowGrade, natalShinsal, strengthCaveat, tgLabel, topTenGods, yearHeadline } from './verdicts.js';
 
 export const ELEMENTS: Element[] = ['wood', 'fire', 'earth', 'metal', 'water'];
 export const GROUPS: TenGodGroup[] = ['비겁', '식상', '재성', '관성', '인성'];
@@ -118,7 +123,17 @@ export function elementLevel(count: number, _percent?: number): ElementLevel {
 
 /** 운의 오행이 용신·희신·기신 가운데 무엇인지 — 키워드 칩 */
 const FIT_TAG = { yongsin: '용신이 드는 시기', heesin: '희신이 드는 시기', gisin: '기신이 드는 시기', neutral: '' } as const;
-const FIT_TERM = { yongsin: '용신', heesin: '희신', gisin: '기신', neutral: '한신' } as const;
+const FIT_TERM = { yongsin: '용신', heesin: '희신', gisin: '기신' } as const;
+/**
+ * 근거 줄의 오행 역할. 용신·희신·기신이 아닌 두 오행은 기신을 생하는 구신과 나머지 한신으로 나눈다.
+ * (점수는 둘 다 중립으로 본다 — fortune.ts FIT_SCORE)
+ */
+function fitTerm(chart: SajuChart, fit: ElementFit, el: Element): string {
+  if (fit !== 'neutral') return FIT_TERM[fit];
+  return el === generatedBy(chart.yongsin.gisin) ? '구신' : '한신';
+}
+/** 운 기둥의 천간·지지(본기) 오행 — evaluateFortune 의 fit 과 같은 기준 */
+const luckEls = (p: { stem: number; branch: number }) => ({ stem: STEMS[p.stem]!.element, branch: STEMS[mainHiddenStem(p.branch)]!.element });
 /** 용어의 짧은 정의 — 한 권에서 처음 쓸 때만 괄호로 붙인다 */
 const DEF = {
   용신: '사주의 균형과 흐름에 가장 도움이 된다고 보는 오행',
@@ -137,9 +152,10 @@ export function reportOnce() {
   const seen = new Set<string>();
   const first = (k: string) => (seen.has(k) ? false : (seen.add(k), true));
   return {
+    /** 용신·희신·기신 판정 — 설명 문장은 한 권에 한 번, 꼬리표는 해당할 때마다 붙인다(첫 대운에서 빠지지 않게) */
     fit(fit: ElementFit, part: 'stem' | 'branch'): { text: string | null; tag: string | null } {
-      if (first(`fit:${part}:${fit}`)) return { text: LUCK_CONTENT.fit[fit][part], tag: null };
-      return { text: null, tag: part === 'stem' && fit !== 'neutral' ? FIT_TAG[fit] : null };
+      const text = first(`fit:${part}:${fit}`) ? LUCK_CONTENT.fit[fit][part] : null;
+      return { text, tag: fit === 'neutral' ? null : FIT_TAG[fit] };
     },
     highlights(hs: FortuneHighlight[], n: number): { text: string[]; terms: string[] } {
       return plainHighlights(hs, n, { first });
@@ -199,7 +215,7 @@ function chartSection(chart: SajuChart, name: string | null, once: Once): Readin
     `${name ? `${name}님의 ` : ''}일간은 ${stemName(chart)}, 곧 ${yy}의 ${elWord(chart.dayMaster.element)}이에요. 앞 장의 성격 풀이는 이 일간과 일주(태어난 날의 두 글자)를 바탕으로 했습니다. 기둥마다 상징하는 영역과 놓인 십성은 다음과 같아요.`,
     ...rows.map((p) => {
       const pos = POSITION_PLAIN[p.position];
-      const head = `${pos.pillar} ${p.ganzhi.hangul} — ${pos.area}${particle(pos.area, '을', '를')} 나타내는 자리예요.`;
+      const head = `${pos.pillar} ${p.ganzhi.hangul}: ${pos.area}${particle(pos.area, '을', '를')} 나타내는 자리예요.`;
       const stem = `${p.stem.hangul}(${el(p.stem.element)})`;
       const branch = `${p.branch.hangul}(${el(p.branch.element)})`;
       const st = p.stem.tenGod as TenGod;
@@ -235,13 +251,13 @@ function elementRatioSection(chart: SajuChart, name: string | null, once: Once):
   const many = ELEMENTS.filter((x) => e.count[x] >= 3);
   const paragraphs = [
     `사주의 모든 글자는 목(나무)·화(불)·토(흙)·금(쇠)·수(물)의 다섯 가지 기운, 곧 오행 가운데 하나에 속합니다. ${letterCount(chart)} 글자의 오행을 개수로 세면 ${countList(chart)}이며, 위의 오행 그래프와 같은 값이에요.`,
-    ...ELEMENTS.map((x) => `${el(x)} ${e.count[x]}개 — ${REPORT_MISC.elementLevel[x][elementLevel(e.count[x])]}`),
+    ...ELEMENTS.map((x) => `${el(x)} ${e.count[x]}개: ${REPORT_MISC.elementLevel[x][elementLevel(e.count[x])]}`),
     `개수는 글자를 단순히 센 값이라 지지 안에 담긴 천간(지장간)과 태어난 계절의 영향은 반영하지 않습니다. 달달사주는 지장간의 비중과 태어난 달의 계절 기운(월령)에 가중치를 둔 비율도 따로 계산하는데(서비스 자체 기준), 이 기준으로는 ${ELEMENTS.map((x) => `${el(x)} ${pct(e.percent[x])}%`).join(' · ')}입니다.`,
     `가중 비율로는 ${elWord(e.dominant)}이 가장 강해요. ${ELEMENT_CONTENT[e.dominant].nature}`,
   ];
   // 글자로는 없지만 지장간에 담긴 오행 — 개수 0 이 곧 '전혀 없음'은 아니다
   const hidden = none.filter((x) => pct(e.percent[x]) > 0);
-  if (hidden.length) paragraphs.push(`${hidden.map(el).join('·')} 기운은 글자로는 드러나지 않지만 지장간에 담겨 있어, 가중 비율로는 ${hidden.map((x) => `${el(x)} ${pct(e.percent[x])}%`).join(', ')}입니다. 원국에 드러나지 않았다고 해서 그 기운이 전혀 없다는 뜻은 아니에요.`);
+  if (hidden.length) paragraphs.push(`${hidden.map(el).join('·')} 기운은 글자로는 드러나지 않지만 지장간에 담겨 있어, 가중 비율로는 0이 아니에요. 원국에 드러나지 않았다고 해서 그 기운이 전혀 없다는 뜻은 아닙니다.`);
   // 채우면 좋은 빈 기운 = 용신이거나 희신일 때만. 아니면 '빈 오행 = 꼭 채울 오행'이 아니라고 짚어 준다
   const fill = none.filter((x) => x === y.yongsin || x === y.heesin);
   const tips = fill.flatMap((x) => ELEMENT_CONTENT[x].balanceTips.slice(0, fill.length > 1 ? 3 : 5));
@@ -249,14 +265,16 @@ function elementRatioSection(chart: SajuChart, name: string | null, once: Once):
     paragraphs.push(`원국에 없는 오행을 반드시 채워야 하는 것은 아닙니다. 보완할 오행은 일간의 강약과 사주 전체의 균형으로 정하며, 달달사주 기준으로 ${nameSubject(name, '의')}${once.term('용신')}은 ${elWord(y.yongsin)}이에요. 뒤에서 자세히 다룹니다.`);
   }
   if (fill.length) {
+    // 없는 오행이 곧 채울 기운은 아니다 — 용신·희신으로 정한 근거(강약과 가중 비율)를 먼저 말한다
     const role = fill.map((x) => (x === y.yongsin ? once.term('용신') : once.term('희신')));
-    paragraphs.push(`원국에 없는 ${fill.map(el).join('·')} 기운은 ${fill.length > 1 ? `각각 ${role.join('과 ')}` : role[0]}에 해당해, 생활 속에서 보완하면 도움이 됩니다. 흔히 권하는 방법은 다음과 같아요.`);
+    const why = y.method === '중화' ? '강약이 균형에 가까워 가중 비율이 가장 낮은 오행을 용신으로 정하는 달달사주 기준에 따라' : '일간의 강약을 조절하는 쪽으로 정하는 달달사주 기준에 따라';
+    paragraphs.push(`원국에 없는 오행을 반드시 채워야 하는 것은 아닙니다. 다만 ${fill.map(el).join('·')} 기운은 ${why} ${fill.length > 1 ? `각각 ${role.join('과 ')}` : role[0]}에 해당해, 생활 속에서 보완하면 균형에 도움이 됩니다. 흔히 권하는 방법은 다음과 같아요.`);
   }
   return {
     key: 'elements',
     title: '오행의 분포',
     summary: fill.length
-      ? `원국에 없는 ${fill.map(el).join('·')} 기운을 보완하면 균형에 도움이 돼요`
+      ? `원국에 없는 ${fill.map(el).join('·')} 기운이 ${fill.some((x) => x === y.yongsin) ? '용신' : '희신'}에 해당해요`
       : many.length
         ? `${many.map(el).join('·')} 기운이 많은 편이에요`
         : none.length
@@ -288,7 +306,7 @@ function strengthSection(chart: SajuChart, name: string | null): ReadingSection 
         : `${subject}${dots(have, '을', '를')} 갖췄고, ${dots(lack, '은', '는')} 갖추지 못했어요.`;
   return {
     key: 'strength',
-    title: '신강·신약 — 일간의 강약',
+    title: '신강·신약: 일간의 강약',
     summary: st.title,
     keywords: [s.level, `달달사주 강약 점수 ${pct(s.score)}점`],
     paragraphs: [
@@ -297,6 +315,7 @@ function strengthSection(chart: SajuChart, name: string | null): ReadingSection 
       `강약은 정도의 문제라 보편적인 점수 기준은 없습니다. 달달사주는 일간을 돕는 기운의 비중을 0~100점으로 환산해 단계를 나누는데(서비스 자체 지표), 이 기준으로 ${pct(s.score)}점이라 '${s.level}'에 해당해요. 50점 부근이 균형(중화)에 가까운 상태입니다.`,
       st.description,
       st.advice,
+      ...(strengthCaveat(chart) ? [strengthCaveat(chart)!] : []),
     ],
     basis: `일간의 힘 ${s.level} · 득령 ${s.deukryeong ? 'O' : 'X'} · 득지 ${s.deukji ? 'O' : 'X'} · 득세 ${s.deukse ? 'O' : 'X'} · 비겁·인성 가중 비중 ${pct(s.score)}점(극신약 25 미만 · 신약 42 미만 · 중화 58 이하 · 신강 75 이하 · 극신강 그 이상)`,
   };
@@ -330,7 +349,7 @@ function yongsinDetailSection(base: ReadingSection, chart: SajuChart, name: stri
     paragraphs: [
       `${once.term('용신')}은 일간의 강약을 조절하는 억부, 계절의 춥고 더움을 조절하는 조후, 사주의 구조를 보는 격국 등 여러 방법으로 정하며, 학파와 해석자에 따라 결과가 달라질 수 있습니다. 달달사주는 억부법을 중심으로 한 간이 계산으로 조후와 격국은 반영하지 않으며, 강약이 균형에 가까우면 가장 약한 오행을 용신으로 정해요. ${yongsinReason(chart, name)}`,
       `생활 속에서는 ${q(need.need, '이', '가')} 이 기운과 연결됩니다. ${need.needMore}`,
-      `${elWord(y.heesin)}은 용신을 생하여 돕는 희신, ${elWord(y.gisin)}은 용신을 극하는 기신에 해당합니다. 운에서 용신이나 희신이 들어오는 해와 달은 비교적 순조롭게 흐르는 시기로 봅니다. 기신이 강하게 들어오는 시기라고 해서 반드시 나쁜 결과를 뜻하지는 않지만, 일정과 체력에 여유를 두는 것이 좋습니다.`,
+      `${elWord(y.heesin)}은 용신을 생하여 돕는 희신, ${elWord(y.gisin)}은 용신을 극하는 기신에 해당합니다.${heesinCaveat(chart) ? ` ${heesinCaveat(chart)}` : ''} 운에서 용신이나 희신이 들어오는 해와 달은 비교적 순조롭게 흐르는 시기로 봅니다. 기신이 강하게 들어오는 시기라고 해서 반드시 나쁜 결과를 뜻하지는 않지만, 일정과 체력에 여유를 두는 것이 좋습니다.`,
       // '일상에서는 이런 것부터 해 보세요.'(목록 머리말)는 맨 뒤에 둔다
       base.paragraphs.at(-1)!,
     ],
@@ -340,9 +359,10 @@ function yongsinDetailSection(base: ReadingSection, chart: SajuChart, name: stri
 function tenGodDetailSection(chart: SajuChart): ReadingSection {
   const g = groupCount(chart);
   const present = (Object.entries(chart.tenGodCount) as [TenGod, number][]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
-  const top = present[0]?.[0] ?? dominantTenGod(chart);
-  const max = present[0]?.[1] ?? 0;
-  const tops = present.filter(([, n]) => n === max).map(([tg]) => tg);
+  // 가장 많은 십성 — 내 사주 화면과 같은 목록(같은 수면 모두)
+  const tops = topTenGods(chart);
+  const top = tops[0] ?? dominantTenGod(chart);
+  const max = chart.tenGodCount[top] ?? 0;
   const maxG = Math.max(...GROUPS.map((k) => g[k]));
   const topGroups = GROUPS.filter((k) => g[k] === maxG);
   const others = chart.pillars.hour ? '일곱' : '다섯';
@@ -356,12 +376,17 @@ function tenGodDetailSection(chart: SajuChart): ReadingSection {
   const paragraphs = [
     '십성은 일간을 기준으로 나머지 글자가 어떤 관계에 있는지를 열 가지로 나눈 것입니다. 오행의 생극에 따라 비겁(일간과 같은 오행)·식상(일간이 생하는 오행)·재성(일간이 극하는 오행)·관성(일간을 극하는 오행)·인성(일간을 생하는 오행)의 다섯 무리로 나뉘고, 각 무리는 일간과 음양이 같으면 비견·식신·편재·편관·편인, 다르면 겁재·상관·정재·정관·정인으로 다시 나뉘어요.',
     `일간을 뺀 ${others} 글자를 무리별로 세면 ${GROUPS.map((k) => `${k} ${g[k]}개`).join(', ')}예요. ${topLine}`,
-    `${top}${particle(top, '은', '는')} ${tp.def}로, ${tp.meaning} ${tp.strong}`,
-    ...present
-      .filter(([tg]) => tg !== top)
-      .slice(0, 3)
-      .map(([tg, n]) => `${tg}(${TEN_GOD_GROUP[tg]}) ${n}개 — ${TEN_GOD_PLAIN[tg].def}로, ${TEN_GOD_PLAIN[tg].meaning}`),
+    // 원국에 있는 십성을 모두 같은 형식으로 — 가장 많은 십성에는 두드러질 때의 모습을 더한다
+    ...present.map(([tg, n]) => `${tg}(${TEN_GOD_GROUP[tg]}) ${n}개: ${TEN_GOD_PLAIN[tg].def}로, ${TEN_GOD_PLAIN[tg].meaning}${tops.includes(tg) ? ` ${TEN_GOD_PLAIN[tg].strong}` : ''}`),
   ];
+  // 가장 큰 무리는 모든 보고서가 같은 기준(자리별 가중 세력)으로 정한다 — 글자 수와 다르면 그 차이를 밝힌다
+  const big = dominantGroup(chart);
+  const shares = groupShare(chart);
+  paragraphs.push(
+    topGroups.length === 1 && topGroups[0] === big
+      ? `월지·일지처럼 무게가 큰 자리를 더해 견준 세력(달달사주 기준)으로 봐도 ${big}${particle(big, '이', '가')} ${shares[big]}%로 가장 커요. 세력은 일간을 뺀 글자로 셈해서 오행 비율과는 값이 달라요. 재물·직업운과 연애·결혼운 리포트도 이 무리를 중심으로 풀어요.`
+      : `글자 수로는 ${dots(topGroups, '이', '가')} 가장 많지만, 월지·일지처럼 무게가 큰 자리를 더해 견준 세력(달달사주 기준)으로는 ${big}${particle(big, '이', '가')} ${shares[big]}%로 가장 커요. 세력은 일간을 뺀 글자로 셈해서 오행 비율과는 값이 달라요. 재물·직업운과 연애·결혼운 리포트에서 말하는 '가장 큰 십성 무리'는 이 세력 기준이에요.`,
+  );
   for (const group of GROUPS.filter((k) => g[k] >= 3)) paragraphs.push(`${group}${particle(group, '이', '가')} ${g[group]}개로 많아요. ${GROUP_PLAIN[group].many}`);
   for (const group of GROUPS.filter((k) => g[k] === 0)) paragraphs.push(`${group}${particle(group, '은', '는')} 원국에 없어요. ${GROUP_PLAIN[group].absent}`);
   return {
@@ -369,25 +394,25 @@ function tenGodDetailSection(chart: SajuChart): ReadingSection {
     title: '십성으로 본 성향',
     summary: tops.length > 1 ? `${dots(tops, '이', '가')} 가장 많은 사주예요` : `${top}(${tp.gloss})${particle(top, '이', '가')} 가장 두드러져요`,
     paragraphs,
-    basis: `십성(지지는 본기 기준) ${present.map(([tg, n]) => `${tg} ${n}`).join(' · ')} · ${GROUPS.map((k) => `${k} ${g[k]}`).join(' · ')}`,
+    basis: `십성(지지는 본기 기준) ${present.map(([tg, n]) => `${tg} ${n}`).join(' · ')} · ${GROUPS.map((k) => `${k} ${g[k]}`).join(' · ')} · 세력(자리별 가중치, 달달사주 기준) ${GROUPS.map((k) => `${k} ${groupShare(chart)[k]}%`).join(' · ')}`,
   };
 }
 
 /** 무료 섹션(3개까지) 뒤에, 나머지 신살을 조금 더 자세히 */
 function shinsalDetailSection(base: ReadingSection, chart: SajuChart): ReadingSection {
-  const all = chart.shinsal.filter((s, i, arr) => arr.findIndex((x) => x.name === s.name) === i);
+  // 원국의 신살은 모든 화면이 같은 목록(verdicts.ts natalShinsal)에서 고른다 — 연애·재물 리포트가 말하는 신살이 여기서 빠지지 않게
   const shownNames = new Set(base.paragraphs.map((p) => p.match(/\(([가-힣]+)\)$/)?.[1]).filter(Boolean));
-  const rest = [...all].filter((s) => !shownNames.has(s.name)).sort((a, b) => SHINSAL_ORDER.indexOf(a.name) - SHINSAL_ORDER.indexOf(b.name)).slice(0, 4);
+  const rest = natalShinsal(chart).filter((n) => !shownNames.has(n) && SHINSAL_CONTENT[n]);
   if (!rest.length) return base;
   return {
     ...base,
-    paragraphs: [...base.paragraphs, '이 밖에 원국에 있는 신살은 다음과 같아요. 신살은 보조적인 해석 요소이므로, 하나만으로 길흉을 판단하지는 않습니다.', ...rest.map((s) => `${SHINSAL_CONTENT[s.name].detail} (${s.name})`)],
+    paragraphs: [...base.paragraphs, '이 밖에 원국에 있는 신살은 다음과 같아요.', ...rest.map((n) => `${SHINSAL_CONTENT[n].detail} (${n})`)],
   };
 }
 
 function relationsSection(chart: SajuChart, once: Once): ReadingSection {
   const rels = chart.relations;
-  const title = '합·충 — 글자 사이의 관계';
+  const title = '합·충: 글자 사이의 관계';
   if (!rels.length) {
     return {
       key: 'relations',
@@ -430,17 +455,26 @@ function relationsSection(chart: SajuChart, once: Once): ReadingSection {
             });
     const areas = ps.map((p) => POSITION_PLAIN[p].short);
     const areaText = areas.length === 2 ? `${areas[0]}${particle(areas[0]!, '과', '와')} ${areas[1]}` : areas.join(', ');
-    const meaning = [...new Set(rs.map((r) => RELATION_PLAIN[r.type].kind))].filter((k) => !told.has(k) && (told.add(k), true)).map((k) => RELATION_KIND_MEANING[k]);
+    const meaning = [...new Set(rs.map((r) => RELATION_PLAIN[r.type].kind))]
+      .filter((k) => !told.has(k) && (told.add(k), true))
+      // 파·해 풀이는 실제로 있는 이름만 — '해'만 있으면 '해가 있는 자리는'
+      .map((k) => (k === 'drift' ? RELATION_KIND_MEANING.drift.replace('파·해가', `${[...new Set(rels.filter((r) => RELATION_PLAIN[r.type].kind === 'drift').map((r) => r.type))].join('·')}${particle(rels.filter((r) => RELATION_PLAIN[r.type].kind === 'drift').at(-1)!.type, '이', '가')}`) : RELATION_KIND_MEANING[k]));
+    // 일간이 다른 천간과 합을 이루면 그 해석을 한 번
+    if (rs.some((r) => r.type === '천간합' && r.positions.includes('day')) && once.first('rel:stemCombineDay')) meaning.push('일간이 다른 천간과 합을 이루면, 그 기둥이 뜻하는 영역과 쉽게 결속하고 정이 들면 쉽게 떼지 못하는 모습으로 읽어요.');
     paragraphs.push([...new Set(lines)].join(' ') + ` ${areaText}에 관련된 자리예요.` + (meaning.length ? ` ${meaning.join(' ')}` : ''));
   }
-  const pull = rels.filter((r) => RELATION_PLAIN[r.type].kind === 'pull').length;
-  const push = rels.length - pull;
+  // 삼합(세 지지)에 포함된 반합은 같은 합을 두 번 세는 셈이라 빼고 센다
+  const trines = rels.filter((r) => r.type === '삼합' || r.type === '방합');
+  const counted = rels.filter((r) => !(r.type === '반합' && trines.some((t) => r.positions.every((p) => t.positions.includes(p)))));
+  const pull = counted.filter((r) => RELATION_PLAIN[r.type].kind === 'pull').length;
+  const push = counted.length - pull;
   return {
     key: 'relations',
     title,
     summary: push === 0 ? `결합하는 합이 ${pull}곳 있어요` : pull === 0 ? `긴장이 생기는 관계가 ${push}곳 있어요` : `합 ${pull}곳, 긴장 관계 ${push}곳이 있어요`,
     paragraphs,
-    basis: rels.map((r) => r.label).join(', '),
+    // 해(害)는 연도의 '해'·지지 해(亥)와 헷갈리지 않게 한자를 붙인다
+    basis: rels.map((r) => r.label.replace(/(^|\s)해$/, '$1해(害)')).join(', '),
   };
 }
 
@@ -449,20 +483,21 @@ function stagesSection(chart: SajuChart, once: Once): ReadingSection {
   const seen = new Set<string>();
   once.first('term:12운성');
   const paragraphs = [
-    '12운성은 일간의 기운이 각 지지에서 어떤 상태에 있는지를 열두 단계로 나타낸 것입니다. 기운이 생겨나 왕성해졌다가 쇠퇴하고 다시 시작되는 순환을 사람의 일생에 견주어 장생·목욕·관대·건록·제왕·쇠·병·사·묘·절·태·양이라고 불러요. 단계 이름 자체가 길흉을 뜻하지는 않으며, 보조적인 해석 지표로 봅니다.',
+    '12운성은 일간의 기운이 각 지지에서 어떤 상태에 있는지를 열두 단계로 나타낸 것입니다. 기운이 생겨나 왕성해졌다가 쇠퇴하고 다시 시작되는 순환을 사람의 일생에 견주어 장생·목욕·관대·건록·제왕·쇠·병·사·묘·절·태·양이라고 불러요. 단계 이름 자체가 길흉을 뜻하지는 않으며, 보조적인 해석 지표로 봅니다. 성향은 앞의 일간 풀이를 기준으로 보고, 12운성은 자리마다 기운이 어떤 상태인지를 더해 읽어요.',
     ...rows.map((p) => {
       const pos = POSITION_PLAIN[p.position];
       const s = TWELVE_STAGE_CONTENT[p.branch.twelveStage];
       const where = `${pos.pillar}의 지지(${pos.short})`;
       if (seen.has(s.name)) return `${where}도 ${s.name} 단계로, 앞에서 본 성향이 이 영역에서도 나타납니다.`;
       seen.add(s.name);
-      return `${where}는 ${s.name} 단계로, '${s.keyword}'${particle(s.keyword, '을', '를')} 뜻해요. ${s.meaning}`;
+      // 성향은 일간 풀이가 정한다 — 12운성은 그 자리의 기운 상태로만(단계 설명 첫 문장)
+      return `${where}는 ${s.name} 단계로, '${s.keyword}'${particle(s.keyword, '을', '를')} 뜻해요. ${s.meaning.split(/(?<=[.!?])\s+/)[0]}`;
     }),
   ];
   const day = TWELVE_STAGE_CONTENT[chart.pillars.day.branch.twelveStage];
   return {
     key: 'stages',
-    title: '12운성 — 자리별 일간의 상태',
+    title: '12운성: 자리별 일간의 상태',
     summary: `일지의 12운성은 ${day.name}('${day.keyword}')${particle(day.name, '이에요', '예요')}`,
     paragraphs,
     basis: `12운성(봉법, 일간 기준) ${rows.map((p) => `${{ year: '년', month: '월', day: '일', hour: '시' }[p.position]} ${p.branch.twelveStage}`).join(' · ')}`,
@@ -479,13 +514,14 @@ function daeunSections(chart: SajuChart, now: Date, once: Once, name: string | n
   const year = kstYear(now);
   const periods = chart.daeun.periods.slice(0, 8);
   const current = periods.find((p) => year >= p.startYear && year <= p.endYear);
-  const evs = periods.map((p) => evaluateFortune(chart, p));
+  // 대운 평가는 기본 풀이·주제 리포트와 같은 값(verdicts.ts)
+  const evs = periods.map((p) => daeunEval(chart, p));
   const forward = chart.daeun.direction === 'forward';
   const started = year - chart.solarDate.year >= chart.daeun.startAge;
   once.first('term:대운');
   const intro: ReadingSection = {
     key: 'daeun',
-    title: '대운 — 10년 단위의 큰 흐름',
+    title: '대운: 10년 단위의 큰 흐름',
     summary: current ? `지금은 ${range(current)} ${current.ganzhi.hangul} 대운을 지나고 있어요` : `만 ${chart.daeun.startAge}세에 첫 대운이 시작돼요`,
     keywords: [`대운수 ${chart.daeun.startAge}`, forward ? '순행' : '역행', ...(current ? [`지금 ${current.stemTenGod} 대운`] : [])],
     paragraphs: [
@@ -496,39 +532,61 @@ function daeunSections(chart: SajuChart, now: Date, once: Once, name: string | n
     ],
     basis: `대운수 ${chart.daeun.startAge}(정밀 ${chart.daeun.startExact.years}년 ${chart.daeun.startExact.months}개월) · ${forward ? '순행' : '역행'} · ${periods.map((p, i) => `${p.ganzhi.hangul}(${p.ganzhi.hanja}) ${p.stemTenGod}·${p.branchTenGod} ${GRADE_LABEL[evs[i]!.grade]}`).join(', ')}`,
   };
+  /** 십성 해설을 처음 쓴 대운 — 같은 십성이 다시 나오면 그 대운을 가리킨다 */
+  const generalAt = new Map<TenGod, string>();
   const each = periods.map((p, i): ReadingSection => {
     const ev = evs[i]!;
-    const fs = once.fit(ev.fit.stem, 'stem');
-    const fb = once.fit(ev.fit.branch, 'branch');
-    const c = LUCK_CONTENT.daeun[p.stemTenGod];
     const st = p.stemTenGod;
     const bt = p.branchTenGod;
     const paragraphs: string[] = [];
     const past = p.endYear < year;
     const child = p.endAge < 20;
-    // 첫 문단: 대운의 천간·지지 십성 + 천간 십성의 대운 풀이(한 권에 한 번)
-    const what = st === bt ? `천간과 지지에 모두 ${tgp(once, st, '이', '가')} 들어와요.` : `천간에 ${once.tg(st)}, 지지에 ${tgp(once, bt, '이', '가')} 들어와요.`;
-    const general = !child && once.first(`daeun:${st}`) ? ` ${st}${ro(st)} 보면, ${c.general}` : '';
-    paragraphs.push(`${past ? `${p.startYear}~${p.endYear}년은 이미 지나온 시기로, 돌아보며 읽으면 지금의 성향과 경험을 이해하는 데 참고가 돼요. ` : ''}${range(p)} 대운에는 ${what}${general}`);
-    // 지지 십성의 대운 풀이 — 같은 문장이 두 번 나오지 않게
-    if (!child && bt !== st && once.first(`daeun:${bt}`)) paragraphs.push(`지지의 ${bt}${ro(bt)} 보면, ${LUCK_CONTENT.daeun[bt].general}`);
-    const fit = [fs.text, fb.text].filter(Boolean).join(' ');
-    if (fit) paragraphs.push(fit);
-    // 유년기의 대운은 돈·연애·직장 이야기 대신 학업·친구·집안 분위기로
-    if (child) paragraphs.push(`유년기에는 대운의 기운이 학업 방식과 친구 관계, 집안 분위기로 나타납니다. ${CHILD_HINT[st]}`);
-    else paragraphs.push(`재물 — ${c.wealth}`, `애정·관계 — ${c.love}`, `일·커리어 — ${c.career}`, `건강 — ${c.health}`);
-    if (once.first(`stage:${p.twelveStage}`)) paragraphs.push(`12운성으로 보면 ${p.twelveStage}, 곧 ${STAGE_SHORT[p.twelveStage]}에 해당해요.`);
-    if (!child && !past) paragraphs.push(DAEUN_TIP[st]);
-    const hl = once.highlights(ev.highlights, 2);
-    paragraphs.push(...hl.text);
+    // 등급이 '조심'·'쉬어 갈 때'면 같은 십성이라도 주의 쪽 문구를 쓴다(제목의 등급과 본문이 엇갈리지 않게)
+    const low = isLowGrade(ev.grade);
+    const pick = (tg: TenGod) => (low ? LUCK_CONTENT.daeun[tg].low : LUCK_CONTENT.daeun[tg]);
+    const c = pick(st);
+    const fitTag = (f: ElementFit) => (f === 'neutral' ? '' : ` · ${FIT_TERM[f]}`);
+    const keywords = st === bt ? [`천간·지지 ${st}${fitTag(ev.fit.stem)}`] : [`천간 ${st}${fitTag(ev.fit.stem)}`, `지지 ${bt}${fitTag(ev.fit.branch)}`];
+    if (past) {
+      // 이미 지나간 대운 — 그때를 돌아보는 과거형으로만 쓴다(앞으로 할 일을 권하지 않는다)
+      const what = st === bt ? `천간과 지지에 모두 ${tgp(once, st, '이', '가')} 들어왔어요.` : `천간에 ${once.tg(st)}, 지지에 ${tgp(once, bt, '이', '가')} 들어왔어요.`;
+      paragraphs.push(`${once.first('daeun:past') ? `${p.startYear}~${p.endYear}년은 이미 지나온 시기라, 그때를 돌아보는 참고로 정리했어요. ` : ''}${range(p)} 대운(${p.startYear}~${p.endYear}년)에는 ${what}`);
+      paragraphs.push(child ? `유년기에는 대운의 기운이 학업 방식과 친구 관계, 집안 분위기로 나타납니다. ${CHILD_HINT[st]}` : PAST_HINT[st]);
+      if (once.first(`stage:${p.twelveStage}`)) paragraphs.push(`12운성으로 보면 ${p.twelveStage}, 곧 ${STAGE_SHORT[p.twelveStage]}에 해당했어요.`);
+    } else {
+      // 첫 문단: 대운의 천간·지지 십성 + 천간 십성의 대운 풀이(한 권에 한 번)
+      const what = st === bt ? `천간과 지지에 모두 ${tgp(once, st, '이', '가')} 들어와요.` : `천간에 ${once.tg(st)}, 지지에 ${tgp(once, bt, '이', '가')} 들어와요.`;
+      const firstGeneral = once.first(`daeun:${st}:${low}`);
+      if (firstGeneral) generalAt.set(st, range(p));
+      const general = child ? '' : firstGeneral ? ` ${st}${ro(st)} 보면, ${c.general}` : generalAt.has(st) ? ` ${st}의 흐름은 ${generalAt.get(st)} 대운에서 본 풀이를 참고하세요.` : '';
+      paragraphs.push(`${range(p)} 대운에는 ${what}${general}`);
+      // 지지 십성의 대운 풀이 — 같은 문장이 두 번 나오지 않게
+      if (!child && bt !== st && once.first(`daeun:${bt}:${low}`)) {
+        generalAt.set(bt, range(p));
+        paragraphs.push(`지지의 ${bt}${ro(bt)} 보면, ${pick(bt).general}`);
+      }
+      const fs = once.fit(ev.fit.stem, 'stem');
+      const fb = once.fit(ev.fit.branch, 'branch');
+      // 판정 설명은 한 권에 한 번 — 이미 설명한 판정은 짧게 '천간이 용신에 해당해요'로 밝힌다
+      const short = (f: ElementFit, part: '천간' | '지지') => (f === 'neutral' ? null : `${range(p)} 대운의 ${part}${part === '천간' ? '은' : '는'} ${FIT_TERM[f]}에 해당해요.`);
+      const fit = [fs.text ?? short(ev.fit.stem, '천간'), fb.text ?? short(ev.fit.branch, '지지')].filter(Boolean).join(' ');
+      if (fit) paragraphs.push(fit);
+      // 유년기의 대운은 돈·연애·직장 이야기 대신 학업·친구·집안 분위기로
+      if (child) paragraphs.push(`유년기에는 대운의 기운이 학업 방식과 친구 관계, 집안 분위기로 나타납니다. ${CHILD_HINT[st]}`);
+      else paragraphs.push(`재물: ${c.wealth}`, `애정·관계: ${c.love}`, `일·커리어: ${c.career}`, `건강: ${c.health}`);
+      if (once.first(`stage:${p.twelveStage}`)) paragraphs.push(`12운성으로 보면 ${p.twelveStage}, 곧 ${STAGE_SHORT[p.twelveStage]}에 해당해요.`);
+      if (!child && !low) paragraphs.push(DAEUN_TIP[st]);
+      paragraphs.push(...once.highlights(ev.highlights, 2).text);
+    }
+    const hlTerms = ev.highlights.filter((h) => !h.startsWith('yongsin') && !h.startsWith('gisin')).map((h) => HIGHLIGHT_TERM_REPORT[h]);
     return {
       key: `daeun-${i + 1}`,
       title: `${range(p)} · ${p.ganzhi.hangul} 대운`,
       summary: `${p.startYear}~${p.endYear}년 · ${st}(${TEN_GOD_PLAIN_LABEL[st]}) · ${GRADE_PLAIN_LABEL[ev.grade]}${p === current ? ' · 지금 지나는 대운' : ''}`,
       score: ev.scores.total,
-      keywords: [...(st === bt ? [`천간·지지 ${st}`] : [`천간 ${st}`, `지지 ${bt}`]), ...(fs.tag ? [fs.tag] : [])],
+      keywords,
       paragraphs,
-      basis: `${p.ganzhi.hangul}(${p.ganzhi.hanja}) 대운 · 천간 ${st} · 지지 ${bt} · 12운성 ${p.twelveStage} · 천간 ${FIT_TERM[ev.fit.stem]} · 지지 ${FIT_TERM[ev.fit.branch]}${hl.terms.length ? ` · ${hl.terms.join(' · ')}` : ''}`,
+      basis: `${p.ganzhi.hangul}(${p.ganzhi.hanja}) 대운 · 천간 ${st} · 지지 ${bt} · 12운성 ${p.twelveStage} · 천간 ${fitTerm(chart, ev.fit.stem, luckEls(p).stem)} · 지지 ${fitTerm(chart, ev.fit.branch, luckEls(p).branch)}${hlTerms.length ? ` · ${hlTerms.join(' · ')}` : ''}`,
     };
   });
   return [intro, ...each];
@@ -538,59 +596,61 @@ function daeunSections(chart: SajuChart, now: Date, once: Once, name: string | n
 // 열두 달 — 사주분석서와 신년운세가 함께 쓴다
 // ---------------------------------------------------------------------------
 
+/** 등급이 '좋음' 이상인 달(달력 순). 없으면 점수가 가장 높은 두 달 */
+function goodMonths(evals: { grade: string; scores: { total: number } }[]): number[] {
+  const good = evals.map((e, i) => ({ e, i })).filter(({ e }) => e.grade === 'great' || e.grade === 'good');
+  const pickFrom = good.length ? good : evals.map((e, i) => ({ e, i })).sort((a, b) => b.e.scores.total - a.e.scores.total).slice(0, 2);
+  return pickFrom.map(({ i }) => i).sort((a, b) => a - b);
+}
+
 export function monthSections(chart: SajuChart, year: number, once: Once = reportOnce()): ReadingSection[] {
   const seed = `${year}-${chart.birthUtc}`;
-  const seen = new Map<TenGod, number>();
+  const seen = new Map<string, number>();
   const months = wolun(chart.dayMaster.index, year);
   const evals = months.map((m) => evaluateFortune(chart, m, `${seed}-m${m.order}`));
   // 寅월 ≈ 양력 2월 … 丑월 = 다음 해 1월
   const label = (i: number) => (i === 11 ? `${year + 1}년 1월` : `${i + 2}월`);
   const ranked = evals.map((ev, i) => ({ i, s: ev.scores.total })).sort((a, b) => b.s - a.s);
-  const best = ranked.slice(0, 3).map((r) => r.i).sort((a, b) => a - b);
+  // '흐름이 좋은 달'은 달마다 붙인 등급과 맞게 — '좋음' 이상인 달만(없으면 상대적으로 나은 두 달)
+  const best = goodMonths(evals);
   const careful = ranked.slice(-2).map((r) => r.i).sort((a, b) => a - b);
   const intro: ReadingSection = {
     key: 'months',
     title: `${year}년 열두 달의 흐름`,
-    summary: `흐름이 좋은 달은 ${best.map(label).join('·')}이에요`,
+    summary: `${best.some((i) => evals[i]!.grade === 'great' || evals[i]!.grade === 'good') ? '흐름이 좋은 달은' : '상대적으로 흐름이 나은 달은'} ${best.map(label).join('·')}이에요`,
     keywords: [...best.map((i) => `${label(i)} ${evals[i]!.scores.total}점`)],
     paragraphs: [
       `${once.term('월운')}은 달력의 1일이 아니라 절기가 바뀌는 절입일을 기준으로 나눕니다. 그래서 2월은 ${monthDay(months[0]!.startsAt)} 무렵(${months[0]!.termName}), 3월은 ${monthDay(months[1]!.startsAt)} 무렵(${months[1]!.termName})부터 시작해요. 점수는 그달의 간지가 사주와 맺는 관계(용신에 해당하는지, 원국과 합·충을 이루는지, 12운성 등)를 반영한 달달사주 자체 지표로, 100점 만점입니다.`,
       months.map((_, i) => `${label(i)} ${evals[i]!.scores.total}점`).join(' · '),
-      `새로운 일을 시작하거나 중요한 약속을 잡기에는 ${best.map(label).join(', ')}이 비교적 유리하고, ${careful.map(label).join(', ')}에는 일정과 컨디션에 여유를 두는 것이 좋아요.`,
+      `새로운 일을 시작하거나 중요한 약속을 잡기에는 ${best.map(label).join(', ')}이 ${best.some((i) => evals[i]!.grade === 'great' || evals[i]!.grade === 'good') ? '' : '상대적으로 '}유리하고, ${careful.map(label).join(', ')}에는 일정과 컨디션에 여유를 두는 것이 좋아요.`,
     ],
     basis: `월운(절기 기준) ${months.map((m, i) => `${label(i)} ${m.ganzhi.hangul}(${m.ganzhi.hanja})`).join(' · ')}`,
   };
-  // 달 요약은 같은 등급 안에서 겹치지 않게 차례로(시작 위치만 사주마다 다르게)
-  const used = new Map<string, number>();
-  const monthSummary = (i: number) => {
-    const g = evals[i]!.grade;
-    const bank = MONTH_SUMMARY[g];
-    const n = used.get(g) ?? 0;
-    used.set(g, n + 1);
-    return n < bank.length ? bank[(hashSeed(seed) + n) % bank.length]! : `${label(i)}은 ${GRADE_PLAIN_LABEL[g]}의 흐름이에요`;
-  };
   const each = months.map((m, i): ReadingSection => {
     const ev = evals[i]!;
-    const v = (seen.get(m.stemTenGod) ?? 0) % 2;
-    seen.set(m.stemTenGod, v + 1);
-    const c = LUCK_CONTENT.month[m.stemTenGod];
+    // 제목의 등급과 본문이 엇갈리지 않게 — 조심·쉬어 갈 때인 달은 같은 십성의 주의 쪽 문구를 쓴다
+    const low = isLowGrade(ev.grade);
+    const seenKey = `${m.stemTenGod}:${low}`;
+    const v = (seen.get(seenKey) ?? 0) % 2;
+    seen.set(seenKey, v + 1);
+    const c = low ? LUCK_CONTENT.month[m.stemTenGod].low : LUCK_CONTENT.month[m.stemTenGod];
     const fs = once.fit(ev.fit.stem, 'stem');
     const hl = once.highlights(ev.highlights, 1);
     return {
       key: `month-${m.order}`,
       title: `${label(i)} · ${GRADE_PLAIN_LABEL[ev.grade]}`,
-      summary: monthSummary(i),
+      summary: c.title[v]!,
       score: ev.scores.total,
       keywords: [`${monthDay(m.startsAt)}부터`, `${m.stemTenGod} · ${TEN_GOD_PLAIN_LABEL[m.stemTenGod]}`, ...(fs.tag ? [fs.tag] : [])],
       paragraphs: [
         `${label(i)}에는 천간에 ${tgp(once, m.stemTenGod, '이', '가')} 들어와요. ${c.general[v]}`,
         ...(fs.text ? [fs.text] : []),
-        `재물 — ${c.wealth[v]}`,
-        `애정·관계 — ${c.love[v]}`,
-        `일·커리어 — ${c.career[v]}`,
-        `건강 — ${c.health[v]}`,
+        `재물: ${c.wealth[v]}`,
+        `애정·관계: ${c.love[v]}`,
+        `일·커리어: ${c.career[v]}`,
+        `건강: ${c.health[v]}`,
         ...hl.text,
-        `이달의 실천 — ${c.advice[v]}`,
+        `이달의 실천: ${c.advice[v]}`,
       ],
       basis: `${m.ganzhi.hangul}(${m.ganzhi.hanja})월 · ${m.termName}(${monthDay(m.startsAt)})부터 · 천간 ${m.stemTenGod} · 지지 ${m.branchTenGod} · ${GRADE_LABEL[ev.grade]}${hl.terms.length ? ` · ${hl.terms.join(' · ')}` : ''}`,
     };
@@ -623,8 +683,8 @@ export function buildSajuAnalysis(chart: SajuChart, now = new Date(), profileNam
     keywords: get('overview').keywords,
     points: [
       ...(reading.keyPoints ?? []).filter((k) => k.label !== '행운 포인트'),
-      ...(current ? [{ label: '지금 시기', text: `${range(current)} 대운(10년 단위의 운) · ${current.stemTenGod}, ${TEN_GOD_PLAIN_LABEL[current.stemTenGod]}의 시기예요` }] : []),
-      { label: `${target}년`, text: `${GRADE_PLAIN_LABEL[targetEv.grade]} — ${pick(FORTUNE_TEMPLATES.yearlyHeadline[targetEv.grade], `${target}-${chart.pillars.day.ganzhi.index}`)}` },
+      ...(current ? [{ label: '지금 시기', text: `${range(current)} 대운(10년 단위의 운) · ${tgLabel(current.stemTenGod)}의 시기예요` }] : []),
+      { label: `${target}년`, text: `${GRADE_PLAIN_LABEL[targetEv.grade]}: ${yearHeadline(chart, target, targetEv.grade)}` },
       ...(reading.keyPoints ?? []).filter((k) => k.label === '행운 포인트'),
     ],
     paragraphs: [
@@ -712,10 +772,12 @@ export function buildYearlyReport(chart: SajuChart, year: number, profileName: s
   const mev = months.map((m) => evaluateFortune(chart, m, `${seed}-m${m.order}`));
   const mLabel = (i: number) => (i === 11 ? `${year + 1}년 1월` : `${i + 2}월`);
   const rankBy = (k: 'total' | 'wealth' | 'love' | 'career' | 'health') => mev.map((e, i) => ({ i, s: e.scores[k] })).sort((a, b) => b.s - a.s);
-  const best = rankBy('total').slice(0, 3).map((r) => r.i).sort((a, b) => a - b);
+  const best = goodMonths(mev);
   const low = rankBy('total').slice(-2).map((r) => r.i).sort((a, b) => a - b);
   const info = ELEMENT_INFO[y.yongsin];
   const AREA_NAME = { wealth: '재물', love: '애정', career: '일', health: '건강' } as const;
+  /** 대운 문구 — 사주분석서와 같은 평가(verdicts.ts)로 등급이 낮으면 주의 쪽 문구 */
+  const daeunText = (d: DaeunPeriod) => (isLowGrade(daeunEval(chart, d).grade) ? LUCK_CONTENT.daeun[d.stemTenGod].low : LUCK_CONTENT.daeun[d.stemTenGod]);
 
   // 총운 — 세운의 천간·지지 십성, 용신·희신·기신의 뜻(처음 한 번), 운의 오행이 무엇에 해당하는지
   // '천간 정은 상관(…)에, 지지 미는 정재(…)에 해당하는 해예요' — 세운의 글자가 일간에게 어떤 십성인지
@@ -737,9 +799,9 @@ export function buildYearlyReport(chart: SajuChart, year: number, profileName: s
       score: ev.scores[key],
       summary: YEAR_AREA_SUMMARY[key][band(ev.scores[key])],
       paragraphs: [
-        `천간의 ${stg}${ro(stg)} 보면 — ${tg.inLuck[key]}`,
-        btg !== stg ? `지지의 ${btg}${ro(btg)} 보면 — ${bt.inLuck[key]}` : '',
-        daeun && !childDaeun ? `${daeun.ganzhi.hangul} 대운으로 보면 — ${LUCK_CONTENT.daeun[daeun.stemTenGod][key]}` : '',
+        `천간의 ${stg}${ro(stg)} 보면, ${tg.inLuck[key]}`,
+        btg !== stg ? `지지의 ${btg}${ro(btg)} 보면, ${bt.inLuck[key]}` : '',
+        daeun && !childDaeun ? `${daeun.ganzhi.hangul} 대운으로 보면, ${daeunText(daeun)[key]}` : '',
         AREA_MONTH_LINE[key](mLabel(r[0]!.i), mLabel(r[r.length - 1]!.i)),
       ].filter(Boolean),
       basis: `천간 ${stg} · 지지 ${btg}${daeun ? ` · ${daeun.ganzhi.hangul} 대운 ${daeun.stemTenGod}` : ''} · ${AREA_NAME[key]} 점수 ${ev.scores[key]}(달달사주 기준)`,
@@ -751,7 +813,7 @@ export function buildYearlyReport(chart: SajuChart, year: number, profileName: s
       key: 'total',
       title: `${year}년 한눈에 보기`,
       score: ev.scores.total,
-      summary: pick(FORTUNE_TEMPLATES.yearlyHeadline[ev.grade], seed),
+      summary: yearHeadline(chart, year, ev.grade),
       keywords: [`${stg} · ${TEN_GOD_PLAIN_LABEL[stg]}`, GRADE_PLAIN_LABEL[ev.grade], `${ev.scores.total}점`],
       points: [
         { label: '올해의 흐름', text: `${GRADE_PLAIN_LABEL[ev.grade]} (${ev.scores.total}점, 달달사주 기준)` },
@@ -769,7 +831,7 @@ export function buildYearlyReport(chart: SajuChart, year: number, profileName: s
         `${once.term('12운성')}으로 보면 올해의 지지에서 일간은 ${stage.name} 단계로, '${stage.keyword}'${particle(stage.keyword, '을', '를')} 뜻해요. ${stage.meaning}`,
         ...hl.text,
       ].filter(Boolean),
-      basis: `${ev.pillar.ganzhi.hangul}(${ev.pillar.ganzhi.hanja})년 · 천간 ${stg} · 지지 ${btg} · 12운성 ${ev.pillar.twelveStage} · ${GRADE_LABEL[ev.grade]} · 천간 ${FIT_TERM[ev.fit.stem]} · 지지 ${FIT_TERM[ev.fit.branch]}${hl.terms.length ? ` · ${hl.terms.join(' · ')}` : ''}`,
+      basis: `${ev.pillar.ganzhi.hangul}(${ev.pillar.ganzhi.hanja})년 · 천간 ${stg} · 지지 ${btg} · 12운성 ${ev.pillar.twelveStage} · ${GRADE_LABEL[ev.grade]} · 천간 ${fitTerm(chart, ev.fit.stem, luckEls(ev.pillar).stem)} · 지지 ${fitTerm(chart, ev.fit.branch, luckEls(ev.pillar).branch)}${hl.terms.length ? ` · ${hl.terms.join(' · ')}` : ''}`,
     },
     {
       key: 'daeunContext',
@@ -780,7 +842,7 @@ export function buildYearlyReport(chart: SajuChart, year: number, profileName: s
             `${year}년은 ${range(daeun)}(${daeun.startYear}~${daeun.endYear}년) ${daeun.ganzhi.hangul} ${once.term('대운')} 안에 있습니다. 한 해의 운은 대운의 흐름 위에서 함께 해석해요.`,
             childDaeun
               ? `이 대운의 천간은 ${once.tg(daeun.stemTenGod)}${ieyo(daeun.stemTenGod)}. 유년기의 대운은 학업 방식과 친구 관계, 집안 분위기로 나타납니다.`
-              : `이 대운의 천간은 ${once.tg(daeun.stemTenGod)}${ieyo(daeun.stemTenGod)}. ${daeun.stemTenGod}${ro(daeun.stemTenGod)} 보면, ${LUCK_CONTENT.daeun[daeun.stemTenGod].general}`,
+              : `이 대운의 천간은 ${once.tg(daeun.stemTenGod)}${ieyo(daeun.stemTenGod)}. ${daeun.stemTenGod}${ro(daeun.stemTenGod)} 보면, ${daeunText(daeun).general} 이 대운은 달달사주 기준 '${GRADE_PLAIN_LABEL[daeunEval(chart, daeun).grade]}'에 해당해요.`,
           ]
         : [`아직 첫 ${once.term('대운')}이 시작되기 전이에요. 대운이 시작되기 전에는 타고난 원국과 그해의 세운을 중심으로 해석하며, 그만큼 한 해의 흐름이 비교적 직접 드러나요.`],
       basis: daeun ? `${daeun.ganzhi.hangul}(${daeun.ganzhi.hanja}) 대운 ${daeun.startYear}~${daeun.endYear} · 천간 ${daeun.stemTenGod} · 지지 ${daeun.branchTenGod}` : `대운수 ${chart.daeun.startAge}`,
@@ -835,12 +897,8 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
   const shown = (f: CompatibilityFactor) => f.key.startsWith('stem_') || f.category === 'complement';
   const posRest = pos.filter((f) => !shown(f));
   const negRest = [...neg, ...neutral].filter((f) => !shown(f));
-  /** 가장 많은 십성 무리 — 같은 수면 모두 */
-  const topGroups = (c: SajuChart) => {
-    const g = groupCount(c);
-    const max = Math.max(...GROUPS.map((k) => g[k]));
-    return GROUPS.filter((k) => g[k] === max);
-  };
+  /** 가장 큰 십성 무리 — 다른 보고서와 같은 기준(자리별 가중 세력, verdicts.ts) */
+  const topGroups = (c: SajuChart) => [dominantGroup(c)];
   const gas = topGroups(a);
   const gbs = topGroups(b);
   const ga = gas[0]!;
@@ -955,7 +1013,7 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
     const n = displayName(raw);
     const named = personalize(dm.love, dm.name.slice(0, 2), n);
     if (n && named.includes(`${n}님`)) return named;
-    return `${who(label, '의')} 연애 — ${personalize(dm.love, dm.name.slice(0, 2), null).replace(/^연애에서(도)? /, '')}`;
+    return `${who(label, '의')} 연애: ${personalize(dm.love, dm.name.slice(0, 2), null).replace(/^연애에서(도)? /, '')}`;
   };
   const weakOf = (dm: typeof dmA) => dm.weaknesses[0]!.split(' — ')[0]!.trim().replace(/[.]$/, '');
   const yongA = a.yongsin.yongsin;
@@ -964,12 +1022,12 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
   const basisFactors = r.factors.map(factorTerm).join(' · ');
   const stemA = stemName(a);
   const stemB = stemName(b);
-  const groupLine = (gs: TenGodGroup[]) => `${gs.map((g) => `${g}(${GROUP_PLAIN[g].def})`).join('과 ')}${particle(gs[gs.length - 1]!, '이', '가')}`;
+  const groupLine = (gs: TenGodGroup[]) => gs.map((g) => `${g}(${GROUP_PLAIN[g].def})`).join('과 ');
   /** 대운 한 줄 — 대운의 뜻은 처음 한 번만 */
   const daeunLine = (label: string, d: DaeunPeriod, same: boolean) =>
     same
       ? `${who(label, '도')} 지금 ${range(d)}(${d.startYear}~${d.endYear}년) ${d.ganzhi.hangul} ${terms.term('대운')}으로, 대운의 천간이 같은 ${d.stemTenGod}${ieyo(d.stemTenGod)}. 두 사람이 비슷한 성격의 시기를 함께 지나는 셈이에요.`
-      : `${who(label, '은/는')} 지금 ${range(d)}(${d.startYear}~${d.endYear}년) ${d.ganzhi.hangul} ${terms.term('대운')}을 지나고 있으며, 대운의 천간은 ${terms.tg(d.stemTenGod)}${ieyo(d.stemTenGod)}. ${LUCK_CONTENT.daeun[d.stemTenGod].love}`;
+      : `${who(label, '은/는')} 지금 ${range(d)}(${d.startYear}~${d.endYear}년) ${d.ganzhi.hangul} ${terms.term('대운')}을 지나고 있으며, 대운의 천간은 ${terms.tg(d.stemTenGod)}${ieyo(d.stemTenGod)}. ${(isLowGrade(daeunEval(label === A ? a : b, d).grade) ? LUCK_CONTENT.daeun[d.stemTenGod].low : LUCK_CONTENT.daeun[d.stemTenGod]).love}`;
 
   return [
     {
@@ -1069,23 +1127,23 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
       key: 'categories',
       title: '영역별 궁합',
       summary: (Object.keys(CATEGORY_LABEL) as (keyof typeof CATEGORY_LABEL)[]).map((k) => `${CATEGORY_LABEL[k]} ${r.categories[k]}`).join(' · '),
-      paragraphs: (Object.keys(CATEGORY_LABEL) as (keyof typeof CATEGORY_LABEL)[]).map((k) => `${CATEGORY_LABEL[k]} ${r.categories[k]}점 — ${REPORT_MISC.compatCategory[k][band(r.categories[k])]}`),
+      paragraphs: (Object.keys(CATEGORY_LABEL) as (keyof typeof CATEGORY_LABEL)[]).map((k) => `${CATEGORY_LABEL[k]} ${r.categories[k]}점: ${REPORT_MISC.compatCategory[k][band(r.categories[k])]}`),
       basis: basisFactors,
     },
     {
       key: 'communication',
       title: '대화와 표현 방식',
-      summary: ga === gb ? `두 사람 모두 ${ga}${particle(ga, '이', '가')} 많아 표현 방식이 닮았어요` : '서로 다른 방식으로 마음을 전해요',
+      summary: ga === gb ? `두 사람 모두 ${ga}${particle(ga, '이', '가')} 가장 큰 무리라 표현 방식이 닮았어요` : '서로 다른 방식으로 마음을 전해요',
       paragraphs: [
-        `일간을 기준으로 다른 글자와의 관계를 나눈 십성으로 보면, ${who(A, '은/는')} ${groupLine(gas)} 가장 많아요. ${REPORT_MISC.compatCommunication[ga]}`,
+        `일간을 기준으로 다른 글자와의 관계를 나눈 십성으로 보면, ${who(A, '의')} 사주에서 세력(달달사주 기준)이 가장 큰 무리는 ${groupLine(gas)}${ieyo(ga)}. ${REPORT_MISC.compatCommunication[ga]}`,
         ga === gb
-          ? `${who(B, '도')} ${ga}${particle(ga, '이', '가')} 가장 많아, 마음을 전하는 방식이 닮은 편이에요.`
-          : `${who(B, '은/는')} ${groupLine(gbs)} 가장 많아요. ${REPORT_MISC.compatCommunication[gb]}`,
+          ? `${who(B, '도')} ${ga}${particle(ga, '이', '가')} 가장 큰 무리라, 마음을 전하는 방식이 닮은 편이에요.`
+          : `${who(B, '의')} 사주에서 가장 큰 무리는 ${groupLine(gbs)}${ieyo(gb)}. ${REPORT_MISC.compatCommunication[gb]}`,
         ga === gb
           ? '같은 방식으로 마음을 표현하니 오해는 적지만, 두 사람이 같은 지점에서 지치기도 해요. 가끔은 상대가 잘 쓰지 않는 방식으로 먼저 다가가 보세요.'
           : '표현 방식이 다르면 서로에게 없는 표현을 배울 수 있어요. 상대의 방식이 마음에 들지 않을 때는 고치라고 하기보다 왜 그렇게 하는지 먼저 물어보세요.',
       ],
-      basis: `가장 많은 십성 무리 ${A} ${gas.join('·')} · ${B} ${gbs.join('·')}`,
+      basis: `가장 큰 십성 무리(가중 세력) ${A} ${gas.join('·')} · ${B} ${gbs.join('·')}`,
     },
     {
       key: 'conflict',
@@ -1117,11 +1175,11 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
       summary: '상대가 힘을 얻는 순간과 조심할 지점',
       paragraphs: [
         `${who(A, '은/는')} ${list(dmA.strengths.slice(2, 4), '을', '를')} 알아봐 줄 때 힘을 얻는 편이에요. 때로는 이런 모습이 보이기도 해요. ${weakOf(dmA)}. 그럴 때는 너그럽게 받아 주면 좋습니다.`,
-        `${who(A, '에게')} 건네면 좋은 말 — ${dmA.advice}`,
+        `${who(A, '에게')} 건네면 좋은 말: ${dmA.advice}`,
         sameStem
           ? `${who(B, '도')} 같은 강점에서 힘을 얻으니, 서로의 노력을 먼저 알아봐 주세요.`
           : `${who(B, '은/는')} ${list(dmB.strengths.slice(2, 4), '을', '를')} 알아봐 줄 때 힘을 얻는 편이에요. 이런 모습이 보일 때도 있어요. ${weakOf(dmB)}. 그럴 때는 조금 더 기다려 주는 것이 좋습니다.`,
-        ...(sameStem ? [] : [`${who(B, '에게')} 건네면 좋은 말 — ${dmB.advice}`]),
+        ...(sameStem ? [] : [`${who(B, '에게')} 건네면 좋은 말: ${dmB.advice}`]),
       ],
       basis: `${A} ${dmA.name} · ${B} ${dmB.name}`,
     },
@@ -1155,7 +1213,7 @@ export function buildCompatibilityReport(a: SajuChart, b: SajuChart, r: Compatib
               ? ['두 사람의 점수 차이가 큰 해라, 여유가 있는 쪽이 상대의 속도를 기다려 주면 관계가 안정됩니다.', '두 사람의 흐름이 엇갈리는 해라, 흐름이 좋은 쪽이 상대의 일을 먼저 도와주면 좋습니다.'][i]
               : ['두 사람 모두 차분히 다지는 해라, 큰 결정보다 일상의 리듬을 맞추는 데 힘을 쓰는 것이 좋아요.', '두 사람 모두 무난하게 흐르는 해라, 함께하는 작은 습관을 하나 만들기 좋습니다.'][i];
           const sewoon = i === 0 ? terms.term('세운') : '세운';
-          return `${ya[i]!.yr}년 — ${sewoon}의 천간이 ${who(A, '에게')} ${ea.pillar.stemTenGod}, ${who(B, '에게')} ${eb.pillar.stemTenGod}${particle(eb.pillar.stemTenGod, '으로', '로')} 들어오는 해예요. 달달사주 점수는 ${who(A, '은/는')} ${ea.scores.total}점, ${who(B, '은/는')} ${eb.scores.total}점이에요. ${tail}`;
+          return `${ya[i]!.yr}년: ${sewoon}의 천간이 ${who(A, '에게')} ${ea.pillar.stemTenGod}, ${who(B, '에게')} ${eb.pillar.stemTenGod}${particle(eb.pillar.stemTenGod, '으로', '로')} 들어오는 해예요. 달달사주 점수는 ${who(A, '은/는')} ${ea.scores.total}점, ${who(B, '은/는')} ${eb.scores.total}점이에요. ${tail}`;
         }),
         `${target}년 ${terms.term('월운')}으로 보면 두 사람의 점수가 함께 높은 달은 ${goodTogether.map((i) => monthsA[i]!.label).join('·')}이에요. 여행이나 중요한 약속은 이때 잡으세요. ${monthsA[lowTogether]!.label}은 두 사람의 점수가 함께 낮은 달이라 일정에 여유를 두는 것이 좋습니다.`,
       ],

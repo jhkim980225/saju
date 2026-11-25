@@ -28,7 +28,7 @@ test('연애·결혼운 — 내 사주에서 결제하고 바로 열어 읽은 �
   // 이어서 읽기 → 내 사주의 리포트 카드 자리로 돌아오고, 산 리포트는 '보고서 열기'
   await page.getByRole('button', { name: '이어서 읽기' }).click();
   await expect(page).toHaveURL(new RegExp(`/saju/${profile.id}#topic-reports$`));
-  const open = page.getByRole('article', { name: '연애·결혼운 리포트' }).getByRole('button', { name: '보고서 열기' });
+  const open = page.getByRole('article', { name: '연애·결혼운 리포트' }).getByRole('button', { name: '리포트 열기' });
   await expect(open).toBeVisible();
   await expect(page.getByRole('article', { name: '재물·직업운 리포트' }).getByRole('button', { name: '구매하기' })).toBeVisible();
   await open.scrollIntoViewIfNeeded();
@@ -54,7 +54,7 @@ test('연애·결혼운 — 내 사주에서 결제하고 바로 열어 읽은 �
   await expect(link.getByText('연애·결혼운', { exact: true })).toBeVisible();
   const libraryLove = page.getByRole('article', { name: '연애·결혼운 리포트' });
   await libraryLove.scrollIntoViewIfNeeded();
-  await libraryLove.getByRole('button', { name: '보고서 열기' }).click();
+  await libraryLove.getByRole('button', { name: '리포트 열기' }).click();
   await expect(page).toHaveURL(reportUrl);
 
   const orders = await apiCall<{ productId: string; status: string }[]>(api, 'GET', '/orders', { token: tokens.accessToken });
@@ -84,11 +84,11 @@ test('재물·직업운 — 상점에서 프로필을 골라 결제하고, 산 �
   // 상점에서 같은 프로필을 다시 고르면 결제하지 않고 바로 연다
   await page.goto('/store');
   await page.getByRole('listitem').filter({ hasText: '재물·직업운 리포트' }).getByRole('button', { name: '구매하기' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: /도윤.*보고서 열기/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /도윤.*리포트 열기/ }).click();
   await expect(page).toHaveURL(/\/reports\/[\w-]+$/);
   await expect(page.getByRole('main').getByRole('heading', { level: 1, name: '도윤님의 재물·직업운 리포트' })).toBeVisible();
   await expect.poll(() => page.locator('section[id^="sec-"]').count()).toBe(12);
-  await expect(page.getByText('재물운은 투자 조언이 아닙니다. 투자 결정은 본인의 판단과 전문가의 조언에 따라 주세요.')).toBeVisible();
+  await expect(page.getByText('재물운은 투자 조언이 아니에요. 투자 결정은 본인의 판단과 전문가의 조언에 따라 주세요.')).toBeVisible();
 
   await page.getByRole('button', { name: 'PDF로 저장' }).last().click();
   await expect.poll(() => page.evaluate(() => (window as unknown as { __printed: number }).__printed)).toBe(1);

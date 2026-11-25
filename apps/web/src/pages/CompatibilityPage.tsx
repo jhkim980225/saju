@@ -1,3 +1,4 @@
+import { Share2 } from 'lucide-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { ProductDto, ReadingSection } from '@saju/shared';
 import { useEffect, useState } from 'react';
@@ -83,7 +84,7 @@ export function CompatibilityPage() {
         )}
         <div className="lg:grid lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start lg:gap-12">
           {list.length > 0 && (
-            <div className="lg:sticky lg:top-24">
+            <div className="lg:sticky lg:top-8">
               <h2 className="mt-2 font-serif text-[22px] font-semibold">{t('compatibility.pickTitle')}</h2>
               <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                 <button type="button" onClick={() => setPicking('a')} className="h-14 rounded-2xl border border-line-strong bg-surface px-3 font-semibold">
@@ -109,7 +110,7 @@ export function CompatibilityPage() {
             {list.length > 0 && !b && (
               <div className="mt-10 rounded-2xl border border-dashed border-line-strong p-6 text-center lg:mt-2 lg:p-10">
                 <p className="font-serif text-lg">두 사람이 얼마나 잘 맞는지 볼까요?</p>
-                <p className="mt-2 text-sm text-ink-2">상대를 선택하면 두 사람의 사주를 비교해 궁합 점수와 잘 맞는 점을 보여 드립니다. 상대는 마이에서 추가할 수 있어요.</p>
+                <p className="mt-2 text-sm text-ink-2">상대를 선택하면 두 사람의 사주를 비교해 궁합 점수와 잘 맞는 점을 보여 드려요. 목록에 없는 상대는 고르는 화면에서 새로 추가할 수 있어요.</p>
                 <Button className="mt-4" onClick={() => setPicking('b')}>
                   {t('compatibility.pickPerson')}
                 </Button>
@@ -127,7 +128,7 @@ export function CompatibilityPage() {
                   <p className="mt-1 text-sm font-semibold text-gold">{r.gradeLabel}</p>
                   <p className="mt-4 font-serif text-lg leading-snug">{r.headline}</p>
                   <p className="mt-2 text-xs text-ink-3">두 사람의 태어난 날 글자(일간·일지)와 띠의 관계, 오행의 보완 정도를 달달사주 기준으로 환산한 점수예요(100점 만점, 서비스 자체 지표).</p>
-                  <p className="mt-6 text-left text-sm text-ink-3">항목별 점수 — 막대가 길수록 잘 맞는 편입니다.</p>
+                  <p className="mt-6 text-left text-sm text-ink-3">항목별 점수예요. 막대가 길수록 잘 맞아요.</p>
                   <ul className="mt-3 space-y-3 text-left">
                     {(Object.keys(CAT_LABEL) as (keyof typeof CAT_LABEL)[]).map((k) => (
                       <li key={k}>
@@ -138,18 +139,25 @@ export function CompatibilityPage() {
                   </ul>
                 </Card>
                 <div className="mt-2">
-                  {r.sections.map((s: ReadingSection) => (
-                    <ReadingSectionCard key={s.key} section={s} onUnlock={() => unlock.mutate()} price={compatProduct?.purchasable ? won(compatProduct.price) : undefined} />
+                  {r.sections.map((s: ReadingSection, i: number) => (
+                    <ReadingSectionCard
+                      key={s.key}
+                      section={s}
+                      onUnlock={() => unlock.mutate()}
+                      price={compatProduct?.purchasable ? won(compatProduct.price) : undefined}
+                      compactLock={r.sections.findIndex((x: ReadingSection) => x.locked) < i}
+                    />
                   ))}
                 </div>
                 {a && b && !r.sections.some((s: ReadingSection) => s.locked) && (
                   <OpenReportCard
                     dto={{ type: 'compatibility', profileId: a, partnerProfileId: b }}
                     title="궁합 리포트 전체"
-                    body="두 사람의 타고난 성향과 오행의 균형, 끌림과 주의할 점, 대화·갈등 방식, 서로를 대하는 방법, 올해·내년의 흐름까지 담은 리포트입니다."
+                    body="두 사람의 타고난 성향과 오행의 균형, 끌림과 주의할 점, 대화·갈등 방식, 서로를 대하는 방법, 올해·내년의 흐름까지 담은 리포트예요."
                   />
                 )}
-                <Button variant="secondary" block className="mt-2" onClick={() => setShareOpen(true)}>
+                <Button variant="secondary" block className="mt-2 lg:w-auto lg:px-8" onClick={() => setShareOpen(true)}>
+                  <Share2 className="size-4" aria-hidden />
                   {t('common.share')}
                 </Button>
                 <ShareSheet

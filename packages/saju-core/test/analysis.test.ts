@@ -5,6 +5,7 @@ import {
   dayPillarOf,
   evaluateFortune,
   findRelations,
+  findShinsal,
   gongmangOf,
   seun,
   tenGodOf,
@@ -156,5 +157,52 @@ describe('궁합', () => {
     expect(other).not.toBeNull();
     const r = calculateCompatibility(sample, other!);
     expect(r.factors.some((f) => f.key === 'stem_combine')).toBe(true);
+  });
+});
+
+describe('신강·신약: 삼합·방합 반영', () => {
+  // 1995-03-14 14:30 여성 = 乙亥 己卯 甲辰 辛未 — 亥卯未 삼합 목국, 일간 甲木
+  const chart = calculateSaju({ calendar: 'solar', year: 1995, month: 3, day: 14, hour: 14, minute: 30, gender: 'female' });
+  it('亥卯未 목국이 일간(목)을 돕는 쪽으로 강약에 반영된다', () => {
+    expect(chart.relations.some((r) => r.type === '삼합')).toBe(true);
+    // 합을 보지 않던 때는 55(중화)였다. 목국이 일간을 도우므로 신강 쪽으로 올라간다
+    expect(chart.strength.score).toBeGreaterThan(58);
+  });
+});
+
+describe('신살', () => {
+  // 전통 표: 천을귀인(甲戊庚 丑未 · 乙己 子申 · 丙丁 亥酉 · 辛 寅午 · 壬癸 巳卯)
+  const CHEONEUL_TABLE: [number, number[]][] = [
+    [0, [1, 7]], [1, [0, 8]], [2, [11, 9]], [3, [11, 9]], [4, [1, 7]],
+    [5, [0, 8]], [6, [1, 7]], [7, [2, 6]], [8, [5, 3]], [9, [5, 3]],
+  ];
+  it.each(CHEONEUL_TABLE)('일간 %i의 천을귀인 지지는 %j', (dayStem, branches) => {
+    for (let b = 0; b < 12; b++) {
+      // 시주 지지만 바꿔 가며 천을귀인이 시주에 잡히는지 본다
+      const found = findShinsal([
+        { position: 'year', stem: 0, branch: 2 },
+        { position: 'month', stem: 2, branch: 2 },
+        { position: 'day', stem: dayStem, branch: 2 },
+        { position: 'hour', stem: 0, branch: b },
+      ]).some((s) => s.name === '천을귀인' && s.positions.includes('hour'));
+      expect(found, `branch ${b}`).toBe(branches.includes(b));
+    }
+  });
+
+  it('乙亥 己卯 甲辰 辛未 — 귀인·살이 전통 기준대로 잡힌다', () => {
+    const c = calculateSaju({ calendar: 'solar', year: 1995, month: 3, day: 14, hour: 14, minute: 30, gender: 'female' });
+    expect([c.pillars.year, c.pillars.month, c.pillars.day, c.pillars.hour].map((p) => p!.ganzhi.hanja)).toEqual(['乙亥', '己卯', '甲辰', '辛未']);
+    const at = (name: string) => c.shinsal.filter((s) => s.name === name).flatMap((s) => s.positions).sort();
+    expect(at('천을귀인')).toEqual(['hour']); // 甲 → 未
+    expect(at('학당귀인')).toEqual(['year']); // 甲의 장생지 亥
+    expect(at('월덕귀인')).toEqual(['day']); // 卯월(亥卯未) → 甲
+    expect(at('천덕귀인')).toEqual([]); // 卯월 → 申, 원국에 없음
+    expect(at('문창귀인')).toEqual([]); // 甲 → 巳, 원국에 없음
+    expect(at('양인살')).toEqual(['month']); // 甲 → 卯
+    expect(at('백호살')).toEqual(['day']); // 甲辰
+    expect(at('화개살')).toEqual(['hour']); // 년지 亥(亥卯未) → 未
+    expect(at('공망')).toEqual(['month']); // 甲辰일 → 寅卯 공망
+    expect(at('원진살')).toEqual(['year']); // 辰亥
+    expect(at('귀문관살')).toEqual(['year']); // 辰亥
   });
 });

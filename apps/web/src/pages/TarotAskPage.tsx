@@ -225,7 +225,8 @@ export function TarotAskPage() {
           <p className="flex items-baseline justify-between text-[15px] font-semibold">
             {t('tarot.question.spreadLabel')}
             <span className="text-sm font-normal text-ink-3">
-              {spread.name} · {t('tarot.spreads.cardCount', { count: spread.cards })}
+              {/* '질문 리딩 3장'처럼 이름에 장수가 이미 있으면 '· 3장'을 덧붙이지 않는다 */}
+              {/\d장/.test(spread.name) ? spread.name : `${spread.name} · ${t('tarot.spreads.cardCount', { count: spread.cards })}`}
             </span>
           </p>
           <TarotSpreadSlots className="mt-3" spread={spreadKey} renderCard={() => <TarotCardBack className="opacity-60" />} />

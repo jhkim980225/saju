@@ -41,7 +41,7 @@ test('전문가 보기 표의 용어를 누르면 뜻이 뜨고, 사주 기초 �
   await expect(basics).toBeHidden();
 
   // 표 아래 '사주가 처음이라면'도 같은 팝업
-  await page.getByRole('button', { name: '사주가 처음이라면 — 사주 기초 보기' }).click();
+  await page.getByRole('button', { name: '사주가 처음이라면 사주 기초부터 보기' }).click();
   await expect(page.getByRole('dialog', { name: '사주 기초' })).toBeVisible();
 });
 
@@ -49,7 +49,7 @@ test('첫 화면에서는 사주 기초가 팝업으로 열리고, 전체 운세
   await page.goto('/');
   // 입력하던 값이 그대로 남아 있어야 한다
   await page.locator('#name').fill('서윤');
-  await page.getByRole('button', { name: /사주 기초 (자세히 )?보기/ }).click();
+  await page.getByRole('button', { name: /사주 기초(부터| 자세히)? 보기/ }).click();
   const basics = page.getByRole('dialog', { name: '사주 기초' });
   await expect(basics.getByRole('heading', { name: "사주를 해석하는 기준은 일간이에요" })).toBeVisible();
   await expect(page).toHaveURL(/\/$/);
@@ -66,7 +66,7 @@ test('달달사주 자체 계산 기준은 전통 개념과 따로 표시한다'
   await page.goto('/basics');
   // 신강·신약 점수, 대운 시작 나이, 용신 계산 방식
   await expect(page.getByText(/일간의 강약을 0~100점으로 환산해/)).toBeVisible();
-  await expect(page.getByText(/서비스 자체 지표입니다/)).toBeVisible();
+  await expect(page.getByText(/서비스 자체 지표예요/)).toBeVisible();
   await expect(page.getByText(/3으로 나누어 대운 시작 나이/)).toBeVisible();
   await expect(page.getByText(/조후와 격국은 반영하지 않은 참고용 판단/)).toBeVisible();
 });

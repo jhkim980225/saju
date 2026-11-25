@@ -19,7 +19,7 @@ test('예·아니오: 무료 한 장으로 기울기를 보여 주고, 하루 �
   await expect(page).toHaveURL(/\/tarot\/ask\?topic=yesno$/);
 
   // 질문이 있어야 섞을 수 있고, '질문 없이 뽑기'는 없다
-  await expect(page.getByRole('button', { name: '질문 없이 뽑을게요' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '질문 없이 카드 뽑기' })).toHaveCount(0);
   await page.getByRole('button', { name: '카드 섞기' }).click();
   await expect(page.getByRole('alert')).toHaveText('예·아니오로 답할 수 있는 질문을 적어 주세요.');
   await page.getByLabel(/나의 질문/).fill('이번 주말에 먼저 연락해 볼까요?');

@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReportDto, ReportType } from '@saju/shared';
 import { ArrowLeft, ChevronRight, Loader2, Printer } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { Page } from '@/components/AppShell';
 import { DaeunTimeline } from '@/components/DaeunTimeline';
 import { ELEMENT_COUNT_NOTE, ElementBars } from '@/components/ElementBars';
@@ -10,12 +10,12 @@ import { PillarTable } from '@/components/PillarTable';
 import { ReadingSectionCard } from '@/components/ReadingSection';
 import { toast } from '@/components/Toast';
 import { TopicReportCards } from '@/components/TopicReportCards';
-import { Badge, Button, Card, Chip, EmptyState, ErrorState, IconButton, PageHeader, Spinner } from '@/components/ui';
+import { Badge, Button, Card, Chip, EmptyState, ErrorState, IconButton, PageHeader, Spinner, cx } from '@/components/ui';
 import { qk, useProfiles } from '@/hooks/queries';
 import { api } from '@/lib/api';
-import { t } from '@/lib/copy';
+import { honorOf, t } from '@/lib/copy';
 import { formatDateKo } from '@/lib/format';
-import { isNativeApp, nativePlatform } from '@/lib/platform';
+import { IS_TOSS, isNativeApp, nativePlatform } from '@/lib/platform';
 import { STORAGE_KEYS, storage } from '@/lib/storage';
 import { printCurrentPage } from '@/native';
 
@@ -47,7 +47,7 @@ export function ReportsPage() {
       />
       <Page width="medium" className="pb-10">
         {q.isLoading && <Spinner />}
-        {q.data && !taekil.isLoading && items.length === 0 && <EmptyState title={t('empty.history.title')} body="구매한 리포트는 여기에 보관돼요." action={<Button onClick={() => navigate('/saju')}>{t('empty.history.cta')}</Button>} />}
+        {q.data && !taekil.isLoading && items.length === 0 && <EmptyState title={IS_TOSS ? '아직 구매한 리포트가 없어요' : t('empty.history.title')} body="구매한 리포트는 여기에 보관돼요." action={<Button onClick={() => navigate('/saju')}>{t('empty.history.cta')}</Button>} />}
         <ul className="mt-2 space-y-2">
           {items.map((r) => (
             <li key={r.id}>
@@ -74,7 +74,7 @@ export function ReportsPage() {
                 ))}
               </div>
             )}
-            <TopicReportCards profileId={target.id} name={target.name} returnTo="/my/reports" heading={`${target.name}님의 주제별 리포트`} className={profileList.length > 1 ? 'mt-4' : 'mt-6'} />
+            <TopicReportCards profileId={target.id} name={target.name} returnTo="/my/reports" heading={`${honorOf(target.name)} 주제별 리포트`} className={profileList.length > 1 ? 'mt-4' : 'mt-6'} />
           </div>
         )}
       </Page>
@@ -128,6 +128,7 @@ const READING_SCROLL_Y = 240;
 function sectionInView(): { key: string; top: number } | null {
   let found: { key: string; top: number } | null = null;
   for (const el of document.querySelectorAll<HTMLElement>('section[id^="sec-"]')) {
+    if (el.closest('.hidden')) continue; // 다른 탭에 있어 보이지 않는 섹션
     const top = el.getBoundingClientRect().top;
     if (top > window.innerHeight / 3) break;
     found = { key: el.id.slice('sec-'.length), top };
@@ -162,6 +163,31 @@ function PolishingNotice({ progress }: { progress: ReportDto['progress'] }) {
     </div>
   );
 }
+
+/**
+ * 사주분석서는 섹션이 40개 가까이 되어 한 줄로 읽기에는 너무 길다. 주제별 탭으로 나눠 한 번에 한 묶음만 보여 준다.
+ * 섹션 key 로 탭을 고르고, 규칙에 없는 섹션은 바로 앞 섹션의 탭을 따른다. 인쇄(PDF)할 때는 모든 탭을 순서대로 찍는다.
+ */
+const LIFETIME_TABS: { id: string; label: string; match: (key: string) => boolean }[] = [
+  { id: 'nature', label: '타고난 사주', match: (k) => ['personality', 'chart', 'elements', 'strength', 'yongsin', 'tenGods', 'shinsal', 'relations', 'stages'].includes(k) },
+  { id: 'areas', label: '분야별 운', match: (k) => ['wealth', 'love', 'career', 'health', 'closing'].includes(k) },
+  { id: 'daeun', label: '대운', match: (k) => k === 'daeun' || k.startsWith('daeun-') },
+  { id: 'years', label: '연도별 운세', match: (k) => /^year\d{4}$/.test(k) || k === 'months' || k.startsWith('month-') },
+];
+
+function groupByTab(sections: ReportDto['sections']) {
+  const groups = new Map(LIFETIME_TABS.map((tab) => [tab.id, [] as ReportDto['sections']]));
+  let current = LIFETIME_TABS[0]!.id;
+  for (const s of sections) {
+    current = LIFETIME_TABS.find((tab) => tab.match(s.key))?.id ?? current;
+    groups.get(current)!.push(s);
+  }
+  return LIFETIME_TABS.map((tab) => ({ ...tab, sections: groups.get(tab.id)! })).filter((tab) => tab.sections.length > 0);
+}
+
+/** 탭 막대가 붙는 높이 — 모바일 PageHeader(56px), PC 상단 메뉴(64px) */
+// 화면 위에 붙는 막대 높이 — 모바일은 PageHeader(56px), 데스크톱은 상단 막대가 없다(왼쪽 사이드바)
+const stickyTop = () => (window.innerWidth >= 1024 ? 0 : 56);
 
 export function ReportViewPage() {
   const navigate = useNavigate();
@@ -235,6 +261,50 @@ export function ReportViewPage() {
   // 첫 섹션에 '한눈에 보기'(points)가 있으면 표와 차트보다 먼저 보여 준다(옛 저장본은 그대로 순서대로)
   const lead = report?.sections[0]?.points?.length ? report.sections[0] : null;
   const rest = report ? (lead ? report.sections.slice(1) : report.sections) : [];
+  const tabs = report?.type === 'lifetime' ? groupByTab(rest) : null;
+  const [params, setParams] = useSearchParams();
+  const activeTab = tabs?.find((tab) => tab.id === params.get('tab'))?.id ?? tabs?.[0]?.id;
+  const tabBar = useRef<HTMLDivElement>(null);
+  const selectTab = (tabId: string) => {
+    setParams(
+      (p) => {
+        const next = new URLSearchParams(p);
+        next.set('tab', tabId);
+        return next;
+      },
+      // 주소가 바뀌어도 ScrollRestoration 이 맨 위로 올리지 않게 — 스크롤 위치는 아래에서 직접 맞춘다
+      { replace: true, preventScrollReset: true },
+    );
+    // 탭 막대가 화면 위에 붙을 만큼 내려와 있으면, 새 탭을 처음부터 읽도록 탭 막대 바로 아래로 올린다
+    const bar = tabBar.current;
+    if (bar && bar.getBoundingClientRect().top <= stickyTop() + 1) {
+      requestAnimationFrame(() => {
+        const content = bar.nextElementSibling;
+        if (content) window.scrollTo({ top: window.scrollY + content.getBoundingClientRect().top - stickyTop() - bar.offsetHeight });
+      });
+    }
+  };
+  const charts = chart.data && {
+    pillars: (
+      <Card className="break-inside-avoid">
+        <h2 className="mb-3 font-semibold">사주 원국: 타고난 여덟 글자</h2>
+        <PillarTable chart={chart.data} />
+      </Card>
+    ),
+    elements: (
+      <Card className="break-inside-avoid">
+        <h2 className="font-semibold">{t('result.ohaengChart.title')}</h2>
+        <p className="mb-4 mt-1 text-sm text-ink-3">{ELEMENT_COUNT_NOTE}</p>
+        <ElementBars chart={chart.data} />
+      </Card>
+    ),
+    daeun: (
+      <Card className="break-inside-avoid">
+        <h2 className="mb-1 font-semibold">대운: 10년 단위로 바뀌는 흐름</h2>
+        <DaeunTimeline chart={chart.data} />
+      </Card>
+    ),
+  };
 
   return (
     <div className="min-h-page">
@@ -246,7 +316,7 @@ export function ReportViewPage() {
         }
         title={report?.title ?? '리포트'}
         right={
-          report ? (
+          report && !IS_TOSS ? (
             <IconButton label="PDF로 저장" onClick={savePdf}>
               <Printer className="size-5" />
             </IconButton>
@@ -265,7 +335,8 @@ export function ReportViewPage() {
               {report.generator === 'ai' && <Badge tone="gold">{t('result.aiBadge')}</Badge>}
               <span className="text-xs text-ink-3">{formatDateKo(report.createdAt)} 작성</span>
             </div>
-            <div className="print:hidden">
+            {/* 토스 미니앱 첫 버전에는 PDF 저장이 없다 */}
+            <div className={IS_TOSS ? 'hidden' : 'print:hidden'}>
               <Button variant="secondary" size="sm" className="mt-4" onClick={savePdf}>
                 <Printer className="size-4" aria-hidden />
                 PDF로 저장
@@ -277,26 +348,18 @@ export function ReportViewPage() {
             {/* 사주를 몰라도 10초 안에 — 표·용어보다 '한눈에 보기'를 먼저 */}
             {lead && <ReadingSectionCard section={lead} />}
 
-            {chart.data && (
+            {/* 탭이 있으면 표·차트는 해당 탭(타고난 사주·대운) 안에서 보여 준다 */}
+            {charts && !tabs && (
               <div className="mt-2 space-y-4">
-                <Card className="break-inside-avoid">
-                  <h2 className="mb-3 font-semibold">사주 원국 — 타고난 여덟 글자</h2>
-                  <PillarTable chart={chart.data} />
-                </Card>
-                <Card className="break-inside-avoid">
-                  <h2 className="font-semibold">{t('result.ohaengChart.title')}</h2>
-                  <p className="mb-4 mt-1 text-sm text-ink-3">{ELEMENT_COUNT_NOTE}</p>
-                  <ElementBars chart={chart.data} />
-                </Card>
-                <Card className="break-inside-avoid">
-                  <h2 className="mb-1 font-semibold">대운 — 10년 단위로 바뀌는 흐름</h2>
-                  <DaeunTimeline chart={chart.data} />
-                </Card>
+                {charts.pillars}
+                {charts.elements}
+                {charts.daeun}
               </div>
             )}
 
+            {/* 탭이 있으면 목차는 인쇄(PDF)에서만 — 화면에서는 탭이 목차 역할을 한다 */}
             {report.sections.length > 8 && (
-              <nav className="mt-6 rounded-2xl border border-line bg-surface p-5 print:break-after-page" aria-label="목차">
+              <nav className={cx('mt-6 rounded-2xl border border-line bg-surface p-5 print:break-after-page', tabs && 'hidden print:block')} aria-label="목차">
                 <h2 className="font-semibold">목차</h2>
                 <ol className="mt-3 grid gap-x-6 gap-y-1.5 text-[15px] sm:grid-cols-2">
                   {report.sections.map((s, i) => (
@@ -311,9 +374,67 @@ export function ReportViewPage() {
               </nav>
             )}
 
-            {rest.map((s) => (
-              <ReadingSectionCard key={s.key} section={s} />
-            ))}
+            {tabs ? (
+              <>
+                <div
+                  ref={tabBar}
+                  role="tablist"
+                  aria-label="사주분석서 주제"
+                  className="no-scrollbar sticky top-[calc(56px+env(safe-area-inset-top))] z-20 -mx-5 mt-6 flex gap-2 overflow-x-auto border-b border-line bg-canvas/95 px-5 py-2 backdrop-blur lg:top-0 print:hidden"
+                >
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      role="tab"
+                      id={`tab-${tab.id}`}
+                      aria-selected={tab.id === activeTab}
+                      aria-controls={`panel-${tab.id}`}
+                      onClick={() => selectTab(tab.id)}
+                      className={cx(
+                        'shrink-0 rounded-full px-4 py-2 text-sm transition-colors',
+                        tab.id === activeTab ? 'bg-action font-semibold text-on-action' : 'bg-subtle text-ink-2 hover:text-ink',
+                      )}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+                <div>
+                  {tabs.map((tab, i) => {
+                    const next = tabs[i + 1];
+                    return (
+                      <div
+                        key={tab.id}
+                        role="tabpanel"
+                        id={`panel-${tab.id}`}
+                        aria-labelledby={`tab-${tab.id}`}
+                        className={cx(tab.id !== activeTab && 'hidden print:block')}
+                      >
+                        {charts && tab.id === 'nature' && (
+                          <div className="mt-4 space-y-4">
+                            {charts.pillars}
+                            {charts.elements}
+                          </div>
+                        )}
+                        {charts && tab.id === 'daeun' && <div className="mt-4">{charts.daeun}</div>}
+                        {tab.sections.map((s) => (
+                          <ReadingSectionCard key={s.key} section={s} />
+                        ))}
+                        {next && (
+                          <Button variant="secondary" className="mt-6 w-full print:hidden" onClick={() => selectTab(next.id)}>
+                            다음: {next.label}
+                            <ChevronRight className="size-4" aria-hidden />
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              rest.map((s) => <ReadingSectionCard key={s.key} section={s} />)
+            )}
             <p className="mt-6 text-xs text-ink-3">{t('disclaimer.standard')}</p>
             {report.type === 'career_wealth' && <p className="mt-1 text-xs text-ink-3">{t('disclaimer.finance')}</p>}
             {report.generator === 'ai' && <p className="mt-1 text-xs text-ink-3">{t('disclaimer.ai')}</p>}
@@ -321,7 +442,7 @@ export function ReportViewPage() {
         )}
       </Page>
       {polished && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 flex justify-center px-4 print:hidden">
+        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 flex justify-center px-4 lg:left-[var(--side-w)] print:hidden">
           <div role="status" className="pointer-events-auto flex items-center gap-3 rounded-full border border-line bg-surface py-2 pl-5 pr-2 shadow-lg">
             <span className="text-sm font-medium">AI가 다듬은 문장이 준비됐어요</span>
             <Button size="sm" onClick={swapToPolished}>

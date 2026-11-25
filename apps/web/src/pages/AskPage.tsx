@@ -143,7 +143,7 @@ export function AskPage() {
       </Page>
       {profile && (
         <form
-          className="safe-bottom fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-30 border-t border-line bg-canvas lg:bottom-0"
+          className="safe-bottom fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-30 border-t border-line bg-canvas lg:bottom-0 lg:left-[var(--side-w)]"
           onSubmit={(e) => {
             e.preventDefault();
             submit(text);

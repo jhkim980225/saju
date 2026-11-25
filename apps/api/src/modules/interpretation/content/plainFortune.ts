@@ -13,8 +13,8 @@ export const YEAR_GRADE_PLAIN: Record<FortuneGrade, string> = { great: '아주 �
 
 /** 분야 — 화면 막대 옆 이름(label)과 '한눈에 보는 오늘'의 한 줄 */
 export const CATEGORY_PLAIN: Record<DailyCategory, { label: string; good: string; watch: string }> = {
-  wealth: { label: '돈', good: '돈 관리나 거래가 순조롭기 쉬워요', watch: '지출은 한 번 더 생각하고 정하세요' },
-  love: { label: '연애', good: '연애나 대인 관계가 순조롭기 쉬워요', watch: '가까운 사이일수록 말을 부드럽게 해 주세요' },
+  wealth: { label: '돈', good: '돈 관리나 거래가 순조로운 편이에요', watch: '지출은 한 번 더 생각하고 정하세요' },
+  love: { label: '연애', good: '연애나 대인 관계가 순조로운 편이에요', watch: '가까운 사이일수록 말을 부드럽게 해 주세요' },
   career: { label: '일', good: '업무에 힘이 실리는 날이에요', watch: '일에서 실수가 없는지 한 번 더 살펴 주세요' },
   health: { label: '건강', good: '몸이 가볍고 컨디션이 좋은 편이에요', watch: '쉽게 지칠 수 있으니 무리하지 마세요' },
   study: { label: '공부', good: '공부와 배움에 집중하기 좋아요', watch: '집중이 흩어지기 쉬우니 짧게 끊어서 하세요' },
@@ -22,10 +22,10 @@ export const CATEGORY_PLAIN: Record<DailyCategory, { label: string; good: string
 
 /** 신년운세 '한눈에 보는 ○○년' — 가장 좋은 분야·조심할 분야 */
 export const YEAR_CATEGORY_PLAIN: Record<'wealth' | 'love' | 'career' | 'health', { label: string; good: string; watch: string }> = {
-  wealth: { label: '돈', good: '돈 모으기와 거래', watch: '큰 지출과 돈거래' },
-  love: { label: '연애', good: '연애와 대인 관계', watch: '가까운 사이의 말다툼' },
-  career: { label: '일', good: '일과 직장', watch: '무리한 일 욕심' },
-  health: { label: '건강', good: '몸 컨디션', watch: '쌓이는 피로' },
+  wealth: { label: '돈', good: '돈 모으기와 거래', watch: '큰 지출과 돈거래는 한 번 더 따져 보세요' },
+  love: { label: '연애', good: '연애와 대인 관계', watch: '가까운 사이일수록 말을 부드럽게 하세요' },
+  career: { label: '일', good: '일과 직장', watch: '일 욕심을 내기보다 일의 양을 조절하세요' },
+  health: { label: '건강', good: '몸 컨디션', watch: '피로가 쌓이지 않게 쉬는 시간을 챙기세요' },
 };
 
 /** 행운의 색 — 청색·적색 같은 한자말 대신 */
@@ -80,7 +80,7 @@ export const COMPAT_CATEGORY_PLAIN: Record<'romance' | 'stability' | 'complement
   },
   stability: {
     high: '함께 지내는 생활이 편안하게 맞는 편이에요.',
-    mid: '함께 지내는 데 조금씩 맞춰 가면 되는 정도예요.',
+    mid: '함께 지내는 생활은 큰 무리가 없는 편이에요.',
     low: '함께 지내는 데 맞춰 갈 부분이 꽤 있어요. 미리 알고 있으면 부딪힘을 훨씬 줄일 수 있습니다.',
   },
   complement: {
@@ -139,13 +139,13 @@ export function compatFactorPlain(f: CompatibilityFactor, p: CompatPeople): { te
     return { text: `일간의 오행으로 보면 ${이(from)} ${을(to)} 극하는(제어하는) 관계예요. ${이(from)} 이끄는 쪽이 되는 일이 많아, 좋은 뜻이어도 ${은(to)} 간섭으로 느낄 수 있어요. 중요한 일은 함께 정하는 것이 좋습니다.`, term: '일간 상극' };
   }
   if (key === 'day_branch_combine') return { text: '두 사람의 일지가 서로 합을 이뤄, 함께 지낼수록 편안해지는 사이예요. 생활 리듬과 습관도 잘 맞는 편입니다.', term: '일지 육합' };
-  if (key === 'day_branch_half') return { text: '두 사람의 일지가 반합(삼합을 이루는 세 지지 가운데 두 글자의 만남)을 이뤄, 함께 무언가를 할 때 역할을 잘 나눠 맡는 편이에요. 같이 정한 계획을 끝까지 해내는 힘이 있어요.', term: '일지 반합' };
+  if (key === 'day_branch_half') return { text: '두 사람의 일지가 반합(삼합의 가운데 글자 자·오·묘·유를 포함한 두 지지의 만남)을 이뤄, 함께 무언가를 할 때 역할을 잘 나눠 맡는 편이에요. 같이 정한 계획을 끝까지 해내는 힘이 있어요.', term: '일지 반합' };
   if (key === 'day_branch_clash') return { text: '두 사람의 일지가 서로 충을 이뤄, 생활 방식의 차이를 자주 느끼는 사이입니다. 각자의 공간과 시간을 정해 두면 훨씬 편해집니다.', term: '일지 충' };
   if (key === 'day_branch_punish') return { text: '두 사람의 일지가 형을 이뤄, 사소한 일로 말다툼이 생기기 쉬워요. 서운한 점은 그때그때 가볍게 말하면 크게 번지지 않아요.', term: '일지 형' };
   if (key === 'day_branch_harm') return { text: '두 사람의 일지가 해·파(서로 방해하거나 어긋나는 관계)를 이뤄, 말하지 않은 서운함이 조금씩 쌓이기 쉬워요. 일주일에 한 번쯤 서로의 마음을 묻는 시간을 정해 두세요.', term: '일지 해·파' };
-  if (key === 'day_branch_wonjin') return { text: '두 사람의 일지가 원진을 이뤄, 끌리면서도 묘하게 서운한 마음이 생길 수 있어요. 바라는 것을 말로 분명히 해 두면 오해가 줄어요.', term: '일지 원진' };
+  if (key === 'day_branch_wonjin') return { text: '두 사람의 일지가 원진을 이뤄, 작은 일에도 묘하게 서운한 마음이 생기기 쉬워요. 바라는 것을 말로 분명히 해 두면 오해가 줄어요.', term: '일지 원진' };
   if (key === 'zodiac_combine') return { text: `${animalA}띠와 ${animalB}띠는 육합(두 지지가 짝을 이뤄 결합하는 관계)을 이루는 띠예요. 함께 있으면 분위기가 금방 편안해집니다.`, term: '띠 육합' };
-  if (key === 'zodiac_trine') return { text: `${animalA}띠와 ${animalB}띠는 삼합(세 지지가 모여 한 오행을 이루는 관계)으로 묶이는 띠예요. 함께 일할 때 손발이 잘 맞는 편입니다.`, term: '띠 삼합' };
+  if (key === 'zodiac_trine') return { text: `${animalA}띠와 ${animalB}띠는 삼합(세 지지가 모여 한 오행을 이루는 관계)으로 묶이는 띠예요. 함께 일할 때 협력이 잘 되는 편입니다.`, term: '띠 삼합' };
   if (key === 'zodiac_clash') return { text: `${animalA}띠와 ${animalB}띠는 충을 이루는 띠예요. 생활의 속도가 서로 다른 편이니, 서두르지 말고 서로의 속도를 맞춰 가는 것이 좋아요.`, term: '띠 충' };
   if (key === 'zodiac_wonjin') return { text: `${animalA}띠와 ${animalB}띠는 원진을 이루는 띠예요. 작은 말에도 오해가 생기기 쉬우니, 짐작하기보다 직접 확인하는 습관이 도움이 돼요.`, term: '띠 원진' };
   if (key === 'yongsin_a' || key === 'yongsin_b') {

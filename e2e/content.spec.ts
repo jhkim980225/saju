@@ -29,7 +29,7 @@ test('신년운세: 2027 丁未년 — 미구매 시 총운·첫 두 달만 공�
   // 결제 시트: 신년운세 단품 + 신년 패키지
   await page.getByRole('button', { name: '2027 신년운세 전체 보기 · 5,900원' }).click();
   const sheet = page.getByRole('dialog');
-  await expect(sheet.getByRole('radio')).toHaveText([/2027 丁未년 신년운세/, /2027 신년 패키지/]);
+  await expect(sheet.getByRole('radio')).toHaveText([/2027 신년운세/, /2027 신년 패키지/]);
 });
 
 test('만세력: 날짜별 간지와 그 해의 24절기', async ({ page }) => {
@@ -37,9 +37,9 @@ test('만세력: 날짜별 간지와 그 해의 24절기', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '만세력' })).toBeVisible();
   const date = page.getByLabel('날짜 선택');
   await date.fill('2000-01-01');
-  await expect(page.getByText('양력 2000-01-01 · 음력 1999.11.25')).toBeVisible();
+  await expect(page.getByText('양력 2000.1.1 · 음력 1999.11.25')).toBeVisible();
   // 고른 날을 먼저 문장으로, 한자 아래에는 읽는 법 — 입춘 전이라 아직 지난해(己卯)로 센다는 안내
-  await expect(page.getByText('간지로는 기묘년(누런 토끼의 해) 병자월 무오일입니다.')).toBeVisible();
+  await expect(page.getByText('간지로는 기묘년(누런 토끼의 해) 병자월 무오일이에요.')).toBeVisible();
   await expect(page.getByText(/입춘\(2월 4일 무렵\)을 한 해의 시작으로/)).toBeVisible();
   const pillar = (k: string) => page.getByText(k, { exact: true }).locator('..');
   await expect(pillar('연주')).toContainText('己卯기묘');
@@ -67,11 +67,13 @@ test('상점: 판매 상품·가격 (일회성 판매만, 출시 예정 없음)'
   // 플러스 구독·질문권 100회는 팔지 않는다(2026-10-15 결정)
   await expect(page.getByRole('heading', { level: 2, name: '플러스 구독' })).toHaveCount(0);
 
-  const card = (name: string) => page.getByRole('listitem').filter({ hasText: name });
+  // 상품 이름으로 시작하는 줄이 있는 카드 — '2027 신년 패키지' 설명에도 '2027 신년운세'가 들어 있어 부분 일치로는 두 장이 잡힌다
+  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const card = (name: string) => page.getByRole('listitem').filter({ has: page.getByText(new RegExp(`^${escape(name)}`)) });
   const onSale: [string, string][] = [
     ['첫 사주 미니 리포트', '990원'],
     ['평생 사주분석서', '9,900원'],
-    ['2027 丁未년 신년운세', '5,900원'],
+    ['2027 신년운세', '5,900원'],
     ['사주 궁합 리포트', '5,900원'],
     ['연애·결혼운 리포트', '4,900원'],
     ['재물·직업운 리포트', '4,900원'],
@@ -86,7 +88,7 @@ test('상점: 판매 상품·가격 (일회성 판매만, 출시 예정 없음)'
   await expect(page.getByRole('button', { name: '준비 중' })).toHaveCount(0);
   for (const name of ['AI 상담 질문권 100회', '플러스 월 구독', '플러스 연 구독']) await expect(card(name)).toHaveCount(0);
   await expect(card('2027 신년 패키지')).toContainText('23,700원'); // 정가(취소선)
-  await expect(card('2027 丁未년 신년운세')).toContainText(/할인 마감 2026\. 12\. 31\./);
+  await expect(card('2027 신년운세')).toContainText('할인 마감 2026.12.31');
 
   // 비회원이 사지 않아도 되는 상품(질문권)을 누르면 로그인으로 보낸다
   await card('AI 상담 질문권 10회').getByRole('button', { name: '구매하기' }).click();

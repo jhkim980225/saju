@@ -1,0 +1,13 @@
+/* 토스 미니앱 전용 스타일 — 토스 빌드에서만 들어간다(src/toss/bootstrap.ts 가 불러온다) */
+
+/* 핀치 줌·더블탭 확대 금지(앱인토스 비게임 체크리스트). 세로 스크롤은 그대로 */
+html[data-platform='toss'] {
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+/* 토스 내비게이션 바가 위에 있으므로 자체 머리줄은 화면 위쪽 안전 영역을 다시 띄우지 않는다 */
+html[data-platform='toss'] .safe-top {
+  padding-top: 0;
+}

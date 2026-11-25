@@ -25,9 +25,10 @@ function Paragraphs({ section }: { section: ReadingSection }) {
         ))}
       </div>
       {section.locked && (
-        <p className="flex items-center gap-1.5 text-sm text-gold">
-          <Lock className="size-3.5" aria-hidden />
-          {t('tarot.paywall.lockTitle')}
+        // 자리마다 붙는 표시라 짧고 차분하게 (큰 안내는 위쪽 결제 카드 한 번)
+        <p className="flex items-center gap-1.5 text-sm text-ink-3">
+          <Lock className="size-3.5 text-gold" aria-hidden />
+          {t('tarot.paywall.lockInline')}
         </p>
       )}
     </>
@@ -92,7 +93,7 @@ export function TarotReadingView({ reading, onUnlock }: { reading: TarotReadingD
   return (
     <div className="lg:grid lg:grid-cols-[340px_minmax(0,1fr)] lg:gap-x-12 lg:pt-6 xl:grid-cols-[380px_minmax(0,1fr)] xl:gap-x-16">
       {/* 질문 + 펼친 카드 (데스크톱: 왼쪽 고정) */}
-      <aside className="lg:sticky lg:top-24 lg:self-start">
+      <aside className="lg:sticky lg:top-8 lg:self-start">
         {!daily && (
           <div className="pt-4 lg:pt-0">
             <p className="text-sm font-semibold text-ink-3">{t('tarot.result.questionLabel')}</p>

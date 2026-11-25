@@ -117,7 +117,7 @@ function DaySheet({ day, locked, onClose, onUnlock, price }: { day: TaekilDayDto
                       ?.filter((r) => r.term)
                       .map((r, i) => (
                         <li key={`${r.term}-${i}`}>
-                          {r.label} — {r.term}
+                          {r.label}: {r.term}
                           {r.weight !== 0 && <span className="tabular"> ({r.weight > 0 ? `+${r.weight}` : r.weight}점)</span>}
                         </li>
                       ))}
@@ -136,7 +136,7 @@ function TopCards({ r, onOpen }: { r: TaekilResultDto; onOpen: (date: string) =>
   const byDate = new Map(r.days.map((d) => [d.date, d]));
   if (r.top.length === 0) return <p className="mt-3 rounded-2xl bg-subtle p-4 text-[15px] text-ink-2">{t('taekil.result.topEmpty')}</p>;
   return (
-    <ol className="mt-3 grid gap-3 lg:grid-cols-3">
+    <ol className={cx('mt-3 grid gap-3', r.top.length >= 3 ? 'lg:grid-cols-3' : r.top.length === 2 ? 'lg:grid-cols-2' : '')}>
       {r.top.map((date) => {
         const d = byDate.get(date)!;
         return (
@@ -151,12 +151,8 @@ function TopCards({ r, onOpen }: { r: TaekilResultDto; onOpen: (date: string) =>
                 <span>{lunarText(d)}</span>
                 <GradeBadge day={d} />
               </span>
-              {r.locked ? (
-                <span className="mt-3 flex items-center gap-1.5 text-xs text-ink-3">
-                  <Lock className="size-3.5" aria-hidden />
-                  {t('taekil.result.lockedDay')}
-                </span>
-              ) : (
+              {/* 잠겨 있으면 카드마다 잠금 안내를 되풀이하지 않는다. 바로 아래 결제 카드가 한 번 알린다 */}
+              {r.locked ? null : (
                 <>
                   <span className="mt-3 text-sm leading-relaxed text-ink-2">{d.summary}</span>
                   {d.goodHours && d.goodHours.length > 0 && (
@@ -243,14 +239,15 @@ function SectionCard({ s, onUnlock, price }: { s: ReadingSection; onUnlock: () =
         </details>
       )}
       {s.locked && (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold/40 bg-surface p-4" aria-label={t('a11y.lockedSection')}>
-          <p className="flex items-center gap-2 text-sm font-semibold text-gold">
-            <Lock className="size-4" aria-hidden />
+        // 결제 안내는 위쪽 큰 카드에서 한 번 한다. 섹션마다는 한 줄로만 알린다
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-line px-4 py-3 text-sm" aria-label={t('a11y.lockedSection')}>
+          <span className="flex items-center gap-2 text-ink-2">
+            <Lock className="size-4 shrink-0 text-gold" aria-hidden />
             {t('taekil.paywall.lockTitle')}
-          </p>
-          <Button size="sm" onClick={onUnlock}>
-            {price ? t('taekil.paywall.cta', { price }) : t('taekil.paywall.ctaNoPrice')}
-          </Button>
+          </span>
+          <button type="button" className="shrink-0 font-semibold text-gold underline underline-offset-4" onClick={onUnlock} aria-label={price ? t('taekil.paywall.cta', { price }) : undefined}>
+            {t('taekil.paywall.ctaNoPrice')}
+          </button>
         </div>
       )}
     </section>

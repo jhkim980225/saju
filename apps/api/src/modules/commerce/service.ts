@@ -15,7 +15,7 @@ import { CATALOG } from './catalog.js';
 import type { Gateways } from './providers/index.js';
 import { GatewayError } from './providers/types.js';
 
-type Channel = 'web' | 'ios' | 'android' | 'system';
+type Channel = 'web' | 'ios' | 'android' | 'toss' | 'system';
 
 /** 결제 지급 완료 — 지급된 권한 키와 주문의 대상 프로필 */
 export interface FulfilledEvent {
@@ -203,6 +203,12 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
     });
   };
 
+  /**
+   * 이 주문으로 지급(회수)할 질문권 수. 토스 미니앱 결제(iap_toss)는 리포트·타로에 딸린 질문권을 지급하지 않는다 —
+   * 토스 첫 버전에는 AI 상담이 없어 쓸 곳이 없고, 상점 설명에도 질문권이 없다(설명과 지급 내용을 맞춘다). 질문권 팩은 그대로 지급한다
+   */
+  const creditsFor = (product: Pick<Product, 'type' | 'credits'>, toss: boolean) => (toss && product.type !== 'credit_pack' ? 0 : product.credits);
+
   /** 상품 지급(묶음에 넣기) — 질문권 / 권한 / 구독 기간 */
   const fulfill = async (u: Unit, order: Order, channel: Channel) => {
     const [product] = await db.select().from(products).where(eq(products.id, order.productId));
@@ -217,10 +223,11 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
       u.expect(sql`exists (select 1 from ${users} where ${users.id} = ${order.userId} and coalesce(${users.premiumUntil}, 0) = ${w!.premiumUntil ?? 0})`);
       u.write(db.update(users).set({ premiumUntil }).where(eq(users.id, order.userId)));
     }
-    if (product.credits > 0) {
-      addCredits(u, order.userId, product.credits, { reason: 'purchase', source: 'paid', channel, memo: product.name, refType: 'order', refId: order.id });
+    const credits = creditsFor(product, channel === 'toss');
+    if (credits > 0) {
+      addCredits(u, order.userId, credits, { reason: 'purchase', source: 'paid', channel, memo: product.name, refType: 'order', refId: order.id });
     }
-    return { credits: product.credits, entitlements: granted, premiumUntil: premiumUntil ? new Date(premiumUntil).toISOString() : null };
+    return { credits, entitlements: granted, premiumUntil: premiumUntil ? new Date(premiumUntil).toISOString() : null };
   };
 
   /**
@@ -238,9 +245,10 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
     );
     u.write(db.delete(entitlements).where(eq(entitlements.orderId, order.id)));
     const [product] = await db.select().from(products).where(eq(products.id, order.productId));
-    if (product && product.credits > 0) {
+    const credits = product ? creditsFor(product, order.provider === 'iap_toss') : 0;
+    if (product && credits > 0) {
       const [w] = await db.select({ paidCredits: users.paidCredits }).from(users).where(eq(users.id, order.userId));
-      const revoke = Math.min(product.credits, w!.paidCredits);
+      const revoke = Math.min(credits, w!.paidCredits);
       // 남은 유상 질문권을 기준으로 회수량을 정했다 — 그사이 바뀌었으면 다시 계산
       u.expect(sql`exists (select 1 from ${users} where ${users.id} = ${order.userId} and ${users.paidCredits} = ${w!.paidCredits})`);
       if (revoke > 0) addCredits(u, order.userId, -revoke, { reason: 'refund', source: 'paid', channel: 'system', memo: `${product.name} ${status === 'refunded' ? '환불' : '결제 취소'}`, refType: 'order', refId: order.id });
@@ -361,6 +369,8 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
     getProduct,
     productDto,
     orderDto,
+    /** 토스 인앱 결제(tossIap.ts)가 같은 검증·지급·회수 흐름을 쓰도록 내어 주는 내부 도구 */
+    internals: { getProduct, paidCount, assertOwnedProfile, assertReading, getOwnedOrder, settle, failIfPending, revokeOrder, balance, emptyGrant: EMPTY_GRANT },
 
     async listProducts(userId?: string): Promise<ProductDto[]> {
       const rows = await db.select().from(products).where(eq(products.active, true)).orderBy(asc(products.sortOrder));

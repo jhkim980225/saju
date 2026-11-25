@@ -2,7 +2,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { UserDto } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
 import { isUniqueViolation, type Db } from '../../db/client.js';
-import { chatMessages, creditLedger, profiles, pushTokens, refreshTokens, reports, users, type User } from '../../db/schema.js';
+import { chatMessages, creditLedger, entitlements, passwordResets, profiles, pushTokens, refreshTokens, reports, tarotReadings, users, type User } from '../../db/schema.js';
 import { conflict, notFound } from '../../lib/errors.js';
 import { newId } from '../../lib/ids.js';
 import { balanceNow } from '../commerce/service.js';
@@ -26,6 +26,7 @@ export function createUserService(config: AppConfig, db: Db) {
       role: u.role === 'admin' ? 'admin' : 'user',
       credits: u.credits,
       marketingConsent: u.marketingConsent,
+      pushEnabled: u.pushEnabled,
       isPremium: premium,
       premiumUntil: premium ? new Date(u.premiumUntil!).toISOString() : null,
       createdAt: new Date(u.createdAt).toISOString(),
@@ -122,17 +123,31 @@ export function createUserService(config: AppConfig, db: Db) {
       return { user: await get(id), created: true };
     },
     /**
-     * 게스트 데이터(프로필·리포트·상담)를 기존 회원 계정으로 옮기고 게스트를 정리한다.
+     * 게스트 데이터(프로필·리포트·상담·타로 기록)를 기존 회원 계정으로 옮기고 게스트를 정리한다.
      * 게스트로 사주를 저장한 뒤 "이미 있는 계정"으로 로그인한 경우의 유실을 막는다.
+     * 게스트는 결제할 수 없어서(commerce: LOGIN_REQUIRED) 주문·열람 권한·유상 질문권은 옮길 것이 없다.
+     * 무상 질문권(앱 보상형 광고 등)이 남아 있으면 회원 계정으로 넘기고 두 원장에 이동을 적는다.
+     * 타로 기록은 (사용자, 날짜, 질문) 유니크라 회원이 같은 날 같은 질문을 이미 뽑았으면 그 한 건은 회원 것을 남긴다(OR IGNORE).
      */
     async mergeGuestInto(guestUserId: string | undefined, userId: string): Promise<number> {
       if (!guestUserId || guestUserId === userId) return 0;
       const [guest] = await db.select().from(users).where(eq(users.id, guestUserId));
       if (!guest || guest.provider !== 'guest' || guest.deletedAt) return 0;
+      const freeCredits = Math.max(0, guest.credits - guest.paidCredits);
+      if (freeCredits > 0) {
+        await db.batch([
+          db.update(users).set({ credits: sql`${users.credits} - ${freeCredits}` }).where(eq(users.id, guestUserId)),
+          db.insert(creditLedger).values({ id: newId(), userId: guestUserId, delta: -freeCredits, reason: 'admin', memo: '로그인한 회원 계정으로 이동', balanceAfter: balanceNow(guestUserId) }),
+          db.update(users).set({ credits: sql`${users.credits} + ${freeCredits}` }).where(eq(users.id, userId)),
+          db.insert(creditLedger).values({ id: newId(), userId, delta: freeCredits, reason: 'admin', memo: '게스트로 받은 질문권 이동', balanceAfter: balanceNow(userId) }),
+        ]);
+      }
       const [moved] = await db.batch([
         db.update(profiles).set({ userId, isPrimary: false, updatedAt: Date.now() }).where(eq(profiles.userId, guestUserId)).returning({ id: profiles.id }),
         db.update(reports).set({ userId }).where(eq(reports.userId, guestUserId)),
         db.update(chatMessages).set({ userId }).where(eq(chatMessages.userId, guestUserId)),
+        db.run(sql`update or ignore ${tarotReadings} set ${sql.identifier('user_id')} = ${userId} where ${tarotReadings.userId} = ${guestUserId}`),
+        db.delete(tarotReadings).where(eq(tarotReadings.userId, guestUserId)),
         db.delete(refreshTokens).where(eq(refreshTokens.userId, guestUserId)),
         db.update(users).set({ deviceId: null, deletedAt: Date.now(), nickname: '병합된 게스트', updatedAt: Date.now() }).where(eq(users.id, guestUserId)),
       ]);
@@ -143,14 +158,18 @@ export function createUserService(config: AppConfig, db: Db) {
       return get(id);
     },
     /**
-     * 회원 탈퇴 — 개인정보(프로필·리포트·상담·토큰)는 즉시 삭제하고, 주문/결제 기록은
-     * 전자상거래법상 보존 의무(5년)를 위해 익명화된 사용자 행에 남긴다.
+     * 회원 탈퇴 — 개인정보(프로필·리포트·상담·타로 기록·열람 권한·토큰)는 즉시 삭제하고, 주문/결제 기록과
+     * 질문권 원장은 전자상거래법상 보존 의무(5년)를 위해 익명화된 사용자 행에 남긴다.
      */
     async deleteAccount(id: string) {
       await db.batch([
         db.delete(profiles).where(eq(profiles.userId, id)),
         db.delete(reports).where(eq(reports.userId, id)),
         db.delete(chatMessages).where(eq(chatMessages.userId, id)),
+        // 타로 기록에는 사용자가 쓴 질문 글이 들어 있다
+        db.delete(tarotReadings).where(eq(tarotReadings.userId, id)),
+        db.delete(entitlements).where(eq(entitlements.userId, id)),
+        db.delete(passwordResets).where(eq(passwordResets.userId, id)),
         db.delete(refreshTokens).where(eq(refreshTokens.userId, id)),
         db.delete(pushTokens).where(eq(pushTokens.userId, id)),
         db

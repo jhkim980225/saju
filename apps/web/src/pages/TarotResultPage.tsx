@@ -85,7 +85,7 @@ function ResultActions({ reading }: { reading: TarotReadingDto }) {
       <div className="mt-8 rounded-2xl border border-line p-5">
         <p className="font-semibold">{t('tarot.result.crossSaju.title')}</p>
         <p className="mt-1 text-sm text-ink-2">{t('tarot.result.crossSaju.body')}</p>
-        <div className="mt-3 flex gap-4 text-sm font-semibold text-info">
+        <div className="mt-3 flex gap-4 text-sm font-semibold text-gold">
           <Link to="/saju">{t('tarot.result.crossSaju.cta')}</Link>
           <Link to="/today">{t('tarot.result.crossSaju.ctaToday')}</Link>
         </div>

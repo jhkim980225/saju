@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ko" data-theme="dark">
+<html lang="ko" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#060B24" />
+    <meta name="theme-color" content="#FFFFFF" />
     <meta name="description" content="태어난 날과 시간으로 세운 사주팔자를 명리학 용어와 함께 알기 쉽게 풀이합니다. 보정 내역까지 공개하는 만세력과 매일 오늘의 운세." />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="생년월일로 보는 나의 사주 | 달달사주" />
@@ -14,11 +14,11 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+    <!-- Pretendard 는 main.tsx 가 npm 패키지(자체 호스팅)로 불러온다. 한자 명조(Noto Serif KR)는 화면 그리기를 막지 않게 늦게 붙인다 -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&display=swap" /></noscript>
     <title>달달사주 — 만세력 기반 사주풀이 · 오늘의 운세</title>
   </head>
   <body>

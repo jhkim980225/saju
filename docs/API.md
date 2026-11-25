@@ -63,7 +63,7 @@
 | GET | `/tarot/readings`, `/tarot/readings/:id` | ✓ | 기록 / 리딩 — 권한(`tarot:reading:<id>` 또는 플러스)이 없으면 자리별 풀이·이야기·행동·사주 근거는 첫 문단 미리보기(`locked`) |
 | DELETE | `/tarot/readings/:id` | ✓ | 기록 지우기 |
 
-- 결제: `POST /orders { productId: tarot_question_3 | tarot_love_5, readingId }` (IAP 는 `/payments/iap/verify` 에 `readingId`). 리딩과 상품의 펼침 방식이 맞아야 하며, 지급 권한은 `tarot:reading:<readingId>` + 질문권 1회.
+- 결제: `POST /orders { productId: tarot_question_3 | tarot_love_5 | tarot_choice_3 | tarot_compat_5 | tarot_celtic_10, readingId }` (IAP 는 `/payments/iap/verify` 에 `readingId`). 리딩과 상품의 펼침 방식이 맞아야 하며, 지급 권한은 `tarot:reading:<readingId>` + 질문권(켈틱 크로스 3회, 나머지 1회).
 
 ### 2차 펼침 방식 (예·아니오 · 양자택일 · 궁합 타로 · 켈틱 크로스)
 `/tarot/shuffle`·`/tarot/readings` 를 그대로 쓰고, `spread` 와 `topic` 을 같은 이름으로 보낸다(펼침 방식이 곧 주제).
@@ -134,6 +134,17 @@
 |---|---|---|---|
 | GET | `/rewards/admob-ssv` | - (Google 서명) | AdMob 서버 측 확인 콜백 → 서명 검증 후 무상 질문권 지급 (거래 ID 멱등, 하루 한도) |
 | GET | `/rewards/status` | ✓ | 오늘 남은 보상 횟수 |
+
+## 토스 미니앱 (보류: 웹 출시 뒤)
+토스 빌드(`apps/web` build:toss)만 쓴다. 웹·앱 화면은 호출하지 않는다. 연동 키·mTLS 인증서가 없으면 꺼져 있다.
+
+| 메서드 | 경로 | 인증 | 설명 |
+|---|---|---|---|
+| POST | `/auth/toss` | 선택 | 토스 로그인 인가 코드로 가입·로그인. 게스트로 쓰던 데이터는 계정으로 옮긴다 |
+| GET | `/payments/iap/toss/products` | - | 토스 인앱결제로 파는 상품(연결된 SKU 만) |
+| POST | `/payments/iap/toss/orders` | ✓ | 토스 인앱결제 주문 만들기 |
+| POST | `/payments/iap/verify` | ✓ | `platform: 'toss'` 이면 토스 주문 검증 후 지급 |
+| POST | `/rewards/toss/start`, `/rewards/toss/claim` | ✓ | 토스 보상형 광고 시작·지급 |
 
 ## 푸시
 | 메서드 | 경로 | 인증 | 설명 |

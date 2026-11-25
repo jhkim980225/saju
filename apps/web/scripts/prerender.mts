@@ -40,8 +40,20 @@ interface Route {
 
 function routes(): Route[] {
   const year = Number(TODAY.slice(0, 4));
+  // 신년운세 대상 연도 — 화면의 targetFortuneYear()(lib/format.ts)와 같다: 10월부터는 다음 해
+  const fortuneYear = year + (Number(TODAY.slice(5, 7)) >= 10 ? 1 : 0);
   const list: Route[] = [
     { path: '/', title: '달달사주 — 만세력 기반 사주풀이 · 오늘의 운세', description: '태어난 날과 시간으로 세운 사주팔자를 명리학 용어와 함께 알기 쉽게 풀이합니다. 보정 내역까지 공개하는 만세력과 매일 오늘의 운세.', changefreq: 'daily', priority: 1 },
+    // 검색어가 많은 무료 진입 화면 — 사전 렌더링하지 않으면 SPA 대체 파일(홈)의 제목·대표 주소가 그대로 보인다
+    { path: '/input', title: `무료 사주 풀이 — 생년월일시로 보는 사주팔자 | ${SITE}`, description: '생년월일과 태어난 시간을 넣으면 사주팔자 여덟 글자와 오행, 성격·재물·연애·직업 풀이를 무료로 볼 수 있어요. 태어난 시간을 몰라도 됩니다.', changefreq: 'monthly', priority: 0.9 },
+    { path: '/today', title: `오늘의 운세 — 내 사주로 보는 하루 흐름 | ${SITE}`, description: '내 사주로 보는 오늘의 운세. 재물·연애·일·건강 점수와 조언, 행운 아이템, 이번 주 흐름을 매일 무료로 확인하세요.', changefreq: 'daily', priority: 0.9 },
+    { path: '/yearly', title: `${fortuneYear} 신년운세 — 내 사주로 보는 한 해 흐름 | ${SITE}`, description: `내 사주로 보는 ${fortuneYear}년 신년운세. 한 해의 핵심 흐름은 무료로 보고, 열두 달 흐름과 재물·연애·일·건강 풀이는 신년운세 리포트에서 볼 수 있어요.`, changefreq: 'weekly', priority: 0.9 },
+    { path: '/compatibility', title: `사주 궁합 — 두 사람의 사주로 보는 궁합 | ${SITE}`, description: '두 사람의 생년월일시로 보는 사주 궁합. 궁합 점수와 요약은 무료이고, 잘 맞는 점·부딪히는 점·관계 시기까지 담은 상세 풀이는 궁합 리포트에서 볼 수 있어요.', changefreq: 'monthly', priority: 0.8 },
+    { path: '/tarot/daily', title: `오늘의 타로 — 하루 한 장 무료 타로 카드 | ${SITE}`, description: '하루에 한 장, 오늘의 타로 카드를 뽑아 웨이트-스미스 전통 해석으로 읽어 봅니다. 무료로 볼 수 있어요.', changefreq: 'weekly', priority: 0.6 },
+    { path: '/ask', title: `AI 사주 상담 — 내 사주로 묻고 답하기 | ${SITE}`, description: '저장한 사주의 계산 결과를 바탕으로 연애·일·돈 고민을 AI 에게 물어볼 수 있어요. 질문권으로 이용합니다.', changefreq: 'monthly', priority: 0.5 },
+    { path: '/store', title: `이용권·리포트 — 사주분석서·신년운세·궁합 리포트 | ${SITE}`, description: '평생 사주분석서, 신년운세, 궁합, 연애·결혼운, 재물·직업운 리포트와 AI 상담 질문권의 가격과 구성을 확인할 수 있어요.', changefreq: 'monthly', priority: 0.4 },
+    { path: '/legal/terms', title: `이용약관 | ${SITE}`, description: '달달사주 이용약관입니다.', changefreq: 'monthly', priority: 0.1 },
+    { path: '/legal/privacy', title: `개인정보 처리방침 | ${SITE}`, description: '달달사주 개인정보 처리방침입니다.', changefreq: 'monthly', priority: 0.1 },
     { path: '/basics', title: `사주 기초 — 사주를 처음 접하는 분을 위한 안내 | ${SITE}`, description: '사주팔자, 천간과 지지, 일간, 오행, 십성, 용신, 대운까지 사주 풀이를 읽는 데 필요한 기본 개념을 순서대로 정리했습니다.', changefreq: 'monthly', priority: 0.7 },
     { path: '/tojeong', title: `토정비결 — 생년월일로 보는 한 해의 흐름 | ${SITE}`, description: '토정비결 144괘로 보는 한 해 운세와 열두 달 흐름. 생년월일만 넣으면 무료로 볼 수 있어요.', changefreq: 'weekly', priority: 0.8 },
     { path: '/manse', title: `만세력 — 날짜별 간지와 24절기 | ${SITE}`, description: '날짜를 고르면 그날의 연주·월주·일주와 그해 24절기 시각을 보여 주는 무료 만세력입니다.', changefreq: 'monthly', priority: 0.6 },
@@ -109,8 +121,9 @@ function main() {
     .map((r) => `  <url><loc>${esc(`${BASE}${r.path}`)}</loc><lastmod>${TODAY}</lastmod><changefreq>${r.changefreq}</changefreq><priority>${r.priority}</priority></url>`)
     .join('\n')}\n</urlset>\n`;
   fs.writeFileSync(path.join(DIST, 'sitemap.xml'), sitemap);
-  // 회원 화면·결제·인증 콜백은 색인하지 않는다
-  fs.writeFileSync(path.join(DIST, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: /my\nDisallow: /payments/\nDisallow: /auth/\nDisallow: /reports/\nDisallow: /confirm\nDisallow: /result\nSitemap: ${BASE}/sitemap.xml\n`);
+  // 회원 화면·개인 결과·결제·인증 화면은 색인하지 않는다(끝이 / 인 줄은 그 아래 주소만 막는다 — /yearly 자체는 열어 둠)
+  const disallow = ['/my', '/payments/', '/auth/', '/reports/', '/confirm', '/result', '/saju/', '/profiles/', '/yearly/', '/tarot/r/', '/tarot/history', '/taekil/r/', '/login', '/signup', '/password/', '/api/'];
+  fs.writeFileSync(path.join(DIST, 'robots.txt'), `User-agent: *\nAllow: /\n${disallow.map((p) => `Disallow: ${p}\n`).join('')}Sitemap: ${BASE}/sitemap.xml\n`);
   console.log(`사전 렌더링 ${written}개, sitemap ${all.length}개 URL (${BASE})`);
 }
 

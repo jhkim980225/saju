@@ -18,8 +18,8 @@ export function InkLoader({ name }: { name?: string }) {
   return (
     <div role="status" aria-label={t('loading.a11y')} className="flex min-h-[60dvh] flex-col items-center justify-center gap-8 px-6 text-center">
       <div className="relative size-36">
-        <div className="animate-ink absolute inset-0 rounded-full bg-ink" />
-        <div className="animate-ink absolute inset-4 rounded-full bg-ink [animation-delay:600ms]" />
+        <div className="animate-ink absolute inset-0 rounded-full bg-ink dark:bg-gold" />
+        <div className="animate-ink absolute inset-4 rounded-full bg-ink dark:bg-gold [animation-delay:600ms]" />
         <div className="absolute inset-0 flex items-center justify-center gap-2">
           {ELEMENT_ORDER.map((e, i) => (
             <span key={e} className={cx('size-2.5 rounded-full transition-opacity duration-300', ELEMENT_META[e].cls.bg, i <= step ? 'opacity-100' : 'opacity-15')} />

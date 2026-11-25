@@ -41,7 +41,7 @@ test.describe('입력 검증', () => {
 
     await expect(page).toHaveURL(/\/confirm$/);
     await expect(page.getByText('태어난 시간 모름 · 서울특별시 · 여성')).toBeVisible();
-    await expect(page.getByText(/실제 해 시각/)).toHaveCount(0);
+    await expect(page.getByText(/경도 보정 시각/)).toHaveCount(0);
     await page.getByRole('button', { name: '사주 풀이 보기' }).click();
 
     await expect(page.getByText(/^갑진일주 · /)).toBeVisible({ timeout: 15_000 });
@@ -51,8 +51,8 @@ test.describe('입력 검증', () => {
     await expect(unknown.first()).toHaveText('?');
     await expect(page.getByText('태어난 시간을 알면 더 정확해져요')).toBeVisible();
     await expect(page.getByRole('link', { name: '시간 입력하기' })).toBeVisible();
-    await expect(page.getByText('양력 1995.03.14 시간 모름')).toBeVisible();
-    await expect(page.getByText(/^실제 해 시각/)).toHaveCount(0);
+    await expect(page.getByText('양력 1995.3.14 시간 모름')).toBeVisible();
+    await expect(page.getByText(/^경도 보정 시각/)).toHaveCount(0);
   });
 
   test('음력 + 윤달: 양력으로 변환해 확인, 없는 윤달은 오류', async ({ page }) => {
@@ -68,7 +68,7 @@ test.describe('입력 검증', () => {
     await expect(page.getByText(/= 음력 2020년 4월 15일\s*\(윤달\)/)).toBeVisible();
     await page.getByRole('button', { name: '사주 풀이 보기' }).click();
     await expect(page.getByText(/^경진일주 · /)).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText('음력 2020.04.15 09:00')).toBeVisible();
+    await expect(page.getByText('음력 2020.4.15 09:00')).toBeVisible();
 
     // 2021년에는 윤4월이 없다 → 서버 검증 오류를 확인 화면에서 보여 준다
     await page.goto('/input');
@@ -97,11 +97,11 @@ test.describe('입력 검증', () => {
     await expect(page).toHaveURL(/\/confirm$/);
     await expect(page.getByText('14:30 · 뉴욕 (미국) · 여성')).toBeVisible();
     // 뉴욕(서경 74.0°, EST 기준 자오선 75°) → +4분
-    await expect(page.getByText('태어난 시간을 실제 해 시각 14:34 기준으로 계산해요')).toBeVisible();
+    await expect(page.getByText('태어난 시간을 경도 보정 시각 14:34 기준으로 계산해요')).toBeVisible();
     await page.getByRole('button', { name: '사주 풀이 보기' }).click();
     await expect(page.getByText(/^갑진일주 · /)).toBeVisible({ timeout: 15_000 });
     await expect(pillarTile(page, '시', '지지', '미', '未')).toBeVisible();
-    await expect(page.getByText('실제 해 시각 14:34', { exact: true })).toBeVisible();
+    await expect(page.getByText('경도 보정 시각 14:34', { exact: true })).toBeVisible();
   });
 });
 

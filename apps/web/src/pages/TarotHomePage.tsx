@@ -146,7 +146,7 @@ export function TarotHomePage() {
               <section className="mt-10">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold">{t('tarot.home.historyLink')}</h2>
-                  <Link to="/tarot/history" className="text-sm font-semibold text-info">
+                  <Link to="/tarot/history" className="text-sm font-semibold text-gold">
                     {t('tarot.history.title')}
                   </Link>
                 </div>

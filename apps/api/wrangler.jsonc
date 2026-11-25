@@ -10,6 +10,14 @@
   "placement": { "mode": "smart" },
   "observability": { "enabled": true },
 
+  // 운영 도메인(같은 계정의 Cloudflare 존). DNS 레코드와 인증서는 배포할 때 Cloudflare 가 만든다.
+  // www 도 같은 화면을 내고, 사전 렌더링한 canonical 은 www 없는 주소를 가리킨다
+  "routes": [
+    { "pattern": "daldalsaju.com", "custom_domain": true },
+    { "pattern": "www.daldalsaju.com", "custom_domain": true }
+  ],
+  "workers_dev": true,
+
   // 웹 빌드 결과(npm run build -w @saju/web). /api/* 와 /health 만 Worker 코드가 먼저 받는다
   "assets": {
     "directory": "../web/dist",
@@ -54,6 +62,8 @@
     "PUBLIC_WEB_URL": "https://daldalsaju.com",
     "CORS_ORIGINS": "https://daldalsaju.com,capacitor://localhost,https://localhost,http://localhost",
     "PAYMENT_PROVIDER": "groble",
+    // 그로블 계정을 다른 서비스와 같이 쓴다 → ref 가 saju-<주문 ID>, 다른 접두어의 결제 알림은 건너뜀
+    "GROBLE_REF_PREFIX": "saju",
     "DAILY_PUSH_ENABLED": "true"
   }
 }

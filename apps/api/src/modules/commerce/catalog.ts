@@ -60,7 +60,7 @@ export const CATALOG: CatalogItem[] = [
   },
   {
     id: 'report_newyear_2027',
-    name: '2027 丁未년 신년운세',
+    name: '2027 신년운세',
     description: '2027년 한 해의 큰 흐름과 돈·사랑·일·건강, 열두 달 흐름까지 A4 10쪽에 담았어요.',
     type: 'one_time',
     price: 5900,
@@ -133,7 +133,7 @@ export const CATALOG: CatalogItem[] = [
     price: 9900,
     listPrice: 11700,
     credits: 30,
-    badge: 'BEST',
+    badge: '인기',
     iosProductId: 'com.daldalsaju.chat.30',
     androidProductId: 'chat_pack_30',
   },

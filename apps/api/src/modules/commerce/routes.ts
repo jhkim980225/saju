@@ -1,13 +1,13 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { iapVerifySchema, orderCreateSchema, paymentConfirmSchema } from '@saju/shared';
+import { iapVerifySchema, orderCreateSchema, paymentConfirmSchema, tossIapIntentSchema, tossIapVerifySchema } from '@saju/shared';
 import { AppError, forbidden } from '../../lib/errors.js';
 import { headersOf, readJson, requireUser, type AppEnv, type Ctx, type RouteKit } from '../../lib/http.js';
 import { parse } from '../../lib/validate.js';
 
 export function commerceRoutes({ ctx, authenticate, optionalAuth, adminLimit }: RouteKit) {
-  const { commerce } = ctx.services;
+  const { commerce, tossIap } = ctx.services;
   const app = new Hono<AppEnv>();
   const idParam = z.object({ id: z.string() });
 
@@ -50,8 +50,20 @@ export function commerceRoutes({ ctx, authenticate, optionalAuth, adminLimit }: 
 
   /** 앱 인앱결제 영수증 검증 */
   app.post('/payments/iap/verify', authenticate, async (c) => {
-    const body = parse(iapVerifySchema, await readJson(c));
+    const raw = await readJson(c);
+    // 토스 미니앱 인앱 결제 — 영수증 대신 토스 주문 ID 를 토스 서버에 물어 확인한다
+    if ((raw as { platform?: unknown } | undefined)?.platform === 'toss') return c.json(await tossIap.verify(requireUser(c).id, parse(tossIapVerifySchema, raw)));
+    const body = parse(iapVerifySchema, raw);
     return c.json(await commerce.verifyIap(requireUser(c).id, body));
+  });
+
+  /** 토스 미니앱 — SKU 가 연결된 상품 목록 */
+  app.get('/payments/iap/toss/products', async (c) => c.json(await tossIap.listProducts()));
+
+  /** 토스 미니앱 — 결제창을 띄우기 전 주문 의도 등록(살 수 없는 경우를 결제 전에 막는다) */
+  app.post('/payments/iap/toss/orders', authenticate, async (c) => {
+    const body = parse(tossIapIntentSchema, await readJson(c));
+    return c.json(await tossIap.createIntent(requireUser(c).id, body), 201);
   });
 
   /**

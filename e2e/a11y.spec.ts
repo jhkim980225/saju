@@ -62,7 +62,7 @@ test('비회원 화면: 랜딩·입력(시트 포함)·확인·결과·로그인
   await expect(page.getByRole('dialog')).toBeVisible();
   await checkScreen(page, '결과 - 결제 시트');
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: '결과 공유' }).click();
+  await page.getByRole('button', { name: '공유', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await checkScreen(page, '결과 - 공유 시트');
   await page.keyboard.press('Escape');
@@ -109,7 +109,7 @@ test('탭 화면: 오늘·내 사주·궁합·물어보기·마이·신년운세
     await checkScreen(page, screen);
   }
 
-  // 주요 메뉴: 모바일은 하단 탭 5개, 데스크톱은 상단 내비(타로·전체 운세·이용권 추가). 모두 이름이 있고 현재 탭 표시
+  // 주요 메뉴: 모바일은 하단 탭 5개, 데스크톱은 왼쪽 사이드바(타로·전체 운세·이용권 추가). 모두 이름이 있고 현재 탭 표시
   await page.goto('/today');
   const nav = page.getByRole('navigation', { name: '주요 메뉴' });
   const desktop = test.info().project.name.startsWith('desktop');

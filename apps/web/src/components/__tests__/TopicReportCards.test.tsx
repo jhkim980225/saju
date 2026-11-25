@@ -1,5 +1,5 @@
 /**
- * 주제별 리포트 카드(연애·결혼운 · 재물·직업운) — 산 프로필이면 '보고서 열기', 아니면 가격·결제 시트.
+ * 주제별 리포트 카드(연애·결혼운 · 재물·직업운) — 산 프로필이면 '리포트 열기', 아니면 가격·결제 시트.
  * API·결제 흐름(usePurchase)은 vi.mock 으로 바꾼다.
  */
 import type { ProductDto, ReportDto, WalletDto } from '@saju/shared';
@@ -96,7 +96,7 @@ describe('주제별 리포트 카드', () => {
       expect(within(card(title)).getByText('4,900원')).toBeInTheDocument();
       // 카드 설명도 쉬운 말로 — 용어(일간·일지·재성·식상·비겁·대운·세운)를 쓰지 않는다
       expect(card(title).textContent).not.toMatch(/일간|일지|재성|식상|비겁|대운|세운|원국|오행|배우자/);
-      expect(within(card(title)).queryByRole('button', { name: '보고서 열기' })).not.toBeInTheDocument();
+      expect(within(card(title)).queryByRole('button', { name: '리포트 열기' })).not.toBeInTheDocument();
     }
     const user = userEvent.setup();
     await user.click(within(card('연애·결혼운 리포트')).getByRole('button', { name: '구매하기' }));
@@ -109,11 +109,11 @@ describe('주제별 리포트 카드', () => {
     expect(m.purchase).toHaveBeenCalledWith({ product: PRODUCTS[0], profileId: 'p1', returnTo: '/saju/p1#topic-reports' });
   });
 
-  it('산 리포트는 "보고서 열기" — 누르면 저장본을 받아 보고서 화면으로 간다', async () => {
+  it('산 리포트는 "리포트 열기" — 누르면 저장본을 받아 보고서 화면으로 간다', async () => {
     m.wallet.mockResolvedValue(wallet(['report:love:p1', 'report:career_wealth:other']));
     m.createReport.mockResolvedValue({ id: 'r9' } as ReportDto);
     renderCards();
-    const open = await within(await screen.findByRole('article', { name: '연애·결혼운 리포트' })).findByRole('button', { name: '보고서 열기' });
+    const open = await within(await screen.findByRole('article', { name: '연애·결혼운 리포트' })).findByRole('button', { name: '리포트 열기' });
     // 다른 프로필의 권한으로는 열리지 않는다
     expect(within(card('재물·직업운 리포트')).getByRole('button', { name: '구매하기' })).toBeInTheDocument();
     await userEvent.setup().click(open);

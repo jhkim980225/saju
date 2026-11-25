@@ -63,8 +63,8 @@ describe('황도·흑도(12천신) — 손으로 확인한 날', () => {
     expect(a.tianShen.name).toBe(name);
     expect(a.tianShen.yellow).toBe(yellow);
   });
-  it('황도 6개는 청룡·명당·금궤·천덕·옥당·사명', () => {
-    expect(TIAN_SHEN.filter((t) => t.yellow).map((t) => t.name)).toEqual(['청룡', '명당', '금궤', '천덕', '옥당', '사명']);
+  it('황도 6개는 청룡·명당·금궤·보광(천덕황도)·옥당·사명', () => {
+    expect(TIAN_SHEN.filter((t) => t.yellow).map((t) => t.name)).toEqual(['청룡', '명당', '금궤', '보광', '옥당', '사명']);
   });
 });
 
@@ -106,11 +106,14 @@ describe('그 밖의 통서 요소', () => {
   it('천사일 — 子월 甲子(2026-12-16)', () => {
     expect(almanac('2026-12-16')).toMatchObject({ cheonsa: true, ganzhi: { hanja: '甲子' } });
   });
-  it('천덕 — 亥월 乙(2026-11-07 乙酉) / 월덕 — 亥월 甲(2026-11-16 甲午) / 卯·午·酉·子월엔 천덕일이 없다', () => {
+  it('천덕 — 亥월 乙(2026-11-07 乙酉) / 월덕 — 亥월 甲(2026-11-16 甲午) / 子월은 지지 巳가 천덕', () => {
     expect(almanac('2026-11-07').cheondeok).toBe(true);
     expect(almanac('2026-11-16').woldeok).toBe(true);
     const ziMonth = taekilDateRange('2026-12-08', '2027-01-04').map(taekilAlmanac);
-    expect(ziMonth.every((a) => a.monthBranch === 0 && !a.cheondeok)).toBe(true);
+    expect(ziMonth.every((a) => a.monthBranch === 0)).toBe(true);
+    const marked = ziMonth.filter((a) => a.cheondeok);
+    expect(marked.length).toBeGreaterThan(0);
+    expect(marked.every((a) => a.ganzhi.branch === 5)).toBe(true); // 巳
   });
   it('귀기일 — 맹월(亥월) 丑일(2026-11-11 己丑)', () => {
     expect(almanac('2026-11-11')).toMatchObject({ gwigi: true, ganzhi: { hanja: '己丑' } });
@@ -123,7 +126,7 @@ describe('그 밖의 통서 요소', () => {
 
 describe('lunar-javascript(寿星万年历) 교차 검증 2025~2028', () => {
   const ZX: Record<string, DayOfficer> = { 建: '건', 除: '제', 满: '만', 平: '평', 定: '정', 执: '집', 破: '파', 危: '위', 成: '성', 收: '수', 开: '개', 闭: '폐' };
-  const TS: Record<string, string> = { 青龙: '청룡', 明堂: '명당', 天刑: '천형', 朱雀: '주작', 金匮: '금궤', 天德: '천덕', 白虎: '백호', 玉堂: '옥당', 天牢: '천뢰', 玄武: '현무', 司命: '사명', 勾陈: '구진' };
+  const TS: Record<string, string> = { 青龙: '청룡', 明堂: '명당', 天刑: '천형', 朱雀: '주작', 金匮: '금궤', 天德: '보광', 白虎: '백호', 玉堂: '옥당', 天牢: '천뢰', 玄武: '현무', 司命: '사명', 勾陈: '구진' };
   it('건제12신·12천신·천사·귀기가 매일 일치 (북경/한국 절입 날짜가 다른 날은 제외)', () => {
     let checked = 0;
     for (let d = ymd('2025-01-01'); ymdKey(d) <= '2028-12-31'; d = addDays(d, 1)) {

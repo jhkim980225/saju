@@ -37,9 +37,15 @@ export function weekdayOf(iso: string) {
   return WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]!;
 }
 
+/** 화면에 보이는 날짜는 모두 '2026.11.12', '1995.3.14'처럼 점으로 잇고 0을 붙이지 않는다 */
+export const dotDate = (year: number, month: number, day: number) => `${year}.${month}.${day}`;
+
 export const formatDateKo = (iso: string) => {
+  // 'YYYY-MM-DD'는 시간대 영향 없이 그대로 읽는다
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (m) return dotDate(Number(m[1]), Number(m[2]), Number(m[3]));
   const d = new Date(iso);
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+  return dotDate(d.getFullYear(), d.getMonth() + 1, d.getDate());
 };
 
 export const POSITION_LABEL = { hour: '시', day: '일', month: '월', year: '년' } as const;

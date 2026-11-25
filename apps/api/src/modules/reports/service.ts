@@ -18,7 +18,7 @@ import { polishChunkCount, type AiService } from '../ai/service.js';
 import { compatKey, type CommerceService, type FulfilledEvent } from '../commerce/service.js';
 import { buildCareerWealthReport } from '../interpretation/careerWealthReport.js';
 import { buildLoveReport } from '../interpretation/loveReport.js';
-import { targetFortuneYear, yearPillarHangul, type ReadingAccess } from '../interpretation/reading.js';
+import { targetFortuneYear, type ReadingAccess } from '../interpretation/reading.js';
 import { buildCompatibilityReport, buildSajuAnalysis, buildYearlyReport } from '../interpretation/report.js';
 import type { ProfileService } from '../profiles/service.js';
 
@@ -167,7 +167,7 @@ export function createReportService(db: Db, profiles: ProfileService, commerce: 
         const y = dto.year ?? targetFortuneYear(now);
         year = y;
         if (!(await yearlyUnlocked(userId, profile.id, y))) throw paymentRequired(`${y} 신년운세를 구매하면 볼 수 있어요.`, { productId: `report_newyear_${y}` });
-        title = `${profile.name}님의 ${y} ${yearPillarHangul(y)}년 신년운세`;
+        title = `${profile.name}님의 ${y} 신년운세`;
         build = () => buildYearlyReport(profiles.chartOf(profile), y, profile.name);
         break;
       }

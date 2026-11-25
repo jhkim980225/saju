@@ -156,10 +156,14 @@ export interface DaeunTenGodContent {
   love: string;
   career: string;
   health: string;
+  /** 달달사주 등급이 '조심'·'쉬어 갈 때'인 대운 — 같은 십성이라도 부담이 앞서는 모습으로(본문과 등급이 엇갈리지 않게) */
+  low: { general: string; wealth: string; love: string; career: string; health: string };
 }
 
 /** 한 해에 같은 십신 달이 두 번 올 수 있어 영역마다 후보 2개(앞 → 처음 오는 달, 뒤 → 두 번째 달). 각 1~2문장 (40~100자) */
 export interface MonthTenGodContent {
+  /** 달 요약(제목 아래 한 줄) — 그달 본문과 같은 주제 */
+  title: [string, string];
   general: [string, string];
   wealth: [string, string];
   love: [string, string];
@@ -167,6 +171,8 @@ export interface MonthTenGodContent {
   health: [string, string];
   /** 이달 해 볼 구체적인 행동 하나 */
   advice: [string, string];
+  /** 등급이 '조심'·'쉬어 갈 때'인 달 — 같은 십성의 주의할 모습(달 제목의 등급과 본문이 엇갈리지 않게) */
+  low: Omit<MonthTenGodContent, 'low'>;
 }
 
 export interface LuckContent {

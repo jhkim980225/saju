@@ -4,6 +4,8 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { useProducts, useWallet } from '@/hooks/queries';
 import { usePurchase } from '@/hooks/usePurchase';
+import { honorName, honorOf } from '@/lib/copy';
+import { IS_TOSS } from '@/lib/platform';
 import { won } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { useOpenReport } from './OpenReportCard';
@@ -28,7 +30,7 @@ export const TOPIC_REPORTS: TopicReport[] = [
     productId: 'report_love',
     title: '연애·결혼운 리포트',
     icon: Heart,
-    body: (name) => `${name}님의 연애 성향과 잘 맞는 사람을 사주로 살펴보고, 앞으로 10년 가운데 인연이 들어오기 쉬운 시기를 짚어 드립니다.`,
+    body: (name) => `${honorOf(name)} 연애 성향과 잘 맞는 사람을 사주로 살펴보고, 앞으로 10년 가운데 인연이 들어오기 쉬운 시기를 짚어 드려요.`,
     benefits: ['연애할 때의 성향, 상대에게 비치는 매력, 갈등이 생기기 쉬운 지점', '성별이 아닌 기질로 본 나와 잘 맞는 사람', '앞으로 10년의 인연 흐름과 가까운 3년, 좋은 달'],
   },
   {
@@ -36,7 +38,7 @@ export const TOPIC_REPORTS: TopicReport[] = [
     productId: 'report_career_wealth',
     title: '재물·직업운 리포트',
     icon: Coins,
-    body: (name) => `${name}님이 재물을 모으는 방식과 잘 맞는 일을 사주로 살펴보고, 앞으로 10년 가운데 재물과 일의 흐름이 좋은 해, 변화가 생기기 쉬운 해를 짚어 드립니다.`,
+    body: (name) => `${honorName(name) === '나' ? '내가' : `${name}님이`} 재물을 모으는 방식과 잘 맞는 일을 사주로 살펴보고, 앞으로 10년 가운데 재물과 일의 흐름이 좋은 해, 변화가 생기기 쉬운 해를 짚어 드려요.`,
     benefits: ['재물이 들어오는 방식, 버는 법과 지키는 법', '어울리는 일과 분야, 직장형·독립형 성향', '앞으로 10년의 흐름과 가까운 3년, 상황별 조언'],
   },
 ];
@@ -115,7 +117,7 @@ export function TopicReportCards({
       <h2 id={headingId} className="font-semibold">
         {heading}
       </h2>
-      <p className="mt-1 text-sm leading-relaxed text-ink-3">관심 있는 주제 하나를 {name}님의 사주로 깊이 있게 풀이합니다. 한 번 구매하면 보관함에서 다시 보고 PDF로 저장할 수 있어요.</p>
+      <p className="mt-1 text-sm leading-relaxed text-ink-3">관심 있는 주제 하나를 {honorOf(name)} 사주로 깊이 있게 풀이해요. {IS_TOSS ? '한 번 구매하면 보관함에서 다시 볼 수 있어요.' : '한 번 구매하면 보관함에서 다시 보고 PDF로 저장할 수 있어요.'}</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {items.map((r) => {
           const Icon = r.icon;
@@ -135,7 +137,7 @@ export function TopicReportCards({
               <div className="mt-auto min-h-12 pt-4">
                 {!owned.ready ? null : owned.owns(r.type, profileId) && profileId ? (
                   <Button block loading={opening} disabled={open.isPending} onClick={() => open.mutate({ type: r.type, profileId })}>
-                    {opening ? '보고서를 여는 중이에요' : '보고서 열기'}
+                    {opening ? '리포트를 여는 중이에요' : '리포트 열기'}
                   </Button>
                 ) : (
                   <div className="flex items-center justify-between gap-3">
@@ -154,8 +156,8 @@ export function TopicReportCards({
         open={paywall !== null}
         onClose={() => setPaywall(null)}
         productIds={paywallIds}
-        title={paywall ? `${name}님의 ${paywall.title}` : undefined}
-        subtitle="사주를 처음 접하는 분도 이해할 수 있도록 결론부터 정리한 리포트입니다. 결제하면 바로 생성되어 보관함에 저장됩니다."
+        title={paywall ? `${honorOf(name)} ${paywall.title}` : undefined}
+        subtitle="사주를 처음 접하는 분도 이해할 수 있도록 결론부터 정리한 리포트예요. 결제하면 바로 생성되어 보관함에 저장돼요."
         benefits={paywall?.benefits}
         onPurchase={onPurchase}
       />

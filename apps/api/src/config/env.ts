@@ -117,6 +117,15 @@ const schema = z.object({
   REWARDED_AD_DAILY_LIMIT: z.coerce.number().int().min(0).default(3),
   /** 우리 앱의 AdMob 보상형 광고 단위 ID 허용 목록(콤마 구분, 숫자 부분). 운영에서 비어 있으면 SSV 지급 거부 */
   ADMOB_REWARDED_AD_UNITS: z.string().default(''),
+
+  // 토스 미니앱(앱인토스) — 서버 간 통신은 mTLS 바인딩(TOSS_MTLS, wrangler.jsonc)으로 한다. 바인딩이 없으면 토스 기능은 꺼진다
+  TOSS_API_BASE: z.string().default('https://apps-in-toss-api.toss.im'),
+  /** 토스 사용자 식별키(anonKey)를 HMAC 으로 바꿔 저장할 때 쓰는 비밀값(32자 이상 권장). 바꾸면 기존 토스 사용자를 못 알아보니 바꾸지 않는다 */
+  TOSS_USER_KEY_SECRET: opt,
+  /** 우리 상품 ID → 토스 인앱 상품 SKU. 콤마 구분 `상품ID=SKU`. 연결하지 않은 상품은 토스 상점에서 숨긴다 */
+  TOSS_IAP_SKUS: opt,
+  /** 개발 전용 — mTLS 없이 토스 서버 응답을 흉내 낸다(운영에서는 무시) */
+  TOSS_DEV_MOCK: bool,
 });
 
 export type AppConfig = z.infer<typeof schema> & {

@@ -55,7 +55,9 @@ import {
   type ScoreBand,
 } from './content/index.js';
 import { ELEMENT_PLAIN, SHINSAL_ORDER, SHINSAL_PLAIN, STEM_PLAIN, STRENGTH_PLAIN, displayName, nameSubject, personalize } from './content/plain.js';
-import { CHILD_HINT, GROUP_PLAIN, HIGHLIGHT_PLAIN, HIGHLIGHT_TERM as HIGHLIGHT_TERM_REPORT, TEN_GOD_PLAIN as TEN_GOD_REPORT } from './content/reportPlain.js';
+import { CHILD_HINT, GROUP_PLAIN, HIGHLIGHT_PLAIN, HIGHLIGHT_TERM as HIGHLIGHT_TERM_REPORT, PAST_HINT, TEN_GOD_PLAIN as TEN_GOD_REPORT } from './content/reportPlain.js';
+import { daeunContinues, daeunEval, isLowGrade, natalShinsal, tgLabel, topTenGods, yearHeadline } from './verdicts.js';
+import { LUCK_CONTENT } from './content/luck.js';
 
 /** 신년운세·"올해 운세" 대상 연도 — KST 기준 10월부터는 다음 해 (웹 lib/format.ts 와 같은 규칙) */
 export function targetFortuneYear(now = new Date()): number {
@@ -313,7 +315,7 @@ function yongsinSection(chart: SajuChart, name: string | null): ReadingSection {
       : `${STRENGTH_PHRASE[s.level]}(달달사주 기준 100점 만점에 ${s.score}점)에 해당해, ${YONGSIN_ROLE[groupOfElement(chart, y.yongsin)]} ${k} 기운이 균형에 도움이 된다고 봅니다.`;
   return {
     key: 'yongsin',
-    title: '용신 — 나에게 필요한 기운',
+    title: '용신: 균형을 위해 필요한 기운',
     summary: `${el.need}${josa(el.need, '이', '가').slice(el.need.length)} 가장 도움이 돼요`,
     keywords: [`행운의 색 ${LUCKY_COLOR_PLAIN[y.yongsin]}`, `행운의 방향 ${info.direction}`, `행운의 숫자 ${info.numbers.join('·')}`],
     paragraphs: [
@@ -334,11 +336,16 @@ const GROUP_ORDER: TenGodGroup[] = ['비겁', '식상', '재성', '관성', '인
 
 function tenGodSection(chart: SajuChart, name: string | null): ReadingSection {
   const g = groupCount(chart);
-  const top = dominantTenGod(chart);
+  // 가장 많은 십성 — 사주분석서와 같은 목록(verdicts.ts topTenGods, 같은 수면 모두)
+  const tops = topTenGods(chart);
+  const top = tops[0] ?? dominantTenGod(chart);
   const tp = TEN_GOD_REPORT[top];
   const absentGroups = GROUP_ORDER.filter((k) => g[k] === 0);
+  const topsText = tops.map(tgLabel).join('와 ');
   const paragraphs = [
-    `${nameSubject(name, '은')}십성 가운데 ${josa(top, '이', '가')} 가장 많아, '${tp.phrase}'${pt(tp.phrase, '이', '가')} 두드러지는 편이에요. ${josa(top, '은', '는')} ${TEN_GOD_PLAIN[top].relation} 것을 말해요.`,
+    tops.length > 1
+      ? `${nameSubject(name, '은')}십성 가운데 ${topsText}${pt(tops.at(-1)!, '이', '가')} 각각 ${chart.tenGodCount[top]}개로 가장 많아요. ${tops.map((t) => `${josa(t, '은', '는')} ${TEN_GOD_PLAIN[t].relation} 것으로, ${TEN_GOD_REPORT[t].phrase}${pt(TEN_GOD_REPORT[t].phrase, '과', '와')} 이어져요.`).join(' ')}`
+      : `${nameSubject(name, '은')}십성 가운데 ${tgLabel(top)}${pt(top, '이', '가')} 가장 많아, ${tp.phrase}${pt(tp.phrase, '이', '가')} 두드러져요. ${josa(top, '은', '는')} ${TEN_GOD_PLAIN[top].relation} 것을 말해요.`,
     tp.meaning,
     tp.strong,
   ];
@@ -346,20 +353,21 @@ function tenGodSection(chart: SajuChart, name: string | null): ReadingSection {
   return {
     key: 'tenGods',
     title: '나를 움직이는 힘',
-    summary: `'${tp.phrase}'${pt(tp.phrase, '이', '가')} 가장 두드러져요`,
-    keywords: [TEN_GOD_PLAIN_LABEL[top]!],
+    summary: `${tops.length > 1 ? tops.join('·') : tgLabel(top)}${pt(tops.at(-1) ?? top, '이', '가')} 가장 많은 사주예요`,
+    keywords: (tops.length ? tops : [top]).map((t) => TEN_GOD_PLAIN_LABEL[t]!),
     paragraphs,
-    basis: `가장 많은 십성 ${top} · ${GROUP_ORDER.map((k) => `${k} ${g[k]}`).join(' · ')} (일간을 뺀 천간과 지지의 십성 개수, 지지는 지장간 본기 기준)`,
+    basis: `가장 많은 십성 ${(tops.length ? tops : [top]).join('·')} · ${GROUP_ORDER.map((k) => `${k} ${g[k]}`).join(' · ')} (일간을 뺀 천간과 지지의 십성 개수, 지지는 지장간 본기 기준)`,
   };
 }
 
 function shinsalSection(chart: SajuChart): ReadingSection {
   // 같은 신살이 기준(년지·일지)별로 두 번 잡힐 수 있어 이름으로 한 번만
-  const all = chart.shinsal.filter((s, i, arr) => s.name !== '현침살' && arr.findIndex((x) => x.name === s.name) === i);
+  // 원국의 신살은 모든 화면이 같은 목록(verdicts.ts natalShinsal)에서 고른다. 무료 화면에서는 현침살을 빼고 셋까지
+  const all = natalShinsal(chart).filter((n) => n !== '현침살').map((n) => chart.shinsal.find((s) => s.name === n)!);
   if (all.length === 0) {
     return {
       key: 'shinsal',
-      title: '신살 — 타고난 특별한 기운',
+      title: '신살: 타고난 특별한 기운',
       summary: '두드러진 신살이 없는 사주예요',
       paragraphs: ['신살(神殺)은 특정 글자의 조합에 붙이는 이름으로, 성향을 해석할 때 참고하는 보조 요소입니다. 달달사주가 살펴보는 신살 가운데 해당하는 것이 없으며, 신살이 없다고 해서 좋거나 나쁜 것은 아니에요.'],
     };
@@ -371,7 +379,7 @@ function shinsalSection(chart: SajuChart): ReadingSection {
   const [first, ...rest] = shown;
   return {
     key: 'shinsal',
-    title: '신살 — 타고난 특별한 기운',
+    title: '신살: 타고난 특별한 기운',
     summary: SHINSAL_PLAIN[first!.name].lead.replace(/\.$/, ''),
     paragraphs: [
       '신살(神殺)은 특정 글자의 조합에 붙이는 이름으로, 성향이나 두드러지는 부분을 해석할 때 참고하는 보조 요소입니다. 신살 하나만으로 좋고 나쁨을 판단하지는 않아요.',
@@ -398,7 +406,7 @@ function wealthSection(chart: SajuChart, name: string | null): ReadingSection {
     key: 'wealth',
     title: '재물운',
     summary: g.재성 ? '돈이 들고 나는 흐름을 잘 읽는 편이에요' : '실력을 쌓을수록 수입이 늘어나기 쉬운 사주예요',
-    paragraphs: p,
+    paragraphs: [...p, '재물·연애·일 항목의 점수는 십성 개수를 100점 만점으로 환산한 달달사주 지표예요.'],
     score,
     basis: `재성 ${g.재성} · 식상 ${g.식상} · 비겁 ${g.비겁} (일간을 뺀 천간·지지의 십성 개수, 지지는 지장간 본기 기준) · 분야별 점수는 이 개수로 환산한 달달사주 지표`,
   };
@@ -421,7 +429,7 @@ function loveSection(chart: SajuChart, name: string | null): ReadingSection {
   if (dayClash) p.push('일지가 사주 안의 다른 지지와 충을 이뤄, 가까운 관계에 변화가 생기기 쉬워요. 이별을 뜻하는 것은 아니며, 서로의 공간과 속도를 존중하면 관계를 오래 이어 갈 수 있습니다.');
   const score = Math.min(95, 58 + g[spouseGroup] * 6 + (hasShinsal(chart, '도화살') ? 6 : 0) - (dayClash ? 8 : 0));
   // 요약은 본문 첫 문장과 겹치지 않게 — 배우자성 개수로 짧게
-  const loveSummary = g[spouseGroup] === 0 ? '인연이 들어오는 시기를 잘 살피면 좋은 사주예요' : g[spouseGroup] >= 3 ? '사람을 끄는 힘이 있는 사주예요' : '진심으로 오래 가는 사랑을 하는 편이에요';
+  const loveSummary = g[spouseGroup] === 0 ? '인연이 들어오는 시기를 잘 살피면 좋은 사주예요' : g[spouseGroup] >= 3 ? '사람을 끄는 힘이 있는 사주예요' : '진심으로 오래가는 사랑을 하는 편이에요';
   const tags = [hasShinsal(chart, '도화살') && '도화살', hasShinsal(chart, '홍염살') && '홍염살', dayClash && '일지 충'].filter(Boolean);
   return {
     key: 'love',
@@ -437,7 +445,7 @@ function careerSection(chart: SajuChart, name: string | null): ReadingSection {
   const dm = dayMasterContent(chart);
   const dp = dayPillarContent(chart);
   const g = groupCount(chart);
-  const p = [dmText(chart, dm.career, name), dp.career, `잘 맞는 분야로는 ${dm.jobs.join(', ')} 등을 꼽을 수 있어요.`];
+  const p = [dmText(chart, dm.career, name), dp.career, `일간의 기질로 보면 잘 맞는 일로는 ${dm.jobs.join(', ')} 등을 꼽을 수 있어요.`];
   if (g.관성 >= 2) p.push('관성이 두드러져 책임감이 강하고, 조직과 제도 안에서 인정받는 타입이에요. 공공기관, 규모 있는 회사, 전문 자격이 필요한 분야에서 안정적으로 경력을 쌓기 좋아요.');
   if (g.식상 >= 2) p.push('일에서도 식상의 표현력과 창의력이 강점으로 꼽혀요. 기획·창작·교육·프리랜서처럼 자신의 방식으로 일할 수 있는 자리가 잘 맞는 편입니다.');
   if (g.인성 >= 2) p.push('인성이 두드러져 깊이 공부하고 가르치는 일과 잘 맞아요. 연구·교육·상담처럼 자격이 필요한 일에서 전문성을 쌓으면 대체하기 어려운 인재가 됩니다.');
@@ -447,7 +455,7 @@ function careerSection(chart: SajuChart, name: string | null): ReadingSection {
   return {
     key: 'career',
     title: '일과 적성',
-    summary: `${dm.jobs.slice(0, 3).join(', ')} 분야와 잘 맞아요`,
+    summary: `일간의 기질로 보면 ${dm.jobs.slice(0, 3).join(', ')} 같은 일이 잘 맞아요`,
     keywords: dm.jobs.slice(0, 5),
     paragraphs: p,
     score,
@@ -479,7 +487,7 @@ function healthSection(chart: SajuChart, name: string | null): ReadingSection {
   return {
     key: 'health',
     title: '건강',
-    summary: none.length ? `${koNames(none)} 기운과 연결된 부분의 컨디션을 챙기면 좋아요` : '규칙적인 생활 리듬이 가장 중요해요',
+    summary: none.length ? `${EL_KO[chart.dayMaster.element]} 기운과 ${koNames(none)} 기운에 연결된 부분을 함께 챙기면 좋아요` : `${EL_KO[chart.dayMaster.element]} 기운과 연결된 부분부터 챙기면 좋아요`,
     paragraphs: p,
     basis: `오행 개수 ${ELEMENT_KEYS.map((k) => `${EL_NAME[k].slice(0, 1)}${chart.elements.count[k]}`).join(' ')}${many.length ? ` · 많은 오행 ${many.map((e) => EL_NAME[e]).join('·')}` : ''}${none.length ? ` · 없는 오행 ${none.map((e) => EL_NAME[e]).join('·')}` : ''}`,
   };
@@ -494,21 +502,25 @@ function daeunSection(chart: SajuChart, now = new Date(), name: string | null = 
   const paragraphs: string[] = [
     `대운(大運)은 태어난 달의 기둥에서 출발해 10년마다 바뀌는 운의 큰 흐름입니다. ${nameSubject(name, '의')}첫 대운은 만 ${chart.daeun.startAge}세에 ${started ? '시작됐어요' : '시작돼요'}. 시작 나이는 성별과 태어난 해의 음양, 출생일과 절기 사이의 날수에 따라 사람마다 다릅니다. 달달사주는 출생일과 절입일(절기가 바뀌는 날) 사이의 날수를 3으로 나누어 계산하고, 대운의 진행 방향에 따라 다음 또는 지난 절입일을 기준으로 삼아요. 시기별 등급은 그 시기의 간지와 사주의 관계를 점수로 환산한 달달사주 기준이에요.`,
   ];
-  // 같은 묶음의 10년이 다시 나오면 긴 풀이는 처음 한 번만
+  // 같은 묶음의 10년이 다시 나오면 긴 풀이는 처음 한 번만. 대운 평가는 사주분석서·주제 리포트와 같은 값(verdicts.ts)
   const told = new Set<TenGodGroup>();
-  for (const p of periods) {
-    const ev = evaluateFortune(chart, p);
+  const evs = periods.map((p) => daeunEval(chart, p));
+  let cont = 0;
+  periods.forEach((p, i) => {
+    const ev = evs[i]!;
     const group = TEN_GOD_GROUP[p.stemTenGod];
-    const head = `${p === current ? '▶ ' : ''}${p.startAge}~${p.endAge}세 (${p.startYear}~${p.endYear}년) · ${GRADE_PLAIN_LABEL[ev.grade]} — '${TEN_GOD_PLAIN_LABEL[p.stemTenGod]}'의 10년.`;
-    // 이미 지나온 어린 시절의 10년은 직장·돈 이야기 대신 그때의 모습으로
-    if (p.endAge < 20 && p.endYear < year) {
-      paragraphs.push(`${head} ${CHILD_HINT[p.stemTenGod]}`);
-      continue;
+    const head = `${p === current ? '▶ ' : ''}${p.startAge}~${p.endAge}세 (${p.startYear}~${p.endYear}년) · ${GRADE_PLAIN_LABEL[ev.grade]}: ${tgLabel(p.stemTenGod)}의 10년.`;
+    // 이미 지나온 10년은 앞으로 할 일 대신 그때의 모습으로(어린 시절은 학업·친구·집안 분위기로)
+    if (p.endYear < year) {
+      paragraphs.push(`${head} ${p.endAge < 20 ? CHILD_HINT[p.stemTenGod] : PAST_HINT[p.stemTenGod]}`);
+      return;
     }
-    if (told.has(group)) paragraphs.push(`${head} 앞에서 본 '${GROUP_PLAIN[group].name}'의 흐름이 다시 이어지는 시기예요.`);
-    else paragraphs.push(`${head} ${FORTUNE_TEMPLATES.daeunTheme[group]}`);
+    const prev = periods[i - 1];
+    if (told.has(group) && prev && TEN_GOD_GROUP[prev.stemTenGod] === group) paragraphs.push(`${head} ${daeunContinues(prev, evs[i - 1]!, p, ev, cont++)}`);
+    else if (told.has(group)) paragraphs.push(`${head} 앞에서 본 ${group} 무리의 흐름이 다시 들어오는 시기예요. ${isLowGrade(ev.grade) ? LUCK_CONTENT.daeun[p.stemTenGod].low.general : LUCK_CONTENT.daeun[p.stemTenGod].general}`);
+    else paragraphs.push(`${head} ${isLowGrade(ev.grade) ? LUCK_CONTENT.daeun[p.stemTenGod].low.general : FORTUNE_TEMPLATES.daeunTheme[group]}`);
     told.add(group);
-  }
+  });
   return {
     key: 'daeun',
     title: '10년마다 바뀌는 큰 흐름',
@@ -542,12 +554,12 @@ export function yearBriefSection(chart: SajuChart, year: number, name: string | 
   return {
     key: `year${year}`,
     title: `${year}년 운세`,
-    summary: pick(FORTUNE_TEMPLATES.yearlyHeadline[ev.grade], `${year}-${chart.pillars.day.ganzhi.index}`),
+    summary: yearHeadline(chart, year, ev.grade),
     score: ev.scores.total,
     keywords: [TEN_GOD_PLAIN_LABEL[stg]!, GRADE_PLAIN_LABEL[ev.grade]],
     basis: `${ev.pillar.ganzhi.hangul}(${ev.pillar.ganzhi.hanja})년 · 천간 ${stg} · 지지 ${ev.pillar.branchTenGod} · ${GRADE_LABEL[ev.grade]}${hl.terms.length ? ` · ${hl.terms.join(' · ')}` : ''}`,
     paragraphs: [
-      `${year}년은 ${nameSubject(name, '에게')}'${tp.phrase}'${pt(tp.phrase, '이', '가')} 들어오는 해로 봐요. ${luckOpening(tg.inLuck.general, '이런 해에는 ')}`,
+      `${year}년은 ${nameSubject(name, '에게')}${tgLabel(stg)}의 기운이 들어오는 해예요. ${luckOpening(tg.inLuck.general, '이런 해에는 ')}`,
       `재물: ${tg.inLuck.wealth}`,
       `애정: ${tg.inLuck.love}`,
       `일·커리어: ${tg.inLuck.career}`,
@@ -698,6 +710,15 @@ function restHighlights(ev: FortuneEvaluation, folded: FortuneHighlight[], max: 
 const luckyItem = (el: Element, seed: string) =>
   pick(ELEMENT_CONTENT[el].luckyItems.filter((x) => !x.startsWith('숫자')), seed).replace(/\([一-鿿]+\)/g, '');
 
+/** 오늘의 제목 후보 — 충·형·역마처럼 변화의 신호가 있는 날에는 '변화 없이'·'평소와 비슷하게' 같은 말을 빼고 고른다 */
+function dailyHeadlines(ev: FortuneEvaluation): readonly string[] {
+  const bank = FORTUNE_TEMPLATES.dailyHeadline[ev.grade];
+  const moving = ev.highlights.some((h) => h === 'stem_clash_day' || h === 'branch_clash_day' || h === 'branch_clash_month' || h === 'branch_punish_day' || h === 'yeokma');
+  const calm = /변화 없이|평소와 비슷|잔잔|조용히 흘러/;
+  const ok = moving ? bank.filter((x) => !calm.test(x)) : bank;
+  return ok.length ? ok : bank;
+}
+
 /** 오늘의 운세. rawName 은 프로필(또는 비회원 입력) 이름 — 있으면 "서윤님," 하고 부른다 */
 export function buildDailyFortune(chart: SajuChart, date: { year: number; month: number; day: number }, profileId: string | null, rawName: string | null = null): DailyFortuneDto {
   const name = displayName(rawName);
@@ -727,7 +748,7 @@ export function buildDailyFortune(chart: SajuChart, date: { year: number; month:
     dayPillar: { hanja: ev.pillar.ganzhi.hanja, hangul: ev.pillar.ganzhi.hangul },
     evaluation: ev,
     gradeLabel: DAY_GRADE_PLAIN[ev.grade],
-    headline: pick(FORTUNE_TEMPLATES.dailyHeadline[ev.grade], `${seed}|head`),
+    headline: pick(dailyHeadlines(ev), `${seed}|head`),
     message: `${name ? `${name}님, ` : ''}${pick(FORTUNE_TEMPLATES.dailyMessage[ev.grade], `${seed}|msg`)}`,
     categories,
     advice,
@@ -737,7 +758,8 @@ export function buildDailyFortune(chart: SajuChart, date: { year: number; month:
       { label: '조심할 일', text: low.score >= 70 ? '크게 조심할 일은 없어요' : CATEGORY_PLAIN[low.key].watch },
       { label: '오늘 해 볼 일', text: advice.replace(/^오늘(은)? /, '') },
     ],
-    why: defineTerms([lead.text, ...restHighlights(ev, lead.folded, 2)]),
+    // 오늘 화면은 근거 문단 바로 위 안내 문장에서 일진·일간의 뜻을 먼저 밝힌다 — 여기서 다시 풀지 않는다(뜻 풀이는 화면에서 한 번)
+    why: defineTerms([lead.text, ...restHighlights(ev, lead.folded, 2)], new Set(['일진', '일간'])),
     basis: luckBasis('오늘 일진', ev),
     lucky: {
       color: LUCKY_COLOR_PLAIN[el],
@@ -828,16 +850,16 @@ export function buildYearlyFortune(chart: SajuChart, year: number, unlocked: boo
     year,
     yearPillar: { hanja: ev.pillar.ganzhi.hanja, hangul: ev.pillar.ganzhi.hangul },
     evaluation: ev,
-    headline: pick(FORTUNE_TEMPLATES.yearlyHeadline[ev.grade], seed),
+    headline: yearHeadline(chart, year, ev.grade),
     yearName: yearNickname(yp.stem, yp.branch),
     gradeLabel: YEAR_GRADE_PLAIN[ev.grade],
     keyPoints: [
-      { label: '올해의 기운', text: `'${plain.theme}'의 해예요` },
+      { label: '올해의 기운', text: `${tgLabel(stg)}의 해예요` },
       {
         label: '잘 풀리는 일',
-        text: ev.scores[best] >= 50 ? `${josa(YEAR_CATEGORY_PLAIN[best].good, '이', '가')} 가장 순조롭기 쉬워요` : `${josa(YEAR_CATEGORY_PLAIN[best].label, '이', '가')} 상대적으로 무난한 편이에요`,
+        text: ev.scores[best] >= 50 ? `${josa(YEAR_CATEGORY_PLAIN[best].good, '이', '가')} 가장 순조로운 편이에요` : `${josa(YEAR_CATEGORY_PLAIN[best].label, '이', '가')} 상대적으로 무난한 편이에요`,
       },
-      { label: '조심할 것', text: ev.scores[worst] >= 70 ? '크게 조심할 일은 없어요' : `${josa(YEAR_CATEGORY_PLAIN[worst].watch, '은', '는')} 조심하는 것이 좋아요` },
+      { label: '조심할 것', text: ev.scores[worst] >= 70 ? '크게 조심할 일은 없어요' : YEAR_CATEGORY_PLAIN[worst].watch },
       { label: '해 볼 일', text: plain.yearTip },
     ],
     sections: defineSections([total, ...YEAR_CATEGORIES.map(category)]),
@@ -948,7 +970,7 @@ export function buildCompatibilitySections(a: SajuChart, b: SajuChart, r: Compat
       {
         key: 'cautions',
         title: '함께 조심할 점',
-        summary: neg.length >= 3 ? '맞춰 갈 부분이 몇 가지 있어요' : neg.length ? '맞춰 갈 부분이 조금 있어요' : '크게 부딪히는 부분이 적어요',
+        summary: neg.length ? `미리 알아 두면 좋은 점이 ${neg.length}가지 있어요` : '크게 부딪히는 부분이 적어요',
         paragraphs: [
           COMPAT_CATEGORY_PLAIN.stability[band(r.categories.stability)],
           ...(neg.length ? neg.map((l) => l.text) : ['두 사람의 사주에서 크게 부딪히는 관계는 두드러지지 않아요. 지금처럼 서로를 배려하면 편안한 관계를 이어 가기 쉽습니다.']),

@@ -84,7 +84,7 @@ export const TERM_DEF: Record<string, string> = {
   천간합: '두 천간이 결합하는 관계',
   천간충: '두 천간이 대립하는 관계',
   육합: '두 지지가 짝을 이뤄 결합하는 관계',
-  반합: '삼합을 이루는 세 지지 가운데 두 지지가 만난 관계',
+  반합: '삼합의 가운데 글자(자·오·묘·유)를 포함한 두 지지가 만난 관계',
   삼합: '세 지지가 모여 한 오행의 기운을 이루는 관계',
   방합: '같은 계절의 지지가 모여 결합하는 관계',
   충: '정반대 방향의 지지가 대립하는 관계',
@@ -138,9 +138,25 @@ export const scoreBand = (n: number): 'high' | 'mid' | 'low' => (n >= 65 ? 'high
 /** 점수(0~100) → 등급(달달사주 기준). low 는 주제마다 다르게(연애: 잔잔함, 재물: 낮음) */
 export const gradeWord = (score: number, low: string) => (score >= 80 ? '아주 좋음' : score >= 65 ? '좋음' : score >= 50 ? '보통' : low);
 
-/** 양력 달 → 계절 */
-const SEASON: Record<number, string> = { 1: '겨울', 2: '늦겨울', 3: '봄', 4: '봄', 5: '늦봄', 6: '여름', 7: '여름', 8: '늦여름', 9: '가을', 10: '가을', 11: '늦가을', 12: '겨울' };
+/**
+ * 절기 기준 달(월운) → 계절. 2월은 寅월(입춘~경칩)로 이른 봄, 1월은 丑월(소한~입춘)로 늦겨울이다.
+ * 월운은 절입일부터 세므로 달마다 그 절기의 계절로 부른다.
+ */
+const SEASON: Record<number, string> = { 1: '늦겨울', 2: '이른 봄', 3: '봄', 4: '늦봄', 5: '이른 여름', 6: '여름', 7: '늦여름', 8: '이른 가을', 9: '가을', 10: '늦가을', 11: '이른 겨울', 12: '겨울' };
 export const seasonOf = (month: number) => SEASON[month]!;
 
 /** 좋은 달 목록 — 같은 해면 '3월', 다음 해 1월이면 '2029년 1월' */
 export const monthsText = (year: number, ms: { year: number; month: number }[]) => ms.map((m) => (m.year === year ? `${m.month}월` : `${m.year}년 ${m.month}월`)).join('과 ');
+
+/**
+ * 목록에 올릴 '좋은 해' — 해마다 보여 주는 등급(gradeWord)과 맞도록 '좋음' 이상(65점↑, 달달사주 기준)인 해만 고른다. 점수 높은 순.
+ * 그런 해가 너무 많으면 '아주 좋음'만, 그래도 많으면 max 까지. 하나도 없으면 상대적으로 가장 나은 한 해.
+ */
+export function goodYears<T extends { year: number }>(xs: T[], score: (x: T) => number, max = 4): T[] {
+  const sorted = [...xs].sort((a, b) => score(b) - score(a) || a.year - b.year);
+  const good = sorted.filter((x) => score(x) >= 65);
+  if (!good.length) return sorted.slice(0, 1);
+  if (good.length <= max) return good;
+  const great = good.filter((x) => score(x) >= 80);
+  return (great.length ? great : good).slice(0, max);
+}

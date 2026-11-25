@@ -417,14 +417,14 @@ function overviewParagraph(placed: TarotPlacedCardDto[], seed: string): string {
       ),
     );
   } else if (majors.length === 1) {
-    parts.push(`${MAJOR_TERM}인 ${cj(majors[0]!.nameKo, '이', '가')} ${majors[0]!.position.label} 자리에 나왔어요. 이 자리가 지금 고민에서 가장 비중이 큰 부분으로 읽어요.`);
+    parts.push(`${MAJOR_TERM}인 ${cj(majors[0]!.nameKo, '이', '가')} ${majors[0]!.position.label} 자리에 나왔어요. 메이저 아르카나가 놓인 자리는 지금 고민에서 가장 비중이 큰 부분으로 봅니다.`);
   } else {
     parts.push(`${MAJOR_TERM}가 ${majors.length}장 나왔어요. 이 고민이 지금 마음에서 큰 비중을 차지하고 있다고 읽어요.`);
   }
   if (placed.length > 1) {
     if (reversed === 0) parts.push('모두 정방향이라 카드의 뜻이 그대로 드러나요.');
     else if (reversed * 2 > placed.length)
-      parts.push(`역방향 카드가 ${reversed}장으로 절반을 넘어요. 역방향은 카드의 뜻이 늦어지거나 아직 드러나지 않은 상태로 읽기 때문에, 서두르기보다 생각을 정리할 시간부터 갖는 편이 좋아요.`);
+      parts.push(`역방향 카드가 ${reversed}장으로 절반을 넘어요. 일의 결과가 바로 드러나기보다 시간이 걸리는 흐름이라, 서두르기보다 생각을 정리할 시간부터 갖는 편이 좋아요.`);
     // 같은 슈트가 두 장 이상이면 그 슈트의 전통 원소·주제를 짚는다(오행 연결은 사주 섹션에서만)
     const counts = new Map<TarotSuit, number>();
     for (const p of placed) if (p.suit) counts.set(p.suit, (counts.get(p.suit) ?? 0) + 1);

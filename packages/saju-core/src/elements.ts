@@ -6,6 +6,7 @@ import { BRANCHES, ELEMENTS, HIDDEN_STEMS, STEMS, controlledBy, generatedBy, mod
 import type { TenGodGroup } from './basics.js';
 import { TEN_GOD_GROUPS, elementOfGroup } from './basics.js';
 import type { PillarPosition, PositionedPillar } from './relations.js';
+import { combinedBranchElements } from './relations.js';
 
 export type ElementRecord = Record<Element, number>;
 const zero = (): ElementRecord => ({ wood: 0, fire: 0, earth: 0, metal: 0, water: 0 });
@@ -84,6 +85,12 @@ export interface StrengthAnalysis {
   groupScore: Record<TenGodGroup, number>;
 }
 
+/**
+ * 삼합·방합이 완성되면 묶인 지지의 기운이 국(局)의 오행 쪽으로 기운다고 본다.
+ * 묶인 지지는 본래 지장간 비율과 국의 오행을 반씩 섞어 센다(달달사주 기준, 완전한 화(化)로 보지는 않는다).
+ */
+const COMBINE_PULL = 0.5;
+
 const POSITION_WEIGHT: Record<PillarPosition, { stem: number; branch: number }> = {
   year: { stem: 10, branch: 10 },
   month: { stem: 10, branch: 30 },
@@ -106,6 +113,7 @@ export function analyzeStrength(pillars: PositionedPillar[]): StrengthAnalysis {
   let deukji = false;
   let otherSupport = 0;
   let otherTotal = 0;
+  const combined = combinedBranchElements(pillars);
 
   for (const p of pillars) {
     const w = POSITION_WEIGHT[p.position];
@@ -119,6 +127,11 @@ export function analyzeStrength(pillars: PositionedPillar[]): StrengthAnalysis {
       otherTotal += w.stem;
     }
     const share = branchElementShare(p.branch);
+    const toward = combined.get(p.position);
+    if (toward) {
+      for (const e of ELEMENTS) share[e] *= 1 - COMBINE_PULL;
+      share[toward] += COMBINE_PULL;
+    }
     let branchSupport = 0;
     for (const e of ELEMENTS) {
       const g = groupOfElement(dayEl, e);

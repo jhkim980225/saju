@@ -22,7 +22,7 @@ export function ToastHost() {
   const message = useToast((s) => s.message);
   if (!message) return null;
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4" role="status" aria-live="polite">
+    <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4 lg:left-[var(--side-w)]" role="status" aria-live="polite">
       <div className="animate-fade rounded-full bg-action px-5 py-3 text-sm font-medium text-on-action shadow-lg">{message}</div>
     </div>
   );

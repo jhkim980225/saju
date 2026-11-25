@@ -152,10 +152,12 @@ export interface UserDto {
   id: string;
   email: string | null;
   nickname: string;
-  provider: 'guest' | 'email' | SocialProvider;
+  provider: 'guest' | 'email' | SocialProvider | 'toss';
   role: 'user' | 'admin';
   credits: number;
   marketingConsent: boolean;
+  /** 오늘의 운세 푸시 수신 여부(앱). 예전 서버 응답에는 없을 수 있다 */
+  pushEnabled?: boolean;
   isPremium: boolean;
   premiumUntil: string | null;
   createdAt: string;
@@ -430,7 +432,7 @@ export interface ProductDto {
   androidProductId: string | null;
 }
 
-export const PAYMENT_PROVIDERS = ['mock', 'toss', 'portone', 'groble', 'iap_apple', 'iap_google'] as const;
+export const PAYMENT_PROVIDERS = ['mock', 'toss', 'portone', 'groble', 'iap_apple', 'iap_google', 'iap_toss'] as const;
 export type PaymentProvider = (typeof PAYMENT_PROVIDERS)[number];
 
 export const orderCreateSchema = z.object({
@@ -522,7 +524,7 @@ export interface WalletDto {
 export const TAROT_TOPICS = {
   love: { label: '연애', title: '우리 관계, 지금 어디쯤일까요?', spread: 'three' },
   feelings: { label: '속마음', title: '그 사람은 어떤 마음일까요?', spread: 'feelings5' },
-  reunion: { label: '재회', title: '지난 관계, 다시 생각나요', spread: 'reunion5' },
+  reunion: { label: '재회', title: '지난 관계, 다시 이어질 수 있을까요?', spread: 'reunion5' },
   career: { label: '일·진로', title: '이 길로 가도 괜찮을까요?', spread: 'three' },
   money: { label: '돈', title: '돈의 흐름, 어떻게 챙길까요?', spread: 'three' },
   relation: { label: '관계', title: '사람 사이, 어떻게 풀어 볼까요?', spread: 'three' },
@@ -982,3 +984,6 @@ export interface TaekilSummaryDto {
   locked: boolean;
   createdAt: string;
 }
+
+// 토스 미니앱(앱인토스) 전용 계약 — 로그인·인앱 결제·보상형 광고
+export * from './toss.js';

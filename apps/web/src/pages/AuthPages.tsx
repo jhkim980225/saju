@@ -111,7 +111,7 @@ function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
         </div>
         {isInAppBrowser() && (
           <p className="mt-4 rounded-xl bg-subtle p-3 text-sm text-ink-2">
-            <b>{t('error.inAppBrowser.title')}</b> — {t('error.inAppBrowser.body')}
+            <b>{t('error.inAppBrowser.title')}</b> {t('error.inAppBrowser.body')}
           </p>
         )}
         <div className="mt-8">
@@ -133,7 +133,7 @@ function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           </Field>
           {mode === 'signup' && (
             <>
-              <Field label="닉네임" htmlFor="nickname" helper="선택 — 비워 두면 이메일 앞부분을 사용합니다.">
+              <Field label="닉네임" htmlFor="nickname" helper="선택 항목입니다. 비워 두면 이메일 앞부분을 사용합니다.">
                 <TextInput id="nickname" maxLength={20} value={nickname} onChange={(e) => setNickname(e.target.value)} />
               </Field>
               <div className="space-y-2 text-[15px]">

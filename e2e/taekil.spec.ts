@@ -31,7 +31,7 @@ test('택일: 무료 미리보기 → 목업 결제 → 같은 결과의 상세�
   await expect(page).toHaveURL(/\/taekil\/r\/[\w-]+$/);
   const id = page.url().split('/').pop()!;
   await expect(page.getByRole('heading', { name: /^가장 좋은 날은 / })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '추천 Top 3' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '추천하는 날' })).toBeVisible();
   await expect(page.getByRole('button', { name: /^1위 / })).toBeVisible();
   await expect(page.getByText('서윤님의 이사 택일')).toBeVisible();
   const before = await apiCall<TaekilApiResult>(api, 'GET', `/taekil/${id}`, { token: tokens.accessToken });
@@ -41,7 +41,7 @@ test('택일: 무료 미리보기 → 목업 결제 → 같은 결과의 상세�
   // 날짜를 눌러도 잠금 안내만
   await page.getByRole('button', { name: /^1위 / }).click();
   const daySheet = page.getByRole('dialog');
-  await expect(daySheet.getByText('이 날의 근거와 빠진 이유는 상세 풀이에서 볼 수 있어요.')).toBeVisible();
+  await expect(daySheet.getByText('이 날을 고른 자세한 근거는 상세 풀이에서 볼 수 있어요.')).toBeVisible();
   await expect(daySheet.getByRole('heading', { name: '좋은 점' })).toHaveCount(0);
   await daySheet.getByRole('button', { name: '상세 풀이 열기 · 990원' }).click();
 

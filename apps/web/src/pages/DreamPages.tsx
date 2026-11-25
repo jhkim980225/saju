@@ -35,13 +35,14 @@ import { AdSlot } from '@/components/AdSlot';
 import { Page } from '@/components/AppShell';
 import { PaywallSheet } from '@/components/PaywallSheet';
 import { RewardedAdCard } from '@/components/RewardedAdCard';
+import { IS_TOSS } from '@/lib/platform';
 import { Badge, Button, Card, Chip, EmptyState, IconButton, PageHeader, cx, type PageWidth } from '@/components/ui';
 import { qk, useConfig, useProfiles, useWallet } from '@/hooks/queries';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { SessionGateError, useSessionGate } from '@/hooks/useSessionGate';
 import { usePurchase } from '@/hooks/usePurchase';
 import { ApiError, api } from '@/lib/api';
-import { t } from '@/lib/copy';
+import { honorOf, t } from '@/lib/copy';
 
 const SITE = '달달사주';
 const CRISIS_NOTE = t('ask.crisisNote');
@@ -153,10 +154,13 @@ function DreamSearch({ autoFocus }: { autoFocus?: boolean }) {
                 </li>
               ))}
             </ul>
+          ) : IS_TOSS ? (
+            // 토스 미니앱 첫 버전에는 AI 꿈풀이가 없다
+            <p className="rounded-xl bg-subtle p-4 text-sm leading-relaxed text-ink-2">사전에 꼭 맞는 꿈이 없어요. 다른 낱말로 다시 찾아 주세요.</p>
           ) : (
             <p className="rounded-xl bg-subtle p-4 text-sm leading-relaxed text-ink-2">
               사전에 꼭 맞는 꿈이 없어요. 꿈 이야기를 그대로 적으면{' '}
-              <Link to={`/dream/ask?text=${encodeURIComponent(q.trim())}`} className="font-semibold text-info underline underline-offset-2">
+              <Link to={`/dream/ask?text=${encodeURIComponent(q.trim())}`} className="font-semibold text-gold underline underline-offset-2">
                 AI 꿈풀이
               </Link>
               가 풀어 드려요.
@@ -169,6 +173,7 @@ function DreamSearch({ autoFocus }: { autoFocus?: boolean }) {
 }
 
 function AiDreamCard({ keyword }: { keyword?: DreamEntry }) {
+  if (IS_TOSS) return null; // 토스 미니앱 첫 버전에는 AI 꿈풀이가 없다
   const to = keyword ? `/dream/ask?k=${encodeURIComponent(keyword.slug)}` : '/dream/ask';
   return (
     <Card className="bg-subtle">
@@ -177,7 +182,7 @@ function AiDreamCard({ keyword }: { keyword?: DreamEntry }) {
         AI 꿈풀이
       </p>
       <p className="mt-2 font-serif text-lg font-semibold leading-snug">{keyword ? '내 꿈에 맞춰 더 자세히 풀어 볼까요?' : '내 꿈 이야기로 풀어 보기'}</p>
-      <p className="mt-1.5 text-sm leading-relaxed text-ink-2">꿈 내용을 적어 주시면 사전의 전통 해석을 바탕으로 AI가 풀이해 드려요. 저장한 사주가 있으면 함께 참고합니다.</p>
+      <p className="mt-1.5 text-sm leading-relaxed text-ink-2">꿈 내용을 적어 주시면 사전의 전통 해석을 바탕으로 AI가 풀이해 드려요. 저장한 사주가 있으면 함께 참고해요.</p>
       <Link to={to} className="mt-4 inline-flex h-11 items-center rounded-full bg-action px-5 text-sm font-semibold text-on-action">
         꿈 이야기 적기
       </Link>
@@ -251,7 +256,7 @@ export function DreamHomePage() {
           <aside className="mt-8 space-y-4 lg:mt-2">
             <AiDreamCard />
             <p className="rounded-2xl border border-line p-4 text-sm leading-relaxed text-ink-2">
-              <b className="font-semibold text-ink">길몽·흉몽 표시에 대해</b> 전해 오는 해석이 좋은 쪽인지 주의할 쪽인지를 표시한 것입니다. 흉몽이 곧 나쁜 일을 예고하는 것은 아니므로, 현재의 마음 상태를 돌아보는 계기로 읽어 주세요.
+              <b className="font-semibold text-ink">길몽·흉몽 표시에 대해</b> 전해 오는 해석이 좋은 쪽인지 주의할 쪽인지를 표시한 것이에요. 흉몽이 곧 나쁜 일을 예고하는 것은 아니므로, 현재의 마음 상태를 돌아보는 계기로 읽어 주세요.
             </p>
           </aside>
         </div>
@@ -408,7 +413,7 @@ function DreamEntryView({ entry }: { entry: DreamEntry }) {
             </div>
           </article>
 
-          <aside className="mt-10 space-y-6 lg:sticky lg:top-24 lg:mt-1">
+          <aside className="mt-10 space-y-6 lg:sticky lg:top-8 lg:mt-1">
             <AiDreamCard keyword={entry} />
             <section aria-labelledby="dream-related">
               <h2 id="dream-related" className="text-lg font-semibold">
@@ -421,7 +426,7 @@ function DreamEntryView({ entry }: { entry: DreamEntry }) {
                   </li>
                 ))}
               </ul>
-              <Link to={`/dream?c=${entry.category}`} className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-info">
+              <Link to={`/dream?c=${entry.category}`} className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-gold">
                 {cat.label} 전체 보기
                 <ChevronRight className="size-4" aria-hidden />
               </Link>
@@ -538,7 +543,7 @@ export function DreamAskPage() {
         <h2 className="mt-4 font-serif text-[22px] font-semibold leading-snug lg:text-[26px]">어떤 꿈을 꾸셨나요?</h2>
         <p className="mt-2 text-[15px] leading-relaxed text-ink-2">기억나는 장면과 그때의 느낌을 편하게 적어 주세요. 꿈에 나온 것들을 꿈해몽 사전에서 찾아, 전해 오는 풀이를 바탕으로 풀어 드려요.</p>
         <p className="mt-3 rounded-xl bg-subtle p-3 text-sm leading-relaxed text-ink-2">
-          {aiEnabled ? 'AI가 꿈 이야기와 사전의 전통 해석을 바탕으로 풀이를 작성합니다. 한 번 풀이할 때마다 질문권 1회가 차감돼요.' : '현재 AI 꿈풀이를 준비 중이어서, 사전의 전통 해석을 엮은 기본 풀이를 드립니다. 질문권은 차감되지 않아요.'}
+          {aiEnabled ? 'AI가 꿈 이야기와 사전의 전통 해석을 바탕으로 풀이를 작성해요. 한 번 풀이할 때마다 질문권 1회가 차감돼요.' : '현재 AI 꿈풀이를 준비 중이어서, 사전의 전통 해석을 엮은 기본 풀이를 드려요. 질문권은 차감되지 않아요.'}
         </p>
 
         <form
@@ -575,7 +580,7 @@ export function DreamAskPage() {
           {aiEnabled && list.length > 0 && (
             <fieldset className="mt-5">
               <legend className="text-[15px] font-semibold">사주와 함께 보기</legend>
-              <p className="mt-1 text-sm text-ink-3">선택한 사람의 타고난 성향을 반영해 풀이 끝에 한두 문장을 덧붙입니다.</p>
+              <p className="mt-1 text-sm text-ink-3">선택한 사람의 타고난 성향을 반영해 풀이 끝에 한두 문장을 덧붙여요.</p>
               <div className="no-scrollbar -mx-5 mt-2 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:flex-wrap lg:px-0">
                 {list.map((p) => (
                   <Chip key={p.id} active={selected?.id === p.id} onClick={() => setChoice(p.id)}>
@@ -612,7 +617,7 @@ export function DreamAskPage() {
         {result && <DreamResult ref={resultRef} result={result} />}
 
         <p className="mt-10 text-sm">
-          <Link to="/dream" className="inline-flex items-center gap-1 font-semibold text-info">
+          <Link to="/dream" className="inline-flex items-center gap-1 font-semibold text-gold">
             꿈해몽 사전 둘러보기
             <ChevronRight className="size-4" aria-hidden />
           </Link>
@@ -628,7 +633,7 @@ function DreamResult({ result, ref }: { result: DreamInterpretationDto; ref: Rea
     <section ref={ref} aria-labelledby="dream-result-title" className="mt-10 scroll-mt-20 border-t border-line pt-8">
       <div className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
         <Badge tone={result.generator === 'ai' ? 'gold' : 'default'}>{result.generator === 'ai' ? 'AI가 쓴 풀이' : '기본 풀이'}</Badge>
-        {result.profileName && <span>{result.profileName}님의 사주와 함께 봤어요</span>}
+        {result.profileName && <span>{honorOf(result.profileName)} 사주와 함께 봤어요</span>}
       </div>
       <h2 id="dream-result-title" className="mt-3 font-serif text-[22px] font-semibold leading-snug lg:text-[26px]">
         {result.headline}

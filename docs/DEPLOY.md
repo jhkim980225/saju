@@ -58,10 +58,9 @@ PUBLIC_WEB_URL=https://도메인 npm run deploy            # 웹 빌드(사전 �
 - `npm run deploy` 는 `npm run build -w @saju/web`(타입검사 → Vite 빌드 → 사전 렌더링) 뒤 `apps/api` 에서 `wrangler deploy` 를 실행한다.
 - 웹 빌드는 빌드 시점의 값을 읽는다. 사전 렌더링(`apps/web/scripts/prerender.mts`)의 canonical·og·`sitemap.xml` 주소는 `PUBLIC_WEB_URL` 환경 변수(없으면 `https://daldalsaju.com`)를 쓴다. 광고·분석·Firebase 같은 공개 키(`VITE_*`)는 `apps/web/.env` 에서 읽는다. `VITE_API_BASE_URL` 은 비워 둔다(같은 Worker 의 `/api/v1`).
 
-배포가 끝나면 Custom Domain 을 붙인다.
+Custom Domain 은 `wrangler.jsonc` 의 `routes`(`custom_domain: true`)에 적혀 있어서 배포할 때 함께 붙는다. 지금은 `daldalsaju.com` 과 `www.daldalsaju.com` 두 개다(2026-11-24 연결). 도메인이 같은 계정의 Cloudflare 존이어야 하고, DNS 레코드와 인증서는 Cloudflare 가 만든다. 처음 붙인 직후에는 인증서가 나올 때까지 몇 분 동안 HTTPS 접속이 실패할 수 있다.
 
-1. Cloudflare 대시보드 → Workers & Pages → `dalbit-saju` → Settings → Domains & Routes → Add → Custom Domain
-2. 도메인을 입력한다(도메인이 Cloudflare DNS 에 있어야 한다). DNS 레코드와 인증서는 Cloudflare 가 만든다.
+대시보드에서 붙이려면: Workers & Pages → `dalbit-saju` → Settings → Domains & Routes → Add → Custom Domain.
 
 `https://도메인` 이 열리고 `https://도메인/health` 가 `ok` 면 끝. 상품 카탈로그 시드는 자동이다 — Worker 인스턴스마다 첫 요청 때 `app_meta` 테이블의 카탈로그 해시(`catalog_hash`)와 비교해, 바뀌었을 때만 상품을 다시 넣는다.
 

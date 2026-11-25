@@ -17,6 +17,10 @@ import { createRewardsService } from './modules/rewards/service.js';
 import { createTarotService } from './modules/tarot/service.js';
 import { createUserService } from './modules/users/service.js';
 import { createTaekilService } from './modules/taekil/service.js';
+import { createTossAuthService } from './modules/toss/auth.js';
+import { createTossClient, type TossClient, type TossFetch } from './modules/toss/client.js';
+import { createTossIapService } from './modules/commerce/tossIap.js';
+import { createTossRewardsService } from './modules/rewards/toss.js';
 
 /** 외부 의존성 주입 (생략 시 실제 값) */
 export interface ServiceDeps {
@@ -26,6 +30,10 @@ export interface ServiceDeps {
    * 생략하면 같은 프로세스에서 바로 돌린다(테스트·Node): 작업이 시작되면(AI 호출이 나가면) 돌아온다
    */
   startJob?: StartJob;
+  /** 토스 파트너 API 용 mTLS fetch(Worker 의 TOSS_MTLS 바인딩). 없으면 토스 기능은 꺼진다 */
+  tossFetch?: TossFetch;
+  /** 테스트용 — 토스 클라이언트 통째로 교체 */
+  tossClient?: TossClient;
 }
 
 export function createServices(config: AppConfig, db: Db, deps: ServiceDeps = {}) {
@@ -53,7 +61,12 @@ export function createServices(config: AppConfig, db: Db, deps: ServiceDeps = {}
   commerce.setGrantReadingCheck('taekil:reading', taekil.assertPurchasable);
   // 결제가 확정되면 산 리포트를 바로 만들기 시작한다(처음 열 때 기다리지 않게)
   commerce.setFulfilledListener((e) => reports.prewarm(e));
-  return { users, mail, auth, oauth, profiles, gateways, commerce, ai, reports, chat, push, rewards, tarot, taekil };
+  // 토스 미니앱(앱인토스) — mTLS 바인딩이 없으면 모두 '미설정'으로 동작한다
+  const toss = deps.tossClient ?? createTossClient(config, deps.tossFetch);
+  const tossAuth = createTossAuthService(config, toss, users);
+  const tossIap = createTossIapService(config, db, commerce, toss);
+  const tossRewards = createTossRewardsService(config, db, commerce, rewards, toss);
+  return { users, mail, auth, oauth, profiles, gateways, commerce, ai, reports, chat, push, rewards, tarot, taekil, toss, tossAuth, tossIap, tossRewards };
 }
 
 export type Services = ReturnType<typeof createServices>;

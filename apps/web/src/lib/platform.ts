@@ -13,6 +13,14 @@ declare global {
   }
 }
 
+declare const __TOSS__: boolean | undefined;
+
+/**
+ * 토스 미니앱(앱인토스) 빌드 여부 — vite.config.ts 가 넣는 빌드 시점 상수.
+ * 웹·Capacitor 빌드에서는 false 로 접혀서 `if (IS_TOSS)` 안의 코드와 동적 import 가 번들에서 빠진다.
+ */
+export const IS_TOSS: boolean = typeof __TOSS__ !== 'undefined' && __TOSS__ === true;
+
 export function isNativeApp(): boolean {
   return Boolean(typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.());
 }

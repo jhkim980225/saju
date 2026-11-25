@@ -35,8 +35,8 @@ const SAMPLES: { label: string; birth: BirthInput; level?: string }[] = [
   { label: '己土 극신강 (원국 합충·신살 없음)', birth: at(1977, 7, 11), level: '극신강' },
   { label: '甲木 극신약 (일지 충·자형)', birth: at(1976, 10, 19), level: '극신약' },
   { label: '壬水 극신약 (일지 육합·원진)', birth: at(1976, 1, 11), level: '극신약' },
-  { label: '庚金 신강', birth: at(1978, 7, 27), level: '신강' },
-  { label: '癸水 신약', birth: at(1975, 1, 27), level: '신약' },
+  { label: '庚金 신강', birth: at(1978, 9, 5), level: '신강' },
+  { label: '癸水 신약', birth: at(1975, 5, 27), level: '신약' },
   { label: '辛金 중화', birth: at(1976, 4, 19), level: '중화' },
   { label: '丙火 시간 모름', birth: at(1997, 7, 3, null) },
 ];
@@ -218,7 +218,7 @@ describe('연애·결혼운 — 근거는 basis 에, 본문은 쉬운 말로', (
   it('시기는 생활어로 — "○○년 ○○쯤 새 인연"', () => {
     for (const { chart, label } of charts) {
       const s = buildLoveReport(chart, NOW, '서윤')[0]!;
-      expect(s.summary, label).toMatch(/^20\d\d년 (늦겨울|봄|늦봄|여름|늦여름|가을|늦가을|겨울)쯤 새 인연이 들어오기 좋아요$/);
+      expect(s.summary, label).toMatch(/^20\d\d년 (이른 봄|봄|늦봄|이른 여름|여름|늦여름|이른 가을|가을|늦가을|이른 겨울|겨울|늦겨울)쯤 새 인연이 들어오기 좋아요$/);
     }
   });
 
@@ -242,10 +242,11 @@ describe('재물·직업운 — 근거는 basis 에, 본문은 쉬운 말로', (
     }
   });
 
-  it('투자 조언이 아니라는 안내와 참고용 안내를 담는다', () => {
+  // '투자 조언이 아닙니다' 안내는 리포트 화면 하단(웹, disclaimer.finance)이 항상 붙인다. 본문에서 되풀이하지 않는다
+  it('마무리 장에 참고용 안내를 한 번 담고, 투자 안내는 본문에서 되풀이하지 않는다', () => {
     for (const { chart, label } of charts) {
       const secs = buildCareerWealthReport(chart, NOW, '서윤');
-      expect(text(secs), label).toMatch(/투자 조언이 아(니|닙니다)/);
+      expect(text(secs), label).not.toMatch(/투자 조언이 아(니|닙니다)/);
       expect(sectionText(secs, 'closing'), label).toMatch(/참고/);
     }
   });

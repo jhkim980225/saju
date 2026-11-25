@@ -59,7 +59,7 @@ test('마이에서 비밀번호를 바꾸면 새 비밀번호로만 로그인된
   await sheet.getByLabel('새 비밀번호', { exact: true }).fill(newPassword);
   await sheet.getByLabel('새 비밀번호 확인').fill('changed-pass-2x');
   await sheet.getByRole('button', { name: '바꾸기' }).click();
-  await expect(sheet.getByRole('alert')).toHaveText('새 비밀번호가 서로 다릅니다. 같은 비밀번호를 입력해 주세요.');
+  await expect(sheet.getByRole('alert')).toHaveText('새 비밀번호가 서로 달라요. 같은 비밀번호를 입력해 주세요.');
 
   // 현재 비밀번호가 틀리면 서버 안내
   await sheet.getByLabel('현재 비밀번호').fill('wrong-password');

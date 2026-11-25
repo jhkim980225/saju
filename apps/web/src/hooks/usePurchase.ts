@@ -6,6 +6,7 @@ import { ApiError } from '@/lib/api';
 import { track } from '@/lib/analytics';
 import { t } from '@/lib/copy';
 import { startCheckout } from '@/lib/payments';
+import { IS_TOSS } from '@/lib/platform';
 import { isMember, useSession } from '@/lib/session';
 
 /**
@@ -18,7 +19,8 @@ export function usePurchase() {
   const user = useSession((s) => s.user);
 
   return async (input: { product: ProductDto; profileId?: string; partnerProfileId?: string; readingId?: string; ensureProfile?: () => Promise<string>; returnTo: string; profileName?: string }) => {
-    if (!isMember(user)) {
+    // 토스 미니앱에는 로그인 화면이 없다 — 토스 계정 확인과 안내는 결제 단계(src/toss/purchases.ts)가 맡는다
+    if (!IS_TOSS && !isMember(user)) {
       navigate(`/login?next=${encodeURIComponent(input.returnTo)}&reason=purchase`);
       return;
     }
@@ -34,7 +36,7 @@ export function usePurchase() {
         navigate(input.returnTo);
       }
     } catch (e) {
-      if (e instanceof ApiError && e.status === 403) {
+      if (!IS_TOSS && e instanceof ApiError && e.status === 403) {
         navigate(`/login?next=${encodeURIComponent(input.returnTo)}&reason=purchase`);
         return;
       }

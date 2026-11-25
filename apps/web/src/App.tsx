@@ -1,12 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Suspense, lazy, useEffect, type ComponentType } from 'react';
 import { createBrowserRouter, Navigate, Outlet, RouterProvider, ScrollRestoration, useLocation } from 'react-router';
-import { DesktopNav, TabLayout } from './components/AppShell';
+import { SideNav, TabLayout } from './components/AppShell';
 import { ToastHost } from './components/Toast';
 import { Spinner } from './components/ui';
 import { ApiError } from './lib/api';
 import { track } from './lib/analytics';
-import { isNativeApp } from './lib/platform';
+import { useRouteMeta } from './lib/pageMeta';
+import { IS_TOSS, isNativeApp } from './lib/platform';
+import { applyRouteTransform } from './lib/tossBridge';
 import { recoverInAppPurchases } from './lib/payments';
 import { isMember, useSession } from './lib/session';
 import { LandingPage } from './pages/LandingPage';
@@ -34,6 +36,7 @@ const PaymentsPage = lazyPage(() => import('./pages/PaymentsPage'), 'PaymentsPag
 const ReportsPage = lazyPage(() => import('./pages/ReportsPage'), 'ReportsPage');
 const ReportViewPage = lazyPage(() => import('./pages/ReportsPage'), 'ReportViewPage');
 const ResultPage = lazyPage(() => import('./pages/ResultPage'), 'ResultPage');
+const SummaryPage = lazyPage(() => import('./pages/SummaryPage'), 'SummaryPage');
 const StorePage = lazyPage(() => import('./pages/StorePage'), 'StorePage');
 const TodayPage = lazyPage(() => import('./pages/TodayPage'), 'TodayPage');
 const YearlyPage = lazyPage(() => import('./pages/YearlyPage'), 'YearlyPage');
@@ -70,10 +73,11 @@ function RootLayout() {
   useEffect(() => {
     track('page_view', { path: location.pathname });
   }, [location.pathname]);
+  useRouteMeta(location.pathname);
   // 앱: 끊긴 인앱결제 복구 (회원 로그인 상태에서 시작·복귀 시)
   const member = useSession((s) => isMember(s.user));
   useEffect(() => {
-    if (!isNativeApp() || !member) return;
+    if ((!isNativeApp() && !IS_TOSS) || !member) return;
     const run = () =>
       void recoverInAppPurchases()
         .then(async (n) => {
@@ -88,10 +92,13 @@ function RootLayout() {
   return (
     <>
       <ScrollRestoration />
-      <DesktopNav />
-      <Suspense fallback={<Spinner />}>
-        <Outlet />
-      </Suspense>
+      {!IS_TOSS && <SideNav />}
+      {/* 데스크톱은 왼쪽 사이드바(--side-w)만큼 본문을 민다 */}
+      <div className={IS_TOSS ? undefined : 'lg:pl-20 xl:pl-60'}>
+        <Suspense fallback={<Spinner />}>
+          <Outlet />
+        </Suspense>
+      </div>
       <ToastHost />
     </>
   );
@@ -106,9 +113,11 @@ export const routes = [
       { path: '/input', element: <BirthFormPage /> },
       { path: '/confirm', element: <ConfirmPage /> },
       { path: '/result', element: <ResultPage /> },
+      { path: '/result/summary', element: <SummaryPage /> },
       { path: '/profiles/new', element: <BirthFormPage /> },
       { path: '/profiles/:id/edit', element: <BirthFormPage /> },
       { path: '/saju/:profileId', element: <MySajuPage /> },
+      { path: '/saju/:profileId/summary', element: <SummaryPage /> },
       { path: '/yearly', element: <YearlyEntryPage /> },
       { path: '/yearly/:profileId', element: <YearlyPage /> },
       { path: '/my/payments', element: <PaymentsPage /> },
@@ -158,9 +167,11 @@ export const routes = [
   },
 ];
 
-const router = createBrowserRouter(routes);
+// 토스 미니앱 빌드는 main.tsx 가 렌더 전에 라우트 변환을 등록하므로, 라우터는 첫 렌더 때 만든다
+let router: ReturnType<typeof createBrowserRouter> | null = null;
 
 export function App() {
+  router ??= createBrowserRouter(applyRouteTransform(routes));
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />

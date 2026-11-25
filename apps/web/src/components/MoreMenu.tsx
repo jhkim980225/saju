@@ -2,6 +2,7 @@ import { BookOpen, CalendarCheck, CalendarDays, ChevronRight, CloudMoon, Gallery
 import { useId } from 'react';
 import { Link } from 'react-router';
 import { targetFortuneYear } from '@/lib/format';
+import { IS_TOSS } from '@/lib/platform';
 import { cx } from './ui';
 
 /** 다른 운세 바로가기 — 첫 화면·오늘 탭에서 같은 버튼 묶음을 쓴다 */
@@ -33,17 +34,26 @@ export function BasicsLink({ className }: { className?: string }) {
 
 export function MoreMenu({ title = '다른 운세 보기', exclude, className }: { title?: string; exclude?: string; className?: string }) {
   const titleId = useId();
-  const items = ITEMS.filter((i) => i.to !== exclude);
+  // 토스 미니앱 첫 버전에는 타로가 없다
+  const items = ITEMS.filter((i) => i.to !== exclude && !(IS_TOSS && i.to === '/tarot'));
+  const tiles = items.length % 3 === 0;
   return (
     <section className={className} aria-labelledby={titleId}>
       <h2 id={titleId} className="text-lg font-semibold">
         {title}
       </h2>
-      <ul className={cx('mt-3 grid gap-2', items.length % 3 === 0 ? 'grid-cols-3' : 'grid-cols-4 lg:grid-cols-8')}>
+      {/* 3의 배수면 3칸 타일. 아니면 모바일은 2칸 목록형(4칸이면 '2027 신년운세'처럼 긴 이름이 두 줄로 꺾인다), 데스크톱은 한 줄 */}
+      <ul className={cx('mt-3 grid gap-2', tiles ? 'grid-cols-3' : 'grid-cols-2 lg:grid-cols-8')}>
         {items.map(({ to, label, icon: Icon }) => (
           <li key={to}>
-            <Link to={to} className="flex h-full flex-col items-center gap-2 rounded-2xl border border-line bg-surface px-2 py-4 text-center transition-colors hover:border-line-strong">
-              <Icon className="size-6 text-gold" strokeWidth={1.5} aria-hidden />
+            <Link
+              to={to}
+              className={cx(
+                'flex h-full items-center gap-2 rounded-2xl border border-line bg-surface transition-colors hover:border-line-strong',
+                tiles ? 'flex-col px-2 py-4 text-center' : 'flex-row px-4 py-3 text-left lg:flex-col lg:px-2 lg:py-4 lg:text-center',
+              )}
+            >
+              <Icon className="size-6 shrink-0 text-gold" strokeWidth={1.5} aria-hidden />
               <span className="text-[13px] font-medium leading-tight break-keep">{label}</span>
             </Link>
           </li>

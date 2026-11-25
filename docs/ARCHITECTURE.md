@@ -16,7 +16,7 @@
                      │ Drizzle ORM ── Cloudflare D1(SQLite) · Queues(다듬기) · Cron(푸시)  │
                      └──────┬───────────────────────────┬────────────────────────────────┘
                             │                           │ 외부 연동(키 없으면 목업/NOT_CONFIGURED)
-          ┌─────────────────▼──────┐     토스페이먼츠 · 포트원 · App Store/Play 검증 · Kakao/Naver/Google/Apple
+          ┌─────────────────▼──────┐     그로블(웹 결제) · 토스페이먼츠·포트원(대안) · App Store/Play 검증 · Kakao/Naver/Google/Apple
           │ packages/saju-core      │     로그인 · FCM · Anthropic
           │ 순수 TS 사주 계산 엔진   │
           └─────────────────────────┘
@@ -55,7 +55,7 @@ apps/api/src
   db/                                schema·client(D1)·atomic(원자적 쓰기)·local(Node 테스트용 libSQL·Miniflare)·seed
   modules/interpretation/            reading.ts(해석 생성기) + content/(콘텐츠팀 문구)
   modules/ai/                        Claude 연동(선택)
-  modules/commerce/                  catalog·service·providers(toss/portone/iap/mock)
+  modules/commerce/                  catalog·service·providers(groble: 웹 운영 / toss·portone: 대안 / iap: 앱 / mock: 개발)
   modules/auth/ …                    oauth(카카오·네이버·구글·애플)
   jobs/dailyPush.ts                  08:00 KST 오늘의 운세 푸시(Cron Trigger 가 호출)
 apps/api/wrangler.jsonc              Worker 설정 — 정적 파일·D1·Queue·Cron·요청 수 제한·vars

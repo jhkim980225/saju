@@ -72,10 +72,10 @@ export type TaekilSelection = { mode: 'range'; from: string | null; to: string |
 export function selectionError(sel: TaekilSelection, today: string): string | null {
   const { min, max } = selectableRange(today);
   if (sel.mode === 'range') {
-    if (!sel.from || !sel.to) return '시작일과 끝일을 골라 주세요.';
+    if (!sel.from || !sel.to) return '시작하는 날과 마지막 날을 골라 주세요.';
     if (sel.from < min) return '지난 날짜는 고를 수 없어요.';
     if (sel.to > max) return '앞으로 2년 안의 날짜만 볼 수 있어요.';
-    if (sel.to < sel.from) return '끝일이 시작일보다 빨라요.';
+    if (sel.to < sel.from) return '마지막 날이 시작하는 날보다 빨라요.';
     if (diffDays(sel.from, sel.to) + 1 > TAEKIL_LIMITS.maxRangeDays) return `기간은 최대 ${TAEKIL_LIMITS.maxRangeDays}일까지 볼 수 있어요.`;
     return null;
   }

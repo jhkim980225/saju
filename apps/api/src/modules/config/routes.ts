@@ -25,6 +25,10 @@ export function configRoutes({ ctx }: RouteKit) {
         iapGoogle: cfg.features.googleIap || (cfg.PAYMENT_PROVIDER === 'mock' && !cfg.isProd),
         /** 비밀번호 재설정 메일(Resend) — false 면 웹이 문의 안내로 대체 */
         mail: cfg.features.mail,
+        /** 토스 미니앱 — 서버에 mTLS 바인딩과 상품 SKU 가 있을 때만 켜진다 */
+        tossAuth: ctx.services.tossAuth.enabled(),
+        tossIap: ctx.services.tossIap.enabled(),
+        tossRewards: ctx.services.tossRewards.enabled(),
       },
       supportEmail: cfg.SUPPORT_EMAIL ?? null,
       notices: [],

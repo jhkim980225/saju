@@ -50,7 +50,8 @@ import type {
 } from '@saju/shared';
 import type { DreamInterpretDto, DreamInterpretationDto } from '@saju/shared/dream';
 import { API_BASE } from './config';
-import { reloadSessionFromStorage, useSession } from './session';
+import { IS_TOSS } from './platform';
+import { ensureSession, reloadSessionFromStorage, useSession } from './session';
 
 export { API_BASE };
 
@@ -112,6 +113,11 @@ export async function request<T>(method: string, path: string, opts: { body?: un
 
   if (res.status === 401 && auth !== 'none' && opts.retry !== false && useSession.getState().refreshToken) {
     if (await refreshTokens()) return request<T>(method, path, { ...opts, retry: false });
+    // 토스 미니앱: 로그인 화면이 없으므로 갱신에 실패하면 토스 계정으로 다시 들어와 한 번 더 요청한다
+    if (IS_TOSS && !useSession.getState().accessToken) {
+      await ensureSession().catch(() => undefined);
+      if (useSession.getState().accessToken) return request<T>(method, path, { ...opts, retry: false });
+    }
   }
   if (res.status === 204) return undefined as T;
   const text = await res.text();

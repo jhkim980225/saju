@@ -10,7 +10,7 @@
  */
 import type { CheckoutDto, PaymentResultDto, ProductDto } from '@saju/shared';
 import { api } from '../api';
-import { isNativeApp, native, nativePlatform } from '../platform';
+import { IS_TOSS, isNativeApp, native, nativePlatform } from '../platform';
 import { STORAGE_KEYS, storage } from '../storage';
 import { finishPurchase, recoverUnfinishedPurchases } from '../../native';
 import { openPortOne, openToss } from './providers';
@@ -22,6 +22,7 @@ const pendingTarget = (v: string | undefined): { profileId?: string; readingId?:
 
 /** 끊긴 인앱결제 복구 — 앱 시작·복귀 시(회원 로그인 상태) 호출. 검증 성공 건은 native 계층이 finish 까지 처리한다 */
 export async function recoverInAppPurchases(): Promise<number> {
+  if (IS_TOSS) return (await import('@/toss/purchases')).recoverTossPurchases();
   if (!isNativeApp()) return 0;
   const pending = storage.getJSON<Record<string, string>>(IAP_PENDING_KEY) ?? {};
   const { recovered } = await recoverUnfinishedPurchases((p) =>
@@ -41,6 +42,8 @@ export interface PendingCheckout {
 }
 
 export async function startCheckout(input: { product: ProductDto; profileId?: string; partnerProfileId?: string; readingId?: string; returnTo: string; profileName?: string }): Promise<PaymentResultDto | 'redirected'> {
+  // 토스 미니앱: 토스 인앱 결제만 쓴다(외부 결제창 이동 금지)
+  if (IS_TOSS) return (await import('@/toss/purchases')).tossCheckout(input);
   // 앱: 스토어 인앱결제 (디지털 콘텐츠는 IAP 필수)
   if (isNativeApp() && native.purchase) {
     const platform = nativePlatform() === 'ios' ? 'ios' : 'android';

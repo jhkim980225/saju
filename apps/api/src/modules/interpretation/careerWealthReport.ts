@@ -42,7 +42,10 @@ import {
 } from './content/careerWealthReport.js';
 import { displayName, nameSubject } from './content/plain.js';
 import { targetFortuneYear } from './reading.js';
-import { EL_NAME, EL_TERM, GROUPS, gradeWord, groupCount, monthsText, pp, prt, ro, scoreBand, stemTerm, termTracker, yearsText } from './topicReportKit.js';
+import { EL_NAME, EL_TERM, GROUPS, goodYears, gradeWord, groupCount, listPp, monthsText, pp, prt, ro, scoreBand, stemTerm, termTracker, yearsText } from './topicReportKit.js';
+import { careerYearMode, daeunContinues, daeunEval, daeunVerdict, groupShare, heesinCaveat, rankTenGodGroups, type CareerYearMode } from './verdicts.js';
+import { dayMasterContent } from './reading.js';
+import { STAGE_SHORT } from './content/reportPlain.js';
 
 /** 근거에 쓰는 신호 이름 */
 const SIGNAL_TERM: Record<YearSignalKey, string> = {
@@ -96,7 +99,7 @@ function yearInfo(chart: SajuChart, year: number): YearInfo {
 /** 점수 높은 순(같으면 앞선 해) */
 const topBy = (infos: YearInfo[], key: 'wealth' | 'career', n: number) => [...infos].sort((a, b) => b[key] - a[key] || a.year - b.year).slice(0, n);
 
-/** 일의 자리가 바뀌기 쉬운 해 — 대운 교체(성별에 따라 달라짐)를 포함하므로 요약·10년 흐름 장에서만 쓴다 */
+/** 일이나 생활에 변화가 생기기 쉬운 해 — 대운 교체(성별에 따라 달라짐)를 포함하므로 요약·10년 흐름 장에서만 쓴다 */
 function transitionsOf(chart: SajuChart, infos: YearInfo[]) {
   const out = infos
     .map((t) => {
@@ -114,11 +117,21 @@ function transitionsOf(chart: SajuChart, infos: YearInfo[]) {
     .sort((a, b) => a.year - b.year);
 }
 
+/** 세력이 가장 큰 무리에 해당하는 재물 구조의 기준(글자 수) — '두드러진 구조 없음'일 때 왜 그 구조가 아닌지 밝힌다 */
+const STRUCTURE_RULE: Record<TenGodGroup, { name: string; rule: string; counts: (g: Record<TenGodGroup, number>) => string }> = {
+  비겁: { name: '비겁 중심형', rule: '비겁이 3개 이상이면서 재성이 1개 이하', counts: (g) => `비겁 ${g.비겁}개, 재성 ${g.재성}개` },
+  식상: { name: '식상생재형', rule: '식상과 재성이 함께 있고 둘을 합쳐 3개 이상', counts: (g) => `식상 ${g.식상}개, 재성 ${g.재성}개` },
+  재성: { name: '재다신약형', rule: '재성이 3개 이상이면서 일간의 힘이 약할 때', counts: (g) => `재성 ${g.재성}개에 일간의 힘은 약하지 않은 편` },
+  관성: { name: '관인형', rule: '관성과 인성이 모두 있고 합쳐 3개 이상이면서 재성이 1개 이하', counts: (g) => `관성·인성 ${g.관성 + g.인성}개, 재성 ${g.재성}개` },
+  인성: { name: '관인형', rule: '관성과 인성이 모두 있고 합쳐 3개 이상이면서 재성이 1개 이하', counts: (g) => `관성·인성 ${g.관성 + g.인성}개, 재성 ${g.재성}개` },
+};
+
 function structureOf(g: Record<TenGodGroup, number>, weak: boolean): MoneyStructureKey {
   if (g.재성 >= 3 && weak) return 'jaedaSinyak';
   if (g.비겁 >= 3 && g.재성 <= 1) return 'bigeop';
   if (g.식상 >= 1 && g.재성 >= 1 && g.식상 + g.재성 >= 3) return 'siksangSaengjae';
-  if (g.관성 + g.인성 >= 3 && g.재성 <= 1) return 'gwanin';
+  // 관인상생은 관성이 인성을 생하는 흐름이라 둘 다 있어야 한다
+  if (g.관성 >= 1 && g.인성 >= 1 && g.관성 + g.인성 >= 3 && g.재성 <= 1) return 'gwanin';
   if (g.재성 === 0) return 'hiddenWealth';
   return 'balanced';
 }
@@ -160,13 +173,12 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
   const E = C.element[y.yongsin];
   const groupsTerm = GROUPS.map((k) => `${k} ${g[k]}`).join(' · ');
 
-  // 세력(가중치)으로 본 가장 강한 무리 — 글자 수보다 월지·일지의 무게가 반영된다
-  const gs = st.groupScore;
-  const gsTotal = GROUPS.reduce((n, k) => n + gs[k], 0) || 1;
-  const ranked = [...GROUPS].sort((a, b) => gs[b] - gs[a] || GROUPS.indexOf(a) - GROUPS.indexOf(b));
+  // 가장 큰 십성 무리 — 모든 보고서가 같은 기준(자리별 가중 세력, verdicts.ts)으로 정한다
+  const ranked = rankTenGodGroups(chart);
   const top = ranked[0]!;
   const second = ranked[1]!;
-  const share = (k: TenGodGroup) => Math.round((gs[k] / gsTotal) * 100);
+  const shares = groupShare(chart);
+  const share = (k: TenGodGroup) => shares[k];
 
   // 직장형·독립형
   const org = g.관성 + g.인성;
@@ -178,8 +190,12 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
   const start = targetFortuneYear(now);
   const infos = Array.from({ length: 10 }, (_, i) => yearInfo(chart, start + i));
   const three = infos.slice(0, 3);
-  const bestWealth = topBy(infos, 'wealth', 2);
-  const bestCareer = topBy(infos, 'career', 2);
+  // '흐름이 좋은 해' 목록은 해마다 보여 주는 등급과 맞게 — '좋음' 이상인 해만(점수 순)
+  const bestWealth = goodYears(infos, (x) => x.wealth);
+  const bestCareer = goodYears(infos, (x) => x.career);
+  const yearList = (xs: YearInfo[]) => [...xs].sort((a, b) => a.year - b.year).map((x) => `${x.year}년`);
+  const goodHead = (xs: YearInfo[], k: 'wealth' | 'career', what: string) =>
+    xs[0]![k] >= 65 ? `${what} 흐름이 좋은 해(달달사주 기준 '좋음' 이상)는 ${listPp(yearList(xs), '이에요', '예요', ', ')}.` : `${what} 흐름이 '좋음'에 드는 해는 없고, 상대적으로 가장 나은 해는 ${pp(`${xs[0]!.year}년`, '이에요', '예요')}.`;
   const transitions = transitionsOf(chart, infos);
 
   // ── 한눈에 보기 — 요약 카드라 용어 없이 쓴다(용어는 각 장에서 처음 나올 때 풀이) ──
@@ -189,17 +205,17 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
     summary: S.title,
     keywords: [S.label, EMP.title, `돈 ${bestWealth[0]!.year}년`, `일 ${bestCareer[0]!.year}년`],
     paragraphs: [
-      `${nameSubject(name, '은')}${S.lead}`,
-      `일할 때는 '${C.group[top].name}'${prt(C.group[top].name, '이', '가')} 가장 크게 움직이고, 조직과 독립 가운데서는 '${EMP.title}'에 조금 더 가까워요.`,
+      // 요약 카드 제목(S.title)과 같은 말을 첫 문단에서 되풀이하지 않는다
+      `${nameSubject(name, '은')}일할 때 '${C.group[top].name}'${prt(C.group[top].name, '이', '가')} 가장 크게 움직이고, 조직과 독립 가운데서는 '${pp(EMP.title, "'이에요", "'예요")}.`,
       C.summaryAdvice[structureKey],
       `${
         bestWealth[0]!.year === bestCareer[0]!.year
-          ? `앞으로 10년 가운데 돈과 일 모두 흐름이 가장 좋은 해는 ${bestWealth[0]!.year}년이에요.`
-          : `앞으로 10년 가운데 돈의 흐름이 가장 좋은 해는 ${bestWealth[0]!.year}년, 일의 흐름이 가장 좋은 해는 ${bestCareer[0]!.year}년이에요.`
+          ? `앞으로 10년 가운데 돈과 일 모두 점수가 가장 높은 해는 ${bestWealth[0]!.year}년이에요.`
+          : `앞으로 10년 가운데 돈의 점수가 가장 높은 해는 ${bestWealth[0]!.year}년, 일의 점수가 가장 높은 해는 ${bestCareer[0]!.year}년이에요.`
       } ${
         transitions.length
-          ? `일의 자리가 바뀌기 쉬운 해는 ${pp(yearsText(transitions.map((x) => x.year)), '이에요', '예요')}.`
-          : '일의 자리가 크게 바뀔 만한 해는 따로 보이지 않아요. 지금 하는 일을 이어 가며 경력을 쌓기 좋은 10년이에요.'
+          ? `일이나 생활에 변화가 생기기 쉬운 해는 ${pp(yearsText(transitions.map((x) => x.year)), '이에요', '예요')}.`
+          : '일이나 생활에 큰 변화가 생길 만한 해는 따로 보이지 않아요. 지금 하는 일을 이어 가며 경력을 쌓기 좋은 10년이에요.'
       }`,
       C.summaryGuide,
       C.whereToStart,
@@ -224,11 +240,13 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
   const moneyFlow: ReadingSection = {
     key: 'moneyFlow',
     title: '돈이 들어오는 방식',
-    summary: `${S.label}에 가까워요`,
+    summary: `재물 구조: ${S.term}`,
     paragraphs: [
       S.flow,
       S.example,
-      termsPara,
+      structureKey === 'balanced'
+        ? `${termsPara} 세력이 가장 큰 무리는 ${top}이지만, 재물 구조는 글자 수로 나눠요. ${STRUCTURE_RULE[top].rule}일 때를 ${STRUCTURE_RULE[top].name}으로 보는데, ${nameSubject(name, '은')}${STRUCTURE_RULE[top].counts(g)}라 여기에 들지 않아요.`
+        : termsPara,
       wealthLevel === 'none'
         ? `재성에 해당하는 오행인 ${el(wealthEl, '은', '는')} 사주에서 거의 보이지 않아요. ${C.wealthLevel.none}`
         : `재성에 해당하는 오행인 ${el(wealthEl)}의 비중은 지장간까지 반영한 달달사주 기준으로 약 ${wealthPct}%예요. ${C.wealthLevel[wealthLevel]}`,
@@ -260,7 +278,6 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
       C.strength[level].work,
       strengthWealth,
       C.strength[level].grow,
-      C.monthStage[monthStage],
     ],
     tips: [C.strength[level].action],
     basis: `일간의 힘 ${level}(돕는 기운 ${Math.round(st.score)}%, 달달사주 기준)${helps.length ? ` · ${helps.map((k) => terms[k]).join('·')}` : ''} · 재성 ${g.재성} · 월지 12운성 ${monthStage}`,
@@ -289,7 +306,7 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
         : `버는 방식을 보여 주는 십성 가운데 ${t(earn, '이', '가')} 가장 많아요. ${C.earn[earn]}${earnSecond ? ` ${t(earnSecond, '도', '도')} 있어 ${C.earnSecond[earnSecond]}` : ''}`,
       C.earnExample[earn],
       `지키는 쪽을 보면, ${C.keep[keep]}`,
-      C.dayBranchMoney[db.tenGod],
+      `생활의 자리인 일지에는 ${t(db.tenGod, '이', '가')} 놓여 있어요. ${C.dayBranchMoney[db.tenGod].replace(/^생활 속에서는 /, '그래서 생활 속에서는 ')}`,
       `일간의 기질로 보면 ${S2.money}`,
       C.group[top].negotiate,
     ],
@@ -305,13 +322,14 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
     summary: `'${C.group[top].name}'${prt(C.group[top].name, '이', '가')} 일하는 방식의 중심이에요`,
     keywords: [C.group[top].name, C.group[second].name],
     paragraphs: [
-      `${nameSubject(name, '의')}사주에서 세력이 가장 큰 십성 무리는 ${t(top)}입니다. ${C.group[top].style}`,
+      `${nameSubject(name, '의')}사주에서 세력이 가장 큰 십성 무리는 ${t(top)}입니다. 글자 수에 월지·일지 같은 자리의 무게를 더해 본 달달사주 기준이에요. ${C.group[top].style}`,
       `두 번째로는 ${t(second, '이', '가')} 받쳐 줘요. ${C.group[second].second}`,
       C.group[top].environment,
       `${C.group[top].praised} 반대로 ${C.group[top].tired}`,
       `사회생활의 환경은 ${t('월지', '으로')} 보는데, ${nameSubject(name, '의')}월지에는 ${t(mb.tenGod, '이', '가')} 있어요. ${C.monthBranchCareer[mb.tenGod]}`,
+      `월지에서 일간의 기운은 12운성으로 ${mb.twelveStage}, 곧 ${STAGE_SHORT[mb.twelveStage]}에 해당해요. ${C.monthStage[mb.twelveStage]}`,
       `일간의 기질만 떼어 보면, ${S2.work} ${S2.heard}`,
-      `${E.colleague} ${E.dayRhythm}`,
+      `용신의 기운을 일에서 보완하는 쪽으로 보면, ${E.colleague} ${E.dayRhythm}`,
       `일에서 쓰는 강점은 ${pp([...S2.strengths].join(', '), '이에요', '예요')}.`,
       `보완하면 좋은 점도 있어요. ${S2.caution}`,
     ],
@@ -331,14 +349,14 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
   const fields: ReadingSection = {
     key: 'fields',
     title: '어울리는 일과 분야',
-    summary: `${E.fields.slice(0, 2).join(', ')} 같은 일이 잘 맞아요`,
+    summary: `용신으로 보면 ${E.fields.slice(0, 2).join(', ')} 같은 일이 잘 맞아요`,
     keywords: E.fields.slice(0, 4),
     paragraphs: [
-      `${nameSubject(name, '의')}${t('용신', '은', '는')} ${el(y.yongsin)}입니다. 그래서 ${E.why} 용신은 학파와 방법에 따라 달라질 수 있으며, 달달사주는 일간의 강약을 기준으로 정하는 간이 방식(억부)을 씁니다.`,
+      `${nameSubject(name, '의')}${t('용신', '은', '는')} ${el(y.yongsin)}입니다. 용신은 타고난 성향이 아니라 사주의 균형을 위해 보완하면 좋은 기운이라, 이 기운과 닿은 일을 하면 사주의 균형을 일상에서 맞출 수 있다고 봅니다. ${E.why} 용신은 학파와 방법에 따라 달라질 수 있으며, 달달사주는 일간의 강약을 기준으로 정하는 간이 방식(억부)을 씁니다.`,
       `이런 일로는 ${E.fields.join(', ')} 같은 분야가 있어요.`,
-      `${t('희신')}인 ${el(y.heesin, '과', '와')} 관련된 ${H.fields.slice(0, 3).join(', ')}도 함께 살펴볼 만해요.`,
+      `${t('희신')}인 ${el(y.heesin, '과', '와')} 관련된 ${H.fields.slice(0, 3).join(', ')}도 함께 살펴볼 만해요.${heesinCaveat(chart) ? ` ${heesinCaveat(chart)}` : ''}`,
       `반대로 ${t('기신')}인 ${el(y.gisin)}의 성질로 보면, ${C.gisinEnvironment[y.gisin]}`,
-      `일간의 기질로 보면 ${S2.jobs.join(', ')} 같은 일도 잘 어울려요.`,
+      `일간의 기질로 보면 ${dayMasterContent(chart).jobs.join(', ')} 같은 일도 잘 어울려요.`,
       `가장 강한 ${ro(top)} 보면 ${C.group[top].fields}`,
       ...shinsalParas,
       `${C.fieldsOutro} ${E.now}`,
@@ -352,7 +370,7 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
     title: '직장형일까, 독립형일까',
     summary: EMP.summary,
     paragraphs: [
-      `${nameSubject(name, '은')}조직과 독립 가운데 '${EMP.title}'에 조금 더 가까워요. ${EMP.body}`,
+      `${nameSubject(name, '은')}조직과 독립 가운데 '${pp(EMP.title, "'이에요", "'예요")}. ${EMP.body}`,
       `달달사주는 ${t('관성', '과', '와')} ${t('인성', '을', '를')} 조직 안에서 인정받으며 크는 기운으로, 식상·비겁·${t('편재', '을', '를')} 스스로 일을 꾸리는 기운으로 봅니다. ${C.employmentIntro}`,
       C.employmentByStrength[band],
       C.employmentPath[employmentKey],
@@ -371,14 +389,21 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
   const td = t.fork();
   const avg = (x: YearInfo) => x.wealth + x.career;
   const byAvg = [...infos].sort((a, b) => avg(b) - avg(a) || a.year - b.year);
-  const rhythm = { push: byAvg.slice(0, 3).sort((a, b) => a.year - b.year), rest: byAvg.slice(-2).sort((a, b) => a.year - b.year) };
+  void byAvg;
+  const modeOf = (x: YearInfo): CareerYearMode => careerYearMode(x.wealth, x.career);
+  const rhythm = { push: infos.filter((x) => modeOf(x) === 'expand'), rest: infos.filter((x) => modeOf(x) === 'consolidate') };
+  const LINE: Record<CareerYearMode, typeof C.yearLine> = { expand: C.yearLine, steady: C.yearLineMid, consolidate: C.yearLineLow };
+  const WORK: Record<CareerYearMode, typeof C.yearWork> = { expand: C.yearWork, steady: C.yearWorkMid, consolidate: C.yearWorkLow };
+  const SITUATION = { expand: C.situation.high, steady: C.situation.mid, consolidate: C.situation.low } as const;
   const periods = chart.daeun.periods;
   const cur = periods.find((p) => start >= p.startYear && start <= p.endYear);
   const next = periods.find((p) => p.startYear > start && p.startYear <= start + 9);
   const daeunLines: string[] = [];
+  // 대운 평가는 사주분석서와 같은 값(verdicts.ts) — 등급이 낮은 대운을 '밀고 가기 좋다'고 쓰지 않는다
+  const curEv = cur ? daeunEval(chart, cur) : null;
   if (cur) {
     const grp = TEN_GOD_GROUP[cur.stemTenGod];
-    daeunLines.push(`대운으로 보면, ${cur.startYear}년부터 ${cur.endYear}년까지는 대운의 천간이 ${td(grp, '에', '에')} 해당해, ${C.group[grp].decade} ${C.group[grp].decadeMoney}`, C.daeunUse[cur.stemTenGod]);
+    daeunLines.push(`대운으로 보면, ${cur.startYear}년부터 ${cur.endYear}년까지는 대운의 천간이 ${td(grp, '에', '에')} 해당해, ${C.group[grp].decade} ${daeunVerdict(curEv!)} ${C.group[grp].decadeMoney}`, C.daeunUse[cur.stemTenGod]);
   } else if (next) {
     daeunLines.push(`첫 대운은 ${next.startYear}년에 시작돼요. 그 전까지는 타고난 사주와 해마다 들어오는 세운의 영향이 더 직접 드러난다고 봅니다.`);
   } else {
@@ -387,7 +412,10 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
   if (next && cur) {
     const ngrp = TEN_GOD_GROUP[next.stemTenGod];
     const same = TEN_GOD_GROUP[cur.stemTenGod] === ngrp;
-    daeunLines.push(`${next.startYear}년부터 ${next.endYear}년까지는 ${same ? C.sameGroupDaeun : `대운의 천간이 ${td(ngrp, '에', '에')} 해당해, ${C.group[ngrp].decade} ${C.group[ngrp].decadeMoney}`}`);
+    const nextEv = daeunEval(chart, next);
+    daeunLines.push(
+      `${next.startYear}년부터 ${next.endYear}년까지는 ${same ? daeunContinues(cur, curEv!, next, nextEv) : `대운의 천간이 ${td(ngrp, '에', '에')} 해당해, ${C.group[ngrp].decade} ${daeunVerdict(nextEv, 1)} ${C.group[ngrp].decadeMoney}`}`,
+    );
   }
   if (cur || next) daeunLines.push(C.daeunNote);
   const transitionYears = new Set(transitions.map((x) => x.year));
@@ -398,13 +426,13 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
     keywords: [`돈 ${bestWealth[0]!.year}`, `일 ${bestCareer[0]!.year}`, ...transitions.map((x) => `변화 ${x.year}`)],
     paragraphs: [
       C.decadeIntro,
-      `돈과 일을 함께 보면 넓히기 좋은 해는 ${yearsText(rhythm.push.map((x) => x.year))}, 다지기 좋은 해는 ${pp(yearsText(rhythm.rest.map((x) => x.year)), '이에요', '예요')}. ${C.rhythmTail}`,
-      ...infos.map((x) => `${x.year}년 · 돈 ${word(x.wealth)} · 일 ${word(x.career)} · ${(x.wealth < 50 && x.career < 50 ? C.yearLineLow : C.yearLine)[x.stemTenGod]}${transitionYears.has(x.year) ? ' · 일의 자리가 바뀌기 쉬움' : ''}`),
-      `돈의 흐름이 가장 좋은 해는 ${bestWealth.map((x) => `${x.year}년`).join('과 ')}이에요. ${bestWealth.map((x) => `${x.year}년은 ${C.yearWealth[x.stemTenGod]}`).join(' ')} 특히 ${bestWealth[0]!.year}년 ${monthsText(bestWealth[0]!.year, bestMonths(chart, bestWealth[0]!.year, 'wealth'))} 무렵을 눈여겨보세요.`,
-      `일의 흐름이 가장 좋은 해는 ${bestCareer.map((x) => `${x.year}년`).join('과 ')}이에요. ${bestCareer.map((x) => `${x.year}년은 ${C.yearCareer[x.stemTenGod]}`).join(' ')} 일은 ${bestCareer[0]!.year}년 ${monthsText(bestCareer[0]!.year, bestMonths(chart, bestCareer[0]!.year, 'career'))} 무렵에 특히 성과를 내기 좋아요.`,
+      `돈과 일을 함께 보면, 둘 가운데 하나가 '좋음' 이상이고 다른 하나가 '낮음'이 아닌 해를 넓히기 좋은 해로, 둘 다 '낮음'인 해를 다지기 좋은 해로 묶었어요. ${rhythm.push.length ? `넓히기 좋은 해는 ${pp(yearsText(rhythm.push.map((x) => x.year)), '이에요', '예요')}.` : '이 기준으로 넓히기 좋은 해는 없어요.'} ${rhythm.rest.length ? `다지기 좋은 해는 ${pp(yearsText(rhythm.rest.map((x) => x.year)), '이에요', '예요')}.` : '다지기만 해야 할 해는 없어요.'} ${C.rhythmTail}`,
+      ...infos.map((x) => `${x.year}년 · 돈 ${word(x.wealth)} · 일 ${word(x.career)} · ${LINE[modeOf(x)][x.stemTenGod]}${transitionYears.has(x.year) ? ' · 변화가 생기기 쉬움' : ''}`),
+      `${goodHead(bestWealth, 'wealth', '돈의')} ${[...bestWealth].sort((a, b) => a.year - b.year).map((x) => `${x.year}년은 ${C.yearWealth[x.stemTenGod]}`).join(' ')} 특히 ${bestWealth[0]!.year}년 ${monthsText(bestWealth[0]!.year, bestMonths(chart, bestWealth[0]!.year, 'wealth'))} 무렵을 눈여겨보세요.`,
+      `${goodHead(bestCareer, 'career', '일의')} ${[...bestCareer].sort((a, b) => a.year - b.year).map((x) => `${x.year}년은 ${C.yearCareer[x.stemTenGod]}`).join(' ')} 일은 ${bestCareer[0]!.year}년 ${monthsText(bestCareer[0]!.year, bestMonths(chart, bestCareer[0]!.year, 'career'))} 무렵에 특히 성과를 내기 좋아요.`,
       ...(transitions.length
         ? [
-            `${yearsText(transitions.map((x) => x.year))}에는 일에 변화가 생기기 쉬우니, 미리 이력과 포트폴리오를 정리해 두면 기회가 왔을 때 빠르게 움직일 수 있어요.`,
+            `${yearsText(transitions.map((x) => x.year))}에는 일이나 생활에 변화가 생기기 쉬워요. 그해의 판정이 넓히기인지 다지기인지에 따라 대응이 달라지니, 위 목록의 등급과 함께 보세요.`,
             ...transitions.map((x) => clauseSentence(`${x.year}년에는`, x.keys.map((k) => C.transition[k]))),
             // 같은 신호의 조언은 처음 나온 한 번만
             ...transitions
@@ -437,24 +465,25 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
     return v % 2;
   };
   for (const x of three) {
-    const b = scoreBand(x.career);
-    const v = bandSeen.get(b) ?? 0;
-    bandSeen.set(b, v + 1);
-    const sit = C.situation[b][v % 3]!;
+    // 대상별 문단은 그해의 판정(넓히기·보통·다지기)을 따른다 — 10년 목록과 같은 판정
+    const mode = modeOf(x);
+    const v = bandSeen.get(mode) ?? 0;
+    bandSeen.set(mode, v + 1);
+    const sit = SITUATION[mode][v % 3]!;
     const btg = x.ev.pillar.branchTenGod;
     const fit = x.ev.fit.stem === 'yongsin' || x.ev.fit.stem === 'heesin' ? [C.fit[x.ev.fit.stem]] : [];
     const flow = [...fit, ...x.signals.map((k) => C.signal[k])].slice(0, 2);
     threeParas.push(
       `${x.year}년 · 돈 ${word(x.wealth)} · 일 ${word(x.career)}`,
       `흐름으로 보면 ${x.year}년은 ${C.wealthBand[scoreBand(x.wealth)][nth(wSeen, scoreBand(x.wealth))]}, ${C.careerBand[scoreBand(x.career)][nth(cSeen, scoreBand(x.career))]}.`,
-      `${x.year}년은 세운의 천간이 ${t(x.stemTenGod, '이라', '라')} ${(x.career < 50 ? C.yearWorkLow : C.yearWork)[x.stemTenGod]}`,
+      `${x.year}년은 세운의 천간이 ${t(x.stemTenGod, '이라', '라')} ${WORK[mode][x.stemTenGod]}`,
       `돈 쪽으로는 ${C.yearMoney[x.stemTenGod]}`,
       ...(btg !== x.stemTenGod ? [`생활 속에서는 ${C.yearBase[btg]}`] : []),
-      flow.length ? clauseSentence(`${x.year}년에는`, flow) : `${x.year}년에는 ${C.quietYear}`,
-      `한 해의 리듬으로 보면 ${x.year}년은 ${C.stageWork[x.ev.pillar.twelveStage]} ${x.year}년 안에서는 ${monthsText(x.year, bestMonths(chart, x.year))} 무렵의 흐름이 상대적으로 좋아요.`,
-      `회사에 다니는 분 — ${sit.employee}`,
-      `내 일을 하는 분 — ${sit.own}`,
-      `일을 쉬거나 준비 중인 분 — ${sit.rest}`,
+      ...(flow.length ? [clauseSentence(`${x.year}년에는`, flow)] : []),
+      `돈과 일의 흐름으로 보면 ${x.year}년 안에서는 ${monthsText(x.year, bestMonths(chart, x.year))} 무렵이 상대적으로 좋아요.`,
+      `회사에 다니는 분: ${sit.employee}`,
+      `내 일을 하는 분: ${sit.own}`,
+      `일을 쉬거나 준비 중인 분: ${sit.rest}`,
     );
   }
   const threeYears: ReadingSection = {
@@ -463,9 +492,9 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
     summary: best3W.year === best3C.year ? `가까운 3년 가운데는 ${best3W.year}년의 흐름이 가장 좋아요` : `돈은 ${best3W.year}년, 일은 ${best3C.year}년의 흐름이 가장 좋아요`,
     keywords: three.map((x) => `${x.year} 돈 ${word(x.wealth)}`),
     paragraphs: threeParas,
-    tips: three.map((x) => `${x.year}년 — ${C.yearAction[x.stemTenGod]}`),
+    tips: three.map((x) => `${x.year}년: ${C.yearAction[x.stemTenGod]}`),
     basis: three
-      .map((x) => `${x.year} ${x.hanja} — 천간 ${x.stemTenGod} · 지지 ${x.ev.pillar.branchTenGod} · 12운성 ${x.ev.pillar.twelveStage}${x.ev.fit.stem !== 'neutral' ? ` · 천간 ${x.ev.fit.stem === 'yongsin' ? '용신' : x.ev.fit.stem === 'heesin' ? '희신' : '기신'}` : ''}${x.signals.length ? ` · ${x.signals.map((k) => SIGNAL_TERM[k]).join(', ')}` : ''}`)
+      .map((x) => `${x.year} ${x.hanja}: 천간 ${x.stemTenGod} · 지지 ${x.ev.pillar.branchTenGod} · 12운성 ${x.ev.pillar.twelveStage}${x.ev.fit.stem !== 'neutral' ? ` · 천간 ${x.ev.fit.stem === 'yongsin' ? '용신' : x.ev.fit.stem === 'heesin' ? '희신' : '기신'}` : ''}${x.signals.length ? ` · ${x.signals.map((k) => SIGNAL_TERM[k]).join(', ')}` : ''}`)
       .join(' / '),
   };
 
@@ -480,15 +509,16 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
     ['noWealth', g.재성 === 0 && structureKey !== 'hiddenWealth', '재성 0개'],
   ];
   const risksHit = riskChecks.filter(([, hit]) => hit).slice(0, 3);
+  const bigeopLead = top === '비겁' ? `${t('비겁', '의', '의')} 세력이 가장 커서` : g.비겁 >= 3 ? `${t('비겁', '이', '가')} ${g.비겁}개로 많아` : `${t('겁재', '가', '가')} ${tc.겁재}개 있어`;
   const ORDINAL = ['첫째', '둘째', '셋째'];
   const gisinYears = three.filter((x) => x.ev.fit.stem === 'gisin' || x.ev.fit.branch === 'gisin');
   const risks: ReadingSection = {
     key: 'risks',
-    title: '조심할 점 — 미리 알아 두면 좋은 것',
-    summary: risksHit.length ? `${['', '한', '두', '세'][risksHit.length]} 가지만 알아 두면 돈 때문에 당황할 일이 줄어요` : '크게 치우친 곳이 적어, 점검 습관만 챙기면 돼요',
+    title: '조심할 점',
+    summary: risksHit.length ? '미리 알아 두면 돈 때문에 당황할 일이 줄어요' : '크게 치우친 곳이 적어, 점검 습관만 챙기면 돼요',
     paragraphs: [
       C.riskIntro,
-      ...(risksHit.length ? risksHit.map(([k], i) => (risksHit.length > 1 ? `${ORDINAL[i]}, ${fill(C.risk[k])}` : fill(C.risk[k]))) : [C.riskGeneral]),
+      ...(risksHit.length ? risksHit.map(([k], i) => `${risksHit.length > 1 ? `${ORDINAL[i]}, ` : ''}${k === 'bigeop' ? `${bigeopLead} ` : ''}${fill(C.risk[k])}`) : [C.riskGeneral]),
       C.riskMind[band],
       gisinYears.length
         ? `가까운 3년 가운데 ${yearsText(gisinYears.map((x) => x.year))}에는 세운에 ${t('기신')}의 기운이 들어와 균형이 흐트러지기 쉬워요. 나쁜 해라는 뜻은 아니지만, 새 일을 크게 벌이기보다 지출과 계약을 한 번 더 점검하는 게 좋습니다.`
@@ -506,11 +536,10 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
     summary: '자동이체·지출 기록·비상금, 그리고 나에게 맞는 습관 하나',
     keywords: ['자동이체', '지출 기록', '비상금'],
     paragraphs: [
-      `용신인 ${EL_NAME[y.yongsin]}의 성향에 맞는 돈 습관부터 살펴볼게요. ${E.habit} ${E.monthAction}`,
-      `${S.label}에게 잘 맞는 습관도 있어요. ${S.habit}`,
+      `용신인 ${EL_NAME[y.yongsin]}의 기운을 생활에서 보완하는 돈 습관부터 살펴볼게요. ${E.habit} ${E.monthAction}`,
+      `이 재물 구조에 맞는 습관도 있어요. ${S.habit}`,
       C.habitByBand[band],
       C.habitMonthly,
-      C.financeNote,
       C.habitIntro,
     ],
     tips: [...C.habitBasic],
@@ -520,7 +549,7 @@ export function buildCareerWealthReport(chart: SajuChart, now = new Date(), rawN
   // ── 마무리 ───────────────────────────────────────────────
   const closing: ReadingSection = {
     key: 'closing',
-    title: '마무리 — 나에게 맞게 벌고 쓰는 법',
+    title: '마무리: 나에게 맞게 벌고 쓰는 법',
     summary: '내 속도에 맞춰 벌고 지키면 돼요',
     paragraphs: [`${nameSubject(name, '의')}${S.closing}`, C.closingByBand[band], `${name ? `${name}님에게 마지막으로` : '마지막으로'} 한 가지만 덧붙일게요. ${S2.oneLine}`, C.closingNote, C.closingReread],
   };

@@ -1,6 +1,7 @@
 import { AlertCircle, Loader2 } from 'lucide-react';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
 import { forwardRef } from 'react';
+import { IS_TOSS } from '@/lib/platform';
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 
@@ -21,14 +22,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLBut
         ref={ref}
         disabled={disabled || loading}
         className={cx(
-          'inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-[opacity,transform] duration-150 active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100',
+          'inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-[opacity,transform] duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:active:scale-100',
           size === 'lg' && 'h-14 px-6 text-[17px]',
           size === 'md' && 'h-12 px-5 text-base',
           size === 'sm' && 'h-10 px-4 text-sm',
-          variant === 'primary' && 'bg-action text-on-action',
-          variant === 'secondary' && 'bg-action-2 text-ink',
-          variant === 'ghost' && 'bg-transparent text-ink-2 underline-offset-4 hover:underline',
-          variant === 'gold' && 'border border-gold bg-surface text-gold',
+          variant === 'primary' && 'bg-action text-on-action disabled:bg-subtle disabled:text-ink-3',
+          variant === 'secondary' && 'bg-action-2 text-ink disabled:bg-subtle disabled:text-ink-3',
+          variant === 'ghost' && 'bg-transparent text-ink-2 underline-offset-4 hover:underline disabled:text-ink-3 disabled:no-underline',
+          variant === 'gold' && 'border border-gold bg-surface text-gold disabled:border-line disabled:text-ink-3',
           block && 'w-full',
           className,
         )}
@@ -42,7 +43,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLBut
 );
 
 export function Card({ className, children, as: As = 'div' }: { className?: string; children: ReactNode; as?: 'div' | 'section' | 'article' }) {
-  return <As className={cx('rounded-2xl border border-line bg-surface p-5', className)}>{children}</As>;
+  // className 에 패딩(p-*)을 직접 주면 기본 p-5 를 빼서 두 값이 겹치지 않게 한다 (lg:p-* 같은 반응형 값은 기본값에 더해진다)
+  const ownPadding = /(^|\s)p-\S+/.test(className ?? '');
+  return <As className={cx('rounded-2xl border border-line bg-surface', !ownPadding && 'p-5', className)}>{children}</As>;
 }
 
 export function Segmented<T extends string>({ value, onChange, options, name }: { value: T | ''; onChange: (v: T) => void; options: { value: T; label: string }[]; name: string }) {
@@ -187,12 +190,13 @@ export function ScoreBar({ score, label }: { score: number; label?: string }) {
   );
 }
 
-/** 모바일: 상단 고정 앱바(가운데 제목) / 데스크톱: 상단 내비 아래의 왼쪽 정렬 페이지 제목 */
+/** 모바일: 상단 고정 앱바(가운데 제목) / 데스크톱: 본문 위의 왼쪽 정렬 페이지 제목(메뉴는 왼쪽 사이드바) */
 export function PageHeader({ title, left, right, width = 'narrow' }: { title?: ReactNode; left?: ReactNode; right?: ReactNode; width?: PageWidth }) {
   return (
     <header className="safe-top sticky top-0 z-30 bg-canvas/95 backdrop-blur lg:static lg:bg-transparent lg:backdrop-blur-none print:hidden">
       <div className={cx('mx-auto flex h-14 items-center gap-2 px-4 lg:h-auto lg:pb-2 lg:pt-10', PAGE_WIDTH[width])}>
-        <div className={cx('flex min-w-10 items-center lg:min-w-0', !left && 'lg:hidden')}>{left}</div>
+        {/* 토스 미니앱은 토스 내비게이션 바가 뒤로가기를 맡는다 — 자체 뒤로가기(왼쪽 칸)를 그리지 않는다 */}
+        <div className={cx('flex min-w-10 items-center lg:min-w-0', !left && 'lg:hidden')}>{IS_TOSS ? null : left}</div>
         <h1 className="flex-1 truncate text-center text-[17px] font-semibold lg:text-left lg:text-2xl">{title}</h1>
         <div className="flex min-w-10 items-center justify-end gap-1">{right}</div>
       </div>

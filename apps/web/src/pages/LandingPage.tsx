@@ -29,7 +29,7 @@ export function LandingPage() {
         <Hero className="mx-auto max-w-xl px-5 pt-2 text-center" />
         <div className="mt-4 flex justify-center px-5">
           <button type="button" onClick={() => setBasics(true)} className="inline-flex items-center gap-1 rounded-full border border-[#e8c47c]/40 px-4 py-2 text-sm font-medium text-[#f4ecd9]">
-            사주가 처음이라면 — 사주 기초 보기
+            사주가 처음이라면 사주 기초부터 보기
             <ChevronRight className="size-4 text-[#e8c47c]" aria-hidden />
           </button>
         </div>

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { native } from './platform';
+import { IS_TOSS, native } from './platform';
 import { STORAGE_KEYS, storage } from './storage';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
@@ -11,13 +11,14 @@ interface ThemeState {
   setFontScale: (s: number) => void;
 }
 
-/** 브라우저 주소창·상태바 색 — 밤하늘 남색 / 밝은 화면 상아색 (styles/index.css 의 --canvas) */
-export const THEME_COLOR = { dark: '#060B24', light: '#F5F1E8' } as const;
+/** 브라우저 주소창·상태바 색 — 밤하늘 남색 / 밝은 화면 흰색 (styles/index.css 의 --canvas) */
+export const THEME_COLOR = { dark: '#060B24', light: '#FFFFFF' } as const;
 
 const media = typeof window !== 'undefined' ? window.matchMedia?.('(prefers-color-scheme: dark)') : undefined;
 
 export function applyTheme(mode: ThemeMode, fontScale: number) {
-  const dark = mode === 'dark' || (mode === 'system' && Boolean(media?.matches));
+  // 토스 미니앱은 밝은 화면만 쓴다(앱인토스 비게임 체크리스트)
+  const dark = !IS_TOSS && (mode === 'dark' || (mode === 'system' && Boolean(media?.matches)));
   const root = document.documentElement;
   root.dataset.theme = dark ? 'dark' : 'light';
   root.style.setProperty('--font-scale', String(fontScale));
@@ -26,8 +27,8 @@ export function applyTheme(mode: ThemeMode, fontScale: number) {
 }
 
 export const useTheme = create<ThemeState>((set, get) => ({
-  // 기본은 로고와 같은 밤하늘(남색). 밝은 화면·기기 설정은 마이에서 고른다
-  mode: (storage.get(STORAGE_KEYS.theme) as ThemeMode | null) ?? 'dark',
+  // 기본은 흰 바탕의 밝은 화면. 밤하늘·기기 설정은 마이에서 고른다
+  mode: (storage.get(STORAGE_KEYS.theme) as ThemeMode | null) ?? 'light',
   fontScale: Number(storage.get(STORAGE_KEYS.fontScale) ?? 1) || 1,
   setMode: (mode) => {
     storage.set(STORAGE_KEYS.theme, mode);

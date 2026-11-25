@@ -21,15 +21,15 @@
 }
 
 /*
- * 달달사주 디자인 토큰 — "밤하늘과 달빛"
- * 로고(남색 밤하늘 + 황금 초승달)에서 왔다. 기본은 밤하늘(남색 바탕 · 달빛 상아색 글자 · 금빛 버튼)이고,
- * 마이 > 화면 테마에서 밝은 화면(상아색 바탕 · 남색 글자 · 남색 버튼)을 고를 수 있다.
+ * 달달사주 디자인 토큰 — 로고(남색 밤하늘 + 황금 초승달)에서 왔다.
+ * 기본은 밝은 화면(흰 바탕 · 남색 글자 · 남색 버튼, 2026-11-23 사용자 결정)이고,
+ * 마이 > 화면 테마에서 밤하늘(남색 바탕 · 달빛 상아색 글자 · 금빛 버튼)을 고를 수 있다.
  * 유채색은 금빛(브랜드)과 오행 데이터에만 쓴다.
  */
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
-/* 밤하늘 — 기본. data-theme 이 붙기 전(첫 그림)에도 남색으로 뜨게 :root 에 둔다 */
-:root,
+/* 밤하늘 — 마이에서 고를 때. :root 의 밝은 화면 값보다 우선하도록 :root[data-theme] 로 쓴다 */
+:root[data-theme='dark'],
 [data-theme='dark'] {
   --canvas: #060b24;
   --surface: #0c1434;
@@ -76,35 +76,48 @@
   --chart-metal: #7a93a7;
   --chart-water: #4866c8;
 
-  --font-scale: 1;
-  /* 데스크톱 상단 내비 높이 — 모바일은 0 */
-  --nav-h: 0px;
   color-scheme: dark;
+}
+
+:root {
+  --font-scale: 1;
+  /* 데스크톱 상단 내비 높이 — 왼쪽 사이드바로 바꿔서 0 (min-h-page·sticky 계산에 남겨 둔다) */
+  --nav-h: 0px;
+  /* 데스크톱 왼쪽 사이드바 폭 — 모바일 0, lg 아이콘 줄 5rem, xl 이름까지 15rem. 화면 아래에 고정한 막대가 사이드바를 덮지 않게 쓴다 */
+  --side-w: 0px;
 }
 
 @media (width >= 64rem) {
   :root {
-    --nav-h: 4rem;
+    --side-w: 5rem;
+  }
+}
+@media (width >= 80rem) {
+  :root {
+    --side-w: 15rem;
   }
 }
 
-/* 밝은 화면 — 상아색 바탕에 남색 글자, 금빛은 강조에만 */
-[data-theme='light'] {
-  --canvas: #f5f1e8;
-  --surface: #fffdf8;
-  --subtle: #ebe5d8;
-  --border: #e0d7c5;
-  --border-strong: #c9bda4;
+/* 밝은 화면(기본) — 흰 바탕에 남색 글자, 금빛은 강조에만. data-theme 이 붙기 전(첫 그림)에도 흰색으로 뜨게 :root 에 둔다.
+   .paper 는 밤하늘 테마에서도 흰 종이로 보여야 하는 화면(사주 요약)이다 */
+:root,
+[data-theme='light'],
+.paper {
+  --canvas: #ffffff;
+  --surface: #ffffff;
+  --subtle: #f3f4f7;
+  --border: #e5e7ec;
+  --border-strong: #c9cdd6;
   --focus: #0e1538;
   --text-1: #0e1538;
   --text-2: #454c66;
   --text-3: #5f6479;
   --action: #0e1538;
   --on-action: #f3dfae;
-  --action-2: #ebe5d8;
+  --action-2: #eef0f5;
   --gold: #86601c;
   --seal: #86601c;
-  --on-seal: #fffdf8;
+  --on-seal: #ffffff;
   --success: #2f6b4a;
   --danger: #b3261e;
   --info: #3a4f7a;
@@ -132,6 +145,11 @@
   --chart-metal: #6d7b85;
   --chart-water: #1852a3;
   color-scheme: light;
+}
+
+.paper {
+  background: var(--canvas);
+  color: var(--text-1);
 }
 
 @theme inline {
@@ -196,6 +214,8 @@ h1,
 h2,
 h3 {
   letter-spacing: -0.02em;
+  /* 제목 끝 한두 글자만 다음 줄로 넘어가지 않게 줄 길이를 고르게 나눈다 */
+  text-wrap: balance;
 }
 
 .font-serif {

@@ -14,7 +14,7 @@ export function elementStatus(count: number): 'none' | 'weak' | 'balanced' | 'de
 }
 
 /** 오행 분포 카드의 안내 — 전통 개념(오행)과 달달사주 자체 집계 기준(단순 개수·많음/적음 표시)을 구분한다 */
-export const ELEMENT_COUNT_NOTE = '사주의 각 글자가 목·화·토·금·수 다섯 오행 가운데 어디에 속하는지 센 분포입니다. 지장간과 계절의 영향은 반영하지 않은 단순 집계이며, 많음·적음 표시는 달달사주 기준이에요.';
+export const ELEMENT_COUNT_NOTE = '사주의 각 글자가 목·화·토·금·수 다섯 오행 가운데 어디에 속하는지 센 분포예요. 지장간과 계절의 영향은 반영하지 않은 단순 집계이며, 많음·적음 표시는 달달사주 기준이에요.';
 
 /** 풀이 글과 같은 쉬운 이름 */
 const PLAIN_NAME: Record<Element, string> = { wood: '나무', fire: '불', earth: '흙', metal: '쇠', water: '물' };

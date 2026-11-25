@@ -10,7 +10,8 @@ import { Badge, Button, Card, IconButton, PageHeader, Spinner, cx } from '@/comp
 import { useProducts, useProfiles } from '@/hooks/queries';
 import { usePurchase } from '@/hooks/usePurchase';
 import { t } from '@/lib/copy';
-import { won } from '@/lib/format';
+import { IS_TOSS } from '@/lib/platform';
+import { formatDateKo, won } from '@/lib/format';
 
 const GROUPS: { title: string; match: (p: ProductDto) => boolean }[] = [
   { title: '사주 리포트', match: (p) => p.type === 'one_time' && !isTopicReportProduct(p) },
@@ -61,7 +62,7 @@ export function StorePage() {
             <ArrowLeft className="size-6" />
           </IconButton>
         }
-        title="이용권 · 리포트"
+        title={IS_TOSS ? '리포트 구매' : '이용권 · 리포트'}
         width="wide"
       />
       <Page width="wide" className="space-y-8 pb-10 lg:space-y-12 lg:pt-4">
@@ -78,7 +79,8 @@ export function StorePage() {
           return (
             <section key={g.title}>
               <h2 className="text-lg font-semibold">{g.title}</h2>
-              <ul className="mt-3 space-y-3 lg:mt-4 lg:grid lg:grid-cols-3 lg:gap-4 lg:space-y-0">
+              {/* 상품이 3개 미만인 묶음은 2칸으로 (3칸이면 오른쪽이 비어 보인다) */}
+              <ul className={cx('mt-3 space-y-3 lg:mt-4 lg:grid lg:gap-4 lg:space-y-0', items.length % 3 === 0 ? 'lg:grid-cols-3' : 'lg:grid-cols-2')}>
                 {items.map((p) => (
                   <li key={p.id}>
                     <Card className={cx('flex h-full flex-col', p.comingSoon && 'opacity-60')}>
@@ -103,7 +105,7 @@ export function StorePage() {
                             {p.comingSoon ? '준비 중' : !p.purchasable ? '구매 완료' : '구매하기'}
                           </Button>
                         </div>
-                        {p.saleEndsAt && <p className="mt-2 text-xs text-gold lg:order-first lg:mb-2 lg:mt-0">할인 마감 {new Date(p.saleEndsAt).toLocaleDateString('ko-KR')}</p>}
+                        {p.saleEndsAt && <p className="mt-2 text-xs text-gold lg:order-first lg:mb-2 lg:mt-0">할인 마감 {formatDateKo(p.saleEndsAt)}</p>}
                       </div>
                     </Card>
                   </li>
@@ -136,7 +138,7 @@ export function StorePage() {
                     {p.name}
                     {has && <span className="ml-2 text-sm text-ink-3">구매함</span>}
                   </span>
-                  {has ? <span className="text-sm font-semibold text-info">보고서 열기</span> : <span className="text-sm text-ink-3">{p.birth.year}.{p.birth.month}.{p.birth.day}생 · {p.zodiac}띠</span>}
+                  {has ? <span className="text-sm font-semibold text-gold">리포트 열기</span> : <span className="text-sm text-ink-3">{p.birth.year}.{p.birth.month}.{p.birth.day}생 · {p.zodiac}띠</span>}
                 </button>
               </li>
             );

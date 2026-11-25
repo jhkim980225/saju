@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { Page } from '@/components/AppShell';
-import { Badge, Card, EmptyState, IconButton, PageHeader, Spinner } from '@/components/ui';
+import { Badge, Button, Card, EmptyState, IconButton, PageHeader, Spinner } from '@/components/ui';
 import { qk, useWallet } from '@/hooks/queries';
 import { api } from '@/lib/api';
 import { t } from '@/lib/copy';
 import { formatDateKo, won } from '@/lib/format';
+import { IS_TOSS } from '@/lib/platform';
 
 const STATUS_LABEL = { pending: '결제 대기', paid: '결제 완료', failed: '실패', canceled: '취소', refunded: '환불' } as const;
 const REASON_LABEL: Record<string, string> = { purchase: '구매', consume: '사용', refund: '환불', bonus: '지급', admin: '운영' };
@@ -30,12 +31,13 @@ export function PaymentsPage() {
         width="medium"
       />
       <Page width="medium" className="space-y-4 pb-10">
-        {wallet.data && (
+        {/* 토스 미니앱 첫 버전에는 질문권(AI 상담)이 없다 */}
+        {!IS_TOSS && wallet.data && (
           <Card>
             <p className="text-sm text-ink-3">AI 상담 질문권</p>
             <p className="tabular mt-1 text-3xl font-bold">{wallet.data.credits}회</p>
             <p className="mt-1 text-xs text-ink-3">
-              유상 {wallet.data.paidCredits} · 무상 {wallet.data.freeCredits} — 무상분부터 차감되며, 유효기간은 없습니다.
+              구매 {wallet.data.paidCredits}회 · 무료로 받은 {wallet.data.freeCredits}회. 무료로 받은 질문권부터 쓰며, 유효기간은 없어요.
             </p>
             {wallet.data.ledger.length > 0 && (
               <ul className="mt-4 divide-y divide-line text-sm">
@@ -52,7 +54,7 @@ export function PaymentsPage() {
           </Card>
         )}
         {orders.isLoading && <Spinner />}
-        {orders.data && visible.length === 0 && <EmptyState title={t('empty.payments.title')} body={t('empty.payments.body')} />}
+        {orders.data && visible.length === 0 && <EmptyState title={t('empty.payments.title')} body={t('empty.payments.body')} action={IS_TOSS ? <Button onClick={() => navigate('/store')}>리포트 둘러보기</Button> : undefined} />}
         {visible.length > 0 && (
           <Card className="p-0">
             <ul className="divide-y divide-line">
@@ -71,9 +73,20 @@ export function PaymentsPage() {
             </ul>
           </Card>
         )}
-        <p className="text-xs leading-relaxed text-ink-3">
-          {t('payment.receiptNote')} 디지털 콘텐츠 특성상 열람한 리포트는 청약철회가 제한될 수 있습니다. 환불 문의는 고객센터로 연락해 주세요.
-        </p>
+        {IS_TOSS ? (
+          // 토스 미니앱: 환불은 토스 앱(Android)·Apple(iPhone)에서 요청한다 — 절차는 약관에 적어 둔다
+          <p className="text-xs leading-relaxed text-ink-3">
+            리포트를 열어 본 뒤에는 청약 철회가 제한될 수 있어요. 환불은 토스 앱의 결제 내역에서 요청할 수 있고, iPhone에서는 Apple 고객지원에서 요청해요. 자세한 절차는{' '}
+            <Link to="/legal/terms" className="underline">
+              이용약관
+            </Link>
+            에서 볼 수 있어요.
+          </p>
+        ) : (
+          <p className="text-xs leading-relaxed text-ink-3">
+            디지털 콘텐츠 특성상 열람한 리포트는 청약철회가 제한될 수 있어요. 환불 문의는 고객센터로 연락해 주세요.
+          </p>
+        )}
       </Page>
     </div>
   );

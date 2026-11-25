@@ -7,17 +7,19 @@ test('화면 테마·글자 크기 설정이 적용되고 새로고침 후에도
   await page.goto('/my');
   const html = page.locator('html');
   const themeGroup = page.getByRole('radiogroup', { name: '화면 테마' });
-  // 기본은 로고와 같은 밤하늘(남색)
-  await expect(themeGroup.getByRole('radio', { name: '밤하늘' })).toHaveAttribute('aria-checked', 'true');
+  // 기본은 흰 바탕의 밝은 화면
+  await expect(themeGroup.getByRole('radio', { name: '밝은 화면' })).toHaveAttribute('aria-checked', 'true');
+  await expect(html).toHaveAttribute('data-theme', 'light');
+  await expect(page.locator('meta[name="theme-color"]').first()).toHaveAttribute('content', '#FFFFFF');
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(255, 255, 255)');
+
+  await themeGroup.getByRole('radio', { name: '밤하늘' }).click();
   await expect(html).toHaveAttribute('data-theme', 'dark');
   await expect(page.locator('meta[name="theme-color"]').first()).toHaveAttribute('content', '#060B24');
   const darkBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-
+  expect(darkBg).not.toBe('rgb(255, 255, 255)');
   await themeGroup.getByRole('radio', { name: '밝은 화면' }).click();
   await expect(html).toHaveAttribute('data-theme', 'light');
-  await expect(page.locator('meta[name="theme-color"]').first()).toHaveAttribute('content', '#F5F1E8');
-  const lightBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  expect(lightBg).not.toBe(darkBg);
 
   const fontGroup = page.getByRole('radiogroup', { name: '글자 크기' });
   await expect(fontGroup.getByRole('radio', { name: '보통' })).toHaveAttribute('aria-checked', 'true');
@@ -85,7 +87,7 @@ test('회원 탈퇴 후에는 같은 계정으로 다시 로그인할 수 없다
   await page.getByRole('button', { name: '탈퇴하기' }).click();
   await page.getByRole('dialog').getByRole('button', { name: '탈퇴하기' }).click();
 
-  await expect(page.getByText('탈퇴가 완료되었습니다. 그동안 이용해 주셔서 감사합니다.')).toBeVisible();
+  await expect(page.getByText('탈퇴했어요. 그동안 이용해 주셔서 고마워요.')).toBeVisible();
   await expect(page).toHaveURL(/\/$/);
   expect(await page.evaluate(() => localStorage.getItem('yd.session'))).toBeNull();
 

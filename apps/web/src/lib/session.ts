@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import type { AuthTokensDto, UserDto } from '@saju/shared';
 import { API_BASE } from './config';
+import { IS_TOSS } from './platform';
 import { STORAGE_KEYS, storage } from './storage';
 import { uuid } from './uuid';
 
@@ -68,14 +69,20 @@ export function deviceId(): string {
 
 let pending: Promise<void> | null = null;
 
-/** 세션이 없으면 게스트 세션 생성 */
+async function startGuestSession(): Promise<void> {
+  const res = await fetch(`${API_BASE}/auth/guest`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ deviceId: deviceId() }) });
+  if (!res.ok) throw new Error('세션을 시작하지 못했어요');
+  useSession.getState().setTokens((await res.json()) as AuthTokensDto);
+}
+
+/** 세션이 없으면 게스트 세션 생성 (토스 미니앱은 로그인 화면 없이 토스 계정으로, 안 되면 게스트로) */
 export async function ensureSession(): Promise<void> {
+  if (IS_TOSS) {
+    pending ??= import('@/toss/session').then((m) => m.ensureTossSession(startGuestSession)).finally(() => (pending = null));
+    return pending;
+  }
   if (useSession.getState().accessToken) return;
-  pending ??= (async () => {
-    const res = await fetch(`${API_BASE}/auth/guest`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ deviceId: deviceId() }) });
-    if (!res.ok) throw new Error('세션을 시작하지 못했어요');
-    useSession.getState().setTokens((await res.json()) as AuthTokensDto);
-  })().finally(() => (pending = null));
+  pending ??= startGuestSession().finally(() => (pending = null));
   return pending;
 }
 

@@ -18,7 +18,7 @@ export type FreeFortuneTone = 'good' | 'calm' | 'mixed' | 'caution';
 export const FREE_FORTUNE_TONE_LABEL: Record<FreeFortuneTone, string> = {
   good: '흐름이 좋아요',
   calm: '무난한 흐름',
-  mixed: '좋고 궂음이 섞여요',
+  mixed: '좋은 점과 조심할 점이 함께 있어요',
   caution: '살펴 가면 좋아요',
 };
 

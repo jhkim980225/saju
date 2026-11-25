@@ -169,7 +169,7 @@ export function PillarTable({ chart, editHref }: { chart: SajuChart; editHref?: 
         <p className="mt-3 text-center text-sm text-ink-3">
           {t('result.pillarTable.unknownHourHint')}
           {editHref && (
-            <Link to={editHref} className="ml-2 font-semibold text-info underline underline-offset-2">
+            <Link to={editHref} className="ml-2 font-semibold text-gold underline underline-offset-2">
               {t('result.pillarTable.addTime')}
             </Link>
           )}
@@ -216,7 +216,7 @@ export function PillarTable({ chart, editHref }: { chart: SajuChart; editHref?: 
       {expert && <p className="mt-3 text-center text-xs text-ink-3 print:hidden">점선이 표시된 용어를 누르면 설명을 볼 수 있어요.</p>}
       <p className="mt-2 text-center text-sm print:hidden">
         <button type="button" onClick={() => setBasics(true)} className="font-medium text-gold underline underline-offset-4">
-          사주가 처음이라면 — 사주 기초 보기
+          사주가 처음이라면 사주 기초부터 보기
         </button>
       </p>
       <TermSheet

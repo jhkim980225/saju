@@ -107,7 +107,7 @@ export function TarotHistoryPage() {
         {!isMember(user) && all.length > 0 && (
           <div className="mt-6 rounded-2xl bg-subtle p-4 text-sm text-ink-2">
             <p>{t('tarot.history.guestNote')}</p>
-            <Link to="/login?next=/tarot/history" className="mt-2 inline-block font-semibold text-info underline">
+            <Link to="/login?next=/tarot/history" className="mt-2 inline-block font-semibold text-gold underline">
               {t('tarot.history.loginCta')}
             </Link>
           </div>

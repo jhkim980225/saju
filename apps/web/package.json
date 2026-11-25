@@ -17,10 +17,17 @@
     "cap:open:android": "cap open android",
     "cap:doctor": "cap doctor",
     "build:app:android": "tsc -p tsconfig.json --noEmit && vite build --mode app && cap sync android",
-    "build:app:ios": "tsc -p tsconfig.json --noEmit && vite build --mode app && cap sync ios"
+    "build:app:ios": "tsc -p tsconfig.json --noEmit && vite build --mode app && cap sync ios",
+    "dev:toss": "vite --mode toss-dev",
+    "build:toss": "tsc -p tsconfig.json --noEmit && vite build --mode toss && node scripts/check-toss-bundle.mjs && ait build && node scripts/check-toss-bundle.mjs --ait",
+    "build:toss:qa": "tsc -p tsconfig.json --noEmit && vite build --mode toss-qa && ait build",
+    "build:toss:dev": "vite build --mode toss-dev",
+    "check:toss": "node scripts/check-toss-bundle.mjs",
+    "shots:toss": "node scripts/toss-shots.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.1",
+    "@apps-in-toss/web-framework": "^3.10.0",
     "@capacitor-community/admob": "^8.2.1",
     "@capacitor-firebase/messaging": "^8.5.2",
     "@capacitor/android": "^8.5.3",
@@ -47,6 +54,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@apps-in-toss/devtools": "^3.10.0",
     "@capacitor/cli": "^8.5.3",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^6.6.0",

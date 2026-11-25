@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { IS_TOSS } from '@/lib/platform';
 import { useSession } from '@/lib/session';
 
 export const qk = {
@@ -20,7 +21,7 @@ export function useConfig() {
 
 export function useProducts() {
   const uid = useSession((s) => s.user?.id);
-  return useQuery({ queryKey: qk.products(uid), queryFn: api.products, staleTime: 60_000 });
+  return useQuery({ queryKey: qk.products(uid), queryFn: IS_TOSS ? () => import('@/toss/products').then((m) => m.tossProducts()) : api.products, staleTime: 60_000 });
 }
 
 export function useProfiles(enabled = true) {

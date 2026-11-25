@@ -66,6 +66,11 @@ export async function copyLink(url: string): Promise<boolean> {
   return ok;
 }
 
+/** 글 복사 — 사주 요약의 '텍스트로 복사' 등 */
+export async function copyText(text: string): Promise<boolean> {
+  return writeClipboard(text);
+}
+
 async function writeClipboard(text: string): Promise<boolean> {
   try {
     if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {

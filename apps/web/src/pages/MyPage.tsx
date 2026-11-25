@@ -10,13 +10,13 @@ import { Badge, Button, Card, Field, PageHeader, Segmented, TextInput, Toggle } 
 import { qk, useProfiles, useWallet } from '@/hooks/queries';
 import { SessionGateError, useSessionGate } from '@/hooks/useSessionGate';
 import { ApiError, api } from '@/lib/api';
-import { t } from '@/lib/copy';
-import { native, nativePlatform } from '@/lib/platform';
+import { honorOf, t } from '@/lib/copy';
+import { IS_TOSS, native, nativePlatform } from '@/lib/platform';
 import { storage } from '@/lib/storage';
 import { isMember, useSession } from '@/lib/session';
 import { useTheme, type ThemeMode } from '@/lib/theme';
 
-const PROVIDER_LABEL: Record<string, string> = { kakao: '카카오', naver: '네이버', google: '구글', apple: '애플', email: '이메일', guest: '게스트' };
+const PROVIDER_LABEL: Record<string, string> = { kakao: '카카오', naver: '네이버', google: '구글', apple: '애플', email: '이메일', guest: '게스트', toss: '토스' };
 
 export function MyPage() {
   const navigate = useNavigate();
@@ -29,9 +29,14 @@ export function MyPage() {
   const profiles = useProfiles();
   const wallet = useWallet();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // 토스 미니앱: 사주 삭제 확인을 시스템 대화상자(취소/확인) 대신 앱 안 시트([닫기]/[삭제하기])로 묻는다
+  const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
   const [changePassword, setChangePassword] = useState(false);
   const closeChangePassword = useCallback(() => setChangePassword(false), []);
-  const [pushOn, setPushOn] = useState(true);
+  // 서버에 저장된 값으로 시작한다(값이 없는 예전 응답·게스트는 기본값 켜짐)
+  const [pushOn, setPushOn] = useState(user?.pushEnabled ?? true);
+  // 푸시는 앱에서만 받는다 — 웹에는 푸시 토큰을 등록하는 경로가 없어서 토글을 보이지 않는다
+  const canPush = nativePlatform() !== 'web';
 
   const removeProfile = useMutation({
     mutationFn: (id: string) => api.deleteProfile(id),
@@ -56,7 +61,7 @@ export function MyPage() {
     await api.deleteMe();
     clear();
     qc.clear();
-    toast('탈퇴가 완료되었습니다. 그동안 이용해 주셔서 감사합니다.');
+    toast('탈퇴했어요. 그동안 이용해 주셔서 고마워요.');
     navigate('/', { replace: true });
   };
   const togglePush = async (on: boolean) => {
@@ -84,10 +89,13 @@ export function MyPage() {
                 </div>
                 {user!.isPremium && <Badge tone="gold">플러스</Badge>}
               </div>
+            ) : IS_TOSS ? (
+              // 토스 미니앱에는 로그인 화면이 없다 — 토스 계정으로 자동으로 들어온다
+              <p className="text-sm text-ink-2">저장한 사주는 이 기기에 보관돼요. 토스 앱을 최신 버전으로 올리면 기기를 바꿔도 이어서 볼 수 있어요.</p>
             ) : (
               <div className="space-y-3">
                 <p className="font-semibold">로그인하면 저장한 사주와 구매 내역을 안전하게 보관해요</p>
-                <p className="text-sm text-ink-2">지금까지 저장한 사주 정보는 그대로 유지됩니다.</p>
+                <p className="text-sm text-ink-2">지금까지 저장한 사주 정보는 그대로 유지돼요.</p>
                 <div className="grid grid-cols-2 gap-2">
                   <Button onClick={() => navigate('/login?next=/my')}>로그인</Button>
                   <Button variant="secondary" onClick={() => navigate('/signup?next=/my')}>
@@ -96,7 +104,7 @@ export function MyPage() {
                 </div>
               </div>
             )}
-            {wallet.data && (
+            {!IS_TOSS && wallet.data && (
               <Link to="/my/payments" className="mt-4 flex items-center justify-between rounded-xl bg-subtle px-4 py-3 text-sm">
                 <span>AI 상담 질문권</span>
                 <span className="tabular font-semibold">{wallet.data.credits}회</span>
@@ -109,7 +117,7 @@ export function MyPage() {
               <h2 className="font-semibold">
                 {t('my.savedProfiles')} ({profiles.data?.length ?? 0})
               </h2>
-              <Link to="/profiles/new?save=1&relation=family&next=/my" className="text-sm font-semibold text-info">
+              <Link to="/profiles/new?save=1&relation=family&next=/my" className="text-sm font-semibold text-gold">
                 + {t('my.addProfile')}
               </Link>
             </div>
@@ -133,7 +141,8 @@ export function MyPage() {
                     aria-label={`${p.name} 삭제`}
                     className="grid size-10 place-items-center rounded-full text-ink-3 hover:bg-subtle"
                     onClick={() => {
-                      if (window.confirm(`${p.name}님의 사주를 삭제할까요?`)) removeProfile.mutate(p.id);
+                      if (IS_TOSS) setRemoveTarget({ id: p.id, name: p.name });
+                      else if (window.confirm(`${honorOf(p.name)} 사주를 삭제할까요?`)) removeProfile.mutate(p.id);
                     }}
                   >
                     <Trash2 className="size-4" />
@@ -149,7 +158,8 @@ export function MyPage() {
             {[
               ['/my/reports', '내 리포트 보관함'],
               ['/my/payments', t('my.payments')],
-              ['/store', '이용권 · 리포트 구매'],
+              // 토스 미니앱 첫 버전에는 이용권(질문권)이 없다 — 리포트만 판다
+              ['/store', IS_TOSS ? '리포트 구매' : '이용권 · 리포트 구매'],
               ['/basics', '사주 기초'],
               ['/manse', '만세력'],
               ['/dream', '꿈해몽'],
@@ -165,6 +175,8 @@ export function MyPage() {
           </Card>
 
           <Card className="space-y-5">
+            {/* 토스 미니앱 첫 버전: 알림·화면 테마 선택 없음(밝은 화면 고정) */}
+            {!IS_TOSS && canPush && (
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">{t('my.notifications')}</p>
@@ -172,6 +184,8 @@ export function MyPage() {
               </div>
               <Toggle checked={pushOn} onChange={togglePush} label={t('my.notifications')} />
             </div>
+            )}
+            {!IS_TOSS && (
             <div className="space-y-2">
               <p className="font-medium">{t('my.theme.label')}</p>
               <Segmented<ThemeMode>
@@ -179,12 +193,13 @@ export function MyPage() {
                 value={theme.mode}
                 onChange={theme.setMode}
                 options={[
-                  { value: 'dark', label: t('my.theme.dark') },
                   { value: 'light', label: t('my.theme.light') },
+                  { value: 'dark', label: t('my.theme.dark') },
                   { value: 'system', label: t('my.theme.system') },
                 ]}
               />
             </div>
+            )}
             <div className="space-y-2">
               <p className="font-medium">{t('my.fontSize')}</p>
               <Segmented
@@ -203,7 +218,7 @@ export function MyPage() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="font-medium">비밀번호</p>
-                  <p className="text-sm text-ink-3">이메일 계정의 비밀번호를 바꿉니다</p>
+                  <p className="text-sm text-ink-3">이메일 계정의 비밀번호를 바꿔요</p>
                 </div>
                 <Button variant="secondary" size="sm" onClick={() => setChangePassword(true)}>
                   비밀번호 변경
@@ -226,9 +241,13 @@ export function MyPage() {
 
           {member && (
             <div className="flex justify-between px-1 text-sm text-ink-3">
-              <button type="button" onClick={logout} className="underline">
-                {t('my.logout')}
-              </button>
+              {IS_TOSS ? (
+                <span />
+              ) : (
+                <button type="button" onClick={logout} className="underline">
+                  {t('my.logout')}
+                </button>
+              )}
               <button type="button" onClick={() => setConfirmDelete(true)} className="underline">
                 {t('my.deleteAccount')}
               </button>
@@ -252,9 +271,33 @@ export function MyPage() {
         }
       >
         <p className="text-[15px] leading-relaxed text-ink-2">{t('my.deleteConfirmBody')}</p>
-        <p className="mt-2 text-sm text-ink-3">결제 기록은 전자상거래법에 따라 5년간 익명으로 보관됩니다.</p>
+        <p className="mt-2 text-sm text-ink-3">결제 기록은 전자상거래법에 따라 5년간 익명으로 보관돼요.</p>
       </BottomSheet>
       <PasswordChangeSheet open={changePassword} onClose={closeChangePassword} />
+      {IS_TOSS && (
+        <BottomSheet
+          open={removeTarget !== null}
+          onClose={() => setRemoveTarget(null)}
+          title={removeTarget ? `${honorOf(removeTarget.name)} 사주를 삭제할까요?` : ''}
+          footer={
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="secondary" onClick={() => setRemoveTarget(null)}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                onClick={() => {
+                  if (removeTarget) removeProfile.mutate(removeTarget.id);
+                  setRemoveTarget(null);
+                }}
+              >
+                삭제하기
+              </Button>
+            </div>
+          }
+        >
+          <p className="text-[15px] leading-relaxed text-ink-2">저장한 이름과 생년월일 정보를 지워요. 지운 뒤에는 되돌릴 수 없어요.</p>
+        </BottomSheet>
+      )}
     </div>
   );
 }
@@ -278,7 +321,7 @@ function PasswordChangeSheet({ open, onClose }: { open: boolean; onClose: () => 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (next !== confirm) return setError('새 비밀번호가 서로 다릅니다. 같은 비밀번호를 입력해 주세요.');
+    if (next !== confirm) return setError('새 비밀번호가 서로 달라요. 같은 비밀번호를 입력해 주세요.');
     if (next === current) return setError('현재 비밀번호와 다른 비밀번호를 입력해 주세요.');
     setBusy(true);
     try {

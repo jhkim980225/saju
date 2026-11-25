@@ -23,7 +23,7 @@ export function PeriodTabs({ current, hrefOf }: { current: FreeFortunePeriod; hr
                 aria-current={active ? 'page' : undefined}
                 className={cx(
                   'flex h-10 items-center justify-center rounded-lg text-[14px] font-medium transition-colors lg:h-11 lg:text-[15px]',
-                  active ? 'bg-surface text-ink shadow-[0_1px_2px_rgba(0,0,0,0.06)]' : 'text-ink-3 hover:text-ink-2',
+                  active ? 'bg-action font-semibold text-on-action shadow-[0_1px_2px_rgba(0,0,0,0.12)]' : 'text-ink-2 hover:text-ink',
                 )}
               >
                 {FREE_FORTUNE_PERIOD_LABEL[p]}
@@ -69,12 +69,12 @@ export function PickerRow<T extends { slug: string }>({
         {items.map((it) => {
           const active = it.slug === current;
           return (
-            <li key={it.slug} className="shrink-0">
+            <li key={it.slug} className="flex shrink-0">
               <Link
                 to={hrefOf(it)}
                 aria-current={active ? 'page' : undefined}
                 className={cx(
-                  'flex w-16 flex-col items-center gap-1 rounded-2xl border py-2.5 transition-colors lg:w-full',
+                  'flex w-16 flex-col items-center justify-center gap-1 rounded-2xl border py-2.5 transition-colors lg:w-full',
                   active ? 'border-action bg-action text-on-action' : 'border-line bg-surface text-ink-2 hover:border-line-strong',
                 )}
               >
@@ -178,7 +178,7 @@ export function PersonalUpsell({ body, hasProfile }: { body: string; hasProfile:
       <Link to={hasProfile ? '/today' : '/input'} className="mt-4 inline-flex h-12 w-full items-center justify-center rounded-full bg-action font-semibold text-on-action">
         {hasProfile ? '오늘의 운세 보기' : '내 사주 입력하기'}
       </Link>
-      <p className="mt-2 text-center text-xs text-ink-3">무료이며, 회원가입 없이 볼 수 있어요.</p>
+      {!hasProfile && <p className="mt-2 text-center text-xs text-ink-3">무료이며, 회원가입 없이 볼 수 있어요.</p>}
     </Card>
   );
 }

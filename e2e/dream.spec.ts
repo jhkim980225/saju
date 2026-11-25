@@ -6,7 +6,7 @@ import { buyViaApi, createProfileViaApi, expect, injectSession, signupViaApi, te
 const SNAKE = /\/dream\/%EB%B1%80$/; // /dream/뱀
 
 test('꿈해몽 사전: 메뉴 → 검색 → 키워드 페이지(제목·상황별 풀이) → 분류 → 별칭 주소', async ({ page }) => {
-  // 입구 — 데스크톱은 상단 내비, 모바일 웹은 첫 화면 아래 링크
+  // 입구 — 데스크톱은 왼쪽 사이드바의 전체 운세, 모바일 웹은 첫 화면 아래 링크
   await page.goto('/');
   await page.getByRole('link', { name: '꿈해몽', exact: true }).first().click();
   await expect(page).toHaveURL(/\/dream$/);

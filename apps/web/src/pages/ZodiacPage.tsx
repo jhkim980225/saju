@@ -17,8 +17,8 @@ import { todayKst } from '@/lib/format';
 import { usePageMeta } from '@/lib/pageMeta';
 import { NotFoundPage } from './NotFoundPage';
 
-const UPSELL = '띠별 운세는 같은 띠라면 모두에게 같은 풀이입니다. 태어난 날과 시간까지 입력하면 내 사주에 맞춘 오늘의 운세를 매일 볼 수 있어요.';
-const BASIS_SHORT = '날마다 그날의 지지(열두 띠에 해당하는 글자)가 차례로 바뀝니다. 오늘의 지지와 내 띠가 합(조화)·충(대립) 등 어떤 관계인지를 보고 풀이했어요.';
+const UPSELL = '태어난 날과 시간까지 입력하면 띠가 아니라 내 사주에 맞춘 오늘의 운세를 매일 볼 수 있어요.';
+const BASIS_SHORT = '날마다 그날의 지지(열두 띠에 해당하는 글자)가 차례로 바뀌어요. 오늘의 지지와 내 띠가 합(조화)·충(대립) 등 어떤 관계인지를 보고 풀이했어요.';
 
 export function ZodiacHubPage() {
   const own = useOwnSigns();
@@ -26,7 +26,7 @@ export function ZodiacHubPage() {
   const overview = useQuery({ queryKey: ['zodiac', 'overview', 'today', today.iso], queryFn: () => api.zodiacOverview('today', today.iso), staleTime: 10 * 60_000 });
   usePageMeta({
     title: '띠별 운세 — 12띠 오늘의 운세 | 달달사주',
-    description: '쥐띠부터 돼지띠까지 열두 띠의 오늘·내일·이번 주·이번 달·올해 운세. 그날의 띠와 내 띠가 잘 맞는지 푼 이유와 년생별 한 줄까지 무료로 보여 드려요.',
+    description: '쥐띠부터 돼지띠까지 열두 띠의 오늘·내일·이번 주·이번 달·올해 운세. 그날의 띠와 내 띠가 잘 맞는지 푼 이유와 출생 연도별 한 줄까지 무료로 보여 드려요.',
     path: '/zodiac',
   });
 
@@ -84,7 +84,7 @@ export function ZodiacHubPage() {
               <YearFinder />
             </div>
             <CrossLink to="/horoscope" title="별자리 운세" body="생일로 찾는 열두 별자리의 오늘" />
-            <MethodNote basis={BASIS_SHORT} disclaimer="띠별 운세는 같은 띠라면 모두에게 같은 풀이입니다. 재미와 참고용으로 읽어 주세요." />
+            <MethodNote basis={BASIS_SHORT} disclaimer="띠별 운세는 같은 띠라면 모두에게 같은 풀이예요. 재미와 참고용으로 읽어 주세요." />
           </aside>
         </div>
       </Page>
@@ -141,7 +141,7 @@ function ZodiacDetail({ animal, period }: { animal: ZodiacAnimal; period: FreeFo
   const years = birthYearsOf(animal, today.year);
   usePageMeta({
     title: `${title} — 띠별 운세 | 달달사주`,
-    description: `${animal.name}띠 ${PERIOD_TITLE[period]}. 그 기간의 띠와 ${animal.name}띠가 잘 맞는지로 풀고, ${years.slice(-5).join('·')}년생 등 년생별 한 줄까지 무료로 보여 드려요.`,
+    description: `${animal.name}띠 ${PERIOD_TITLE[period]}. 그 기간의 띠와 ${animal.name}띠가 잘 맞는지로 풀고, ${years.slice(-5).join('·')}년생 등 출생 연도별 한 줄까지 무료로 보여 드려요.`,
     path: zodiacPath(animal.slug, period),
   });
   const d = q.data;
@@ -168,22 +168,24 @@ function ZodiacDetail({ animal, period }: { animal: ZodiacAnimal; period: FreeFo
           <div className="animate-fade lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-10">
             <div>
               <FortuneMain eyebrow={d.range.label} tone={d.tone} toneLabel={d.toneLabel} headline={d.headline} paragraphs={d.paragraphs} tip={d.tip} />
-              <KeyDays days={d.keyDays} note={`날마다 그날의 지지(띠 글자)가 바뀝니다. ${animal.name}띠와 조화를 이루는 날(합 등)과 대립하는 날(충 등)을 골랐어요.`} />
+              <KeyDays days={d.keyDays} note={`날마다 그날의 지지(띠 글자)가 바뀌어요. ${animal.name}띠와 조화를 이루는 날(합 등)과 대립하는 날(충 등)을 골랐어요.`} />
               <ReasonCard reasons={d.reasons} intro={`그 기간의 간지와 ${animal.name}띠 글자(${animal.hanja})가 어떤 관계인지 정리했어요.`} />
               <div className="mt-6">
                 <AdSlot placement="web_content_mid" />
               </div>
               <section className="mt-8" aria-labelledby="years-title">
                 <h3 id="years-title" className="text-lg font-semibold">
-                  년생별 {animal.name}띠 운세
+                  출생 연도별 {animal.name}띠 운세
                 </h3>
                 <p className="mt-1 text-sm text-ink-3">
-                  {d.pillar ? `같은 ${animal.name}띠라도 태어난 해의 천간이 달라 해마다 간지가 다르므로, 해마다 한 줄씩 따로 풀이했어요.` : `같은 ${animal.name}띠라도 태어난 해마다 이번 주에 잘 맞는 요일이 달라요.`}
+                  {d.pillar ? `같은 ${animal.name}띠라도 태어난 해의 천간이 달라 해마다 간지가 달라요. 그래서 태어난 해마다 한 줄씩 풀이했고, 60년 차이가 나는 해는 간지가 같아 풀이도 같아요.` : `같은 ${animal.name}띠라도 태어난 해마다 이번 주에 잘 맞는 요일이 달라요.`}
                 </p>
                 <ul className="mt-3 divide-y divide-line border-y border-line">
                   {d.years.map((y) => (
                     <li key={y.year} className="py-4">
-                      <p className="font-semibold">{y.year}년생</p>
+                      <p className="font-semibold">
+                        {y.year}년생 {d.pillar && <span className="font-normal text-ink-3">· {y.ganzhi}</span>}
+                      </p>
                       <p className="mt-1 text-[15px] leading-relaxed">{y.text}</p>
                     </li>
                   ))}
@@ -191,7 +193,7 @@ function ZodiacDetail({ animal, period }: { animal: ZodiacAnimal; period: FreeFo
                 {/* 용어(천간·십신)가 든 근거는 궁금한 사람만 펼쳐 보게 */}
                 <details className="group mt-3 text-sm text-ink-3">
                   <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-full border border-line px-3 py-1 hover:text-ink-2 [&::-webkit-details-marker]:hidden">
-                    년생별 풀이 근거 <span className="transition-transform group-open:rotate-180" aria-hidden>▾</span>
+                    출생 연도별 풀이 근거 <span className="transition-transform group-open:rotate-180" aria-hidden>▾</span>
                   </summary>
                   <ul className="mt-2 space-y-1 font-serif text-xs leading-relaxed">
                     {d.years.map((y) => (

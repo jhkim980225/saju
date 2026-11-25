@@ -53,7 +53,12 @@ export function sectionLabels(s: ReadingSection): { label: string; title: string
     const label = year === new Date().getFullYear() ? t('result.sections.thisYear.label') : `${year}년 운세`;
     return { label, title: t('result.sections.thisYear.title', { year }) };
   }
-  return { label: '', title: s.title };
+  // 나머지 섹션도 제목 위에 같은 모양의 분류 이름을 붙인다. 제목이 '용신: 나에게 필요한 기운'처럼
+  // 분류 이름으로 시작하면 그 부분은 떼어 내 '용신' / '나에게 필요한 기운'으로 나눈다
+  const short = SHORT_LABEL[s.key];
+  if (!short || short === s.title) return { label: '', title: s.title };
+  const m = s.title.startsWith(short) ? /^\s*[—:]\s*(.+)$/.exec(s.title.slice(short.length)) : null;
+  return { label: short, title: m?.[1] ?? s.title };
 }
 
 /** 섹션 바로가기 칩 라벨 — 항상 비어 있지 않음 */
@@ -61,7 +66,7 @@ export function navLabel(s: ReadingSection): string {
   return sectionLabels(s).label || SHORT_LABEL[s.key] || s.title;
 }
 
-export function ReadingSectionCard({ section, onUnlock, price }: { section: ReadingSection; onUnlock?: (s: ReadingSection) => void; price?: string }) {
+export function ReadingSectionCard({ section, onUnlock, price, compactLock }: { section: ReadingSection; onUnlock?: (s: ReadingSection) => void; price?: string; compactLock?: boolean }) {
   // 리포트 맨 앞 '한눈에 보기'(points)는 리포트가 정한 제목 그대로('한눈에 보는 서윤님')
   const { label, title } = section.points?.length ? { label: '', title: section.title } : sectionLabels(section);
   const locked = Boolean(section.locked);
@@ -121,7 +126,21 @@ export function ReadingSectionCard({ section, onUnlock, price }: { section: Read
           <p className="mt-2 leading-relaxed">{section.basis}</p>
         </details>
       )}
-      {locked && (
+      {locked && compactLock && (
+        // 같은 상품의 잠금 카드는 화면에 한 번만 크게 보이고, 그다음부터는 한 줄로 줄인다
+        <div className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-line px-4 py-3 text-sm" aria-label={t('a11y.lockedSection')}>
+          <span className="flex items-start gap-2 text-ink-2">
+            <Lock className="mt-0.5 size-4 shrink-0 text-gold" aria-hidden />
+            {label ? t('paywall.lockBody', { section: label }) : '나머지 내용을 이어서 읽을 수 있어요.'}
+          </span>
+          {onUnlock && (
+            <button type="button" className="shrink-0 font-semibold text-gold underline underline-offset-4" onClick={() => onUnlock(section)}>
+              {t('paywall.ctaNoPrice')}
+            </button>
+          )}
+        </div>
+      )}
+      {locked && !compactLock && (
         <div className="mt-2 rounded-2xl border border-gold/40 bg-surface p-5" aria-label={t('a11y.lockedSection')}>
           <p className="flex items-center gap-2 font-semibold text-gold">
             <Lock className="size-4" aria-hidden />

@@ -80,6 +80,21 @@ export function branchPunish(a: number, b: number): boolean {
   if (key(x, y) === '0-3') return true; // 子卯 무례지형
   return PUNISH_GROUPS.some((g) => g.includes(x) && g.includes(y));
 }
+/**
+ * 원국에서 삼합·방합(세 글자 완성)에 묶인 지지 → 그 국의 오행.
+ * 강약 계산에서 묶인 지지의 기운이 국의 오행 쪽으로 기우는 것을 반영하는 데 쓴다.
+ * 한 지지가 두 국에 함께 들면(예: 卯가 亥卯未와 寅卯辰에 모두) 먼저 찾은 삼합을 따른다.
+ */
+export function combinedBranchElements(pillars: { position: PillarPosition; branch: number }[]): Map<PillarPosition, Element> {
+  const out = new Map<PillarPosition, Element>();
+  const set = pillars.map((p) => mod(p.branch, 12));
+  for (const g of [...THREE_COMBINE, ...DIRECTION_COMBINE]) {
+    if (!g.branches.every((b) => set.includes(b))) continue;
+    for (const p of pillars) if (g.branches.includes(mod(p.branch, 12)) && !out.has(p.position)) out.set(p.position, g.element);
+  }
+  return out;
+}
+
 /** 두 지지가 같은 삼합 국에 속하면 그 오행 */
 export function halfCombine(a: number, b: number): Element | null {
   const x = mod(a, 12);

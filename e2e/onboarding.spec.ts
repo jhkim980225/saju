@@ -25,7 +25,7 @@ test('랜딩(바로 입력) → 확인 → 결과: 甲辰 일주 8글자와 잠�
   await expect(page.getByText('양력 1995년 3월 14일 (화)')).toBeVisible();
   await expect(page.getByText('= 음력 1995년 2월 14일')).toBeVisible();
   await expect(page.getByText('14:30 · 서울특별시 · 여성')).toBeVisible();
-  await expect(page.getByText('태어난 시간을 실제 해 시각 13:58 기준으로 계산해요')).toBeVisible();
+  await expect(page.getByText('태어난 시간을 경도 보정 시각 13:58 기준으로 계산해요')).toBeVisible();
   await expect(page.getByText(/서울특별시에서는 실제 태양 시각이 시계보다 32분가량 늦어, 그만큼 앞당겨 계산했어요/)).toBeVisible();
 
   await page.getByRole('button', { name: '사주 풀이 보기' }).click();
@@ -46,8 +46,8 @@ test('랜딩(바로 입력) → 확인 → 결과: 甲辰 일주 8글자와 잠�
   }
   await expect(page.locator('[aria-label*=", 한자 "]')).toHaveCount(8);
   await expect(page.getByLabel('태어난 시간 모름')).toHaveCount(0);
-  await expect(page.getByText('양력 1995.03.14 14:30')).toBeVisible();
-  await expect(page.getByText('실제 해 시각 13:58', { exact: true })).toBeVisible();
+  await expect(page.getByText('양력 1995.3.14 14:30')).toBeVisible();
+  await expect(page.getByText('경도 보정 시각 13:58', { exact: true })).toBeVisible();
 
   // 무료 섹션은 열려 있고, 유료 섹션은 잠금 카드로 표시
   await expect(page.getByRole('heading', { name: '한눈에 보는 나' })).toBeVisible();

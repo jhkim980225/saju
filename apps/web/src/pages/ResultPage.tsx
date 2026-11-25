@@ -73,7 +73,7 @@ export function ResultPage() {
         {q.error && <ErrorState title={q.error instanceof ApiError && q.error.status === 400 ? q.error.message : t('error.server.title')} onRetry={() => q.refetch()} />}
         {q.data && minWaitDone && (
           <div className="animate-fade">
-            <ReadingView reading={q.data} name={name} ensureProfile={ensureProfile} editHref="/input" returnTo="/result" />
+            <ReadingView reading={q.data} name={name} ensureProfile={ensureProfile} editHref="/input" returnTo="/result" summaryHref="/result/summary" />
           </div>
         )}
       </Page>

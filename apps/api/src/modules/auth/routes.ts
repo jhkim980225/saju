@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { SOCIAL_PROVIDERS, changePasswordSchema, forgotPasswordSchema, guestSchema, loginSchema, oauthCallbackSchema, refreshSchema, resetPasswordSchema, signupSchema, updateMeSchema } from '@saju/shared';
+import { SOCIAL_PROVIDERS, tossAuthSchema, changePasswordSchema, forgotPasswordSchema, guestSchema, loginSchema, oauthCallbackSchema, refreshSchema, resetPasswordSchema, signupSchema, updateMeSchema } from '@saju/shared';
 import { unauthorized } from '../../lib/errors.js';
 import { noContent, readJson, requireUser, type AppEnv, type RouteKit } from '../../lib/http.js';
 import { hashPassword, verifyPassword } from '../../lib/password.js';
@@ -113,6 +113,13 @@ export function authRoutes({ ctx, authenticate, optionalAuth, authLimit: strict 
     const guestUserId = c.get('user')?.id;
     const { user, created } = await users.upsertSocialUser({ provider, ...profile, guestUserId });
     if (!created) await users.mergeGuestInto(guestUserId, user.id);
+    return c.json(await auth.issue(user, c.req.header('user-agent')));
+  });
+
+  /** 토스 미니앱 로그인 — SDK 가 준 일회용 코드로 들어온다. 게스트 토큰이 있으면 그 계정을 이어 쓴다 */
+  app.post('/toss', strict, optionalAuth, async (c) => {
+    const body = parse(tossAuthSchema, await readJson(c));
+    const user = await ctx.services.tossAuth.login(body.code, c.get('user')?.id);
     return c.json(await auth.issue(user, c.req.header('user-agent')));
   });
 

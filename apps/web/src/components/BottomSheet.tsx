@@ -3,12 +3,15 @@ import type { ReactNode } from 'react';
 import { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { t } from '@/lib/copy';
+import { useSheetHistory } from '@/lib/tossBridge';
 
 /** 바텀시트 — ESC/배경 탭/닫기 버튼으로 닫힘. size="wide" 는 PC 에서 긴 글을 읽는 넓은 팝업, 최대 높이 90% (앱 뒤로가기는 native 계층에서 연결). 데스크톱은 가운데 대화상자 */
 export function BottomSheet({ open, onClose, title, children, footer, size = 'default' }: { open: boolean; onClose: () => void; title?: ReactNode; children: ReactNode; footer?: ReactNode; size?: 'default' | 'wide' }) {
   const panel = useRef<HTMLDivElement>(null);
   // 화면 읽기 프로그램이 시트 제목을 대화 상자 이름으로 읽게
   const titleId = useId();
+  // 토스 미니앱: 뒤로가기를 누르면 화면은 그대로 두고 시트만 닫는다(웹·앱 빌드에서는 아무 일도 하지 않는다)
+  useSheetHistory(open, onClose);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();

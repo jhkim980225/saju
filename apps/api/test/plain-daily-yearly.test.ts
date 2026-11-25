@@ -6,7 +6,7 @@
  * - 궁합: 60쌍 × 잠김/풀림 × 이름 있음/없음('나'·'상대')
  */
 import { calculateCompatibility, calculateSaju, type BirthInput, type SajuChart } from '@saju/core';
-import type { DailyFortuneDto, ReadingSection, YearlyFortuneDto } from '@saju/shared';
+import { TEN_GOD_PLAIN_LABEL, type DailyFortuneDto, type ReadingSection, type YearlyFortuneDto } from '@saju/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { App } from '../src/app.js';
 import { buildApp } from '../src/app.js';
@@ -155,7 +155,8 @@ describe('신년운세 — 사람이 말하듯 쉬운 말', () => {
     for (const y of list) {
       expect(y.yearName).toMatch(/^(푸른|붉은|누런|흰|검은) [가-힣]+의 해$/);
       expect(['아주 좋은 해', '좋은 해', '무난한 해', '조심할 해', '쉬어 가는 해']).toContain(y.gradeLabel);
-      expect(y.theme).toMatch(/^[가-힣]+과 [가-힣]+$|^[가-힣]+와 [가-힣]+$/);
+      // 화면 표의 십성 라벨과 같은 이름(packages/shared TEN_GOD_PLAIN_LABEL) — 한 기운을 여러 이름으로 부르지 않는다
+      expect(y.theme).toBe(TEN_GOD_PLAIN_LABEL[y.tenGod]);
     }
     expect(list.find((y) => y.year === 2026)!.yearName).toBe('붉은 말의 해');
     expect(list.find((y) => y.year === 2027)!.yearName).toBe('붉은 양의 해');

@@ -19,7 +19,7 @@ import type { LunarDate } from './calendar.js';
 import { addDays, dayGanzhiIndex, isValidSolarDate, monthBoundaries, solarTermsOfYear, solarToLunar } from './calendar.js';
 import type { SajuChart } from './chart.js';
 import { branchBreak, branchClash, branchHarm, branchPunish, branchWonjin, halfCombine, sixCombine, stemClash, stemCombine, threeCombineGroupOf } from './relations.js';
-import { gongmangOf } from './shinsal.js';
+import { CHEONDEOK, gongmangOf } from './shinsal.js';
 
 // ---------------------------------------------------------------------------
 // 목적
@@ -95,7 +95,8 @@ export const TIAN_SHEN: readonly { name: string; hanja: string; yellow: boolean 
   { name: '천형', hanja: '天刑', yellow: false },
   { name: '주작', hanja: '朱雀', yellow: false },
   { name: '금궤', hanja: '金匱', yellow: true },
-  { name: '천덕', hanja: '天德', yellow: true },
+  // 천덕(天德)황도 — 아래 천덕일(天德)과 헷갈리지 않게 다른 이름인 보광(寶光)으로 부른다
+  { name: '보광', hanja: '天德', yellow: true },
   { name: '백호', hanja: '白虎', yellow: false },
   { name: '옥당', hanja: '玉堂', yellow: true },
   { name: '천뢰', hanja: '天牢', yellow: false },
@@ -123,14 +124,6 @@ function woldeokStem(monthBranch: number): number {
   const wang = threeCombineGroupOf(monthBranch)[1];
   return ({ 6: 2, 0: 8, 3: 0, 9: 6 } as Record<number, number>)[wang]!;
 }
-/**
- * 천덕(天德) — 協紀辨方書: 正丁 二坤 三壬 四辛 五乾 六甲 七癸 八艮 九丙 十乙 十一巽 十二庚.
- * 卯·午·酉·子월은 괘(坤乾艮巽, 방위)라 날짜에는 붙지 않는다 → null
- */
-const CHEONDEOK_STEM: (number | null)[] = [
-  /* 子 */ null, /* 丑 */ 6, /* 寅 */ 3, /* 卯 */ null, /* 辰 */ 8, /* 巳 */ 7,
-  /* 午 */ null, /* 未 */ 0, /* 申 */ 9, /* 酉 */ null, /* 戌 */ 2, /* 亥 */ 1,
-];
 /** 천사일(天赦日) — 봄(寅卯辰월) 戊寅, 여름(巳午未) 甲午, 가을(申酉戌) 戊申, 겨울(亥子丑) 甲子 */
 function isCheonsa(monthBranch: number, stem: number, branch: number): boolean {
   const season = Math.floor(mod(monthBranch - 2, 12) / 3); // 0 봄 1 여름 2 가을 3 겨울
@@ -281,7 +274,7 @@ export function taekilAlmanac(d: Ymd): TaekilAlmanac {
   const ti = tianShenIndex(branch, monthBranch);
   const term = termOn(d);
   const nextTerm = termOn(addDays(d, 1));
-  const cd = CHEONDEOK_STEM[monthBranch];
+  const cd = CHEONDEOK[monthBranch]!;
   const sonDirection = lunar ? sonDirectionOf(lunar.day) : null;
   return {
     date,
@@ -293,7 +286,8 @@ export function taekilAlmanac(d: Ymd): TaekilAlmanac {
     tianShen: { index: ti, ...TIAN_SHEN[ti]! },
     sonFree: lunar !== null && sonDirection === null,
     sonDirection,
-    cheondeok: cd !== null && cd === stem,
+    // 천덕 — 월지에 따라 일진의 천간(丁壬辛甲癸丙乙庚) 또는 지지(申亥寅巳)가 맞으면
+    cheondeok: cd[0] === 's' ? cd[1] === stem : cd[1] === branch,
     woldeok: woldeokStem(monthBranch) === stem,
     cheonsa: isCheonsa(monthBranch, stem, branch),
     sari: nextTerm && SARI_TERMS.has(nextTerm) ? nextTerm : null,
@@ -496,7 +490,7 @@ export function evaluateTaekilDay(chart: SajuChart, date: Ymd, purpose: TaekilPu
   add({ code: 'officer', group: 'almanac', weight: offW, label: `${off.name}(${off.hanja})일`, detail: off.meaning, ...(off.name === '파' ? { excludes: true } : {}) });
   add({ code: a.tianShen.yellow ? 'yellow_road' : 'black_road', group: 'almanac', weight: a.tianShen.yellow ? W.yellowRoad : W.blackRoad, label: `${a.tianShen.yellow ? '황도' : '흑도'}일(${a.tianShen.name})`, detail: a.tianShen.hanja });
   if (a.cheonsa) add({ code: 'cheonsa', group: 'almanac', weight: W.cheonsa, label: '천사일(天赦日)', detail: `${a.ganzhi.hanja}일` });
-  if (a.cheondeok) add({ code: 'cheondeok', group: 'almanac', weight: W.cheondeok, label: '천덕(天德)', detail: `${hz(a.monthBranch)}월의 ${sz(stem)}` });
+  if (a.cheondeok) add({ code: 'cheondeok', group: 'almanac', weight: W.cheondeok, label: '천덕(天德)', detail: `${hz(a.monthBranch)}월의 ${CHEONDEOK[a.monthBranch]![0] === 's' ? sz(stem) : hz(branch)}` });
   if (a.woldeok) add({ code: 'woldeok', group: 'almanac', weight: W.woldeok, label: '월덕(月德)', detail: `${hz(a.monthBranch)}월의 ${sz(stem)}` });
   if (a.sari) add({ code: 'sari', group: 'almanac', weight: W.sariSajeol, label: '사리일(四離日)', detail: `${a.sari} 전날`, excludes: true });
   if (a.sajeol) add({ code: 'sajeol', group: 'almanac', weight: W.sariSajeol, label: '사절일(四絶日)', detail: `${a.sajeol} 전날`, excludes: true });

@@ -1,11 +1,12 @@
 import type { ProductDto, ReadingDto, ReadingSection } from '@saju/shared';
-import { Lock, Share2 } from 'lucide-react';
+import { ClipboardList, Lock, Share2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { useProducts } from '@/hooks/queries';
 import { usePurchase } from '@/hooks/usePurchase';
 import { track } from '@/lib/analytics';
-import { t } from '@/lib/copy';
+import { IS_TOSS } from '@/lib/platform';
+import { honorOf, t } from '@/lib/copy';
 import { won } from '@/lib/format';
 import { AdSlot } from './AdSlot';
 import { DaeunTimeline } from './DaeunTimeline';
@@ -30,6 +31,7 @@ export function ReadingView({
   editHref,
   returnTo,
   isPremiumUser,
+  summaryHref,
 }: {
   reading: ReadingDto;
   name: string;
@@ -38,6 +40,8 @@ export function ReadingView({
   editHref?: string;
   returnTo: string;
   isPremiumUser?: boolean;
+  /** '사주 요약' 화면 주소 — 원국·분석·대운·분야별 한 줄 요약을 한 장으로 */
+  summaryHref?: string;
 }) {
   const chart = reading.chart;
   const [paywall, setPaywall] = useState<{ open: boolean; productIds: string[] }>({ open: false, productIds: [] });
@@ -70,8 +74,9 @@ export function ReadingView({
   const [shareOpen, setShareOpen] = useState(false);
   const sharePayload = {
     title: t('share.kakaoResult.title', { name, ilju: chart.pillars.day.ganzhi.hangul, alias: reading.dayPillarTitle }),
-    text: `${reading.headline} — ${t('share.kakaoResult.description')}`,
-    url: `${window.location.origin}/`,
+    text: `${reading.headline}. ${t('share.kakaoResult.description')}`,
+    // 풀이 결과는 그 사람의 생년월일로만 열리므로, 받은 사람은 자기 사주를 넣는 무료 풀이 화면으로 보낸다
+    url: `${window.location.origin}/input`,
     buttons: [{ title: t('share.kakaoResult.buttonPrimary'), url: `${window.location.origin}/input` }],
   };
 
@@ -87,7 +92,7 @@ export function ReadingView({
         <h1 className="mt-2 font-serif text-[26px] font-semibold leading-[1.35] lg:text-[32px]">{reading.headline}</h1>
         <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-ink-3">
           <span>
-            {chart.input.calendar === 'lunar' ? '음력' : '양력'} {chart.input.year}.{pad(chart.input.month)}.{pad(chart.input.day)} {timeText}
+            {chart.input.calendar === 'lunar' ? '음력' : '양력'} {chart.input.year}.{chart.input.month}.{chart.input.day} {timeText}
           </span>
           {chart.hourKnown && corr !== 0 && chart.correctedTime && (
             // '보정 -32분' 대신 실제로 계산에 쓴 시각을 보여 준다 — 이유는 title 과 확인 화면에서
@@ -99,7 +104,7 @@ export function ReadingView({
           {isPremiumUser && <Badge tone="gold">전체 풀이</Badge>}
         </div>
         {editHref && (
-          <Link to={editHref} className="mt-2 inline-block text-sm text-info underline underline-offset-2">
+          <Link to={editHref} className="mt-2 inline-block text-sm text-gold underline underline-offset-2">
             {t('result.editInput')}
           </Link>
         )}
@@ -117,13 +122,23 @@ export function ReadingView({
             </dl>
           </Card>
         )}
+        {summaryHref && (
+          <Link to={summaryHref} className="mt-3 flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 hover:bg-subtle">
+            <ClipboardList className="size-5 shrink-0 text-gold" aria-hidden />
+            <span className="flex-1">
+              <span className="block font-semibold">사주 요약 한 장으로 보기</span>
+              <span className="block text-sm text-ink-3">원국·오행·대운과 재물·연애·직업·건강 요약을 모았어요. 텍스트로 복사할 수 있어요.</span>
+            </span>
+          </Link>
+        )}
       </section>
 
-      <aside className="lg:sticky lg:top-24 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:max-h-[calc(100dvh-7rem)] lg:self-start lg:overflow-y-auto lg:[scrollbar-width:thin]">
+      {/* 원국 표는 함께 스크롤되고, 섹션 바로가기만 화면에 붙는다 (둘을 한꺼번에 붙이면 화면 높이를 넘어 목록 아래쪽이 잘린다) */}
+      <aside className="lg:col-start-1 lg:row-span-2 lg:row-start-1">
         <Card className="mt-6 lg:mt-0">
           <PillarTable chart={chart} editHref={editHref} />
         </Card>
-        <nav className="mt-6 hidden lg:block" aria-label="섹션 바로가기">
+        <nav className="mt-6 hidden lg:sticky lg:top-8 lg:block" aria-label="섹션 바로가기">
           <p className="px-3 text-xs font-semibold text-ink-3">섹션 바로가기</p>
           <ul className="mt-2 space-y-0.5">
             {sections.map((s) => (
@@ -171,8 +186,8 @@ export function ReadingView({
         {profileId && !anyLocked && (
           <OpenReportCard
             dto={{ type: 'lifetime', profileId }}
-            title={`${name}님의 사주분석서`}
-            body="사주 원국과 오행 분포, 대운(10년 단위의 흐름), 올해·내년 운세, 열두 달의 흐름을 한 권으로 정리했습니다. A4 20쪽 안팎이며 PDF로 저장할 수 있어요."
+            title={`${honorOf(name)} 사주분석서`}
+            body={`사주 원국과 오행 분포, 대운(10년 단위의 흐름), 올해·내년 운세, 열두 달의 흐름을 한 권으로 정리했어요. ${IS_TOSS ? 'A4 20쪽 안팎이에요.' : 'A4 20쪽 안팎이며 PDF로 저장할 수 있어요.'}`}
           />
         )}
 

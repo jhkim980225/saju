@@ -1,0 +1,10 @@
+# 토스 미니앱 빌드 산출물
+dist-toss/
+dist-toss-dev/
+*.ait
+.granite/
+
+# 토스 빌드 설정 — 사업자 정보(대표자·주소·연락처)를 채우므로 저장소(공개)에 올리지 않는다. 양식은 .env.toss.example
+.env.toss
+.env.toss-dev
+.env.toss-qa

@@ -35,7 +35,7 @@ test('띠별 운세: 태어난 해로 띠 찾기 → 기간 전환 → 다른 �
   await expect(page.getByText(/^오늘 일진 [甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥] · /).first()).toBeHidden();
   await openReasons(page);
   await expect(page.getByText(/^오늘 일진 [甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥] · /).first()).toBeVisible();
-  await expect(page.getByText('1986년생', { exact: true })).toBeVisible();
+  await expect(page.getByText(/^1986년생/).first()).toBeVisible();
   await expect(page.getByRole('link', { name: '내 사주 입력하기' })).toBeVisible();
 
   // 기간 탭: 이번 주 → 이번 달 → 올해 → 내일

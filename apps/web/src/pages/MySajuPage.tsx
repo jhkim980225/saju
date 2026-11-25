@@ -91,6 +91,7 @@ export function MySajuPage() {
             editHref={`/profiles/${profile.id}/edit`}
             returnTo={`/saju/${profile.id}`}
             isPremiumUser={user?.isPremium}
+            summaryHref={`/saju/${profile.id}/summary`}
           />
         )}
       </Page>

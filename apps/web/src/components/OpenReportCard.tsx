@@ -40,7 +40,7 @@ export function OpenReportCard({ dto, title, body }: { dto: ReportCreateDto; tit
         </div>
       </div>
       <Button block className="mt-4" loading={open.isPending} onClick={() => open.mutate(dto)}>
-        {open.isPending ? '보고서를 여는 중이에요' : '보고서 열기'}
+        {open.isPending ? '리포트를 여는 중이에요' : '리포트 열기'}
       </Button>
     </Card>
   );

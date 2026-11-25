@@ -52,7 +52,7 @@ describe('꿈해몽 사전 화면', () => {
     expect(document.title).toContain('사람 꿈해몽');
   });
 
-  it('키워드 페이지 — 제목·설명·대표 주소를 화면별로 바꾸고, 떠나면 되돌린다', () => {
+  it('키워드 페이지 — 제목·설명·대표 주소를 화면별로 바꾸고, 떠나면 제목은 되돌린다', () => {
     document.title = '기본 제목';
     const { unmount } = renderAt('/dream/뱀');
     expect(screen.getByRole('heading', { level: 1, name: '뱀 꿈 해몽' })).toBeInTheDocument();
@@ -62,7 +62,22 @@ describe('꿈해몽 사전 화면', () => {
     expect(decodeURI(document.head.querySelector('link[rel="canonical"]')!.getAttribute('href')!)).toMatch(/\/dream\/뱀$/);
     unmount();
     expect(document.title).toBe('기본 제목');
-    expect(document.head.querySelector('link[rel="canonical"]')).toBeNull();
+    // 대표 주소는 되돌리지 않는다 — 다음 화면의 값은 RootLayout 의 useRouteMeta 가 정한다(아래 테스트)
+  });
+
+  it('useRouteMeta — 주소마다 대표 주소를 맞추고 개인 화면에는 noindex 를 단다', async () => {
+    const { useRouteMeta } = await import('@/lib/pageMeta');
+    const { renderHook } = await import('@testing-library/react');
+    const { rerender } = renderHook(({ path }) => useRouteMeta(path), { initialProps: { path: '/today' } });
+    expect(document.head.querySelector('link[rel="canonical"]')!.getAttribute('href')).toMatch(/\/today$/);
+    expect(document.head.querySelector('meta[name="robots"]')).toBeNull();
+    rerender({ path: '/saju/abc' });
+    expect(document.head.querySelector('link[rel="canonical"]')!.getAttribute('href')).toMatch(/\/saju\/abc$/);
+    expect(document.head.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex');
+    rerender({ path: '/yearly' });
+    expect(document.head.querySelector('meta[name="robots"]')).toBeNull();
+    rerender({ path: '/yearly/abc' });
+    expect(document.head.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex');
   });
 
   it('별칭 주소는 대표 키워드 페이지로 옮긴다', async () => {

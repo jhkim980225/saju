@@ -5,6 +5,8 @@ import { loadConfig } from '../src/config/env.js';
 import { createDb, runMigrations } from '../src/db/local.js';
 import { seedProducts } from '../src/db/seed.js';
 import { calculateSaju } from '@saju/core';
+import { eq } from 'drizzle-orm';
+import { tarotReadings } from '../src/db/schema.js';
 import { TAROT_DRAW_SPREADS, TAROT_SPREADS, TAROT_SPREAD_TOPICS, TAROT_TOPICS, TAROT_YESNO_DAILY_FREE } from '@saju/shared';
 import { CATALOG } from '../src/modules/commerce/catalog.js';
 import { DECK } from '../src/modules/tarot/content/index.js';
@@ -14,11 +16,13 @@ import { questionKey } from '../src/modules/tarot/service.js';
 import { YES_NO_LABEL, yesNoLean } from '../src/modules/tarot/yesno.js';
 
 let app: App;
+let testDb: ReturnType<typeof createDb>['db'];
 const BIRTH = { calendar: 'solar', year: 1990, month: 5, day: 15, hour: 14, minute: 30, gender: 'male' } as const;
 
 beforeAll(async () => {
   const config = loadConfig({ __SKIP_ENV_FILE: '1', NODE_ENV: 'test', PAYMENT_PROVIDER: 'mock', ANTHROPIC_API_KEY: '', SIGNUP_BONUS_CREDITS: '0' });
   const { db } = createDb(':memory:');
+  testDb = db;
   await runMigrations(db);
   await seedProducts(db);
   app = await buildApp({ config, db });
@@ -505,5 +509,31 @@ describe('2차 펼침 방식 API', () => {
     for (const [id, price] of [['tarot_choice_3', 990], ['tarot_compat_5', 2900], ['tarot_celtic_10', 4900]] as const) {
       expect(p.body.find((x: any) => x.id === id), id).toMatchObject({ price, requiresReading: true, requiresProfile: false, purchasable: true });
     }
+  });
+});
+
+describe('계정 정리 — 타로 기록', () => {
+  const readingsOf = async (userId: string) => (await testDb.select().from(tarotReadings).where(eq(tarotReadings.userId, userId))).length;
+
+  it('게스트로 뽑은 타로 기록은 기존 계정으로 로그인하면 옮겨지고, 같은 날 같은 질문은 회원 것을 남긴다', async () => {
+    const member = (await api('POST', '/auth/signup', { body: { email: 'tarot-merge@example.com', password: 'password123' } })).body;
+    expect((await api('GET', '/tarot/daily', { token: member.accessToken })).status).toBe(200);
+
+    const guest = (await api('POST', '/auth/guest', { body: { deviceId: 'tarot-merge-device-01' } })).body;
+    expect((await api('GET', '/tarot/daily', { token: guest.accessToken })).status).toBe(200);
+    const s = await api('POST', '/tarot/shuffle', { token: guest.accessToken, body: { spread: 'three', topic: 'love' } });
+    const three = await api('POST', '/tarot/readings', { token: guest.accessToken, body: { deckToken: s.body.deckToken, spread: 'three', topic: 'love', question: '연락이 올까요?', picks: [1, 2, 3] } });
+    expect(three.status).toBe(200);
+
+    const login = await api('POST', '/auth/login', { token: guest.accessToken, body: { email: 'tarot-merge@example.com', password: 'password123' } });
+    expect(login.status).toBe(200);
+    const history = await api('GET', '/tarot/readings', { token: login.body.accessToken });
+    expect(history.body.map((r: any) => r.id)).toContain(three.body.id);
+    expect(await readingsOf(guest.user.id)).toBe(0);
+    expect(await readingsOf(member.user.id)).toBe(2); // 회원의 오늘의 카드 + 옮겨 온 질문 3장
+
+    // 탈퇴하면 질문 글이 담긴 타로 기록도 지운다
+    expect((await api('DELETE', '/auth/me', { token: login.body.accessToken })).status).toBe(204);
+    expect(await readingsOf(member.user.id)).toBe(0);
   });
 });

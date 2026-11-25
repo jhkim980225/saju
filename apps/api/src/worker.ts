@@ -17,6 +17,8 @@ export interface Env {
   RATE_LIMIT_API?: RateLimit;
   RATE_LIMIT_AUTH?: RateLimit;
   RATE_LIMIT_ADMIN?: RateLimit;
+  /** 토스 파트너 API 용 mTLS 인증서 바인딩(wrangler.jsonc mtls_certificates). 없으면 토스 기능은 꺼진다 */
+  TOSS_MTLS?: Fetcher;
 }
 
 /** 인스턴스(isolate)마다 한 번 조립한다 — env 는 인스턴스 안에서 같다 */
@@ -35,6 +37,7 @@ function boot(env: Env) {
       startJob: async (job) => {
         await env.JOBS.send(job);
       },
+      tossFetch: env.TOSS_MTLS ? (input, init) => env.TOSS_MTLS!.fetch(input, init) : undefined,
     },
     // 요청 수 제한은 운영에서만 — 로컬(wrangler dev)·E2E 는 한 IP 에서 계정을 잔뜩 만든다
     rateLimiters: config.isProd ? { general: env.RATE_LIMIT_API, auth: env.RATE_LIMIT_AUTH, admin: env.RATE_LIMIT_ADMIN } : {},
@@ -59,6 +62,8 @@ export default {
     await ready;
     const { config, services } = app.ctx;
     if (config.features.push && config.DAILY_PUSH_ENABLED) await runDailyPush(services);
+    // 토스 인앱 결제에는 환불 알림이 없다 — 하루 한 번 최근 주문의 환불 여부를 다시 확인한다
+    if (services.tossIap.enabled()) console.info('[toss] 환불 확인', await services.tossIap.syncRefunds());
   },
 
   async queue(batch, env) {

@@ -54,6 +54,7 @@ sequenceDiagram
 - **개인정보:** `webhook_events` 에는 구매자 이름·이메일·전화·설문 답·카드번호를 지운 사본만 남깁니다.
 - **응답 코드:** 서명 실패 400(그로블이 재전송하지 않음), 처리 오류 5xx(최대 7회 재전송, 약 44시간). `410` 은 그로블이 엔드포인트를 꺼 버리므로 쓰지 않습니다.
 - **다른 서비스와 같은 그로블 계정 쓰기:** 멤버십은 판매자 계정 단위이고, 판매자 약관 제10조는 결제창을 붙인 외부 페이지 주소를 등록·유지하라고만 정합니다(서비스 수 제한 없음). 서비스마다 `GROBLE_REF_PREFIX`(예: `saju`, `shop`)를 다르게 두면 ref 가 `saju-<주문 ID>` 가 되고, 다른 접두어의 결제 알림은 건너뜁니다(기록만). 환불 알림은 `merchantUid` 로 자기 주문이 있을 때만 회수합니다. 그래서 웹훅 주소를 서비스마다 등록하든, 한 주소로 받아 모든 서비스 서버에 그대로 넘기든 같은 코드로 동작합니다. 판매자 이름·정산·세금계산서·환불 화면은 하나로 합쳐집니다.
+- **지금 운영 구성(2026-11-25):** 그로블 웹훅 주소는 스토어당 하나라 청첩장 서비스(`https://deardaycard.com/api/hooks/groble`)가 받습니다. 청첩장 서버가 자기 결제가 아닌 알림을 본문·서명 헤더 그대로 `GROBLE_FORWARD_URL`(청첩장 Worker `wedding` 의 시크릿) = `https://daldalsaju.com/api/v1/payments/webhooks/groble` 로 넘깁니다. 두 서버는 **같은 `GROBLE_WEBHOOK_SECRET`** 을 씁니다 → 그로블에서 시크릿을 재발급하면 24시간 안에 두 Worker(`wedding`, `dalbit-saju`) 모두에 새 값을 넣어야 합니다. 달달사주가 실패(4xx·5xx)하면 청첩장 서버가 그로블에 502 를 돌려줘 그로블이 다시 보냅니다. 청첩장 디스코드 알림은 청첩장 결제와 테스트 발송에만 옵니다.
 
 ### 1.1 웹 — 토스페이먼츠 결제창 v2 (`PAYMENT_PROVIDER=toss`, 대안)
 
@@ -543,7 +544,7 @@ curl -X POST http://localhost:4000/api/v1/admin/orders/ORD-20261012-ABCDEF123456
 
 정책과 연결되는 지점:
 
-- **리포트 생성 실패 시 자동 환불**(리서치 5.5): 리포트 모듈이 생성 실패 시 `commerce.refund(orderId, reason)`을 호출하면 됩니다.
+- 리포트 생성 실패 시 자동 환불(리서치 5.5)은 **구현하지 않았습니다.** 결제가 확정되면 규칙 기반 본문을 바로 저장하고, AI 다듬기가 실패해도 규칙 기반 본문으로 마무리하므로 "생성 실패"로 상품이 비는 경우가 없습니다. 장애로 열람하지 못한 경우는 운영자가 관리자 환불 API(웹은 그로블 판매자 화면)로 처리합니다.
 - 청약철회 제한 고지(생성 시작 후 원칙적 환불 불가, 장애 시 7일 이내 예외)는 약관과 결제 화면에 표시합니다.
 - 질문권 환불은 **유상 미사용분만** 계산합니다. 무상분(`source=free`)은 환불 대상이 아닙니다.
 - CS 환불은 관리자 API로 진행하는 것이 원칙입니다. 결제사 관리자 화면에서 직접 취소해도 웹훅으로 지급분이 회수되지만, **웹훅이 등록돼 있어야 합니다**.
@@ -566,10 +567,7 @@ curl -X POST http://localhost:4000/api/v1/admin/orders/ORD-20261012-ABCDEF123456
   - Google Voided Purchases API 정기 대조: Pub/Sub 보관 기간을 넘는 장애 대비용 선택 사항(5.1).
   - 내장 Apple Root CA - G3 는 2039-04-30 만료입니다. Apple 이 루트를 바꾸면 `appleJws.ts`의 인증서와 지문을 함께 교체합니다.
   - Google 구독 검증(`purchases.subscriptionsv2`): 구독은 2차 출시입니다. 구독 알림(Apple `DID_RENEW` 등, Google `subscriptionNotification`)도 지금은 기록만 합니다.
-  - **(확인 필요) 웹훅 `paid` 복구 시 금액 대조.**
-    - 포트원은 브라우저에서 결제가 끝나기 때문에, 사용자가 `totalAmount`를 조작한 결제건도 `PAID` 웹훅이 옵니다.
-    - 복구 경로에서는 주문 금액과 대조하지 않으므로 서비스에 금액 검증을 추가해야 합니다.
-    - 어댑터는 `raw.verified.amount.total`(포트원)과 `raw.verified.totalAmount`(토스)에 검증된 금액을 넣어 둡니다.
+  - (해결됨) 웹훅 `paid` 복구 시 금액 대조: 모든 결제사의 복구 경로가 결제사가 확인한 금액·상품(결제창)을 주문과 대조하고, 다르면 지급하지 않고 결제를 취소합니다(`WEBHOOK_AMOUNT_MISMATCH`·`WEBHOOK_PRODUCT_MISMATCH`, `commerce/service.ts` 의 handleWebhook).
 
 
 ---
