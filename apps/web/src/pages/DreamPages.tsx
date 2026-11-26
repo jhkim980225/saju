@@ -221,7 +221,8 @@ export function DreamHomePage() {
           .map((e) => dreamTitle(e))
           .join(', ')} 등 ${meta.label}에 관한 꿈 ${list.length}가지의 전통 해석과 상황별 풀이를 무료로 볼 수 있어요.`
       : `뱀꿈, 돼지꿈, 이가 빠지는 꿈처럼 자주 꾸는 꿈 ${total}가지의 전통 해석을 차분하게 정리했어요. 꿈 이야기를 적으면 AI 꿈풀이도 받아 볼 수 있어요.`,
-    canonicalPath: isCategory(raw) ? `/dream?c=${category}` : '/dream',
+    // 분류 보기(?c=)도 /dream 을 대표 주소로 둔다 — 쿼리 주소는 사전 렌더링할 수 없어 정적 HTML 의 canonical 이 /dream 이다(docs/features/seo.md)
+    canonicalPath: '/dream',
   });
 
   return (
@@ -494,6 +495,8 @@ export function DreamAskPage() {
   });
 
   const aiEnabled = config.data?.ai.enabled ?? false;
+  // 한 번 풀이에 드는 질문권 — 잔액이 이보다 적으면 보상형 광고 카드를 보여 준다
+  const creditCost = config.data?.ai.creditCost ?? 1;
   const list = profiles.data ?? [];
   const primary = list.find((p) => p.isPrimary) ?? list[0];
   const selected = choice === 'none' ? null : (list.find((p) => p.id === choice) ?? primary ?? null);
@@ -613,7 +616,7 @@ export function DreamAskPage() {
           <p className="mt-3 text-xs leading-relaxed text-ink-3">꿈 이야기는 풀이를 만드는 데에만 쓰고 서버에 저장하지 않아요.</p>
         </form>
 
-        {aiEnabled && wallet.data && wallet.data.credits < 1 && <RewardedAdCard />}
+        {aiEnabled && wallet.data && wallet.data.credits < creditCost && <RewardedAdCard />}
 
         {result && <DreamResult ref={resultRef} result={result} />}
 

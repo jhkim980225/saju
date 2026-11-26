@@ -10,7 +10,8 @@
     ".": "./src/index.ts",
     "./dream": "./src/dream/index.ts",
     "./tojeong": "./src/tojeong.ts",
-    "./profile": "./src/profile.ts"
+    "./profile": "./src/profile.ts",
+    "./fortune-year": "./src/fortuneYear.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",

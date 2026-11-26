@@ -3,7 +3,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config/env.js';
 import { createDb, runMigrations } from '../src/db/local.js';
 import { seedProducts } from '../src/db/seed.js';
-import { users } from '../src/db/schema.js';
+import { eq } from 'drizzle-orm';
+import { users, webhookEvents } from '../src/db/schema.js';
 import { createGateways } from '../src/modules/commerce/providers/index.js';
 import { createCommerceService } from '../src/modules/commerce/service.js';
 import { createRewardsService } from '../src/modules/rewards/service.js';
@@ -34,6 +35,10 @@ describe('AdMob 보상형 광고 SSV', () => {
     const q = signedQuery({ ...base, transaction_id: 'tx-1' });
     expect(await rewards.handleAdmobSsv(q)).toEqual({ granted: true, credits: 1 });
     expect(await rewards.handleAdmobSsv(q)).toEqual({ granted: false, reason: 'DUPLICATE' });
+    // 중복 차단 기록에는 사용자 ID·SSV 쿼리 전체를 두지 않는다(누구에게 줬는지는 질문권 원장에 있다)
+    const [row] = await db.select().from(webhookEvents).where(eq(webhookEvents.id, 'admob:tx-1'));
+    expect(row!.payload).toEqual({ adUnit: '1234567890', rewardAmount: '1', timestamp: '1791736000000' });
+    expect(JSON.stringify(row!.payload)).not.toContain('u1');
   });
   it('위조 서명은 거부', async () => {
     const q = signedQuery({ ...base, transaction_id: 'tx-2' }).replace('user_id=u1', 'user_id=u2');

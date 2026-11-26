@@ -1,7 +1,7 @@
 /**
  * 토스 미니앱 인앱 결제 — 결제 전 주문 의도 등록 → 토스 서버로 주문 상태 확인 → 지급.
  *
- * 흐름(계약: toss/daldal-saju/docs/API-CONTRACT.md)
+ * 흐름(요청·응답 형식: docs/API.md 의 토스 미니앱 절, 공용 타입: packages/shared/src/toss.ts, 규칙: docs/features/toss-miniapp.md)
  *  1) createIntent: 결제창을 띄우기 전에 pending 주문을 만든다 — 살 수 없는 경우(계정당 1회, 프로필·리딩 누락)를 결제 전에 막는다.
  *  2) verify: SDK 의 processProductGrant / getPendingOrders 가 준 토스 주문 ID 를 토스 서버(mTLS)에 물어
  *     PAYMENT_COMPLETED·PURCHASED 일 때만 지급한다. 토스 주문 ID(providerPaymentKey)로 멱등 — 다른 계정이 쓰면 409.

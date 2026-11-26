@@ -9,7 +9,10 @@
  *   3) 검증 성공 후 finishPurchase(receipt) — iOS finishTransaction / Android consumePurchase(확인+소모)
  *      ⚠ Android 는 3일 안에 확인(acknowledge)하지 않으면 자동 환불된다.
  *      ⚠ 서버 검증 전에 소모하면, 검증 실패(네트워크 등) 시 복구할 거래가 사라진다 → 반드시 검증 후 호출.
+ *      서버가 지급을 거절하면(이미 가진 콘텐츠·한도 초과·판매 중지·환불된 거래) 응답의 details.finish 를 따른다 —
+ *      true(iOS, 환불된 거래)면 지급 없이 거래를 끝내고, false(Android)면 그대로 둬 Google 이 3일 안에 자동 환불하게 한다.
  *   4) 앱 재시작·복귀 시 recoverUnfinishedPurchases(verify) 로 2)~3) 이 끊긴 거래를 복구.
+ *   0) 결제창을 띄우기 전에 lib/payments 가 api.checkIap 으로 살 수 있는지 먼저 확인한다.
  *
  * 서버 /payments/iap/verify 는 거래 ID 로 멱등이므로 같은 receipt 를 다시 보내도 중복 지급되지 않는다.
  */
@@ -127,8 +130,9 @@ export async function pendingStorePurchases(): Promise<StorePurchase[]> {
 let recovering: Promise<{ recovered: number; failed: number }> | null = null;
 
 /**
- * 끊긴 결제 복구. verify 는 서버 검증 함수(예: p => api.verifyIap({ ...p, profileId })) — 성공 시 resolve, 실패 시 throw.
- * 리포트 상품은 서버가 profileId 를 요구하므로 호출 측에서 활성 프로필 등을 채워 넣는다.
+ * 끊긴 결제 복구. verify 는 서버 검증 함수(lib/payments 의 recoverInAppPurchases) — 성공 시 resolve, 실패 시 throw.
+ * 대상(프로필·리딩)은 호출 측이 결제마다 남긴 기록(lib/payments/iapTargets.ts)에서 채운다. 서버가 지급을 거절하면서
+ * 거래를 끝내라고(details.finish) 알린 경우는 호출 측이 finish 하고 throw 하므로 여기서는 실패로 센다.
  */
 export function recoverUnfinishedPurchases(verify: (p: StorePurchase) => Promise<unknown>): Promise<{ recovered: number; failed: number }> {
   recovering ??= (async () => {

@@ -5,13 +5,14 @@
 import { createHmac } from 'node:crypto';
 import type { App } from '../src/app.js';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
 import { createDb, runMigrations } from '../src/db/local.js';
 import { orders, webhookEvents } from '../src/db/schema.js';
 import { seedProducts } from '../src/db/seed.js';
 import { parseGrobleProductLinks, verifyGrobleSignature } from '../src/modules/commerce/providers/groble.js';
+import { AWAITING_MARK_AFTER_MS } from '../src/modules/commerce/service.js';
 
 const SECRET = 'groble-test-secret';
 const LINKS = 'chat_pack_10=https://groble.im/payment/chat10,report_saju_lifetime=https://groble.im/payment/life99|content-life-99';
@@ -369,5 +370,44 @@ describe('한 그로블 계정을 여러 서비스가 같이 쓸 때 (GROBLE_REF
 
   it('접두어 형식이 틀리면 기동하지 않는다', () => {
     expect(() => loadConfig({ __SKIP_ENV_FILE: '1', NODE_ENV: 'test', GROBLE_REF_PREFIX: 'saju-app' })).toThrow(/GROBLE_REF_PREFIX/);
+  });
+});
+
+describe('결제창에서 결제하지 않고 돌아온 주문', () => {
+  /** Date.now 를 앞으로 옮겨 실행 */
+  async function later<T>(ms: number, fn: () => Promise<T>): Promise<T> {
+    const spy = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + ms);
+    try {
+      return await fn();
+    } finally {
+      spy.mockRestore();
+    }
+  }
+  const meta = async (id: string) => ((await db.select().from(orders).where(eq(orders.id, id)))[0]!.metadata ?? {}) as { awaitingAt?: number; firstPolledAt?: number };
+
+  it('결제 확인 화면을 한 번 조회하고 떠난 주문은 결제 대기 표시(awaitingAt)가 남지 않아 지연 알림 대상이 아니다', async () => {
+    const { token } = await member();
+    const c = await order(token, 'chat_pack_10');
+    await status(token, c.order.id);
+    expect(await meta(c.order.id)).toMatchObject({ firstPolledAt: expect.any(Number) });
+    expect((await meta(c.order.id)).awaitingAt).toBeUndefined();
+    // 표시 기준 시간 안에 다시 조회해도 아직 표시하지 않는다
+    await later(AWAITING_MARK_AFTER_MS - 5_000, () => status(token, c.order.id));
+    expect((await meta(c.order.id)).awaitingAt).toBeUndefined();
+    // 화면에 남아 계속 기다리면 표시한다
+    await later(AWAITING_MARK_AFTER_MS, () => status(token, c.order.id));
+    expect((await meta(c.order.id)).awaitingAt).toBeTypeOf('number');
+  });
+
+  it("'결제하지 않고 돌아가기'는 주문을 failed(USER_CANCEL)로 닫고, 그래도 결제 알림이 오면 지급한다", async () => {
+    const { token } = await member();
+    const c = await order(token, 'chat_pack_10');
+    const r = await api('POST', '/payments/fail', { token, body: { orderId: c.order.id, code: 'USER_CANCEL', message: '결제하지 않고 돌아감' } });
+    expect(r.body.status).toBe('failed');
+    expect((await db.select().from(orders).where(eq(orders.id, c.order.id)))[0]!.failureReason).toContain('USER_CANCEL');
+    // 실제로는 결제를 마쳤던 경우 — 늦게 온 결제 완료 알림으로 지급된다
+    expect((await send(completed(c.order.id))).status).toBe(200);
+    expect(await status(token, c.order.id)).toBe('paid');
+    expect(await credits(token)).toBe(10);
   });
 });

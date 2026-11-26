@@ -55,7 +55,8 @@ export function PaymentSuccessPage() {
           return;
         }
         if (order && order.status !== 'pending') {
-          // 그로블 주문이 failed 가 되는 건 웹훅의 금액·상품 불일치나 구매 한도뿐이다(결제창 취소는 주문을 바꾸지 않음)
+          // 기다리는 동안 그로블 주문이 failed 가 되는 건 웹훅의 금액·상품 불일치나 구매 한도뿐이다
+          // ('결제하지 않고 돌아가기'도 failed 로 닫지만 그때는 이 화면을 떠난다)
           setState({ status: 'error', message: t('payment.mismatchBody') });
           return;
         }
@@ -100,6 +101,16 @@ export function PaymentSuccessPage() {
 
   const goBack = () => navigate(pending?.returnTo ?? '/my/payments', { replace: true });
 
+  /**
+   * '결제하지 않고 돌아가기' — 결제창 진입 페이지에서 결제하지 않고 돌아온 경우다. 주문을 failed(USER_CANCEL)로 닫아
+   * 결제 확인 지연 알림 대상에서 빼고, 진행 중인 결제로 남지 않게 한다. 실제로 결제했다면 늦게 온 결제 알림으로 그대로 지급된다
+   */
+  const leaveWithoutPaying = () => {
+    if (pending?.orderId && pending.provider === 'groble') void api.failPayment(pending.orderId, 'USER_CANCEL', '결제하지 않고 돌아감').catch(() => undefined);
+    clearPendingCheckout();
+    goBack();
+  };
+
   /** "결제하지 않았어요" — 같은 주문(같은 ref)으로 결제창을 다시 연다. 새 주문을 만들지 않으므로 결제가 두 번 확정되지 않는다 */
   const reopenCheckout = async () => {
     if (!pending?.resume) return;
@@ -141,7 +152,7 @@ export function PaymentSuccessPage() {
           <div className="grid gap-2">
             {reopenButton}
             {/* 결제창에서 그냥 돌아온 경우(진입 페이지)도 같은 화면으로 온다 — 기다리지 않고 나갈 수 있게 */}
-            <Button variant="secondary" onClick={goBack}>
+            <Button variant="secondary" onClick={resuming ? goBack : leaveWithoutPaying}>
               {resuming ? t('common.back') : t('payment.notPaidBack')}
             </Button>
           </div>

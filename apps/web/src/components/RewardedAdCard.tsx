@@ -9,7 +9,7 @@ import { toast } from './Toast';
 import { Button } from './ui';
 
 /**
- * 앱 전용 — 보상형 광고 시청으로 무상 질문권 받기 (하루 3회, 마케팅 정책).
+ * 앱 전용 — 보상형 광고 시청으로 무상 질문권 받기. 하루 한도는 서버(GET /rewards/status, KST 0시 기준) 값을 따른다.
  * 실제 지급은 서버가 AdMob SSV 콜백(서명 검증)을 받은 뒤에 하므로, 시청 후 잠시 뒤 지갑을 다시 불러온다.
  */
 export function RewardedAdCard() {
@@ -21,7 +21,7 @@ export function RewardedAdCard() {
   const watch = async () => {
     setBusy(true);
     try {
-      const rewarded = await showRewardedAd({ ssvCustomData: 'chat' });
+      const rewarded = await showRewardedAd({ dailyLimit: status.data.limit });
       if (!rewarded) return toast('광고를 끝까지 보면 질문권을 드려요');
       toast('보상을 확인하고 있어요');
       for (const wait of [2000, 4000, 8000]) {

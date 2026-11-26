@@ -24,11 +24,11 @@ export async function recoverUnfinishedPurchases(_verify: (p: StorePurchase) => 
   return { recovered: 0, failed: 0 };
 }
 
-export async function showRewardedAd(_opts?: { ssvCustomData?: string }): Promise<boolean> {
+export async function showRewardedAd(_opts?: { ssvCustomData?: string; dailyLimit?: number }): Promise<boolean> {
   return false;
 }
 
-export async function rewardedAdsRemaining(): Promise<number> {
+export async function rewardedAdsRemaining(_dailyLimit?: number): Promise<number> {
   return 0;
 }
 

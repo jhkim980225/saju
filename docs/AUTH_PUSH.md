@@ -97,8 +97,8 @@ iOS의 Sign in with Apple이나 Android/iOS의 Google Sign-In SDK가 `idToken`�
 4. 발급된 **Client ID / Client Secret**을 `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET`에 넣습니다.
 5. "개발 중" 상태에서는 **멤버 관리에 등록한 네이버 ID만** 로그인할 수 있습니다. 출시 전에 **검수 요청**을 하세요.
 6. 네이버는 토큰 요청에도 `state`가 필수입니다.
-   - 라우트가 `state`를 넘기지 않으면 서비스가 임의 값으로 채웁니다.
-   - 프론트가 보낸 `state`를 그대로 쓰려면 `routes.ts`의 `exchangeCode` 호출에 `state: body.state`를 추가하세요. 인터페이스는 이미 이 필드를 받습니다.
+   - 콜백 라우트(`routes.ts`)는 프론트가 보낸 `state`를 `exchangeCode` 에 `state: body.state` 로 넘기고, 서비스는 그 값을 토큰 요청에 씁니다.
+   - 본문에 `state`가 없을 때만 서비스가 임의 값으로 채웁니다.
 
 ### 3-3. 구글 — [Google Cloud Console](https://console.cloud.google.com)
 
@@ -130,7 +130,9 @@ iOS의 Sign in with Apple이나 Android/iOS의 Google Sign-In SDK가 `idToken`�
 5. **이름**은 **최초 로그인 때 한 번만** form_post의 `user` JSON(`{"name":{"firstName","lastName"}}`)으로 옵니다. 프론트가 이 값을 callback body의 `name`으로 넘겨야 닉네임에 반영됩니다.
    - 테스트하다 이름을 놓쳤다면 iPhone **설정 → Apple ID → 로그인 및 보안 → Apple로 로그인**에서 앱 연결을 끊고 다시 시도하세요.
 6. **이메일 가리기**를 쓴 사용자는 `@privaterelay.appleid.com` 주소가 옵니다. 이 주소로 메일을 보내려면 **Services → Sign in with Apple for Email Communication**에 발신 도메인과 주소를 등록해야 합니다.
-7. ⚠️ **회원 탈퇴 시 토큰 철회(revoke)**: App Store 정책상 Apple 로그인 회원이 탈퇴하면 `POST https://appleid.apple.com/auth/revoke`를 호출해야 합니다. 이를 위해 토큰 응답의 `refresh_token`을 저장하는 후속 작업이 필요합니다(스키마 변경이 필요해 이번 범위에서는 제외).
+7. ⚠️ **회원 탈퇴 시 토큰 철회(revoke)**: App Store 정책상 Apple 로그인 회원이 탈퇴하면 `POST https://appleid.apple.com/auth/revoke`를 호출해야 합니다.
+   - 웹 code 방식은 구현돼 있습니다. 코드 교환 응답의 `refresh_token`을 `users.provider_refresh_token`에 저장하고, `DELETE /auth/me` 가 탈퇴 전에 철회를 요청합니다(실패해도 탈퇴는 진행).
+   - 앱 id_token 방식은 코드 교환을 하지 않아 `refresh_token`을 받지 못합니다. iOS 앱 출시 전에 SDK 가 준 authorizationCode 를 번들 ID(client_id)로 교환해 저장하고, 탈퇴 때 같은 client_id 로 철회하도록 고쳐야 합니다(지금은 운영에서 Apple 로그인이 꺼져 있어 보류, [features/auth.md](./features/auth.md) 알려진 이슈 6번).
 
 ---
 
@@ -170,13 +172,13 @@ VITE_FIREBASE_VAPID_KEY=        # 클라우드 메시징 → 웹 푸시 인증�
 ## 5. 게스트 → 회원 전환
 
 1. 앱을 처음 실행하면 `POST /api/v1/auth/guest { deviceId }`가 게스트 계정(`provider=guest`)과 토큰을 발급합니다. 같은 deviceId로 다시 호출하면 같은 게스트 계정이 돌아옵니다.
-2. 게스트 상태에서도 프로필, 리포트, 구매 등 데이터가 이 계정에 쌓입니다.
+2. 게스트 상태에서도 프로필, 리포트, 상담·타로 기록 같은 데이터가 이 계정에 쌓입니다. 결제는 회원만 할 수 있어서(게스트는 `POST /orders` 403) 구매 데이터는 쌓이지 않습니다.
 3. 소셜 로그인 callback(또는 `POST /auth/signup`)을 호출할 때 **게스트 access token을 `Authorization: Bearer`로 붙이면** 됩니다(`optionalAuth`).
    - `upsertSocialUser`가 게스트 행을 **그대로 소셜 회원으로 바꿉니다**. id가 유지되므로 데이터도 그대로 남습니다.
    - 이때 가입 보너스 크레딧이 지급됩니다.
 4. 응답으로 받은 새 access/refresh 토큰으로 교체하고, 이전 게스트 refresh 토큰은 버립니다.
 5. 예외 동작
-   - **이미 같은 소셜 계정으로 가입된 회원**이 있으면 그 계정으로 로그인만 되고, 게스트 데이터는 옮겨지지 않습니다. 데이터를 합칠지는 정책 결정이 필요합니다.
+   - **이미 같은 소셜 계정으로 가입된 회원**이 있으면 그 계정으로 로그인하고, 게스트 데이터(프로필·리포트·상담·타로 기록·무상 질문권)를 그 계정으로 옮깁니다(`mergeGuestInto`). 이메일·토스 로그인도 같습니다. 자세한 규칙은 [features/auth.md](./features/auth.md) 「게스트 병합」을 보세요.
    - **같은 이메일을 쓰는 다른 계정**이 있으면 새 소셜 계정의 이메일을 비워 둡니다. 계정을 자동으로 합치지 않습니다.
    - 게스트 토큰 없이 로그인하면 새 회원이 만들어집니다.
 
@@ -186,7 +188,7 @@ VITE_FIREBASE_VAPID_KEY=        # 클라우드 메시징 → 웹 푸시 인증�
 
 1. **찾기** — 로그인 화면의 "비밀번호를 잊으셨나요?" → `/password/forgot` 에서 이메일 입력 → `POST /auth/password/forgot { email }`. 서버는 **가입 여부와 관계없이 200** 을 돌려주고(계정 유무 비노출), 이메일 계정일 때만 32바이트 난수 토큰을 만들어 sha256 해시를 `password_resets` 에 저장(만료 30분, 같은 사용자의 이전 미사용 토큰은 삭제)한 뒤 `{PUBLIC_WEB_URL}/password/reset?token=…` 링크를 메일로 보냅니다. 제목은 "달달사주 비밀번호 재설정"이고, 본문은 30분 안에 링크를 누르라는 안내와 본인이 요청하지 않았으면 무시하라는 문장을 담습니다.
 2. **재설정** — `/password/reset?token=` 에서 새 비밀번호 입력 → `POST /auth/password/reset { token, password }`. 유효·미만료·미사용 토큰이면 비밀번호 해시를 바꾸고 토큰에 `usedAt` 을 기록하며, **그 사용자의 refresh token 을 모두 폐기**해 다른 기기의 로그인도 끊습니다(이미 발급된 access token 은 만료까지 유효). 그 밖에는 400 "링크가 만료됐거나 이미 사용됐습니다. 다시 요청해 주세요."
-3. **변경** — 마이 > 비밀번호 변경(이메일 계정에만 보임) → `POST /auth/password/change { currentPassword, newPassword }`(로그인 필요). 현재 비밀번호를 확인한 뒤 바꾸고, 현재 세션은 그대로 둡니다.
+3. **변경** — 마이 > 비밀번호 변경(이메일 계정에만 보임) → `POST /auth/password/change { currentPassword, newPassword }`(로그인 필요). 현재 비밀번호를 확인한 뒤 바꾸고, 그 사용자의 refresh token 을 모두 폐기해 다른 기기의 로그인을 끊습니다. 지금 기기는 응답으로 받은 새 토큰(`accessToken`, `refreshToken`)으로 이어집니다.
 
 세 경로 모두 인증 경로의 엄격한 요청 수 제한(운영 모드에서 접속 IP 당 60초에 10회, `apps/api/wrangler.jsonc` 의 `RATE_LIMIT_AUTH`)을 받습니다. 테스트 환경(`NODE_ENV=test`)에서는 메일을 보내지 않고 `mail.outbox` 에 쌓아 두므로 테스트가 본문에서 토큰을 읽습니다(`apps/api/test/password.test.ts`).
 
@@ -203,12 +205,10 @@ VITE_FIREBASE_VAPID_KEY=        # 클라우드 메시징 → 웹 푸시 인증�
 3. Google Cloud Console의 **API 및 서비스**에서 **Firebase Cloud Messaging API (V1)**가 사용 설정됐는지 확인합니다. 예전 Legacy API는 종료됐습니다.
 4. 기본 `firebase-adminsdk-…` 서비스 계정은 그대로 동작합니다. 별도 계정을 만들 때는 **Firebase Cloud Messaging API 관리자**(`roles/firebasecloudmessaging.admin`) 역할을 줍니다.
 5. 플랫폼별로 앱을 등록합니다.
-   - **웹**: 웹 앱을 추가하고 `firebaseConfig` 값을 위의 `VITE_FIREBASE_*`에 넣습니다.
-     - **클라우드 메시징 → 웹 푸시 인증서 → 키 쌍 생성**으로 만든 값을 `VITE_FIREBASE_VAPID_KEY`에 넣습니다.
-     - 웹은 `public/firebase-messaging-sw.js` 서비스 워커가 필요합니다(프론트팀).
+   - **웹**: 웹 푸시는 **미구현**입니다(2026-11-26). 웹 코드는 `VITE_FIREBASE_*` 를 읽지 않고 `public/firebase-messaging-sw.js` 서비스 워커도 없어서, 지금은 웹 앱을 등록하지 않아도 됩니다. 웹 푸시를 만들 때 웹 앱의 `firebaseConfig` 값을 `VITE_FIREBASE_*`에, **클라우드 메시징 → 웹 푸시 인증서 → 키 쌍 생성**으로 만든 값을 `VITE_FIREBASE_VAPID_KEY`에 넣습니다.
    - **Android**: 패키지명을 등록하고 `google-services.json`을 `android/app/`에 둡니다.
    - **iOS**: 번들 ID를 등록하고 `GoogleService-Info.plist`를 `ios/App/App/`에 둔 뒤, 6-2의 APNs 키를 업로드합니다.
-6. 앱과 웹은 로그인 후 받은 FCM 토큰을 `POST /api/v1/push/tokens { token, platform }`으로 등록하고, 로그아웃할 때 `DELETE /api/v1/push/tokens`를 호출합니다.
+6. 앱(iOS·Android)은 세션(게스트 포함)이 생긴 뒤 받은 FCM 토큰을 `POST /api/v1/push/tokens { token, platform }`으로 등록하고, 로그아웃하거나 마이 화면에서 알림을 끌 때 `DELETE /api/v1/push/tokens`를 호출합니다. 웹은 토큰을 등록하지 않습니다.
 
 ### 6-2. iOS — APNs 인증 키 업로드
 
@@ -233,7 +233,7 @@ VITE_FIREBASE_VAPID_KEY=        # 클라우드 메시징 → 웹 푸시 인증�
     - `android.priority=HIGH`, sound default
     - `apns`: priority 10, alert, sound default
   - 앱은 `data.link`를 읽어 라우팅합니다.
-- **토큰 정리**: 응답이 `404` / `UNREGISTERED`인 토큰은 DB에서 바로 지웁니다. 일시 오류(5xx 등)는 실패로만 집계하고 토큰은 남겨 둡니다.
+- **토큰 정리**: 응답이 `404` / `UNREGISTERED`인 토큰과, `400 INVALID_ARGUMENT` 중 오류가 토큰을 가리키는(형식이 틀린) 토큰은 DB에서 바로 지웁니다. 메시지 내용 탓인 400 과 일시 오류(5xx 등)는 실패로만 집계하고 토큰은 남겨 둡니다.
 - **수신 동의**
   - `users.pushEnabled=false`(`PATCH /auth/me { pushEnabled: false }`)이거나 탈퇴한 사용자에게는 보내지 않습니다.
   - 정보통신망법 제50조에 따라 **광고성** 푸시는 별도 수신 동의, 야간(21시~08시) 추가 동의, "(광고)" 표기가 필요합니다. 순수 운세 안내가 아니라 상품 홍보가 들어가면 광고성으로 취급하세요.
@@ -246,7 +246,7 @@ await push.sendToUser(userId, { title: '리포트가 준비됐어요', body: '�
 // 매일 08:00 KST — Cron Trigger(`0 23 * * *`) → worker.ts scheduled() → jobs/dailyPush.ts 가 호출
 await push.sendDailyFortuneDigest((userId) => {
   // 해당 사용자의 대표 프로필로 오늘의 운세 한 줄 생성. 보낼 게 없으면 null
-  return { title: '오늘의 운세', body: '…', link: '/fortune/today' };
+  return { title: '오늘의 운세', body: '…', link: '/today' };
 });
 // → { users, skipped, sent, failed, removed }
 ```

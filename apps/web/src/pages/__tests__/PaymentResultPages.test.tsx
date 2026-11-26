@@ -16,10 +16,11 @@ const m = vi.hoisted(() => ({
   order: vi.fn<(id: string) => Promise<OrderDto>>(),
   confirmPayment: vi.fn(),
   createOrder: vi.fn(),
+  failPayment: vi.fn(),
 }));
 vi.mock('../../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/api')>();
-  return { ...actual, api: { ...actual.api, order: m.order, confirmPayment: m.confirmPayment, createOrder: m.createOrder } };
+  return { ...actual, api: { ...actual.api, order: m.order, confirmPayment: m.confirmPayment, createOrder: m.createOrder, failPayment: m.failPayment } };
 });
 
 const ORDER_ID = 'ORD-20261015-GROBLE0001';
@@ -54,6 +55,7 @@ beforeEach(() => {
   m.order.mockReset();
   m.confirmPayment.mockReset();
   m.createOrder.mockReset();
+  m.failPayment.mockReset().mockResolvedValue(order('failed'));
   storage.setJSON(STORAGE_KEYS.pendingCheckout, { orderId: ORDER_ID, productId: 'chat_pack_10', amount: 3900, provider: 'groble', returnTo: '/today' });
 });
 afterEach(() => {
@@ -91,11 +93,14 @@ describe('그로블 결제 결과 — 웹훅 확정 대기', () => {
     expect(await screen.findByRole('heading', { name: '결제가 완료됐어요' })).toBeInTheDocument();
   });
 
-  it('결제하지 않고 돌아온 경우(진입 페이지) 기다리지 않고 원래 화면으로 갈 수 있다', async () => {
+  it('결제하지 않고 돌아온 경우(진입 페이지) 기다리지 않고 원래 화면으로 갈 수 있고, 주문을 USER_CANCEL 로 닫는다', async () => {
     m.order.mockResolvedValue(order('pending'));
     renderPage();
     await userEvent.setup({ advanceTimers: vi.advanceTimersByTime }).click(await screen.findByRole('button', { name: '결제하지 않고 돌아가기' }));
     expect(await screen.findByText('오늘 화면')).toBeInTheDocument();
+    // 결제 확인 지연 알림 대상에서 빠지도록 서버에 알린다(실제로 결제했다면 늦게 온 결제 알림으로 그대로 지급된다)
+    expect(m.failPayment).toHaveBeenCalledWith(ORDER_ID, 'USER_CANCEL', expect.any(String));
+    expect(storage.getJSON(STORAGE_KEYS.pendingCheckout)).toBeNull();
   });
 
   it('저장한 주문이 없으면(다른 브라우저에서 돌아옴) 결제 내역으로 안내', async () => {

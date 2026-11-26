@@ -87,8 +87,9 @@ test('상점: 판매 상품·가격 (일회성 판매만, 출시 예정 없음)'
   }
   await expect(page.getByRole('button', { name: '준비 중' })).toHaveCount(0);
   for (const name of ['AI 상담 질문권 100회', '플러스 월 구독', '플러스 연 구독']) await expect(card(name)).toHaveCount(0);
-  await expect(card('2027 신년 패키지')).toContainText('23,700원'); // 정가(취소선)
-  await expect(card('2027 신년운세')).toContainText('할인 마감 2026.12.31');
+  await expect(card('2027 신년 패키지')).toContainText('21,700원'); // 정가(취소선) = 구성 리포트 개별 판매가 합
+  // 신년운세는 기한 없이 5,900원이다(2026-11-26 결정) — 할인 마감 표시가 없다
+  await expect(card('2027 신년운세')).not.toContainText('할인 마감');
 
   // 비회원이 사지 않아도 되는 상품(질문권)을 누르면 로그인으로 보낸다
   await card('AI 상담 질문권 10회').getByRole('button', { name: '구매하기' }).click();

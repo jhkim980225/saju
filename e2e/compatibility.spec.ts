@@ -55,8 +55,11 @@ test('궁합: 상대 추가 → 점수와 잠금 → 번들 결제 → 1회권�
   await expect(page.getByText('서윤 × 지훈', { exact: true })).toBeVisible();
   await expect(lockedSections(page)).toHaveCount(lockedCount);
 
-  // 잠금 해제 → 1회권 사용
+  // 잠금 해제 → 어느 두 사람에게 쓸지 먼저 묻는다 → 1회권 사용
   await lockedSections(page).first().getByRole('button', { name: /전체 풀이 열기/ }).click();
+  const ask = page.getByRole('dialog');
+  await expect(ask.getByText(/궁합 1회권 1장을 가지고 있어요\. 서윤 × 지훈 궁합에/)).toBeVisible();
+  await ask.getByRole('button', { name: '1회권 1장 쓰기' }).click();
   await expect(page.getByText('궁합 1회권을 사용했어요')).toBeVisible();
   await expect(lockedSections(page)).toHaveCount(0);
   await expect(page.getByRole('button', { name: /전체 풀이 열기/ })).toHaveCount(0);

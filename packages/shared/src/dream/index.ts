@@ -1,10 +1,11 @@
 /**
  * @saju/shared/dream — 꿈해몽 사전 + AI 꿈풀이 API 계약.
  *
- * 사전 데이터가 커서(300여 항목) 메인 진입점(@saju/shared)과 분리한 하위 경로로 둔다.
+ * 사전 데이터가 커서(337항목) 메인 진입점(@saju/shared)과 분리한 하위 경로로 둔다.
  * 웹은 꿈해몽 화면(지연 로딩)에서만, API 는 꿈풀이 모듈에서만 불러온다.
  */
 import { z } from 'zod';
+import { CRISIS_PATTERN } from '../crisis.js';
 import { ACTION_DREAMS } from './entries/action.js';
 import { ANIMAL_DREAMS } from './entries/animal.js';
 import { BODY_DREAMS } from './entries/body.js';
@@ -103,8 +104,8 @@ export const dreamInterpretSchema = z.object({
 });
 export type DreamInterpretDto = z.input<typeof dreamInterpretSchema>;
 
-/** 자해·자살 암시 — 화면에 상담 전화 안내를 함께 띄운다 */
-export const DREAM_CRISIS_PATTERN = /죽고\s*싶|자살|자해|살기\s*싫|사라지고\s*싶|목숨을\s*끊/;
+/** 자해·자살 암시 — 화면에 상담 전화 안내를 함께 띄운다. AI 상담과 같은 기준(../crisis.ts)을 쓴다 */
+export const DREAM_CRISIS_PATTERN = CRISIS_PATTERN;
 
 export interface DreamSymbolDto {
   slug: string;

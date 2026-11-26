@@ -311,17 +311,20 @@ describe('AI 상담·꿈풀이 — 같은 요청 ID 는 한 번만 차감', () =
     expect(rb.body.reply.id).not.toBe(ra.body.reply.id);
   });
 
-  it('꿈풀이 — 같은 요청 ID 로 다시 보내면 차감 없이 처음 풀이를 돌려준다', async () => {
+  it('꿈풀이 — 같은 요청 ID 로 다시 보내면 차감·AI 호출 없이 기본 풀이를 돌려주고, 선점 기록에는 풀이를 남기지 않는다', async () => {
     const m = await funded(3);
     const body = { text: '큰 뱀이 집 안으로 들어왔어요', requestId: `req-dream-${seq}-0001` };
     const before = dreamCalls;
     const r1 = await api('POST', '/dream/interpret', { token: m.token, body });
     const r2 = await api('POST', '/dream/interpret', { token: m.token, body });
     expect([r1.status, r2.status]).toEqual([200, 200]);
-    expect(r2.body.headline).toBe(r1.body.headline);
-    expect(r2.body.creditsLeft).toBe(2);
+    expect(r2.body).toMatchObject({ generator: 'rule', creditsCharged: r1.body.creditsCharged, creditsLeft: 2, profileName: null });
+    expect(r2.body.symbols.map((s: any) => s.slug)).toEqual(r1.body.symbols.map((s: any) => s.slug));
     expect(dreamCalls - before).toBe(1);
     expect(await consumes(m.userId)).toBe(1);
+    // 꿈 이야기·풀이 문단·상징은 저장하지 않는다 — 생성 방식과 차감 수만
+    const [claim] = await db.select().from(webhookEvents).where(eq(webhookEvents.id, `dream:${m.userId}:${body.requestId}`));
+    expect(claim!.payload).toEqual({ generator: r1.body.generator, creditsCharged: r1.body.creditsCharged });
   });
 
   it('요청 ID 형식이 틀리면 400', async () => {

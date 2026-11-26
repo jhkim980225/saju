@@ -6,6 +6,7 @@ import { Page } from '@/components/AppShell';
 import { BasicsLink, MoreMenu } from '@/components/MoreMenu';
 import { TaekilEntryCard } from '@/components/TaekilEntryCard';
 import { Button, Card, EmptyState, IconButton, PageHeader, Spinner, TextInput } from '@/components/ui';
+import { useConfig } from '@/hooks/queries';
 import { api } from '@/lib/api';
 import { t } from '@/lib/copy';
 import { formatDateKo, todayKst } from '@/lib/format';
@@ -107,16 +108,18 @@ export function MansePage() {
   );
 }
 
-// 이용약관·처리방침 본문은 lib/legal.ts(사업자 정보는 apps/web/.env 의 VITE_BIZ_*). 면책 고지는 공용 문구
-const LEGAL: Record<string, { title: string; body: string[] }> = {
+// 이용약관·처리방침 본문은 lib/legal.ts(사업자 정보는 apps/web/.env 의 VITE_BIZ_*, 문의처는 서버 SUPPORT_EMAIL 이 먼저). 면책 고지는 공용 문구
+const legalDocs = (supportEmail?: string | null): Record<string, { title: string; body: string[] }> => ({
   // 토스 빌드는 toss/legal.ts(해요체)를 쓰므로 웹 약관 본문이 번들에 들어가지 않게 뺀다
-  ...(IS_TOSS ? {} : webLegalDocs()),
+  ...(IS_TOSS ? {} : webLegalDocs(supportEmail)),
   disclaimer: { title: '면책 고지', body: [t('disclaimer.full'), t('disclaimer.health'), t('disclaimer.finance'), t('disclaimer.ai')] },
-};
+});
 
 export function LegalPage() {
   const { doc } = useParams();
-  // 토스 미니앱은 토스용 약관·처리방침을 등록해 둔다(src/toss/legal.ts). 웹·앱은 아래 LEGAL 을 그대로 쓴다
+  const supportEmail = useConfig().data?.supportEmail;
+  const LEGAL = legalDocs(supportEmail);
+  // 토스 미니앱은 토스용 약관·처리방침을 등록해 둔다(src/toss/legal.ts). 웹·앱은 위 legalDocs 를 쓴다
   const page = legalDocOverride(doc ?? '') ?? LEGAL[doc ?? ''] ?? legalDocOverride('terms') ?? LEGAL.terms!;
   return (
     <div className="min-h-page">

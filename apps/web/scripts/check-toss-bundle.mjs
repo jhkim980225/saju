@@ -8,7 +8,7 @@
  *  - .map               : 소스맵
  *  - 자사 웹 주소        : 공유 링크가 자사 웹사이트로 가면 안 된다
  *  - 크기               : 100MB 이하
- * 경고만 하는 것(빌드는 통과): 약관의 사업자 정보 자리표시자가 남아 있음 — 제출 전에 .env.toss 의 VITE_TOSS_BIZ_* 를 채운다
+ * 경고만 하는 것(빌드는 통과): 약관의 사업자 정보 자리표시자가 남아 있음 — 제출 전에 .env 의 VITE_BIZ_*(토스만 다르면 .env.toss 의 VITE_TOSS_BIZ_*)를 채운다
  *
  * 쓰는 법: node scripts/check-toss-bundle.mjs [--ait] [--dir <폴더>]
  */
@@ -114,7 +114,7 @@ if (problems.length > 0) {
   process.exit(1);
 }
 if (warnings.length > 0) {
-  console.warn('[toss-bundle] 주의: 약관의 사업자 정보가 비어 있어요. 제출 전에 apps/web/.env.toss 의 VITE_TOSS_BIZ_* 값을 채우고 다시 빌드하세요.');
+  console.warn('[toss-bundle] 주의: 약관의 사업자 정보가 비어 있어요. 제출 전에 apps/web/.env 의 VITE_BIZ_* 값(토스만 다르면 .env.toss 의 VITE_TOSS_BIZ_*)을 채우고 다시 빌드하세요.');
   for (const w of warnings) console.warn('  - 자리표시자 "(출시 전 입력)" 이 들어 있는 파일: ' + w);
 }
 console.log('[toss-bundle] 통과');

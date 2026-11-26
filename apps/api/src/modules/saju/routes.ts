@@ -65,7 +65,8 @@ export function sajuRoutes({ ctx, optionalAuth }: RouteKit) {
       c.req.query(),
     );
     const { chart } = await resolveChart(ctx, c.get('user'), body);
-    const now = new Date().getFullYear();
+    // 기본 범위의 기준 연도는 KST — Worker 의 시계(UTC)로 정하면 1월 1일 0~9시(KST)에 전년도가 기준이 된다
+    const now = todayInSeoul().year;
     const from = q.from ?? now - 2;
     const to = Math.min(q.to ?? now + 7, from + 30);
     return c.json(yearList(chart, from, to));

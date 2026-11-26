@@ -1,5 +1,5 @@
 /**
- * 토스 미니앱 전용 API — 계약: toss/daldal-saju/docs/API-CONTRACT.md (타입은 @saju/shared 의 toss.ts)
+ * 토스 미니앱 전용 API — 요청·응답 형식은 docs/API.md 의 토스 미니앱 절(타입은 @saju/shared 의 toss.ts)
  */
 import type { PaymentResultDto, TossIapIntentCreateDto, TossIapIntentDto, TossIapProductDto, TossIapVerifyDto, TossRewardClaimDto, TossRewardStartDto, TossRewardStartRequestDto } from '@saju/shared';
 import { request } from '@/lib/api';

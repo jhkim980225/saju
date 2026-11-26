@@ -477,6 +477,8 @@ else window.location.assign(url);
 ### 7.4 앱 쪽 흐름과 연결 지점
 
 ```
+api.checkIap({ … })               결제창을 띄우기 전 확인(판매 중지·한도 초과·이미 가진 콘텐츠면 409, 결제 시작 안 함)
+rememberIapTarget(storeId, 대상)  결제마다 복구 대상 기록 한 건(lib/payments/iapTargets.ts, yd.iapPendingTargets)
 native.purchase(storeId)          purchases.ts: purchaseProduct({ autoAcknowledgePurchases:false, isConsumable:false })
   → { receipt }                   iOS transactionId / Android purchaseToken (취소 시 null)
 api.verifyIap({ … receipt })      서버가 스토어 API 로 검증·지급 (거래 ID 멱등)
@@ -484,24 +486,12 @@ finishPurchase(receipt)           iOS finishTransaction / Android consumePurchas
 ```
 
 - ⚠ **Google Play 는 3일 안에 확인(acknowledge)하지 않으면 자동 환불**합니다. 반대로 서버 검증 전에 소모하면 검증 실패 시 복구할 거래가 사라지므로, 반드시 **검증 성공 후** `finishPurchase` 를 호출합니다.
-- **팀장 연결 (`src/lib/payments/index.ts`)**
-
-  ```ts
-  import { finishPurchase } from '@/native';
-  …
-  const purchased = await native.purchase(storeId);
-  if (!purchased) throw new Error('결제를 취소했어요.');
-  const result = await api.verifyIap({ platform, productId: storeId, receipt: purchased.receipt, profileId: input.profileId });
-  await finishPurchase(purchased.receipt); // 실패해도 throw 하지 않음(다음 복구 때 재시도)
-  return result;
-  ```
+- **연결 (`src/lib/payments/index.ts` 의 `startCheckout`)**: `api.checkIap` → 대상 기록 → `native.purchase` → 영수증을 대상 기록에 붙임 → `api.verifyIap` → 성공이면 대상 기록을 지우고 `finishPurchase`(실패해도 throw 하지 않음, 다음 복구 때 재시도).
+- **서버가 지급을 거절한 경우**: 응답 `details` 의 `{ reason, finish }` 를 따릅니다. `finish=true`(iOS, 이미 환불된 거래)면 지급 없이 `finishPurchase` 로 거래를 끝냅니다. iOS 는 끝내지 않은 소모성 거래가 저절로 환불되지 않고 앱을 열 때마다 다시 검증되기 때문이며, 메시지는 App Store 구매 내역에서 환불을 요청하라고 안내합니다. `finish=false`(Android)면 거래를 그대로 둬 Google 이 3일 안에 자동 환불하게 합니다.
 
 - **복구**: 검증 중 앱 종료·네트워크 오류·iOS "구매 승인 요청(Ask to Buy)" 승인 등으로 끝나지 않은 거래는 로그인 상태에서 앱 시작·복귀 시 처리합니다.
 
-  ```ts
-  import { recoverUnfinishedPurchases } from '@/native';
-  await recoverUnfinishedPurchases((p) => api.verifyIap({ ...p, profileId: storage.get(STORAGE_KEYS.activeProfile) ?? undefined }));
-  ```
+  `recoverInAppPurchases()` 가 `recoverUnfinishedPurchases` 에 검증 함수를 넘깁니다. 대상은 영수증이 같은 기록, 없으면(영수증을 받기 전에 꺼진 경우) 같은 상품의 영수증 없는 기록 가운데 가장 최근 것을 씁니다. 기록이 없으면 대상 없이 보내고, 서버는 이미 처리한 거래를 그대로 마무리하며 리포트 상품은 대표 프로필로 채웁니다. 결제마다 기록하므로 같은 상품을 다른 프로필로 연달아 사다 끊겨도 대상이 덮어써지지 않습니다.
 
   Android 에서 같은 상품의 미소모 구매가 남아 `ITEM_ALREADY_OWNED` 가 나면 `purchase()` 가 그 영수증을 돌려줘 검증을 이어 갑니다.
 - 서버는 **게스트 계정의 IAP 를 거부**합니다(`403 로그인이 필요해요`). 앱 결제 버튼은 로그인 후에만 활성화하세요.
@@ -517,11 +507,12 @@ finishPurchase(receipt)           iOS finishTransaction / Android consumePurchas
 2. **APNs 인증 키(.p8)** 를 Firebase 콘솔(프로젝트 설정 → 클라우드 메시징 → Apple 앱 구성)에 업로드. Xcode 에 Push Notifications + Background Modes(Remote notifications).
 3. JS 동작 (`src/native/push.ts`)
    - `native.requestPush()` — 권한 요청 → (Android) 채널 `yd_default` 생성 → **FCM 토큰** 반환. OS 권한 팝업 전에 프리프롬프트(무엇을·언제·얼마나 자주)를 화면에서 먼저 보여 주세요(UX §7.14-13). 첫 결과를 본 뒤에 요청합니다.
-   - 시작 시 권한이 이미 있으면 토큰을 가져와 `api.registerPush(token, 'ios'|'android')` 로 등록. 토큰 갱신(`tokenReceived`)·로그인 계정 변경 시 재등록, 같은 사용자·토큰은 중복 등록하지 않습니다.
+   - 시작 시 권한이 이미 있으면 토큰을 가져와 `api.registerPush(token, 'ios'|'android')` 로 등록. 토큰 갱신(`tokenReceived`)·로그인 계정 변경 시 재등록, 같은 사용자·토큰은 중복 등록하지 않습니다. 등록한 값은 `yd.native.pushToken` 에 남습니다.
+   - 마이 화면 알림 토글은 `native.setPush(on)`(`setPushEnabled`)을 부릅니다. 켜면 권한을 받고 토큰을 등록하며, 끄면 이 기기 토큰을 해제하고 `yd.native.pushOff` 표시를 남겨 다음 세션에도 등록하지 않습니다. 수신 동의는 게스트도 `PATCH /auth/me { pushEnabled }` 로 저장합니다.
    - 알림 탭(`notificationActionPerformed`) → `data.link` 로 라우팅(§5).
-4. **팀장 확인 필요**
-   - `src/pages/MyPage.tsx` 의 `api.registerPush(token, 'android')` 가 플랫폼을 고정하고 있습니다 → `nativePlatform()` 값으로 바꿔 주세요(iOS 토큰이 android 로 등록됨).
-   - 로그아웃 시 `DELETE /api/v1/push/tokens` 호출이 `api.ts` 에 없습니다(AUTH_PUSH §6-1-6).
+4. **확인된 동작**(2026-11-26)
+   - 마이 화면은 `nativePlatform()` 값으로 플랫폼을 보냅니다(iOS 토큰이 android 로 등록되던 문제 없음).
+   - 로그아웃은 `yd.native.pushToken` 의 토큰을 `DELETE /api/v1/push/tokens` 로 먼저 해제합니다(`api.unregisterPush`).
    - Android 는 앱이 **포그라운드일 때 알림을 자동 표시하지 않습니다**. 필요하면 `notificationReceived` 에서 앱 내 토스트로 보여 주세요(iOS 는 `presentationOptions` 로 표시됨).
 5. 광고성 푸시는 별도 동의·야간 동의·"(광고)" 표기(정보통신망법 제50조, AUTH_PUSH §6-3).
 
@@ -532,14 +523,15 @@ finishPurchase(receipt)           iOS finishTransaction / Android consumePurchas
 1. AdMob 에서 iOS·Android 앱을 각각 만들고 **앱 ID**(`ca-app-pub-…~…`)를 Info.plist `GADApplicationIdentifier` / AndroidManifest `com.google.android.gms.ads.APPLICATION_ID` 에 넣습니다(§4). **앱 ID 가 없으면 시작 시 종료**되므로 개발 중에도 테스트 앱 ID 를 넣으세요.
 2. 광고 단위: 보상형 `app_rewarded_chat`, 배너 `app_banner_result` (research/03 §5.7) → `.env.app` 의 `VITE_ADMOB_UNIT_*`. 비어 있으면 Google 테스트 단위 + `isTesting` 으로 요청합니다.
 3. **app-ads.txt** 를 웹 도메인 루트(`https://daldalsaju.com/app-ads.txt`)에 두고, 스토어 등록정보의 개발자 웹사이트를 같은 도메인으로 맞춥니다.
-4. **보상형 SSV**: AdMob 콘솔에서 보상형 단위에 SSV 콜백 URL(서버, 결제·광고팀 TODO)을 등록하면 `showRewardedAd()` 가 보내는 `ssv.userId`(서버 사용자 ID)·`customData` 가 콜백으로 옵니다. **질문권 지급은 서버가 SSV 로 확인한 뒤** 무상 버킷에 적립하세요(클라이언트 `true` 만 믿지 않기).
+4. **보상형 SSV**: AdMob 콘솔에서 보상형 단위의 서버 측 확인 URL 을 `https://daldalsaju.com/api/v1/rewards/admob-ssv` 로 등록하면 `showRewardedAd()` 가 보내는 `ssv.userId`(서버 사용자 ID)가 콜백으로 옵니다. **질문권 지급은 서버가 SSV 로 확인한 뒤** 무상 버킷에 적립합니다(클라이언트 `true` 만 믿지 않기). 서버는 `custom_data` 를 읽지 않으므로 `ssvCustomData` 는 보내지 않아도 됩니다. 하루 한도는 서버 `GET /rewards/status` 의 `limit`(KST 0시 기준)을 `dailyLimit` 으로 넘깁니다.
 5. 사용법 (`@/native`)
 
    ```ts
    import { rewardedAdsRemaining, showRewardedAd, showBannerAd, removeBannerAd, onBannerSizeChanged } from '@/native';
 
    // AI 질문권 소진 시 — 사용자가 버튼을 눌렀을 때만 (자동 재생 금지)
-   if ((await rewardedAdsRemaining()) > 0 && (await showRewardedAd({ ssvCustomData: `chat:${profileId}` }))) {
+   const { limit } = await api.rewardStatus();
+   if ((await rewardedAdsRemaining(limit)) > 0 && (await showRewardedAd({ dailyLimit: limit }))) {
      await refetchWallet(); // 서버가 SSV 로 지급한 무상 질문권 반영
    }
 
@@ -621,7 +613,7 @@ rm -rf .assets
 ### 11.2 계정 삭제 (Apple 5.1.1(v), Google Play 정책)
 
 - 앱 안에서 찾기 쉬운 위치: **마이 탭 → 하단 "회원 탈퇴"** (`MyPage` 의 `deleteAccount` → `DELETE /auth/me`). 설정 깊숙이 숨기지 말고, 탈퇴 전 데이터 삭제 범위·구매 내역 처리 안내를 보여 주세요.
-- Apple 로그인 회원 탈퇴 시 **토큰 철회(revoke)** 가 필요합니다(AUTH_PUSH §3-4-7, 서버 TODO).
+- Apple 로그인 회원 탈퇴 시 **토큰 철회(revoke)** 가 필요합니다. 웹 code 방식으로 로그인한 회원은 서버가 저장한 refresh_token 으로 철회합니다. 앱 id_token 방식은 아직 refresh_token 을 받지 않아 iOS 출시 전에 authorizationCode 교환을 넣어야 합니다(AUTH_PUSH §3-4-7, [features/auth.md](./features/auth.md) 알려진 이슈 6번).
 - Google Play 는 앱 내 삭제 경로와 **별도로 웹에서 삭제를 요청할 수 있는 URL**(데이터 보안 양식)을 요구합니다(예: `https://daldalsaju.com/legal/delete-account`).
 
 ### 11.3 결제 관련 (3.1.1 / 3.1.3)
@@ -678,7 +670,7 @@ rm -rf .assets
 | 위치 | 할 일 |
 |---|---|
 | `src/lib/payments/index.ts` | `api.verifyIap` 성공 직후 `await finishPurchase(purchased.receipt)` (§7.4) |
-| 앱 시작/복귀(로그인 상태) | `recoverUnfinishedPurchases(p => api.verifyIap({ ...p, profileId }))` (§7.4) |
+| 앱 시작/복귀(로그인 상태) | `recoverInAppPurchases()` → `recoverUnfinishedPurchases(검증 함수)`, 대상은 결제마다 남긴 기록에서 (§7.4) |
 | AI 질문권 소진 UI | "광고 보고 1회 추가" → `showRewardedAd()` + 서버 SSV 지급 (§9) |
 | 무료 결과 화면 | `showBannerAd` / `removeBannerAd` / `onBannerSizeChanged` (§9) |
 | `src/pages/AuthPages.tsx` | 앱이면 `appWebOrigin()` 기준 redirectUri + `native.openExternal` (§6), state 없으면 실패 처리 |

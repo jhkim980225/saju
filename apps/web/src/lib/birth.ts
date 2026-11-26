@@ -2,6 +2,7 @@
  * 출생 정보 입력 폼 모델 — 폼 상태 ↔ API 요청(BirthInputDto) 변환과 검증.
  */
 import type { BirthInputDto, ProfileDto } from '@saju/shared';
+import { RELATION_LABEL, type ProfileRelation } from '@saju/shared/profile';
 import { t } from './copy';
 
 export interface City {
@@ -213,4 +214,35 @@ export function profileToForm(p: ProfileDto): BirthFormState {
 export interface BirthDraft {
   form: BirthFormState;
   dto: BirthInputDto;
+}
+
+/** 서버가 프로필에 저장하는 모양으로 맞춘 출생 정보(서버 profiles/service.ts 의 values 와 같은 기본값) — 같은 사람인지 비교할 때 쓴다 */
+function storedBirth(b: BirthInputDto | ProfileDto['birth']) {
+  const hour = b.hour ?? null;
+  return [
+    b.calendar,
+    b.year,
+    b.month,
+    b.day,
+    b.calendar === 'lunar' ? Boolean(b.isLeapMonth) : false,
+    hour,
+    hour === null ? null : (b.minute ?? 0),
+    b.gender,
+    b.timeZone ?? 'Asia/Seoul',
+    b.longitude ?? 126.978,
+    b.timeCorrection ?? 'lmt',
+    b.ziHourRule ?? 'nextDay',
+  ];
+}
+
+/** 저장한 프로필과 입력이 같은 출생 정보인가 */
+export const sameBirth = (saved: ProfileDto['birth'], input: BirthInputDto) => JSON.stringify(storedBirth(saved)) === JSON.stringify(storedBirth(input));
+
+/**
+ * 비회원 결과를 저장할 때 보낼 이름·관계 — 대표(본인) 사주가 이미 있으면 다른 사람의 결과로 보고 '기타'로 저장한다.
+ * '본인'으로 보내면 서버가 새 사주를 대표로 올려 원래 대표가 바뀌기 때문이다. 이름을 비웠으면 관계 이름을 쓴다(입력 폼과 같은 규칙)
+ */
+export function draftProfileFields(typedName: string, existing: Pick<ProfileDto, 'relation' | 'isPrimary'>[]): { name: string; relation: ProfileRelation } {
+  const relation: ProfileRelation = existing.some((p) => p.isPrimary || p.relation === 'self') ? 'other' : 'self';
+  return { name: typedName.trim() || (relation === 'self' ? t('common.me') : RELATION_LABEL[relation]), relation };
 }

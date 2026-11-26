@@ -4,9 +4,18 @@ import { createElement } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 import { TojeongResult } from '@/pages/TojeongPage';
-import { EMPTY_TOJEONG_FORM, formFromBirth, pickTojeongBirth, validateTojeongForm } from '../tojeong';
+import { EMPTY_TOJEONG_FORM, formFromBirth, isTojeongYearError, pickTojeongBirth, validateTojeongForm } from '../tojeong';
 
 afterEach(cleanup);
+
+describe('토정비결 400 구분', () => {
+  it('대상 연도 탓(details.field=year)일 때만 연도 오류로 본다 — 이때는 기억해 둔 생년월일을 지우지 않는다', () => {
+    expect(isTojeongYearError({ field: 'year', defaultYear: 2027 })).toBe(true);
+    expect(isTojeongYearError(undefined)).toBe(false);
+    expect(isTojeongYearError({ field: 'birth' })).toBe(false);
+    expect(isTojeongYearError([{ path: ['year'] }])).toBe(false);
+  });
+});
 
 describe('토정비결 입력 폼', () => {
   const now = new Date('2026-10-15T00:00:00Z');

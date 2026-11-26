@@ -4,7 +4,7 @@
  * 바인딩이 없으면 isConfigured() 가 false — 토스 기능은 꺼진 채로 나머지 서비스는 그대로 돈다.
  *
  * 주의: 업무 오류도 HTTP 200 으로 온다 — 반드시 resultType 을 본다(SUCCESS 가 아니면 모두 실패).
- * 문서: apps-in-toss-docs/pages/api/iap.md, summary/03-인증-수익화-마케팅-정산.md
+ * 근거: 앱인토스 개발자 문서의 인앱결제·사용자 식별키(로그인) API(저장소 밖 문서). 이 저장소의 정리는 docs/features/toss-miniapp.md
  */
 import type { AppConfig } from '../../config/env.js';
 

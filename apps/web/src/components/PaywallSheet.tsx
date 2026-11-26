@@ -7,6 +7,7 @@ import { t } from '@/lib/copy';
 import { won } from '@/lib/format';
 import { isNativeApp } from '@/lib/platform';
 import { BottomSheet } from './BottomSheet';
+import { TermsConsent } from './TermsConsent';
 import { Badge, Button, cx } from './ui';
 
 /**
@@ -73,7 +74,7 @@ export function PaywallSheet({
           <Button block size="lg" loading={busy} disabled={!product} onClick={pay}>
             {product ? t('paywall.payButton', { price: won(product.price) }) : t('paywall.ctaNoPrice')}
           </Button>
-          <p className="text-center text-xs text-ink-3">{t('paywall.terms')}</p>
+          <TermsConsent className="text-center text-xs text-ink-3" />
         </div>
       }
     >

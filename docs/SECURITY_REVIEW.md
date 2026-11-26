@@ -11,7 +11,7 @@ QA팀(보안·로직 리뷰어)이 인메모리 API 재현으로 확인한 15개
 | 4 | High | 규칙 기반 AI 상담이 잠긴 섹션 본문을 무료·무차감으로 제공 | 상담 답변은 사용자의 열람 권한(`reports.access`) 안의 섹션만 사용, 잠긴 주제는 안내 문구 | ✅ |
 | 5 | Medium | `X-Forwarded-For` 위조로 rate limit 우회, 429 대신 500 | `TRUST_PROXY_HOPS`(기본 0) 로 프록시 홉만 신뢰, 429 응답 수정, 인증 경로 별도 제한(`AUTH_RATE_LIMIT_PER_MIN`), 관리자 경로 제한, 관리자 토큰 `timingSafeEqual` | ✅ |
 | 6 | Medium | 환불 후에도 생성된 리포트 열람, 질문권 사용량과 무관한 전액 환불 | 리포트 열람·목록 시 권한 재확인(없으면 402), 질문권 팩은 미사용 유상분 비율만큼 부분 취소(전부 사용 시 환불 불가) | ✅ |
-| 7 | Medium | 계정당 1회 상품을 주문 여러 개로 중복 구매 | 승인·웹훅 복구·IAP 검증 트랜잭션에서 구매 한도 재확인, 초과 시 결제 취소 + 주문 `canceled` | ✅ |
+| 7 | Medium | 계정당 1회 상품을 주문 여러 개로 중복 구매 | 승인·웹훅 복구·IAP 검증 트랜잭션에서 구매 한도 재확인. 초과 시 결제 취소를 시도하고, 취소했으면 주문 `canceled(PER_USER_LIMIT)`, 취소하지 못했으면(그로블·인앱결제, 결제사 취소 실패) `failed(PER_USER_LIMIT)` + 운영 알림(2026-11-26 상태 규칙 통일) | ✅ |
 | 8 | Medium | 동시 요청으로 AI 비용 부풀리기 | 상담은 AI 호출 **전** 질문권 선차감(실패 시 무상 환급), 리포트는 동일 조건 생성 요청 in-flight 병합 | ✅ (리포트 병합은 단일 인스턴스 기준 — 다중 인스턴스 시 DB 유니크 키 권장) |
 | 9 | Medium | 다중 탭에서 refresh 토큰 재사용 탐지로 강제 로그아웃 | 웹: `storage` 이벤트로 탭 간 세션 동기화, 갱신 직전 저장소 재로드 | ✅ |
 | 10 | Medium | AdMob SSV 가 광고 단위를 검증하지 않음, 키 재조회 증폭 | `ADMOB_REWARDED_AD_UNITS` 허용 목록(운영에서 비면 지급 거부), 미지의 key_id 재조회 최소 10분 간격 | ✅ |
@@ -23,7 +23,7 @@ QA팀(보안·로직 리뷰어)이 인메모리 API 재현으로 확인한 15개
 
 > **Cloudflare Workers 전환(2026-11) 뒤 바뀐 구현** — 조치 내용(무엇을 막는지)은 같고 수단만 바뀌었다.
 > - 5번: 요청 수 제한은 Cloudflare Rate Limiting 바인딩으로, Cloudflare 가 붙이는 접속 IP(`cf-connecting-ip`) 기준이다. `TRUST_PROXY_HOPS`·`AUTH_RATE_LIMIT_PER_MIN` 은 없앴고, 인증·관리자 경로 별도 제한은 `wrangler.jsonc` 의 `ratelimits`(인증 60초 10회, 관리자 60초 20회)로 옮겼다. 운영 모드에서만 켜진다.
-> - 1·7번: D1 에는 대화형 트랜잭션이 없어, 읽고 판단한 뒤 쓰기를 batch 하나로 실행하고 batch 맨 앞의 조건 확인 문장(guard — "주문이 아직 pending", "구매 횟수 < 한도")이 깨지면 batch 전체를 취소하고 다시 실행한다(`apps/api/src/db/atomic.ts`, [`ARCHITECTURE.md`](./ARCHITECTURE.md) DB 절).
+> - 1·7번: D1 에는 대화형 트랜잭션이 없어, 읽고 판단한 뒤 쓰기를 batch 하나로 실행하고 batch 맨 앞의 조건 확인 문장(guard — "주문이 아직 pending", "구매 횟수 < 한도")이 깨지면 batch 전체를 취소하고 다시 실행한다(`apps/api/src/db/atomic.ts`, [`architecture.md`](./architecture.md) §5.1).
 > - 8번: 리포트 중복 생성은 DB 유니크 인덱스 `reports_target_uq` 로 막는다(인스턴스 수와 무관).
 > - 회귀 테스트는 같고, 실제 D1 에서도 돈다(`TEST_D1=1`).
 

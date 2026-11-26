@@ -228,6 +228,24 @@ describe('refresh 토큰 — 응답 유실·두 탭은 봐주고, 끊긴 세션�
   });
 });
 
+describe('요청 ID 선점 기록 — 탈퇴하면 지운다', () => {
+  it('상담·꿈풀이 선점 행과 토스 날짜 열기 기록은 탈퇴 때 함께 지우고, 다른 사용자의 기록은 남긴다', async () => {
+    const a = await member();
+    const b = await member();
+    await db.insert(webhookEvents).values([
+      { id: `chat:${a.userId}:req-a1`, provider: 'app', eventType: 'chat_request', payload: { replyId: 'x' }, processedAt: Date.now() },
+      { id: `dream:${a.userId}:req-a2`, provider: 'app', eventType: 'dream_request', payload: { paragraphs: ['풀이'], profileName: '본인' }, processedAt: Date.now() },
+      { id: `tossad:unlock:tomorrow_fortune:${a.userId}:2026-11-26`, provider: 'toss_ad', eventType: 'unlock:tomorrow_fortune', payload: {}, processedAt: Date.now() },
+      { id: `dream:${b.userId}:req-b1`, provider: 'app', eventType: 'dream_request', payload: {}, processedAt: Date.now() },
+    ]);
+    const res = await app.inject({ method: 'DELETE', url: '/api/v1/auth/me', headers: { authorization: `Bearer ${a.token}` } });
+    expect(res.statusCode).toBe(204);
+    const left = (await db.select({ id: webhookEvents.id }).from(webhookEvents)).map((r) => r.id);
+    expect(left.filter((id) => id.includes(a.userId))).toEqual([]);
+    expect(left).toContain(`dream:${b.userId}:req-b1`);
+  });
+});
+
 describe('질문권 한도가 있는 무상 지급(광고 보상)', () => {
   it('보상 요청 8개가 동시에 와도 하루 한도(3)만큼만 지급한다', async () => {
     const m = await member();

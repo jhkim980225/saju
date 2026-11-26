@@ -2,8 +2,15 @@
  * DB 스키마 (Drizzle ORM / Cloudflare D1 — SQLite).
  * 금액은 원(KRW) 정수, 시각은 epoch ms 정수로 저장한다. JSON 은 text(json 모드).
  */
+import type { BirthInput } from '@saju/core';
 import { sql } from 'drizzle-orm';
 import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+
+/** 타로 리딩에 저장하는 사주 — 본인과 (궁합 타로의) 상대 */
+export interface TarotSajuSnapshot {
+  owner: { id: string; name: string; birth: BirthInput } | null;
+  partner: { id: string; name: string; birth: BirthInput } | null;
+}
 
 const timestamps = {
   createdAt: integer('created_at').notNull().default(sql`(unixepoch() * 1000)`),
@@ -39,6 +46,8 @@ export const users = sqliteTable(
   (t) => [
     uniqueIndex('users_email_uq').on(t.email),
     uniqueIndex('users_provider_uq').on(t.provider, t.providerUserId),
+    // 기기 하나에 살아 있는 게스트는 하나 — 같은 기기의 첫 요청이 동시에 와도 하나만 만든다(users.createGuest)
+    uniqueIndex('users_guest_device_uq').on(t.deviceId).where(sql`provider = 'guest' AND deleted_at IS NULL`),
   ],
 );
 
@@ -272,6 +281,11 @@ export const tarotReadings = sqliteTable(
     partnerProfileId: text('partner_profile_id'),
     /** 양자택일 선택지 { a, b } */
     options: text('options', { mode: 'json' }).$type<{ a: string; b: string }>(),
+    /**
+     * 뽑을 때의 사주(이름·출생 정보) — 나중에 프로필을 고쳐도 산 리딩의 사주 섹션이 바뀌지 않게 이것으로 계산한다.
+     * 프로필을 지우면 비운다(지운 사람의 출생 정보를 남기지 않는다). 없으면(이전 리딩) 지금 프로필로 계산한다
+     */
+    sajuSnapshot: text('saju_snapshot', { mode: 'json' }).$type<TarotSajuSnapshot>(),
   },
   (t) => [
     index('tarot_readings_user_idx').on(t.userId, t.createdAt),

@@ -1,6 +1,6 @@
 /**
  * 띠별 운세 (무료 · 공개 SEO 페이지)
- *  /zodiac                    12띠 오늘 한눈에 + 태어난 해로 띠 찾기 (내 띠를 알면 내 띠 페이지로)
+ *  /zodiac                    12띠 오늘 한눈에 + 태어난 해로 띠 찾기 (내 띠를 알면 맨 위에 바로 가기, 목록에서 '내 띠' 표시)
  *  /zodiac/:animal/:period    띠 하나의 오늘·내일·이번 주·이번 달·올해
  */
 import { useQuery } from '@tanstack/react-query';
@@ -30,9 +30,8 @@ export function ZodiacHubPage() {
     path: '/zodiac',
   });
 
-  // 내 띠를 알면 바로 내 띠 페이지로
-  if (own.animal) return <Navigate to={zodiacPath(own.animal.slug)} replace />;
-  if (own.loading) return <Spinner />;
+  // 내 띠를 알아도 12띠 한눈에 보기를 그대로 보여 주고, 내 띠 바로 가기를 맨 위에 둔다(바로 넘기면 다른 띠를 볼 수 없다)
+  const mine = own.animal;
 
   return (
     <div className="min-h-page">
@@ -44,6 +43,17 @@ export function ZodiacHubPage() {
           </p>
           <h2 className="mt-2 font-serif text-[26px] font-semibold leading-snug lg:text-[32px]">열두 띠, 오늘은 어떤 흐름일까요</h2>
           <p className="mt-3 text-[15px] leading-relaxed text-ink-2">{BASIS_SHORT}</p>
+          {mine && (
+            <Link to={zodiacPath(mine.slug)} className="mt-4 flex items-center gap-3 rounded-2xl border border-line-strong bg-surface p-4 transition-colors hover:border-focus">
+              <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-subtle font-serif text-2xl" aria-hidden>
+                {mine.hanja}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm text-ink-3">{own.name ? `${own.name}님은 ${mine.name}띠예요` : `내 띠는 ${mine.name}띠예요`}</span>
+                <span className="mt-0.5 block font-semibold">{mine.name}띠 오늘의 운세 보기</span>
+              </span>
+            </Link>
+          )}
         </section>
 
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-10">
@@ -65,6 +75,7 @@ export function ZodiacHubPage() {
                       <span className="min-w-0">
                         <span className="flex items-center gap-2">
                           <span className="font-semibold">{it.animal.name}띠</span>
+                          {mine?.slug === it.animal.slug && <span className="rounded-full bg-subtle px-2 py-0.5 text-xs text-ink-2">내 띠</span>}
                           <ToneBadge tone={it.tone} label={it.toneLabel} />
                         </span>
                         <span className="mt-1 block text-[15px] leading-snug">{it.headline}</span>

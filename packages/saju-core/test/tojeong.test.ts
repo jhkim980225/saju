@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   SajuInputError,
+  TojeongYearError,
   TOJEONG_CODES,
   computeTojeong,
   lunarBirthOf,
@@ -131,6 +132,10 @@ describe('토정비결 보조 계산', () => {
     expect(() => computeTojeong({ calendar: 'lunar', year: 1990, month: 3, day: 1, isLeapMonth: true }, 2027)).toThrow(SajuInputError); // 1990년 윤3월 없음
     expect(() => computeTojeong({ calendar: 'solar', year: 2030, month: 1, day: 1 }, 2027)).toThrow(SajuInputError);
     expect(() => computeTojeong({ calendar: 'solar', year: 1990, month: 1, day: 1 }, 2050)).toThrow(SajuInputError);
+    // 대상 연도 탓(범위 밖·태어난 해보다 앞선 해)은 TojeongYearError — 생년월일 오류와 구분한다
+    expect(() => computeTojeong({ calendar: 'solar', year: 2030, month: 1, day: 1 }, 2027)).toThrow(TojeongYearError);
+    expect(() => computeTojeong({ calendar: 'solar', year: 1990, month: 1, day: 1 }, 2050)).toThrow(TojeongYearError);
+    expect(() => computeTojeong({ calendar: 'lunar', year: 1995, month: 1, day: 30 }, 2027)).not.toThrow(TojeongYearError);
   });
 
   it('괘 번호는 언제나 144괘 안에 있다', () => {

@@ -31,7 +31,11 @@ export function profileRoutes({ ctx, authenticate }: RouteKit) {
 
   app.delete('/:id', async (c) => {
     const { id } = parse(idParam, c.req.param());
-    await profiles.remove(requireUser(c).id, id);
+    const userId = requireUser(c).id;
+    await profiles.getOwned(userId, id);
+    // 지우면 출생 정보가 사라져 산 리포트를 다시 만들 수 없다 — 아직 만들지 않은 리포트를 먼저 만들어 보관함에 남긴다
+    await ctx.services.reports.materializeForProfile(userId, id);
+    await profiles.remove(userId, id);
     return noContent(c);
   });
 

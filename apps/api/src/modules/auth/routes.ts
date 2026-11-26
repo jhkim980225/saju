@@ -14,13 +14,14 @@ const providerParam = z.object({ provider: z.enum(SOCIAL_PROVIDERS) });
 let dummy: Promise<string> | undefined;
 const dummyHash = () => (dummy ??= hashPassword('not-a-real-password-for-timing'));
 
-export function authRoutes({ ctx, authenticate, optionalAuth, authLimit: strict }: RouteKit) {
+export function authRoutes({ ctx, authenticate, optionalAuth, authLimit: strict, sessionLimit }: RouteKit) {
   const { users, auth, oauth } = ctx.services;
   const loginThrottle = createLoginThrottle(ctx.db, Date.now, () => ctx.services.ops.loginLocked());
   const app = new Hono<AppEnv>();
 
   /** 게스트(비회원) 시작 — 앱 첫 실행 시 기기 ID 로 호출 */
-  app.post('/guest', strict, async (c) => {
+  // 게스트 시작·토큰 갱신은 비밀번호를 맞히는 경로가 아니다 — 한 IP 를 여럿이 쓰는 곳에서 막히지 않게 세션 제한(sessionLimit)을 쓴다
+  app.post('/guest', sessionLimit, async (c) => {
     const body = parse(guestSchema, (await readJson(c)) ?? {});
     const user = await users.createGuest(body.deviceId);
     return c.json(await auth.issue(user, c.req.header('user-agent')));
@@ -54,7 +55,7 @@ export function authRoutes({ ctx, authenticate, optionalAuth, authLimit: strict 
     return c.json(await auth.issue(user, c.req.header('user-agent')));
   });
 
-  app.post('/refresh', strict, async (c) => {
+  app.post('/refresh', sessionLimit, async (c) => {
     const body = parse(refreshSchema, await readJson(c));
     return c.json(await auth.refresh(body.refreshToken, c.req.header('user-agent')));
   });
@@ -101,7 +102,7 @@ export function authRoutes({ ctx, authenticate, optionalAuth, authLimit: strict 
    * 여기서 받아 웹 콜백 페이지로 302 리다이렉트한다. (Apple 콘솔 Return URL: {API}/api/v1/auth/oauth/apple/form-post)
    * — /oauth/:provider/… 보다 먼저 등록한다
    */
-  app.post('/oauth/apple/form-post', async (c) => {
+  app.post('/oauth/apple/form-post', strict, async (c) => {
     const form = Object.fromEntries(new URLSearchParams(await c.req.text()));
     const body = parse(z.object({ code: z.string().optional(), state: z.string().optional(), user: z.string().optional(), id_token: z.string().optional(), error: z.string().optional() }), form);
     const target = new URL(`${ctx.config.PUBLIC_WEB_URL.replace(/\/$/, '')}/auth/callback/apple`);
@@ -126,7 +127,8 @@ export function authRoutes({ ctx, authenticate, optionalAuth, authLimit: strict 
     return c.json({ url: oauth.getAuthorizeUrl(provider, q.redirectUri, q.state) });
   });
 
-  app.post('/oauth/:provider/callback', optionalAuth, async (c) => {
+  // 소셜 콜백은 외부 토큰 교환을 부르는 로그인 경로라 다른 인증 경로와 같은 요청 수 제한(authLimit)을 건다
+  app.post('/oauth/:provider/callback', strict, optionalAuth, async (c) => {
     const { provider } = parse(providerParam, c.req.param());
     const body = parse(oauthCallbackSchema, await readJson(c));
     const redirectUri = body.redirectUri ?? `${ctx.config.PUBLIC_WEB_URL}/auth/callback/${provider}`;
@@ -134,7 +136,8 @@ export function authRoutes({ ctx, authenticate, optionalAuth, authLimit: strict 
     const guestUserId = c.get('user')?.id;
     const { user, created } = await users.upsertSocialUser({ provider, ...profile, guestUserId });
     if (!created) await users.mergeGuestInto(guestUserId, user.id);
-    return c.json(await auth.issue(user, c.req.header('user-agent')));
+    // isNewUser: 처음 가입(게스트 전환 포함) — 웹이 분석 전환을 login 이 아닌 signup 으로 보낸다
+    return c.json({ ...(await auth.issue(user, c.req.header('user-agent'))), isNewUser: created });
   });
 
   /** 토스 미니앱 로그인 — SDK 가 준 일회용 코드로 들어온다. 게스트 토큰이 있으면 그 계정을 이어 쓴다 */

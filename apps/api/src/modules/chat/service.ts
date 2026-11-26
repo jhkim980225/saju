@@ -1,28 +1,36 @@
 /**
  * AI 사주 상담 — 질문권 1회 차감. AI 미설정 시 규칙 기반 답변(차감 없음)으로 대체한다.
- * AI 가 답하지 못하면 규칙 기반 답변을 주고, 질문권은 서비스 쪽 장애(unavailable)일 때만 돌려준다(하루 상한 안에서).
+ * AI 가 답하지 못하면 규칙 기반 답변을 주고, 질문권은 서비스 쪽 장애(unavailable)나 문체 검사 탈락(filtered, ai/plainOutput.ts)일 때만
+ * 돌려준다(하루 상한 안에서, 차감한 몫 그대로 — 유상분은 유상으로).
  * 거절(refused)은 질문 내용 탓이라 차감한 채로 둔다 — 거절을 유도하는 질문으로 AI 를 공짜로 되풀이해 부르지 못하게.
+ * 질문에 자해·자살 암시(CRISIS_PATTERN, 꿈풀이와 같은 기준)가 있으면 규칙 기반 답변 맨 앞에 상담 전화 안내를 넣는다.
  */
 import { and, asc, eq } from 'drizzle-orm';
 import type { Element, SajuChart } from '@saju/core';
-import type { ChatMessageDto, ChatReplyDto } from '@saju/shared';
+import { CRISIS_LINE, CRISIS_PATTERN, type ChatMessageDto, type ChatReplyDto } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
 import type { Db } from '../../db/client.js';
 import { chatMessages } from '../../db/schema.js';
 import { conflict } from '../../lib/errors.js';
 import { newId } from '../../lib/ids.js';
 import { createRequestClaims } from '../../lib/requestClaim.js';
-import { isAiFailure, type AiService } from '../ai/service.js';
+import { isAiFailure, isRefundableAiFailure, type AiService } from '../ai/service.js';
 import type { CommerceService } from '../commerce/service.js';
 import { EL_NAME, buildBasicReading, dayMasterContent, dayPillarContent, type ReadingAccess } from '../interpretation/reading.js';
 import type { ProfileService } from '../profiles/service.js';
+import { todayInSeoul } from '../saju/routes.js';
 
-/** AI 컨텍스트용 사주 요약 (근거 데이터) */
-export function chartSummary(chart: SajuChart): string {
+/**
+ * AI 컨텍스트용 사주 요약 (근거 데이터).
+ * 오늘 날짜와 현재 대운은 KST(한국 날짜) 기준이다 — 서버 시각(UTC)으로 정하면 KST 0~9시에 하루 전 날짜가,
+ * 1월 1일 0~9시에 전년도 대운이 들어간다. today 는 테스트에서 날짜를 고정할 때만 넘긴다.
+ */
+export function chartSummary(chart: SajuChart, today: { year: number; month: number; day: number } = todayInSeoul()): string {
   const p = chart.pillars;
   const pillars = [p.year, p.month, p.day, p.hour].map((x) => (x ? `${x.ganzhi.hanja}(${x.stem.tenGod}/${x.branch.tenGod})` : '시주 모름'));
-  const now = new Date().getFullYear();
+  const now = today.year;
   const daeun = chart.daeun.periods.find((d) => now >= d.startYear && now <= d.endYear);
+  const pad = (n: number) => String(n).padStart(2, '0');
   return [
     `성별: ${chart.input.gender === 'male' ? '남' : '여'}, 양력 생일: ${chart.solarDate.year}-${chart.solarDate.month}-${chart.solarDate.day}`,
     `사주(년/월/일/시): ${pillars.join(' ')}`,
@@ -32,7 +40,7 @@ export function chartSummary(chart: SajuChart): string {
     `신강약: ${chart.strength.level}(${chart.strength.score}), 용신: ${EL_NAME[chart.yongsin.yongsin]}, 희신: ${EL_NAME[chart.yongsin.heesin]}`,
     `신살: ${chart.shinsal.map((s) => s.name).join(', ') || '없음'}`,
     `대운: 만 ${chart.daeun.startAge}세 시작, 현재 대운 ${daeun ? `${daeun.ganzhi.hanja}(${daeun.startYear}~${daeun.endYear}, ${daeun.stemTenGod})` : '미시작'}`,
-    `오늘 날짜: ${new Date().toISOString().slice(0, 10)}`,
+    `오늘 날짜: ${today.year}-${pad(today.month)}-${pad(today.day)}`,
   ].join('\n');
 }
 
@@ -124,7 +132,7 @@ export function createChatService(config: AppConfig, db: Db, profiles: ProfileSe
       const userMsgId = newId();
       // AI 호출 전에 질문권을 먼저 차감(동시 요청으로 AI 비용을 부풀리는 것 방지) — 서비스 쪽 장애로 실패하면 무상으로 돌려준다
       const charged = ai.enabled && cost > 0;
-      if (charged) await commerce.consumeCredits(userId, cost, 'AI 사주 상담', userMsgId);
+      if (charged) await commerce.consumeCredits(userId, cost, 'AI 사주 상담', userMsgId, 'chat');
       const history = (
         await db
           .select()
@@ -138,9 +146,10 @@ export function createChatService(config: AppConfig, db: Db, profiles: ProfileSe
 
       const result = ai.enabled ? await ai.chat({ chart, profileName: profile.name, chartSummary: chartSummary(chart), history, message: message }) : null;
       const aiReply = result && !isAiFailure(result) ? result : null;
-      const text = aiReply?.text ?? ruleBasedAnswer(chart, message, await access(userId, profile.id), profile.name);
+      // 규칙 기반 답변에는 AI 지시문의 위기 대응이 없으므로, 위기 표현이 보이면 상담 전화 안내를 맨 앞에 둔다
+      const text = aiReply?.text ?? [...(CRISIS_PATTERN.test(message) ? [CRISIS_LINE] : []), ruleBasedAnswer(chart, message, await access(userId, profile.id), profile.name)].join('\n\n');
       const generator = aiReply ? 'ai' : 'rule';
-      if (charged && isAiFailure(result) && result.failed === 'unavailable') await commerce.refundAiFailure(userId, cost, 'AI 상담 실패 환급', userMsgId);
+      if (charged && isRefundableAiFailure(result)) await commerce.refundAiFailure(userId, cost, 'AI 상담 실패 환급', userMsgId);
       const creditsLeft = (await commerce.wallet(userId)).credits;
 
       const replyId = newId();
@@ -148,6 +157,7 @@ export function createChatService(config: AppConfig, db: Db, profiles: ProfileSe
       return { reply: toDto(reply!), creditsLeft, generator };
     },
 
+    /** 이 프로필과 나눈 대화를 모두 지운다(화면의 '대화 지우기'). 프로필을 지울 때도 그 프로필의 대화를 함께 지운다(profiles/service.ts) */
     async clear(userId: string, profileId: string) {
       await profiles.getOwned(userId, profileId);
       await db.delete(chatMessages).where(and(eq(chatMessages.userId, userId), eq(chatMessages.profileId, profileId)));

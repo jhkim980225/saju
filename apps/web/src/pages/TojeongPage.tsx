@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { TOJEONG_DEFAULT_YEAR, type ProfileDto, type TojeongBirthDto, type TojeongDto } from '@saju/shared';
+import { parseTojeongYear, tojeongDefaultYear, type ProfileDto, type TojeongBirthDto, type TojeongDto } from '@saju/shared';
 import { ArrowLeft, CalendarRange, ChevronDown, Share2 } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
@@ -20,6 +20,7 @@ import {
   TOJEONG_BIRTH_KEY,
   fetchTojeong,
   formFromBirth,
+  isTojeongYearError,
   pickTojeongBirth,
   validateTojeongForm,
   type TojeongFormState,
@@ -45,11 +46,12 @@ function usePageMeta(title: string, description: string) {
   }, [title, description]);
 }
 
-/** 2027 토정비결 — 무료. 저장한 사주(프로필) · 사주 입력 중인 생년월일 · 이 화면에서 직접 넣은 생년월일 순으로 고른다 */
+/** 토정비결 — 무료. 대상 연도는 ?year=(범위 안일 때만) 또는 기본 연도(KST 10월부터 다음 해). 저장한 사주(프로필) · 사주 입력 중인 생년월일 · 이 화면에서 직접 넣은 생년월일 순으로 고른다 */
 export function TojeongPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const year = Number(params.get('year')) || TOJEONG_DEFAULT_YEAR;
+  const defaultYear = tojeongDefaultYear();
+  const year = parseTojeongYear(params.get('year')) ?? defaultYear;
   usePageMeta(PAGE_TITLE(year), PAGE_DESCRIPTION(year));
 
   const token = useSession((s) => s.accessToken);
@@ -82,7 +84,10 @@ export function TojeongPage() {
     staleTime: 10 * 60_000,
   });
   const name = source?.kind === 'profile' ? source.profile.name : source?.name;
-  const badInput = q.error instanceof ApiError && q.error.status === 400;
+  const badRequest = q.error instanceof ApiError && q.error.status === 400;
+  // 대상 연도 탓(태어난 해보다 앞선 해 등)이면 생년월일은 그대로 두고 기본 연도로 안내한다
+  const badYear = badRequest && isTojeongYearError((q.error as ApiError).details);
+  const badInput = badRequest && !badYear;
   // 서버가 받지 않은 생년월일(없는 음력 날짜 등)은 다음 방문 때 다시 불러오지 않는다
   useEffect(() => {
     if (badInput) storage.remove(TOJEONG_BIRTH_KEY);
@@ -144,7 +149,18 @@ export function TojeongPage() {
         )}
 
         {!showForm && q.isLoading && <Spinner label="올해 풀이를 찾고 있어요" />}
-        {!showForm && q.error && !badInput && <ErrorState title={t('error.server.title')} onRetry={() => q.refetch()} />}
+        {!showForm && badYear && (
+          <div role="alert" className="flex flex-col items-center gap-3 px-6 py-14 text-center">
+            <p className="text-lg font-semibold">{year}년 토정비결은 볼 수 없어요</p>
+            <p className="text-[15px] text-ink-2">{q.error?.message}</p>
+            {year !== defaultYear && (
+              <Button variant="secondary" size="sm" onClick={() => navigate('/tojeong', { replace: true })}>
+                {defaultYear}년 토정비결 보기
+              </Button>
+            )}
+          </div>
+        )}
+        {!showForm && q.error && !badRequest && <ErrorState title={t('error.server.title')} onRetry={() => q.refetch()} />}
         {!showForm && badInput && (
           <div role="alert" className="flex flex-col items-center gap-3 px-6 py-14 text-center">
             <p className="text-lg font-semibold">이 생년월일로는 풀이를 볼 수 없어요</p>

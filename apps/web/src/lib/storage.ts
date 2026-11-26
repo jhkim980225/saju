@@ -63,7 +63,6 @@ export const STORAGE_KEYS = {
   session: 'yd.session',
   deviceId: 'yd.deviceId',
   birthDraft: 'yd.birthDraft',
-  lastReading: 'yd.lastReading',
   theme: 'yd.theme',
   fontScale: 'yd.fontScale',
   activeProfile: 'yd.activeProfile',

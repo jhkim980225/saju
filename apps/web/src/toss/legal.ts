@@ -4,8 +4,10 @@
  *
  * ⚠ 법률 검토를 받지 않은 초안이다. 출시 전에 검토를 받고, 사업자 정보를 채워야 한다.
  *
- * 사업자 정보·문의처·시행일은 apps/web/.env.toss (QR 테스트는 .env.toss-qa)의 VITE_TOSS_BIZ_* 값으로 채운다.
- * 비어 있으면 화면에 BUSINESS_PLACEHOLDER 가 그대로 보이고, scripts/check-toss-bundle.mjs 가 빌드 때 경고한다.
+ * 사업자 정보·문의처·시행일은 웹과 같은 apps/web/.env 의 VITE_BIZ_* 값을 쓴다(토스 빌드도 .env 를 읽는다).
+ * 토스에서만 다르게 보여야 하는 항목은 .env.toss(QR 테스트는 .env.toss-qa)의 VITE_TOSS_BIZ_* 로 덮어쓴다.
+ * 둘 다 비어 있으면 화면에 BUSINESS_PLACEHOLDER 가 그대로 보이고, scripts/check-toss-bundle.mjs 가 빌드 때 경고한다
+ * (토스 심사에 사업자 정보가 필요해서 웹처럼 항목을 빼지 않고 비어 있음을 드러낸다).
  *
  * 말투: 앱인토스 UX 라이팅 가이드가 "상황, 맥락을 불문하고 모든 문구에 해요체"를 요구하고 약관을 예외로 두지 않아서,
  * 약관 본문도 해요체로 썼다(문장 끝이 달라져도 약관의 효력에는 영향이 없다).
@@ -21,9 +23,9 @@ type BizKey = 'NAME' | 'REPRESENTATIVE' | 'REG_NO' | 'MAIL_ORDER_NO' | 'ADDRESS'
 export type BusinessInfo = Record<BizKey, string>;
 
 const env = import.meta.env as Record<string, string | undefined>;
-const read = (key: BizKey): string => (env[`VITE_TOSS_BIZ_${key}`] ?? '').trim() || BUSINESS_PLACEHOLDER;
+const read = (key: BizKey): string => (env[`VITE_TOSS_BIZ_${key}`] ?? '').trim() || (env[`VITE_BIZ_${key}`] ?? '').trim() || BUSINESS_PLACEHOLDER;
 
-/** .env.toss 에서 읽은 사업자 정보(비어 있으면 자리표시자) */
+/** 사업자 정보 — .env.toss 의 토스 전용 값, 없으면 .env 의 공용 값, 둘 다 없으면 자리표시자 */
 export const BUSINESS: BusinessInfo = {
   NAME: read('NAME'),
   REPRESENTATIVE: read('REPRESENTATIVE'),

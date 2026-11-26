@@ -10,7 +10,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
 import { createDb, runMigrations, type Db } from '../src/db/local.js';
-import { creditLedger, entitlements, orders, reports } from '../src/db/schema.js';
+import { creditLedger, entitlements, orders, reports, users } from '../src/db/schema.js';
 import { seedProducts } from '../src/db/seed.js';
 
 let app: App;
@@ -116,5 +116,17 @@ describe('동시 요청', () => {
     const email = `same${Date.now()}@example.com`;
     const rs = await Promise.all(Array.from({ length: 3 }, () => api('POST', '/auth/signup', { body: { email, password: 'password123', nickname: '동시' } })));
     expect(statuses(rs)).toEqual([201, 409, 409]);
+  });
+});
+
+describe('같은 기기의 게스트 시작이 겹칠 때', () => {
+  it('같은 기기 ID 로 동시에 게스트를 시작해도 게스트는 하나만 남고 모두 같은 계정을 받는다', async () => {
+    const deviceId = `race-device-${Date.now()}`;
+    const rs = await Promise.all(Array.from({ length: 5 }, () => api('POST', '/auth/guest', { body: { deviceId } })));
+    expect(rs.map((r) => r.status)).toEqual([200, 200, 200, 200, 200]);
+    expect(new Set(rs.map((r) => r.body.user.id)).size).toBe(1);
+    const rows = await db.select().from(users).where(eq(users.deviceId, deviceId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.id).toBe(rs[0]!.body.user.id);
   });
 });

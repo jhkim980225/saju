@@ -17,6 +17,7 @@ export interface Env {
   JOBS: Queue<BackgroundJob>;
   RATE_LIMIT_API?: RateLimit;
   RATE_LIMIT_AUTH?: RateLimit;
+  RATE_LIMIT_SESSION?: RateLimit;
   RATE_LIMIT_ADMIN?: RateLimit;
   /** 토스 파트너 API 용 mTLS 인증서 바인딩(wrangler.jsonc mtls_certificates). 없으면 토스 기능은 꺼진다 */
   TOSS_MTLS?: Fetcher;
@@ -53,7 +54,7 @@ function boot(env: Env) {
       tossFetch: env.TOSS_MTLS ? (input, init) => env.TOSS_MTLS!.fetch(input, init) : undefined,
     },
     // 요청 수 제한은 운영에서만 — 로컬(wrangler dev)·E2E 는 한 IP 에서 계정을 잔뜩 만든다
-    rateLimiters: config.isProd ? { general: env.RATE_LIMIT_API, auth: env.RATE_LIMIT_AUTH, admin: env.RATE_LIMIT_ADMIN } : {},
+    rateLimiters: config.isProd ? { general: env.RATE_LIMIT_API, auth: env.RATE_LIMIT_AUTH, session: env.RATE_LIMIT_SESSION, admin: env.RATE_LIMIT_ADMIN } : {},
   });
   const ready = ensureCatalog(db).catch((error: unknown) => {
     instance = undefined; // 다음 요청에서 다시 시도

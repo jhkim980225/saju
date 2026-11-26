@@ -120,19 +120,24 @@ test('접근성 스모크: 제목(h1)과 링크·입력 요소의 이름', async
   }
 });
 
-test('저장한 사주가 있으면 내 띠·내 별자리로 바로 간다', async ({ page, api }) => {
+test('저장한 사주가 있어도 12띠·12별자리 목록을 보여 주고, 맨 위 바로 가기로 내 띠·내 별자리로 간다', async ({ page, api }) => {
   // 1995-03-14 (乙亥년) → 돼지띠, 물고기자리
   const tokens = await guestViaApi(api);
   await createProfileViaApi(api, tokens.accessToken, '서윤');
   await injectSession(page, tokens);
 
   await page.goto('/zodiac');
+  await expect(page).toHaveURL(/\/zodiac$/);
+  await expect(page.getByRole('link', { name: /호랑이띠/ }).first()).toBeVisible();
+  await page.getByRole('link', { name: /돼지띠 오늘의 운세 보기/ }).click();
   await expect(page).toHaveURL(/\/zodiac\/pig\/today$/);
   await expect(h1(page)).toHaveText('돼지띠 오늘의 운세');
   await expect(page.getByRole('navigation', { name: '띠 고르기' }).getByRole('link', { name: /돼지띠/ })).toContainText('내 띠');
   await expect(page.getByRole('link', { name: '오늘의 운세 보기' })).toHaveAttribute('href', '/today');
 
   await page.goto('/horoscope');
+  await expect(page).toHaveURL(/\/horoscope$/);
+  await page.getByRole('link', { name: /물고기자리 오늘의 운세 보기/ }).click();
   await expect(page).toHaveURL(/\/horoscope\/pisces\/today$/);
   await expect(page.getByRole('navigation', { name: '별자리 고르기' }).getByRole('link', { name: /물고기/ })).toContainText('내 별자리');
 });

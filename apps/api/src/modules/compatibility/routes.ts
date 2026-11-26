@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { calculateCompatibility, calculateSaju, type SajuChart } from '@saju/core';
 import { compatibilityRequestSchema, type CompatibilityDto } from '@saju/shared';
-import { unauthorized } from '../../lib/errors.js';
+import { badRequest, unauthorized } from '../../lib/errors.js';
 import { readJson, type AppEnv, type RouteKit } from '../../lib/http.js';
 import { parse } from '../../lib/validate.js';
 import { buildCompatibilitySections } from '../interpretation/reading.js';
@@ -14,6 +14,7 @@ export function compatibilityRoutes({ ctx, optionalAuth }: RouteKit) {
   /** 궁합 — 점수·요약은 무료, 상세는 구매 시 공개 */
   app.post('/', optionalAuth, async (c) => {
     const body = parse(compatibilityRequestSchema, await readJson(c));
+    if (body.profileIdA && body.profileIdA === body.profileIdB) throw badRequest('서로 다른 두 사람을 선택해 주세요.');
     const user = c.get('user');
     const side = async (profileId: string | undefined, birth: typeof body.birthA, name: string | undefined, fallback: string): Promise<{ chart: SajuChart; name: string; id: string | null }> => {
       if (profileId) {

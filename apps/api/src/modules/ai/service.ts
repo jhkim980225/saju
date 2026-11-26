@@ -12,19 +12,27 @@ import type { ReadingSection } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
 import { safeErrorText } from '../../lib/log.js';
 import { introducesFigurative, introducesJargon } from '../interpretation/plainGuard.js';
+import { cleanAiLine, cleanAiParagraphs, cleanAiText } from './plainOutput.js';
 
 /**
  * AI 가 쓸 수 있는 답을 주지 못한 까닭 — 상담·꿈풀이의 질문권 환급 여부를 가른다.
  * - refused: 응답은 왔는데 쓸 답이 없다(모델 거절·정책 차단, 빈 응답, 형식에 맞지 않는 응답) — 요청 내용 탓으로 보고 환급하지 않는다
  * - unavailable: 응답을 받지 못했다(네트워크·5xx·시간 초과·요청 한도·인증 오류 등 서비스 쪽 장애, 키 없음) — 환급 대상
+ * - filtered: 응답은 왔지만 문체 검사(plainOutput.ts — 한자·'당신'·비유)에 걸린 문장이 많아 쓰지 않았다 — 서비스 쪽 품질 문제라 환급 대상
  */
-export type AiFailureReason = 'refused' | 'unavailable';
+export type AiFailureReason = 'refused' | 'unavailable' | 'filtered';
 export interface AiFailure {
   failed: AiFailureReason;
 }
 export const isAiFailure = (r: unknown): r is AiFailure => typeof r === 'object' && r !== null && 'failed' in r;
+/** 질문권을 돌려줄 실패인가 — 서비스 쪽 장애와 문체 검사 탈락(하루 상한은 commerce.refundAiFailure 가 지킨다) */
+export const isRefundableAiFailure = (r: unknown): boolean => isAiFailure(r) && (r.failed === 'unavailable' || r.failed === 'filtered');
 const REFUSED: AiFailure = { failed: 'refused' };
 const UNAVAILABLE: AiFailure = { failed: 'unavailable' };
+const FILTERED: AiFailure = { failed: 'filtered' };
+/** 사용자가 결과를 기다리는 호출(타로 이야기·택일 상세)의 제한 시간 — SDK 기본값(120초, 재시도 2번)까지 기다리지 않게 */
+export const AI_INTERACTIVE_TIMEOUT_MS = 60_000;
+const INTERACTIVE_REQUEST = { timeout: AI_INTERACTIVE_TIMEOUT_MS, maxRetries: 1 } as const;
 
 export interface ChatTurn {
   role: 'user' | 'assistant';
@@ -43,10 +51,15 @@ export interface AiService {
     chart: SajuChart;
     draft: ReadingSection[];
     onProgress?: (done: number, total: number) => void;
+    /**
+     * 사용자가 응답을 기다리는 호출(택일 상세 첫 열람) — 호출별 제한 시간 AI_INTERACTIVE_TIMEOUT_MS·재시도 1번으로 부르고,
+     * 리포트 다듬기와 나눠 쓰는 서버 전체 동시 호출 자리(REPORT_GLOBAL_CONCURRENCY)를 기다리지 않는다(덩어리 하나라 부담이 작다)
+     */
+    interactive?: boolean;
   }): Promise<{ sections: ReadingSection[]; generator: 'ai' | 'rule'; model: string | null }>;
-  /** 상담 답변. 실패하면 AiFailure — 까닭에 따라 호출부가 질문권 환급을 정한다 */
+  /** 상담 답변. 실패하면 AiFailure — 까닭에 따라 호출부가 질문권 환급을 정한다(isRefundableAiFailure) */
   chat(input: { chart: SajuChart; profileName: string; chartSummary: string; history: ChatTurn[]; message: string }): Promise<{ text: string; generator: 'ai' } | AiFailure>;
-  /** 타로 — 카드끼리 이어지는 이야기 문단. 실패하면 null (규칙 기반 문단 사용) */
+  /** 타로 — 카드끼리 이어지는 이야기 문단. 실패하거나 문체 검사(plainOutput.ts)에 걸리면 null (규칙 기반 문단 사용) */
   tarotStory(input: TarotStoryInput): Promise<string[] | null>;
   /** 꿈풀이 — 사전에서 찾은 상징을 근거로 쓴 풀이. 실패하면 AiFailure (규칙 기반 풀이 사용, 까닭에 따라 환급) */
   dreamInterpret(input: DreamAiInput): Promise<{ headline: string; paragraphs: string[] } | AiFailure>;
@@ -304,7 +317,7 @@ ${PLAIN_VOICE}`;
 
 /** AI 호출 결과 알림(운영 집계) — 사용량은 하루 요약의 예상 비용, 장애는 바로 알림 */
 export interface AiHooks {
-  onUsage?: (kind: 'report' | 'chat' | 'tarot' | 'dream', model: string, usage: Anthropic.Messages.Usage | Anthropic.Beta.BetaUsage) => void;
+  onUsage?: (kind: 'report' | 'taekil' | 'chat' | 'tarot' | 'dream', model: string, usage: Anthropic.Messages.Usage | Anthropic.Beta.BetaUsage) => void;
   onFailure?: (kind: 'credit' | 'auth' | 'rate' | 'outage', where: string) => void;
 }
 
@@ -345,6 +358,8 @@ export function createAiService(config: AppConfig, hooks: AiHooks = {}): AiServi
   const model = config.ANTHROPIC_MODEL;
   const premiumModel = config.ANTHROPIC_MODEL_PREMIUM;
   const reportSlots = createLimiter(REPORT_GLOBAL_CONCURRENCY);
+  /** 자리를 기다리지 않는 실행 — 사용자가 기다리는 택일 상세 다듬기(interactive) */
+  const noLimit: ReturnType<typeof createLimiter> = (fn) => fn();
 
   const logError = (where: string, error: unknown) => {
     const failure = aiFailureKind(error);
@@ -360,7 +375,7 @@ export function createAiService(config: AppConfig, hooks: AiHooks = {}): AiServi
     enabled: true,
     model,
     premiumModel,
-    async enhanceSections({ title, chart, draft, onProgress }) {
+    async enhanceSections({ title, chart, draft, onProgress, interactive }) {
       const summary = {
         pillars: [chart.pillars.year, chart.pillars.month, chart.pillars.day, chart.pillars.hour].filter(Boolean).map((p) => ({
           position: p!.position,
@@ -380,28 +395,32 @@ export function createAiService(config: AppConfig, hooks: AiHooks = {}): AiServi
       /** 덩어리 하나 다듬기 — 실패하면 null (그 덩어리는 규칙 기반 초안 유지) */
       const enhanceChunk = async (part: ReadingSection[]) => {
         try {
-          const response = await client.messages.parse({
-            model,
-            max_tokens: 16000,
-            output_config: { effort: 'medium', format: zodOutputFormat(EnhancedSchema) },
-            system: [{ type: 'text', text: REPORT_SYSTEM, cache_control: { type: 'ephemeral' } }],
-            messages: [
-              {
-                role: 'user',
-                content: `다음 리포트 초안의 일부를 다듬어 주세요.\n\n${JSON.stringify({ title, chart: summary, draft: part.map((s) => ({ key: s.key, title: s.title, summary: s.summary, paragraphs: s.paragraphs })) })}`,
-              },
-            ],
-          });
+          const response = await client.messages.parse(
+            {
+              model,
+              max_tokens: 16000,
+              output_config: { effort: 'medium', format: zodOutputFormat(EnhancedSchema) },
+              system: [{ type: 'text', text: REPORT_SYSTEM, cache_control: { type: 'ephemeral' } }],
+              messages: [
+                {
+                  role: 'user',
+                  content: `다음 리포트 초안의 일부를 다듬어 주세요.\n\n${JSON.stringify({ title, chart: summary, draft: part.map((s) => ({ key: s.key, title: s.title, summary: s.summary, paragraphs: s.paragraphs })) })}`,
+                },
+              ],
+            },
+            interactive ? INTERACTIVE_REQUEST : undefined,
+          );
           outputTokens += response.usage.output_tokens;
-          hooks.onUsage?.('report', response.model ?? model, response.usage);
+          // 택일 상세(interactive)도 같은 다듬기 함수를 쓴다 — 운영 집계에서는 리포트와 나눠 센다
+          hooks.onUsage?.(interactive ? 'taekil' : 'report', response.model ?? model, response.usage);
           if (response.stop_reason === 'refusal' || !response.parsed_output) return null;
           return response.parsed_output.sections;
         } catch (error) {
-          logError('report', error);
+          logError(interactive ? 'taekil' : 'report', error);
           return null;
         }
       };
-      const result = await polishSections(draft, enhanceChunk, reportSlots, onProgress);
+      const result = await polishSections(draft, enhanceChunk, interactive ? noLimit : reportSlots, onProgress);
       // 첫 생성 대기 시간이 어디서 나는지 운영 로그로 확인할 수 있게 리포트마다 한 줄 남긴다
       console.info(`[ai:report] ${result.chunks}덩어리 중 ${result.polishedChunks}개 다듬음 · ${((Date.now() - startedAt) / 1000).toFixed(1)}초 · 출력 ${outputTokens}토큰`);
       return result.polishedChunks > 0 ? { sections: result.sections, generator: 'ai', model } : { sections: draft, generator: 'rule', model: null };
@@ -435,7 +454,11 @@ export function createAiService(config: AppConfig, hooks: AiHooks = {}): AiServi
           .join('\n')
           .trim();
         // 응답은 왔는데 글이 비었다 — 요청 내용으로 유도할 수 있어 거절과 같게 본다(환급하지 않음)
-        return text ? { text, generator: 'ai' } : REFUSED;
+        if (!text) return REFUSED;
+        // 문체 검사 — 한자·'당신'·비유가 든 문장은 빼고, 많이 빠지면 쓰지 않는다(사용자가 직접 쓴 말에 있는 표현은 허용)
+        const said = [message, ...history.filter((t) => t.role === 'user').map((t) => t.content)].join('\n');
+        const clean = cleanAiText(text, { tone: said, hanja: said });
+        return clean ? { text: clean, generator: 'ai' } : FILTERED;
       } catch (error) {
         logError('chat', error);
         return UNAVAILABLE;
@@ -443,19 +466,26 @@ export function createAiService(config: AppConfig, hooks: AiHooks = {}): AiServi
     },
     async tarotStory(input) {
       try {
-        const response = await client.messages.parse({
-          model: premiumModel,
-          max_tokens: 4000,
-          output_config: { effort: 'low', format: zodOutputFormat(StorySchema) },
-          system: [{ type: 'text', text: TAROT_SYSTEM, cache_control: { type: 'ephemeral' } }],
-          messages: [{ role: 'user', content: `다음 리딩의 '카드끼리 이어지는 이야기'를 써 주세요.
+        // 사용자가 GET 응답을 기다리는 호출이라 제한 시간을 따로 준다(SDK 기본값 120초·재시도 2번까지 기다리지 않게)
+        const response = await client.messages.parse(
+          {
+            model: premiumModel,
+            max_tokens: 4000,
+            output_config: { effort: 'low', format: zodOutputFormat(StorySchema) },
+            system: [{ type: 'text', text: TAROT_SYSTEM, cache_control: { type: 'ephemeral' } }],
+            messages: [{ role: 'user', content: `다음 리딩의 '카드끼리 이어지는 이야기'를 써 주세요.
 
 ${JSON.stringify(input)}` }],
-        });
+          },
+          INTERACTIVE_REQUEST,
+        );
         hooks.onUsage?.('tarot', response.model ?? premiumModel, response.usage);
         const paragraphs = response.parsed_output?.paragraphs.map((p) => p.trim()).filter(Boolean) ?? [];
         if (response.stop_reason === 'refusal' || paragraphs.length === 0) return null;
-        return paragraphs.slice(0, 4);
+        // 문체 검사 — 비유는 카드 뜻·질문에 있는 말만, 한자는 사용자가 쓴 질문·선택지에 있는 글자만 허용(basis 의 한자는 옮기지 않는다)
+        const userText = [input.question ?? '', input.options?.a ?? '', input.options?.b ?? ''].join('\n');
+        const material = [userText, ...input.cards.flatMap((c) => [c.name, c.meaning, c.line, ...c.keywords])].join('\n');
+        return cleanAiParagraphs(paragraphs.slice(0, 4), { tone: material, hanja: userText });
       } catch (error) {
         logError('tarot', error);
         return null;
@@ -477,9 +507,13 @@ ${JSON.stringify(input)}` }],
         hooks.onUsage?.('dream', response.model ?? model, response.usage);
         // 거절·형식에 맞지 않는 응답·빈 풀이 — 응답은 왔으니 요청 내용 탓으로 본다(환급하지 않음)
         if (response.stop_reason === 'refusal' || !response.parsed_output) return REFUSED;
-        const paragraphs = response.parsed_output.paragraphs.map((p) => p.trim()).filter(Boolean).slice(0, 5);
-        const headline = response.parsed_output.headline.trim();
-        if (paragraphs.length === 0) return REFUSED;
+        const raw = response.parsed_output.paragraphs.map((p) => p.trim()).filter(Boolean).slice(0, 5);
+        if (raw.length === 0) return REFUSED;
+        // 문체 검사 — 꿈 이야기와 사전 해석에 있는 말(꿈에 나온 '보물' 등)은 허용, 한자는 꿈 이야기에 쓴 글자만
+        const allow = { tone: [input.dream, ...input.symbols.flatMap((s) => [s.keyword, s.meaning, s.situation?.title ?? '', s.situation?.text ?? ''])].join('\n'), hanja: input.dream };
+        const paragraphs = cleanAiParagraphs(raw, allow);
+        if (!paragraphs) return FILTERED;
+        const headline = cleanAiLine(response.parsed_output.headline, allow);
         return { headline: headline || paragraphs[0]!.slice(0, 40), paragraphs };
       } catch (error) {
         logError('dream', error);

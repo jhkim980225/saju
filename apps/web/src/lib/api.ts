@@ -187,6 +187,8 @@ export const api = {
   chatHistory: (profileId: string) => get<ChatMessageDto[]>(`/chat?profileId=${profileId}`, 'required'),
   /** requestId 는 보낼 때마다 새로 만든다 — 같은 요청이 두 번 도착해도 서버가 질문권을 한 번만 차감한다 */
   chatSend: (profileId: string, message: string, requestId: string) => post<ChatReplyDto>('/chat', { profileId, message, requestId }, 'required'),
+  /** 이 프로필과 나눈 상담 대화를 모두 지운다 */
+  chatClear: (profileId: string) => request<void>('DELETE', `/chat?profileId=${encodeURIComponent(profileId)}`, { auth: 'required' }),
 
   // 타로
   tarotDaily: (profileId?: string) => get<TarotReadingDto>(`/tarot/daily${profileId ? `?profileId=${profileId}` : ''}`, 'required'),
@@ -209,6 +211,8 @@ export const api = {
   failPayment: (orderId: string, code?: string, message?: string) => post<OrderDto>('/payments/fail', { orderId, code, message }, 'required'),
   verifyIap: (body: { platform: 'ios' | 'android'; productId: string; receipt: string; profileId?: string; readingId?: string }) =>
     post<PaymentResultDto>('/payments/iap/verify', body, 'required'),
+  /** 스토어 결제창을 띄우기 전 확인 — 판매 중지·한도 초과·이미 가진 콘텐츠면 409 */
+  checkIap: (body: { platform: 'ios' | 'android'; productId: string; profileId?: string; readingId?: string }) => post<{ ok: true }>('/payments/iap/check', body, 'required'),
 
   // 푸시
   registerPush: (token: string, platform: 'web' | 'ios' | 'android') => post<void>('/push/tokens', { token, platform }, 'required'),

@@ -36,6 +36,7 @@ const h = vi.hoisted(() => {
       share: mk(),
       statusBarStyle: mk(),
       registerPush: mk(),
+      unregisterPush: mk(),
       purchaseProduct: mk(),
       finishTransaction: mk(),
       consumePurchase: mk(),
@@ -130,7 +131,7 @@ vi.mock('@capacitor-community/admob', () => ({
     },
   },
 }));
-vi.mock('../../lib/api', () => ({ api: { registerPush: h.fn.registerPush } }));
+vi.mock('../../lib/api', () => ({ api: { registerPush: h.fn.registerPush, unregisterPush: h.fn.unregisterPush } }));
 
 function setPlatform(platform: 'ios' | 'android' | null) {
   // PluginHeaders = 네이티브 바이너리에 들어 있는 플러그인 목록 (보안 저장소 사용 여부 판단)
@@ -298,6 +299,48 @@ describe('브리지 등록', () => {
   });
 });
 
+describe('알림 토글', () => {
+  const login = async (id: string) => {
+    const { useSession } = await import('../../lib/session');
+    useSession.getState().setTokens({ accessToken: `a-${id}`, refreshToken: `r-${id}`, expiresIn: 900, user: { id, provider: 'guest' } as UserDto });
+  };
+
+  it('켜면 토큰을 등록하고 등록 표시를 남겨, 로그아웃이 해제할 토큰을 안다', async () => {
+    await boot();
+    await login('g1');
+    const { native } = await import('../../lib/platform');
+    const { storage } = await import('../../lib/storage');
+    expect(await native.setPush?.(true)).toBe(true);
+    expect(h.fn.registerPush).toHaveBeenCalledWith('fcm-token-1', 'android');
+    expect(storage.get('yd.native.pushToken')).toBe('g1|android|fcm-token-1');
+  });
+
+  it('끄면 이 기기 토큰을 해제하고, 새 게스트 세션이 생겨도 다시 등록하지 않는다', async () => {
+    await boot();
+    await login('g1');
+    const { native } = await import('../../lib/platform');
+    const { storage } = await import('../../lib/storage');
+    await native.setPush?.(true);
+    h.fn.registerPush.mockClear();
+
+    expect(await native.setPush?.(false)).toBe(true);
+    expect(h.fn.unregisterPush).toHaveBeenCalledWith('fcm-token-1');
+    expect(storage.get('yd.native.pushToken')).toBeNull();
+    expect(native.pushOptedOut?.()).toBe(true);
+
+    // 로그아웃 뒤 새 게스트 — 토큰 갱신이 와도 등록하지 않는다
+    await login('g2');
+    h.fcmListeners.tokenReceived?.({ token: 'fcm-token-2' });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(h.fn.registerPush).not.toHaveBeenCalled();
+
+    // 다시 켜면 지금 계정에 등록한다
+    expect(await native.setPush?.(true)).toBe(true);
+    expect(native.pushOptedOut?.()).toBe(false);
+    expect(h.fn.registerPush).toHaveBeenCalledWith('fcm-token-1', 'android');
+  });
+});
+
 describe('하드웨어 뒤로가기', () => {
   it('열린 시트가 있으면 yd:back 을 보내고, 없으면 history.back, 첫 화면이면 앱 최소화', async () => {
     await boot();
@@ -391,9 +434,9 @@ describe('딥링크', () => {
 });
 
 describe('보상형 광고 (AdMob)', () => {
-  it('보상을 받은 경우만 세어 하루 3회로 제한하고, 날짜가 바뀌면 초기화한다', async () => {
+  it('보상을 받은 경우만 세어 하루 3회로 제한하고, 한국 시간 날짜가 바뀌면 초기화한다(서버 한도와 같은 기준)', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(2026, 9, 12, 10, 0));
+    vi.setSystemTime(Date.UTC(2026, 9, 12, 14, 30)); // KST 10월 12일 23:30 — 기기 시간대와 관계없이 KST 날짜로 센다
     const native = await boot();
 
     expect(await native.rewardedAdsRemaining()).toBe(3);
@@ -403,10 +446,18 @@ describe('보상형 광고 (AdMob)', () => {
     expect(await native.rewardedAdsRemaining()).toBe(0);
     expect(JSON.parse(h.prefs.get('yd.native.rewardedAds')!)).toEqual({ date: '2026-10-12', count: 3 });
 
-    vi.setSystemTime(new Date(2026, 9, 13, 0, 5));
+    vi.setSystemTime(Date.UTC(2026, 9, 12, 15, 5)); // KST 10월 13일 00:05
     expect(await native.rewardedAdsRemaining()).toBe(3);
     expect(await native.showRewardedAd()).toBe(true);
     expect(h.fn.showReward).toHaveBeenCalledTimes(4);
+  });
+
+  it('서버가 알려 준 하루 한도를 따른다', async () => {
+    const native = await boot();
+    expect(await native.rewardedAdsRemaining(1)).toBe(1);
+    expect(await native.showRewardedAd({ dailyLimit: 1 })).toBe(true);
+    expect(await native.showRewardedAd({ dailyLimit: 1 })).toBe(false);
+    expect(h.fn.showReward).toHaveBeenCalledTimes(1);
   });
 
   it('끝까지 보지 않고 닫거나 로드에 실패하면 false 이고 횟수를 쓰지 않는다', async () => {

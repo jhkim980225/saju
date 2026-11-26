@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Suspense, lazy, useEffect, type ComponentType } from 'react';
 import { createBrowserRouter, Navigate, Outlet, RouterProvider, ScrollRestoration, useLocation } from 'react-router';
 import { SideNav, TabLayout } from './components/AppShell';
+import { NoticeBar } from './components/NoticeBar';
 import { ToastHost } from './components/Toast';
 import { Spinner } from './components/ui';
 import { ApiError } from './lib/api';
@@ -95,6 +96,8 @@ function RootLayout() {
       {!IS_TOSS && <SideNav />}
       {/* 데스크톱은 왼쪽 사이드바(--side-w)만큼 본문을 민다 */}
       <div className={IS_TOSS ? undefined : 'lg:pl-20 xl:pl-60'}>
+        {/* 약관 변경 등 서비스 공지(GET /config notices) */}
+        <NoticeBar />
         <Suspense fallback={<Spinner />}>
           <Outlet />
         </Suspense>

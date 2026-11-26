@@ -13,7 +13,7 @@ export function configRoutes({ ctx }: RouteKit) {
       tossClientKey: cfg.TOSS_CLIENT_KEY ?? null,
       portone: { storeId: cfg.PORTONE_STORE_ID ?? null, channelKey: cfg.PORTONE_CHANNEL_KEY ?? null },
       socialLogin: { kakao: cfg.features.kakao, naver: cfg.features.naver, google: cfg.features.google, apple: cfg.features.apple },
-      ai: { enabled: cfg.features.ai },
+      ai: { enabled: cfg.features.ai, creditCost: cfg.AI_CHAT_CREDIT_COST },
       ads: { enabled: cfg.ADS_ENABLED && cfg.ADS_PROVIDER !== 'none', provider: cfg.ADS_PROVIDER },
       features: {
         chat: true,
@@ -31,7 +31,8 @@ export function configRoutes({ ctx }: RouteKit) {
         tossRewards: ctx.services.tossRewards.enabled(),
       },
       supportEmail: cfg.SUPPORT_EMAIL ?? null,
-      notices: [],
+      // 약관·처리방침 변경 등 서비스 공지(SERVICE_NOTICES) — 웹·앱이 화면 위쪽에 띄운다(apps/web/src/components/NoticeBar.tsx)
+      notices: cfg.notices,
     };
     return c.json(dto);
   });

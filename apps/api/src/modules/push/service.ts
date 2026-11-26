@@ -3,7 +3,7 @@
  * 필요한 env: FCM_PROJECT_ID, FCM_CLIENT_EMAIL, FCM_PRIVATE_KEY (Firebase 서비스 계정). 설정 방법은 docs/AUTH_PUSH.md 참고.
  *
  * - 액세스 토큰: 서비스 계정 키로 서명한 JWT(RS256)를 OAuth2 JWT bearer 그랜트로 교환, 만료 1분 전까지 메모리 캐시
- * - 발송: 토큰마다 messages:send 호출. 404 / UNREGISTERED 응답 토큰은 DB 에서 삭제
+ * - 발송: 토큰마다 messages:send 호출. 404 / UNREGISTERED 응답 토큰과, 토큰 형식이 틀렸다는 400(INVALID_ARGUMENT) 응답 토큰은 DB 에서 삭제
  * - users.pushEnabled=false(수신 거부) 사용자에게는 보내지 않는다
  * - "오늘의 운세" 아침 발송은 sendDailyFortuneDigest() 를 스케줄러에서 호출
  */
@@ -20,7 +20,7 @@ export const FCM_ENV_KEYS = ['FCM_PROJECT_ID', 'FCM_CLIENT_EMAIL', 'FCM_PRIVATE_
 export interface PushMessage {
   title: string;
   body: string;
-  /** 앱 내 이동 경로 (예: /fortune/today) */
+  /** 앱 내 이동 경로 (예: /today) */
   link?: string;
   data?: Record<string, string>;
 }
@@ -30,7 +30,7 @@ export interface PushSendResult {
   sent: number;
   /** 일시 오류 등으로 실패한 건수 */
   failed: number;
-  /** 만료(UNREGISTERED)되어 DB 에서 삭제한 토큰 수 */
+  /** 만료(UNREGISTERED)·형식 오류로 DB 에서 삭제한 토큰 수 */
   removed: number;
 }
 
@@ -140,10 +140,19 @@ export function createPushService(config: AppConfig, db: Db, deps: PushDeps = {}
   // ── 발송 ──
   const sendUrl = () => `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(config.FCM_PROJECT_ID!)}/messages:send`;
 
-  function isUnregistered(status: number, body: unknown): boolean {
+  type FcmError = { status?: string; message?: string; details?: Array<{ errorCode?: string; fieldViolations?: Array<{ field?: string }> }> };
+
+  /**
+   * 다시 보내도 성공할 수 없는 토큰 — 만료·삭제(404, UNREGISTERED)와 형식이 틀린 토큰(400 INVALID_ARGUMENT 중 토큰을 가리키는 것).
+   * 400 은 메시지 내용 탓일 수도 있어(그때 토큰을 지우면 모든 기기 토큰이 사라진다) 오류가 토큰 필드를 가리킬 때만 지운다
+   */
+  function isDeadToken(status: number, body: unknown): boolean {
     if (status === 404) return true;
-    const err = (body as { error?: { status?: string; details?: Array<{ errorCode?: string }> } } | null)?.error;
-    return err?.status === 'NOT_FOUND' || Boolean(err?.details?.some((d) => d?.errorCode === 'UNREGISTERED'));
+    const err = (body as { error?: FcmError } | null)?.error;
+    if (err?.status === 'NOT_FOUND' || Boolean(err?.details?.some((d) => d?.errorCode === 'UNREGISTERED'))) return true;
+    if (status !== 400 || err?.status !== 'INVALID_ARGUMENT') return false;
+    const tokenField = Boolean(err.details?.some((d) => d?.fieldViolations?.some((v) => v?.field === 'message.token')));
+    return tokenField || /registration token/i.test(err.message ?? '');
   }
 
   async function sendOne(token: string, message: PushMessage, retried = false): Promise<Outcome> {
@@ -160,7 +169,7 @@ export function createPushService(config: AppConfig, db: Db, deps: PushDeps = {}
     }
     if (res.ok) return 'sent';
     const body: unknown = await res.json().catch(() => null);
-    if (isUnregistered(res.status, body)) {
+    if (isDeadToken(res.status, body)) {
       await db.delete(pushTokens).where(eq(pushTokens.token, token));
       return 'removed';
     }

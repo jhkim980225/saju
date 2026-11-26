@@ -6,6 +6,7 @@ import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
 import { createDb, runMigrations } from '../src/db/local.js';
 import { buildHoroscope } from '../src/modules/zodiac/horoscope.js';
+import { secondsToKstMidnight } from '../src/modules/zodiac/routes.js';
 import { buildZodiacFortune } from '../src/modules/zodiac/zodiacFortune.js';
 
 let app: App;
@@ -238,5 +239,23 @@ describe('생일 → 별자리 도우미 (@saju/shared)', () => {
     expect(zodiacAnimalByName('호랑이띠')?.slug).toBe('tiger');
     expect(zodiacAnimalByName('午')?.slug).toBe('horse');
     expect(zodiacAnimalByName('고양이')).toBeNull();
+  });
+});
+
+describe('띠·별자리 — 날짜 범위와 캐시 (알려진 이슈 회귀)', () => {
+  it('별자리는 천문 근사 범위(~2049년) 밖의 날짜를 400 으로 거절하고, 띠는 2100년까지 받는다', async () => {
+    expect((await get('/horoscope/aries?period=today&date=2049-12-31')).status).toBe(200);
+    expect((await get('/horoscope/aries?period=today&date=2050-01-01')).status).toBe(400);
+    expect((await get('/horoscope?period=year&date=2075-06-01')).status).toBe(400);
+    expect((await get('/zodiac/tiger?period=today&date=2075-06-01')).status).toBe(200);
+  });
+
+  it('date 없이 부르면 캐시를 KST 자정 너머로 주지 않는다', async () => {
+    const r = await get('/zodiac/tiger?period=today');
+    const maxAge = Number(/max-age=(\d+)/.exec(String(r.headers['cache-control']))![1]);
+    expect(maxAge).toBeLessThanOrEqual(Math.min(600, secondsToKstMidnight() + 1));
+    expect((await get(`/zodiac/tiger?period=today&date=${DATE}`)).headers['cache-control']).toContain('max-age=600');
+    // KST 23:55 이면 5분(300초)만
+    expect(secondsToKstMidnight(Date.UTC(2026, 9, 15, 14, 55))).toBe(300);
   });
 });

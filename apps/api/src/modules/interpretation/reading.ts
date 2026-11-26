@@ -59,11 +59,9 @@ import { CHILD_HINT, GROUP_PLAIN, HIGHLIGHT_PLAIN, HIGHLIGHT_TERM as HIGHLIGHT_T
 import { daeunContinues, daeunEval, isLowGrade, natalShinsal, tgLabel, topTenGods, yearHeadline } from './verdicts.js';
 import { LUCK_CONTENT } from './content/luck.js';
 
-/** 신년운세·"올해 운세" 대상 연도 — KST 기준 10월부터는 다음 해 (웹 lib/format.ts 와 같은 규칙) */
-export function targetFortuneYear(now = new Date()): number {
-  const kst = new Date(now.getTime() + 9 * 3_600_000);
-  return kst.getUTCFullYear() + (kst.getUTCMonth() >= 9 ? 1 : 0);
-}
+/** 신년운세·"올해 운세" 대상 연도 — KST 기준 10월부터는 다음 해. 웹과 같은 정의(packages/shared/src/fortuneYear.ts)를 쓴다 */
+import { targetFortuneYear } from '@saju/shared/fortune-year';
+export { targetFortuneYear };
 
 export const DISCLAIMER =
   '이 풀이는 명리학 이론을 바탕으로 한 참고용 해석입니다. 점수와 등급 같은 지표는 달달사주 기준으로 계산한 것이며, 중요한 결정은 풀이에만 의존하지 말고 충분히 검토한 뒤 내려 주세요.';

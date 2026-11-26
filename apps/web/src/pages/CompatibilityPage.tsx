@@ -1,5 +1,5 @@
 import { Share2 } from 'lucide-react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ProductDto, ReadingSection } from '@saju/shared';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -10,16 +10,15 @@ import { ReadingSectionCard } from '@/components/ReadingSection';
 import { ShareSheet } from '@/components/ShareSheet';
 import { OpenReportCard } from '@/components/OpenReportCard';
 import { toast } from '@/components/Toast';
-import { Button, Card, Chip, EmptyState, ErrorState, PageHeader, ScoreBar, Spinner, cx } from '@/components/ui';
-import { useProducts, useProfiles } from '@/hooks/queries';
+import { Button, Card, EmptyState, ErrorState, PageHeader, ScoreBar, Spinner, cx } from '@/components/ui';
+import { qk, useProducts, useProfiles } from '@/hooks/queries';
 import { SessionGateError, useSessionGate } from '@/hooks/useSessionGate';
 import { usePurchase } from '@/hooks/usePurchase';
 import { ApiError, api } from '@/lib/api';
 import { track } from '@/lib/analytics';
 import { t } from '@/lib/copy';
-import { won } from '@/lib/format';
+import { targetFortuneYear, won } from '@/lib/format';
 
-const RELATIONS = ['lover', 'crush', 'friend', 'family', 'coworker'] as const;
 const CAT_LABEL = { personality: '성격', romance: '끌림·애정', stability: '안정·생활', complement: '상호 보완' } as const;
 
 export function CompatibilityPage() {
@@ -30,9 +29,12 @@ export function CompatibilityPage() {
   const list = profiles.data ?? [];
   const a = params.get('a') ?? list.find((p) => p.isPrimary)?.id ?? list[0]?.id;
   const b = params.get('b') ?? undefined;
+  const qc = useQueryClient();
   const [picking, setPicking] = useState<'a' | 'b' | null>(null);
-  const [relation, setRelation] = useState<(typeof RELATIONS)[number]>('lover');
   const [paywall, setPaywall] = useState(false);
+  /** 가진 궁합 1회권 수 — 잠금을 눌렀을 때 1회권이 있으면 바로 쓰지 않고 이 수와 함께 먼저 묻는다 */
+  const [ticketAsk, setTicketAsk] = useState<number | null>(null);
+  const [checking, setChecking] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const purchase = usePurchase();
   const { data: products } = useProducts();
@@ -46,14 +48,33 @@ export function CompatibilityPage() {
   const unlock = useMutation({
     mutationFn: () => api.createReport({ type: 'compatibility', profileId: a!, partnerProfileId: b! }),
     onSuccess: () => {
+      setTicketAsk(null);
       toast('궁합 1회권을 사용했어요');
+      void qc.invalidateQueries({ queryKey: qk.wallet });
       void result.refetch();
     },
     onError: (e) => {
+      setTicketAsk(null);
       if (e instanceof ApiError && (e.status === 402 || e.status === 403)) setPaywall(true);
       else toast(e instanceof Error ? e.message : t('error.server.title'));
     },
   });
+
+  /** 잠금 누름 — 1회권이 있으면 어느 조합에 쓸지 확인을 받고, 없으면 결제 시트를 연다 */
+  const onUnlock = async () => {
+    if (checking) return;
+    setChecking(true);
+    try {
+      const wallet = await qc.fetchQuery({ queryKey: qk.wallet, queryFn: api.wallet, staleTime: 0 });
+      const tickets = wallet.entitlements.filter((e) => e.key.startsWith('ticket:compatibility:')).length;
+      if (tickets > 0) setTicketAsk(tickets);
+      else setPaywall(true);
+    } catch {
+      setPaywall(true);
+    } finally {
+      setChecking(false);
+    }
+  };
 
   const setPerson = (slot: 'a' | 'b', id: string) => {
     const next = new URLSearchParams(params);
@@ -95,14 +116,6 @@ export function CompatibilityPage() {
                   {nameOf(b) ?? `+ ${t('compatibility.pickPerson')}`}
                 </button>
               </div>
-              <p className="mt-5 text-sm font-semibold text-ink-2">{t('compatibility.relationLabel')}</p>
-              <div className="no-scrollbar -mx-5 mt-2 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0">
-                {RELATIONS.map((rel) => (
-                  <Chip key={rel} active={relation === rel} onClick={() => setRelation(rel)}>
-                    {t(`compatibility.relations.${rel}`)}
-                  </Chip>
-                ))}
-              </div>
             </div>
           )}
 
@@ -143,7 +156,7 @@ export function CompatibilityPage() {
                     <ReadingSectionCard
                       key={s.key}
                       section={s}
-                      onUnlock={() => unlock.mutate()}
+                      onUnlock={() => void onUnlock()}
                       price={compatProduct?.purchasable ? won(compatProduct.price) : undefined}
                       compactLock={r.sections.findIndex((x: ReadingSection) => x.locked) < i}
                     />
@@ -196,7 +209,27 @@ export function CompatibilityPage() {
           {t('empty.compatibility.cta')}
         </Button>
       </BottomSheet>
-      <PaywallSheet open={paywall} onClose={() => setPaywall(false)} productIds={['report_compat', 'bundle_newyear_2027']} subtitle="잘 맞는 점 · 부딪히는 점 · 함께 지내는 법" onPurchase={onPurchase} />
+      <BottomSheet
+        open={ticketAsk !== null}
+        onClose={() => setTicketAsk(null)}
+        title="궁합 1회권을 쓸까요?"
+        footer={
+          <div className="space-y-2">
+            <Button block size="lg" loading={unlock.isPending} onClick={() => unlock.mutate()}>
+              1회권 1장 쓰기
+            </Button>
+            <Button block variant="secondary" onClick={() => setTicketAsk(null)}>
+              {t('common.cancel')}
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-[15px] leading-relaxed text-ink-2">
+          궁합 1회권 {ticketAsk ?? 0}장을 가지고 있어요. {nameOf(a)} × {nameOf(b)} 궁합에 1장을 쓰면 이 두 사람의 상세 풀이와 궁합 리포트가 열려요. 한 번 쓴 1회권은 다른 두 사람에게 옮길 수 없어요.
+        </p>
+      </BottomSheet>
+      {/* 신년 패키지는 대상 연도의 것을 넣는다 — 그해 상품이 없으면 결제 시트가 목록에서 뺀다 */}
+      <PaywallSheet open={paywall} onClose={() => setPaywall(false)} productIds={['report_compat', `bundle_newyear_${targetFortuneYear()}`]} subtitle="잘 맞는 점 · 부딪히는 점 · 함께 지내는 법" onPurchase={onPurchase} />
     </div>
   );
 }

@@ -15,7 +15,7 @@ import { STORAGE_KEYS, setStorageAdapter, storage } from '../lib/storage';
 import { type ThemeMode, useTheme } from '../lib/theme';
 import { hasAbsoluteApiBase } from './env';
 import { handleBackButton, navigateTo, resolveDeepLink } from './navigation';
-import { initPush, requestPushToken } from './push';
+import { initPush, pushOptedOut, requestPushToken, setPushEnabled } from './push';
 import { createPreferencesAdapter } from './storage';
 
 const noop = () => undefined;
@@ -88,6 +88,8 @@ function registerBridge() {
       await Browser.open({ url });
     },
     requestPush: requestPushToken,
+    setPush: setPushEnabled,
+    pushOptedOut,
     async purchase(storeProductId) {
       const { purchaseConsumable } = await import('./purchases');
       return purchaseConsumable(storeProductId);

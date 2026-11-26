@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { App } from '../src/app.js';
 import { TOJEONG_CODES } from '@saju/core';
+import { parseTojeongYear, tojeongDefaultYear } from '@saju/shared';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
 import { createDb, runMigrations } from '../src/db/local.js';
@@ -84,7 +85,7 @@ describe('토정비결 144괘 원고', () => {
 
 describe('POST /tojeong', () => {
   it('비회원 — 양력 1990-05-15생의 2027 토정비결은 163괘', async () => {
-    const r = await api('POST', '/tojeong', { body: { birth: BIRTH } });
+    const r = await api('POST', '/tojeong', { body: { birth: BIRTH, year: 2027 } });
     expect(r.status).toBe(200);
     expect(r.body.year).toBe(2027);
     expect(r.body.yearPillar).toEqual({ hanja: '丁未', hangul: '정미' });
@@ -138,6 +139,35 @@ describe('POST /tojeong', () => {
     expect(noDay.status).toBe(400);
     expect(noDay.body.error.code).toBe('VALIDATION_ERROR');
     expect((await api('POST', '/tojeong', { body: { birth: BIRTH, year: 2050 } })).status).toBe(400);
-    expect((await api('POST', '/tojeong', { body: { birth: { ...BIRTH, year: 2030 } } })).status).toBe(400);
+    expect((await api('POST', '/tojeong', { body: { birth: { ...BIRTH, year: 2030 }, year: 2027 } })).status).toBe(400);
+  });
+
+  it('대상 연도 탓인 400 은 details.field=year — 화면이 생년월일 오류와 구분한다', async () => {
+    const before = await api('POST', '/tojeong', { body: { birth: { ...BIRTH, year: 2030 }, year: 2027 } });
+    expect(before.status).toBe(400);
+    expect(before.body.error.message).toContain('태어난 해보다 앞선 해');
+    expect(before.body.error.details).toMatchObject({ field: 'year', defaultYear: tojeongDefaultYear() });
+    // 생년월일이 잘못된 경우는 field 가 없다
+    const noDay = await api('POST', '/tojeong', { body: { birth: { calendar: 'lunar', year: 1995, month: 1, day: 30 }, year: 2027 } });
+    expect(noDay.body.error.details?.field).toBeUndefined();
+  });
+
+  it('연도를 보내지 않으면 기본 연도(KST 10월부터 다음 해)로 본다', async () => {
+    const r = await api('POST', '/tojeong', { body: { birth: BIRTH } });
+    expect(r.body.year).toBe(tojeongDefaultYear());
+  });
+});
+
+describe('토정비결 기본 연도', () => {
+  it('KST 9월까지는 그해, 10월부터는 다음 해 — 상수를 고치지 않아도 해마다 넘어간다', () => {
+    expect(tojeongDefaultYear(new Date('2027-09-30T14:59:00Z'))).toBe(2027); // KST 9월 30일 23:59
+    expect(tojeongDefaultYear(new Date('2027-09-30T15:00:00Z'))).toBe(2028); // KST 10월 1일 0시
+    expect(tojeongDefaultYear(new Date('2026-11-26T00:00:00Z'))).toBe(2027);
+    expect(tojeongDefaultYear(new Date('2049-12-01T00:00:00Z'))).toBe(2049); // 계산 범위 끝
+  });
+
+  it('주소의 ?year= 는 범위 안의 네 자리 연도만 받는다', () => {
+    expect(parseTojeongYear('2028')).toBe(2028);
+    for (const bad of [null, '', 'abc', '202', '1899', '2050', '2027.5']) expect(parseTojeongYear(bad), String(bad)).toBeNull();
   });
 });

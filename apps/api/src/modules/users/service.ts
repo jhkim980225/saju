@@ -1,10 +1,11 @@
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import type { UserDto } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
 import { atomic } from '../../db/atomic.js';
 import { isUniqueViolation, type Db } from '../../db/client.js';
-import { chatMessages, creditLedger, entitlements, passwordResets, profiles, pushTokens, refreshTokens, reports, tarotReadings, users, type User } from '../../db/schema.js';
+import { chatMessages, creditLedger, entitlements, passwordResets, profiles, pushTokens, refreshTokens, reports, tarotReadings, users, webhookEvents, type User } from '../../db/schema.js';
 import { conflict, notFound } from '../../lib/errors.js';
+import { userEventsWhere } from '../../lib/requestClaim.js';
 import { newId } from '../../lib/ids.js';
 import { balanceNow } from '../commerce/service.js';
 import type { OpsService } from '../ops/service.js';
@@ -80,14 +81,29 @@ export function createUserService(config: AppConfig, db: Db, ops?: Pick<OpsServi
       const [u] = await db.select().from(users).where(and(eq(users.email, email.toLowerCase()), isNull(users.deletedAt)));
       return u;
     },
+    /**
+     * 게스트 시작 — 같은 기기 ID 의 게스트가 있으면 그 계정을 돌려준다.
+     * 같은 기기의 첫 요청 두 개가 동시에 와도 부분 유니크 인덱스(users_guest_device_uq: 살아 있는 게스트의 device_id)가
+     * 나중 저장을 건너뛰게 하므로, 저장하지 못했으면 먼저 만든 게스트를 돌려준다
+     */
     async createGuest(deviceId?: string): Promise<User> {
+      const sameDevice = (id: string) =>
+        db
+          .select()
+          .from(users)
+          .where(and(eq(users.deviceId, id), eq(users.provider, 'guest'), isNull(users.deletedAt)))
+          .orderBy(asc(users.id));
       if (deviceId) {
-        const [existing] = await db.select().from(users).where(and(eq(users.deviceId, deviceId), eq(users.provider, 'guest'), isNull(users.deletedAt)));
+        const [existing] = await sameDevice(deviceId);
         if (existing) return existing;
       }
       const id = newId();
       const nickname = `${GUEST_NAMES[Math.floor(Math.random() * GUEST_NAMES.length)]}${Math.floor(1000 + Math.random() * 9000)}`;
-      await db.insert(users).values({ id, nickname, provider: 'guest', deviceId: deviceId ?? null });
+      const inserted = await db.insert(users).values({ id, nickname, provider: 'guest', deviceId: deviceId ?? null }).onConflictDoNothing().returning({ id: users.id });
+      if (inserted.length === 0 && deviceId) {
+        const [first] = await sameDevice(deviceId);
+        if (first) return first;
+      }
       return get(id);
     },
     /** 이메일 가입. guestUserId 가 있으면 게스트 계정을 정회원으로 전환(데이터 유지) */
@@ -225,6 +241,8 @@ export function createUserService(config: AppConfig, db: Db, ops?: Pick<OpsServi
         db.delete(passwordResets).where(eq(passwordResets.userId, id)),
         db.delete(refreshTokens).where(eq(refreshTokens.userId, id)),
         db.delete(pushTokens).where(eq(pushTokens.userId, id)),
+        // 요청 ID 선점 기록(꿈풀이 결과·프로필 이름이 담긴다)과 토스 날짜 열기 기록 — lib/requestClaim.ts
+        db.delete(webhookEvents).where(userEventsWhere(id)),
         db
           .update(users)
           .set({ email: null, passwordHash: null, providerUserId: null, providerRefreshToken: null, deviceId: null, nickname: '탈퇴한 사용자', deletedAt: Date.now(), updatedAt: Date.now() })

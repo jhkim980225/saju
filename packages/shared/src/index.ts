@@ -63,16 +63,19 @@ export const birthInputSchema = z.object({
 export type BirthInputDto = z.input<typeof birthInputSchema>;
 
 export { PROFILE_RELATIONS, RELATION_LABEL, type ProfileRelation } from './profile';
+export { kstYear, targetFortuneYear } from './fortuneYear';
 
-export const profileCreateSchema = z.object({
+const profileFields = {
   name: z.string().trim().min(1, '이름을 입력해 주세요.').max(20, '이름은 20자 이내로 입력해 주세요.'),
-  relation: z.enum(PROFILE_RELATIONS).default('self'),
+  relation: z.enum(PROFILE_RELATIONS),
   birth: birthInputSchema,
   cityName: z.string().max(40).optional(),
   isPrimary: z.boolean().optional(),
-});
+};
+export const profileCreateSchema = z.object({ ...profileFields, relation: profileFields.relation.default('self') });
 export type ProfileCreateDto = z.input<typeof profileCreateSchema>;
-export const profileUpdateSchema = profileCreateSchema.partial();
+/** 수정은 보낸 필드만 바꾼다 — 기본값이 있는 생성 스키마를 partial() 하면 zod 4 는 빠진 관계에도 'self' 를 넣는다 */
+export const profileUpdateSchema = z.object(profileFields).partial();
 export type ProfileUpdateDto = z.input<typeof profileUpdateSchema>;
 
 export interface ProfileDto {
@@ -105,9 +108,8 @@ export const signupSchema = z.object({
   password: z.string().min(8, '비밀번호는 8자 이상이어야 해요.').max(72),
   nickname: z.string().trim().min(1).max(20).optional(),
   marketingConsent: z.boolean().optional(),
-  /** 게스트로 쓰던 데이터를 이어받을 때 */
-  guestToken: z.string().optional(),
 });
+/** 게스트로 쓰던 데이터를 이어받으려면 게스트 토큰을 Authorization 헤더에 붙인 채 가입한다(본문에는 넣지 않는다) */
 export type SignupDto = z.input<typeof signupSchema>;
 
 export const loginSchema = z.object({
@@ -169,6 +171,8 @@ export interface AuthTokensDto {
   /** access token 만료(초) */
   expiresIn: number;
   user: UserDto;
+  /** 소셜 로그인 콜백만 — 이번 로그인으로 처음 가입했는지(게스트 전환 포함). 분석 전환(signup/login) 구분에 쓴다 */
+  isNewUser?: boolean;
 }
 
 export const updateMeSchema = z.object({
@@ -448,10 +452,8 @@ export const orderCreateSchema = z.object({
   /** 단건 상품이 적용될 프로필(리포트 대상) */
   profileId: z.string().optional(),
   partnerProfileId: z.string().optional(),
-  year: z.number().int().optional(),
   /** 타로 상세 리딩 대상 리딩 ID */
   readingId: z.string().optional(),
-  couponCode: z.string().max(40).optional(),
   /**
    * 진행 중인 결제를 이어서 할 때 그 주문 ID — 서버가 같은 상품의 결제가 진행 중이라고 알려 주면(409 PAYMENT_IN_PROGRESS)
    * 사용자가 "결제하지 않았다"고 확인한 뒤 같은 주문으로 결제창을 다시 연다(새 주문을 만들지 않는다)
@@ -513,6 +515,22 @@ export const iapVerifySchema = z.object({
   profileId: z.string().optional(),
   readingId: z.string().optional(),
 });
+
+/**
+ * 앱 인앱결제 — 스토어 결제창을 띄우기 전 확인. 스토어는 결제 뒤에야 서버가 검증하므로,
+ * 판매 중지·한도 초과·이미 가진 콘텐츠처럼 지급할 수 없는 구매는 결제 전에 여기서 막는다
+ */
+export const iapCheckSchema = iapVerifySchema.omit({ receipt: true });
+
+/**
+ * 인앱결제 검증 거절 응답(details) — 앱이 스토어 거래를 어떻게 마무리할지 알려 준다.
+ * finish=true 면 지급하지 않은 채 거래를 끝낸다(다시 검증해도 같은 결과라 계속 재시도하지 않게).
+ * finish=false 면 거래를 그대로 둔다(Google 은 3일 안에 확인하지 않은 구매를 자동 환불한다)
+ */
+export interface IapRejectDetails {
+  reason: 'PER_USER_LIMIT' | 'ALREADY_OWNED' | 'NOT_FOR_SALE' | 'REVOKED';
+  finish: boolean;
+}
 
 export interface PaymentResultDto {
   order: OrderDto;
@@ -785,7 +803,8 @@ export interface PublicConfigDto {
   tossClientKey: string | null;
   portone: { storeId: string | null; channelKey: string | null };
   socialLogin: Record<SocialProvider, boolean>;
-  ai: { enabled: boolean };
+  /** creditCost: AI 상담·꿈풀이 한 번에 쓰는 질문권 수(AI_CHAT_CREDIT_COST) — 잔액이 이보다 적으면 보상형 광고 카드를 보여 준다 */
+  ai: { enabled: boolean; creditCost: number };
   ads: { enabled: boolean; provider: 'adsense' | 'adfit' | 'admob' | 'none' };
   features: Record<string, boolean>;
   /** 고객 문의 주소 — 비밀번호 재설정 메일이 꺼져 있을 때 안내. 설정이 없으면 null */
@@ -809,7 +828,8 @@ export const FORTUNE_CATEGORY_LABEL = { total: '총운', wealth: '재물운', lo
 // 토정비결 (무료 · 신년 시즌 콘텐츠)
 // ---------------------------------------------------------------------------
 
-export { TOJEONG_DEFAULT_YEAR } from './tojeong.js';
+export { TOJEONG_YEAR_MAX, TOJEONG_YEAR_MIN, parseTojeongYear, tojeongDefaultYear } from './tojeong.js';
+export { CRISIS_LINE, CRISIS_PATTERN } from './crisis.js';
 
 /** 토정비결은 음력 생년월일만 쓴다 — 저장된 출생 정보(BirthInputDto)를 그대로 넣어도 된다(시각·성별은 무시) */
 export const tojeongBirthSchema = z.object({
@@ -825,7 +845,7 @@ export const tojeongRequestSchema = z
   .object({
     birth: tojeongBirthSchema.optional(),
     profileId: z.string().optional(),
-    /** 신수를 보는 해 (기본 TOJEONG_DEFAULT_YEAR) */
+    /** 신수를 보는 해 (기본 tojeongDefaultYear(): KST 10월부터 다음 해) */
     year: z.number().int().min(1900).max(2049).optional(),
   })
   .refine((v) => v.birth || v.profileId, { message: 'birth 또는 profileId 가 필요합니다.' });

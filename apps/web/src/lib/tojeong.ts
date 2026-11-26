@@ -2,7 +2,7 @@
  * 토정비결(무료) — 입력 폼 검증과 API 호출.
  * 토정비결은 음력 생년월일만 쓰므로 태어난 시간·성별·출생지를 묻지 않는다.
  */
-import { TOJEONG_DEFAULT_YEAR, type TojeongBirthDto, type TojeongDto, type TojeongMonthFlow, type TojeongRequestDto } from '@saju/shared';
+import { tojeongDefaultYear, type TojeongBirthDto, type TojeongDto, type TojeongMonthFlow, type TojeongRequestDto } from '@saju/shared';
 import { request } from './api';
 import { MAX_YEAR, MIN_YEAR } from './birth';
 import { t } from './copy';
@@ -46,7 +46,12 @@ export function pickTojeongBirth(b: TojeongBirthDto): TojeongBirthDto {
 }
 
 export function fetchTojeong(body: TojeongRequestDto): Promise<TojeongDto> {
-  return request<TojeongDto>('POST', '/tojeong', { body: { year: TOJEONG_DEFAULT_YEAR, ...body } });
+  return request<TojeongDto>('POST', '/tojeong', { body: { year: tojeongDefaultYear(), ...body } });
+}
+
+/** 400 이 생년월일이 아니라 대상 연도 탓인가(범위 밖·태어난 해보다 앞선 해) — 이때는 기억해 둔 생년월일을 지우지 않는다 */
+export function isTojeongYearError(details: unknown): boolean {
+  return typeof details === 'object' && details !== null && (details as { field?: unknown }).field === 'year';
 }
 
 /** 그달의 흐름 — 서버 TOJEONG_FLOW_LABEL(apps/api/src/modules/tojeong/reading.ts)과 같은 말 */

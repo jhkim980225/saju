@@ -55,16 +55,16 @@ export async function recoverUnfinishedPurchases(verify: (p: StorePurchase) => P
 
 // ── 광고 (AdMob) ─────────────────────────────────────────────
 
-/** 보상형 광고 — 보상을 받았으면 true. 웹에서는 항상 false. 하루 3회 한도 */
-export async function showRewardedAd(opts?: { ssvCustomData?: string }): Promise<boolean> {
+/** 보상형 광고 — 보상을 받았으면 true. 웹에서는 항상 false. 하루 한도는 서버 값(dailyLimit, 없으면 3)을 KST 날짜로 센다 */
+export async function showRewardedAd(opts?: { ssvCustomData?: string; dailyLimit?: number }): Promise<boolean> {
   if (!isNativeApp()) return false;
   return (await import('./ads')).showRewardedAd(opts);
 }
 
-/** 오늘 남은 보상형 광고 횟수 (웹은 0) */
-export async function rewardedAdsRemaining(): Promise<number> {
+/** 오늘(KST) 남은 보상형 광고 횟수 (웹은 0) */
+export async function rewardedAdsRemaining(dailyLimit?: number): Promise<number> {
   if (!isNativeApp()) return 0;
-  return (await import('./ads')).rewardedAdsRemaining();
+  return (await import('./ads')).rewardedAdsRemaining(dailyLimit);
 }
 
 /** 결과 화면 하단 적응형 배너 (네이티브 오버레이). margin = 하단 탭바 높이 */

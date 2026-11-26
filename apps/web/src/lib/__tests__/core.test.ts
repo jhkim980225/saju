@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { EMPTY_FORM, formatDateDigits, formatTimeDigits, requiredProgress, validateBirthForm } from '../birth';
+import type { ProfileDto } from '@saju/shared';
+import { EMPTY_FORM, draftProfileFields, formatDateDigits, formatTimeDigits, requiredProgress, sameBirth, validateBirthForm } from '../birth';
 import { t } from '../copy';
+import { targetFortuneYear } from '../format';
 
 describe('copy t()', () => {
   it('중첩 키와 변수 치환', () => {
@@ -50,6 +52,32 @@ describe('생년월일 폼', () => {
   it('필수 진행도', () => {
     expect(requiredProgress(EMPTY_FORM)).toBe(1);
     expect(requiredProgress(base)).toBe(4);
+  });
+});
+
+describe('비회원 결과 저장', () => {
+  const saved: ProfileDto['birth'] = { calendar: 'solar', year: 1995, month: 3, day: 14, gender: 'female', isLeapMonth: false, hour: 14, minute: 30, timeZone: 'Asia/Seoul', longitude: 126.978, timeCorrection: 'lmt', ziHourRule: 'nextDay' };
+
+  it('저장한 사주와 같은 출생 정보인지 서버 기본값까지 맞춰 비교한다', () => {
+    expect(sameBirth(saved, { calendar: 'solar', year: 1995, month: 3, day: 14, hour: 14, minute: 30, gender: 'female' })).toBe(true);
+    expect(sameBirth(saved, { calendar: 'solar', year: 1995, month: 3, day: 15, hour: 14, minute: 30, gender: 'female' })).toBe(false);
+    expect(sameBirth(saved, { calendar: 'solar', year: 1995, month: 3, day: 14, hour: null, gender: 'female' })).toBe(false);
+    expect(sameBirth({ ...saved, hour: null, minute: null }, { calendar: 'solar', year: 1995, month: 3, day: 14, hour: null, minute: 0, gender: 'female' })).toBe(true);
+  });
+
+  it('대표(본인) 사주가 이미 있으면 본인이 아닌 사주로 저장해 대표를 바꾸지 않는다', () => {
+    expect(draftProfileFields('', [])).toEqual({ name: '나', relation: 'self' });
+    expect(draftProfileFields(' 서윤 ', [])).toEqual({ name: '서윤', relation: 'self' });
+    expect(draftProfileFields('지훈', [{ relation: 'self', isPrimary: true }])).toEqual({ name: '지훈', relation: 'other' });
+    expect(draftProfileFields('', [{ relation: 'friend', isPrimary: true }])).toEqual({ name: '기타', relation: 'other' });
+  });
+});
+
+describe('신년운세 대상 연도', () => {
+  it('KST 10월 1일 0시부터 다음 해 — 서버와 같은 정의', () => {
+    expect(targetFortuneYear(new Date('2026-09-30T14:59:59Z'))).toBe(2026);
+    expect(targetFortuneYear(new Date('2026-09-30T15:00:00Z'))).toBe(2027);
+    expect(targetFortuneYear(new Date('2026-12-31T15:00:00Z'))).toBe(2027);
   });
 });
 

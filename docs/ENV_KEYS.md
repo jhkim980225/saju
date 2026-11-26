@@ -78,8 +78,9 @@
 |---|---|---|---|---|
 | `RESEND_API_KEY` | api·secret | 비밀번호 재설정 링크 메일 발송(`POST https://api.resend.com/emails`, 새 의존성 없이 fetch) | [Resend](https://resend.com) > API Keys | `POST /auth/password/forgot` 501, 웹 "비밀번호 찾기"는 **문의 안내**로 대체 |
 | `MAIL_FROM` | api·secret | 발신자. 예: `달달사주 <no-reply@daldalsaju.com>` | Resend > Domains 에서 **발신 도메인 인증(DNS: SPF·DKIM)** 뒤 그 도메인의 주소. 인증 전에는 `onboarding@resend.dev` 로 본인 계정 메일에만 시험 발송 가능 | 위와 동일 (두 키가 모두 있어야 `features.mail=true`) |
-| `OPS_ALERT_WEBHOOK_URL` | api·secret | 운영 알림 웹훅(Discord 웹훅 주소 등, `{"content": "..."}` POST). 회원 가입, 결제 완료, 환불, **환불이 필요한 결제**(중복 결제·이미 가진 콘텐츠 재결제·금액 불일치·구매 한도 초과), 결제 확인 지연, AI 장애, 서버 오류, 웹훅 검증 실패를 바로 알리고 매일 08:00 KST 에 어제 요약을 보낸다(DEPLOY.md §4 운영 알림). 개인정보는 넣지 않는다 | Discord 채널 설정 → 연동 → 웹후크 → 새 웹후크 → URL 복사 | 로그(`[ops-alert]`)만 남김 |
-| `SUPPORT_EMAIL` | api·secret | 고객 문의 주소 — 메일 연동이 없을 때 "비밀번호 찾기" 화면에 "{주소}로 가입한 이메일을 적어 문의해 주세요" 안내. `GET /config` 의 `supportEmail` | — | 주소 없이 '문의하기' 문구만 |
+| `OPS_ALERT_WEBHOOK_URL` | api·secret | 운영 알림 웹훅(Discord 웹훅 주소 등, `{"content": "..."}` POST). 회원 가입, 결제 완료, 환불, **환불이 필요한 결제**(중복 결제·이미 가진 콘텐츠 재결제·금액 불일치·구매 한도 초과), 결제 확인 지연, AI 장애, 서버 오류, 웹훅 검증 실패를 바로 알리고 매일 08:00 KST 에 어제 요약을 보낸다(DEPLOY.md §4 운영 알림). 개인정보는 넣지 않는다. `https://` 로 시작하지 않는 값이면 서버를 멈추지 않고 알림만 끄며 `[config]` 오류 로그를 남긴다(주소는 로그에 적지 않는다) | Discord 채널 설정 → 연동 → 웹후크 → 새 웹후크 → URL 복사 | 로그(`[ops-alert]`)만 남김. 운영 모드면 기동 때 `[config]` 경고 로그 |
+| `SUPPORT_EMAIL` | api·secret | 고객 문의 주소 — 메일 연동이 없을 때 "비밀번호 찾기" 화면에 "{주소}로 가입한 이메일을 적어 문의해 주세요" 안내, 결제 내역 화면과 약관·처리방침 본문의 문의처(사업자 이메일보다 먼저). `GET /config` 의 `supportEmail` | — | 주소 없이 '문의하기' 문구만, 약관은 `VITE_BIZ_EMAIL` 또는 "서비스 안의 문의 안내" |
+| `SERVICE_NOTICES` | api·vars 또는 secret | 서비스 공지(약관·처리방침 변경 안내 등). JSON 배열 `[{"id":"…","title":"…","body":"…"}]`, 최대 5개. `GET /config` 의 `notices` 로 나가고 웹·앱 화면 위쪽에 뜬다(닫으면 그 기기에서 다시 안 뜸). 형식이 틀리면 공지 없이 기동하고 `[config]` 오류 로그 | 운영자가 직접 적는다 | 공지 없음 |
 
 동작: 가입 여부와 관계없이 200(계정 유무 비노출) → 이메일 계정이면 32바이트 토큰을 만들어 sha256 해시만 `password_resets` 에 저장(30분 만료, 1회 사용, 이전 미사용 링크는 무효화) → `{PUBLIC_WEB_URL}/password/reset?token=…` 링크 발송. 재설정에 성공하면 그 사용자의 refresh token 을 모두 폐기한다. 흐름 설명: [`docs/AUTH_PUSH.md`](./AUTH_PUSH.md) 5절.
 
@@ -99,7 +100,7 @@
 | `VITE_META_PIXEL_ID` | web | 메타 광고 전환 | Meta 이벤트 관리자 |
 | `VITE_KAKAO_PIXEL_ID` | web | 카카오 광고 전환 | 카카오모먼트 |
 | `VITE_KAKAO_JS_KEY` | web | 카카오톡 공유 | 카카오 디벨로퍼스 > 앱 키 > JavaScript 키 (+ 플랫폼 > Web 사이트 도메인 등록) |
-| `VITE_BIZ_NAME`·`VITE_BIZ_REPRESENTATIVE`·`VITE_BIZ_REG_NO`·`VITE_BIZ_MAIL_ORDER_NO`·`VITE_BIZ_ADDRESS`·`VITE_BIZ_EMAIL`·`VITE_BIZ_PHONE`·`VITE_BIZ_PRIVACY_OFFICER`·`VITE_BIZ_EFFECTIVE_DATE` | web | 약관·처리방침·첫 화면 하단의 사업자 정보와 문의처(`src/lib/legal.ts`). 비어 있는 항목은 빼고 보인다. 문의처는 서버 `SUPPORT_EMAIL` 이 있으면 그 값이 먼저다 | 운영자가 직접 적는다. 공개 저장소에 올리지 않는 `apps/web/.env` 에만 둔다 |
+| `VITE_BIZ_NAME`·`VITE_BIZ_REPRESENTATIVE`·`VITE_BIZ_REG_NO`·`VITE_BIZ_MAIL_ORDER_NO`·`VITE_BIZ_ADDRESS`·`VITE_BIZ_EMAIL`·`VITE_BIZ_PHONE`·`VITE_BIZ_PRIVACY_OFFICER`·`VITE_BIZ_EFFECTIVE_DATE` | web | 약관·처리방침·첫 화면 하단의 사업자 정보와 문의처(`src/lib/legal.ts`). 비어 있는 항목은 빼고 보인다. 문의처는 서버 `SUPPORT_EMAIL` 이 있으면 그 값이 먼저다(약관 본문 포함). 토스 빌드도 같은 값을 쓰고, 토스에서만 다른 항목은 `.env.toss` 의 `VITE_TOSS_BIZ_*` 로 덮어쓴다 | 운영자가 직접 적는다. 공개 저장소에 올리지 않는 `apps/web/.env` 에만 둔다 |
 
 광고 정책(노출 위치·금지 위치·프리미엄 제외): [`docs/ADS_ANALYTICS.md`](./ADS_ANALYTICS.md)
 
@@ -117,8 +118,9 @@
 
 | 바인딩 | 대상 | 제한 |
 |---|---|---|
-| `RATE_LIMIT_API` | `/api/*` 전체 | 60초에 120회 |
-| `RATE_LIMIT_AUTH` | 게스트·가입·로그인·토큰 갱신·비밀번호 찾기·재설정·변경(무차별 대입 방지) | 60초에 10회 |
+| `RATE_LIMIT_API` | `/api/*` 전체. 결제 웹훅(`/payments/webhooks/*`)·스토어 알림(`/payments/iap/notifications/*`)·AdMob SSV(`/rewards/admob-ssv`)는 뺀다(서버 간 호출, 서명으로 따로 검증) | 60초에 120회 |
+| `RATE_LIMIT_AUTH` | 가입·로그인·소셜 로그인 콜백·토스 로그인·비밀번호 찾기·재설정·변경(무차별 대입 방지) | 60초에 10회 |
+| `RATE_LIMIT_SESSION` | 게스트 시작·토큰 갱신(한 IP 를 여럿이 쓰는 곳에서 막히지 않게) | 60초에 60회 |
 | `RATE_LIMIT_ADMIN` | 관리자 API(환불·질문권 지급) | 60초에 20회 |
 
 DB 는 바인딩 `DB`(D1)로 연결되므로 주소 설정이 없다. Cloudflare 전환(2026-11) 때 `RATE_LIMIT_PER_MIN`·`AUTH_RATE_LIMIT_PER_MIN`·`TRUST_PROXY_HOPS`·`DATABASE_URL`·`PORT`·`HOST` 는 없앴다.

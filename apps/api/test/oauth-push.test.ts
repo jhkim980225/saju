@@ -427,6 +427,12 @@ describe('FCM 푸시 발송', () => {
           );
         }
         if (message.token.startsWith('flaky-')) return json({ error: { code: 503, status: 'UNAVAILABLE' } }, 503);
+        if (message.token.startsWith('bad-')) {
+          return json({ error: { code: 400, message: 'The registration token is not a valid FCM registration token', status: 'INVALID_ARGUMENT', details: [{ '@type': 'type.googleapis.com/google.firebase.fcm.v1.FcmError', errorCode: 'INVALID_ARGUMENT' }] } }, 400);
+        }
+        if (message.token.startsWith('payload-')) {
+          return json({ error: { code: 400, message: 'Invalid value at message.data', status: 'INVALID_ARGUMENT', details: [{ '@type': 'type.googleapis.com/google.rpc.BadRequest', fieldViolations: [{ field: 'message.data' }] }] } }, 400);
+        }
         return json({ name: `projects/saju-test/messages/${sentMessages.length}` });
       },
     });
@@ -442,7 +448,7 @@ describe('FCM 푸시 발송', () => {
     await push.register('u1', 'alive-token-0001', 'android');
     await push.register('u1', 'dead-token-0002', 'ios');
 
-    const message: PushMessage = { title: '오늘의 운세', body: '좋은 기운이 들어와요', link: '/fortune/today', data: { kind: 'daily' } };
+    const message: PushMessage = { title: '오늘의 운세', body: '좋은 기운이 들어와요', link: '/today', data: { kind: 'daily' } };
     const result = await push.sendToUser('u1', message);
     expect(result).toEqual({ sent: 1, failed: 0, removed: 1 });
     expect(await tokensOf(db)).toEqual(['alive-token-0001']);
@@ -456,10 +462,18 @@ describe('FCM 푸시 발송', () => {
     expect(header(sendCall.init, 'authorization')).toBe('Bearer ya29.token-1');
     const alive = sentMessages.find((m) => m.token === 'alive-token-0001')!.message;
     expect(alive.notification).toEqual({ title: '오늘의 운세', body: '좋은 기운이 들어와요' });
-    expect(alive.data).toEqual({ kind: 'daily', link: '/fortune/today' });
-    expect(alive.webpush.fcm_options.link).toBe('https://saju.example.com/fortune/today');
+    expect(alive.data).toEqual({ kind: 'daily', link: '/today' });
+    expect(alive.webpush.fcm_options.link).toBe('https://saju.example.com/today');
     expect(alive.apns.payload.aps.sound).toBe('default');
     expect(alive.android.priority).toBe('HIGH');
+  });
+
+  it('형식이 틀린 토큰(400 INVALID_ARGUMENT, 토큰을 가리킴)은 지우고, 메시지 탓인 400 은 토큰을 남긴다', async () => {
+    const { db, push } = await setup();
+    await push.register('u1', 'bad-token-0001', 'android');
+    await push.register('u1', 'payload-token-0002', 'android');
+    expect(await push.sendToUser('u1', { title: 't', body: 'b', link: '/today' })).toEqual({ sent: 0, failed: 1, removed: 1 });
+    expect(await tokensOf(db)).toEqual(['payload-token-0002']);
   });
 
   it('액세스 토큰 메모리 캐시 — 만료 전 재사용, 만료 임박 시 재발급', async () => {
@@ -496,7 +510,7 @@ describe('FCM 푸시 발송', () => {
     await db.insert(users).values({ id: 'u4', nickname: '넷', provider: 'naver' });
     await push.register('u4', 'alive-token-0004', 'web');
 
-    const build = vi.fn((userId: string): PushMessage | null => (userId === 'u4' ? null : { title: `${userId} 오늘의 운세`, body: '확인해 보세요', link: '/fortune/today' }));
+    const build = vi.fn((userId: string): PushMessage | null => (userId === 'u4' ? null : { title: `${userId} 오늘의 운세`, body: '확인해 보세요', link: '/today' }));
     const result = await push.sendDailyFortuneDigest(build);
 
     expect(build.mock.calls.map(([id]) => id).sort()).toEqual(['u1', 'u3', 'u4']);

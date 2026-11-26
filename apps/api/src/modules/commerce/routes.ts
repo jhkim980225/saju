@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { iapVerifySchema, orderCreateSchema, paymentConfirmSchema, tossIapIntentSchema, tossIapVerifySchema } from '@saju/shared';
+import { iapCheckSchema, iapVerifySchema, orderCreateSchema, paymentConfirmSchema, tossIapIntentSchema, tossIapVerifySchema } from '@saju/shared';
 import { AppError, forbidden } from '../../lib/errors.js';
 import { headersOf, readJson, requireUser, type AppEnv, type Ctx, type RouteKit } from '../../lib/http.js';
 import { parse } from '../../lib/validate.js';
@@ -55,6 +55,12 @@ export function commerceRoutes({ ctx, authenticate, optionalAuth, adminLimit }: 
     if ((raw as { platform?: unknown } | undefined)?.platform === 'toss') return c.json(await tossIap.verify(requireUser(c).id, parse(tossIapVerifySchema, raw)));
     const body = parse(iapVerifySchema, raw);
     return c.json(await commerce.verifyIap(requireUser(c).id, body));
+  });
+
+  /** 앱 인앱결제 — 스토어 결제창을 띄우기 전 확인(판매 중지·한도 초과·이미 가진 콘텐츠를 결제 전에 막는다) */
+  app.post('/payments/iap/check', authenticate, async (c) => {
+    const body = parse(iapCheckSchema, await readJson(c));
+    return c.json(await commerce.checkIap(requireUser(c).id, body));
   });
 
   /** 토스 미니앱 — SKU 가 연결된 상품 목록 */

@@ -33,6 +33,12 @@ export const TOJEONG_DAY_BRANCH_NUMBERS: readonly number[] = [9, 11, 8, 8, 11, 7
 export const TOJEONG_MIN_YEAR = 1900;
 export const TOJEONG_MAX_YEAR = 2049;
 
+/**
+ * 대상 연도 때문에 볼 수 없는 경우(범위 밖, 태어난 해보다 앞선 해) — 생년월일이 잘못된 경우(SajuInputError)와 구분해서
+ * 화면이 기억해 둔 생년월일을 지우지 않게 한다
+ */
+export class TojeongYearError extends SajuInputError {}
+
 export interface TojeongGanzhi {
   stem: number;
   branch: number;
@@ -164,11 +170,11 @@ function buildMonthRanges(year: number): TojeongMonthRange[] {
  */
 export function computeTojeong(birth: { calendar: CalendarType; year: number; month: number; day: number; isLeapMonth?: boolean }, targetYear: number): TojeongResult {
   if (!Number.isInteger(targetYear) || targetYear < TOJEONG_MIN_YEAR || targetYear > TOJEONG_MAX_YEAR) {
-    throw new SajuInputError(`토정비결은 ${TOJEONG_MIN_YEAR}~${TOJEONG_MAX_YEAR}년만 볼 수 있어요.`);
+    throw new TojeongYearError(`토정비결은 ${TOJEONG_MIN_YEAR}~${TOJEONG_MAX_YEAR}년만 볼 수 있어요.`);
   }
   const lunarBirth = lunarBirthOf(birth);
   const age = targetYear - lunarBirth.year + 1;
-  if (age < 1) throw new SajuInputError('태어난 해보다 앞선 해의 토정비결은 볼 수 없어요.');
+  if (age < 1) throw new TojeongYearError('태어난 해보다 앞선 해의 토정비결은 볼 수 없어요.');
   const notes: string[] = [];
   if (lunarBirth.isLeapMonth) notes.push(`윤${lunarBirth.month}월 출생이라 평달 ${lunarBirth.month}월로 계산했어요.`);
 

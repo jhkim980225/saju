@@ -7,7 +7,7 @@ import { usePurchase } from '@/hooks/usePurchase';
 import { track } from '@/lib/analytics';
 import { IS_TOSS } from '@/lib/platform';
 import { honorOf, t } from '@/lib/copy';
-import { won } from '@/lib/format';
+import { targetFortuneYear, won } from '@/lib/format';
 import { AdSlot } from './AdSlot';
 import { DaeunTimeline } from './DaeunTimeline';
 import { ELEMENT_COUNT_NOTE, ElementBars } from './ElementBars';
@@ -57,7 +57,9 @@ export function ReadingView({
   }, [anyLocked]);
 
   const openPaywall = (s?: ReadingSection) => {
-    const ids = s?.unlockProductId === 'report_saju_mini' ? ['report_saju_lifetime', 'report_saju_mini', 'bundle_newyear_2027'] : ['report_saju_lifetime', 'bundle_newyear_2027'];
+    // 신년 패키지는 대상 연도의 것을 넣는다 — 그해 상품이 없으면 결제 시트가 목록에서 뺀다
+    const bundle = `bundle_newyear_${targetFortuneYear()}`;
+    const ids = s?.unlockProductId === 'report_saju_mini' ? ['report_saju_lifetime', 'report_saju_mini', bundle] : ['report_saju_lifetime', bundle];
     setPaywall({ open: true, productIds: ids });
   };
   const priceOf = (s: ReadingSection) => {
@@ -100,7 +102,6 @@ export function ReadingView({
               <Badge>{t('result.correctionBadgePlain', { time: `${pad(chart.correctedTime.hour)}:${pad(chart.correctedTime.minute)}` })}</Badge>
             </span>
           )}
-          {reading.generator === 'ai' && <Badge tone="gold">{t('result.aiBadge')}</Badge>}
           {isPremiumUser && <Badge tone="gold">전체 풀이</Badge>}
         </div>
         {editHref && (
@@ -215,7 +216,6 @@ export function ReadingView({
         )}
 
         <p className="mt-8 border-t border-line pt-4 text-xs leading-relaxed text-ink-3">{reading.disclaimer}</p>
-        {reading.generator === 'ai' && <p className="mt-1 text-xs text-ink-3">{t('disclaimer.ai')}</p>}
       </div>
 
       <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} payload={sharePayload} />

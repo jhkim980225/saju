@@ -14,8 +14,13 @@ import { storage } from '../lib/storage';
 
 export const FirebaseMessaging = registerPlugin<FirebaseMessagingPlugin>('FirebaseMessaging');
 
-/** 마지막으로 서버에 등록한 `${userId}|${platform}|${token}` — 같은 값이면 재등록하지 않는다 */
-const PUSH_TOKEN_KEY = 'yd.native.pushToken';
+/** 마지막으로 서버에 등록한 `${userId}|${platform}|${token}` — 같은 값이면 재등록하지 않는다. 로그아웃(MyPage)은 이 값으로 토큰을 해제한다 */
+export const PUSH_TOKEN_KEY = 'yd.native.pushToken';
+/**
+ * 이 기기에서 알림을 끈 표시('1') — 마이 화면 토글로 끄면 남는다. 표시가 있으면 토큰을 어느 계정에도 다시 등록하지 않는다.
+ * 로그아웃 뒤 새 게스트 세션이 생겨도(서버 기본값은 수신 동의) 끈 상태가 이어지게 하려는 것이다
+ */
+export const PUSH_OFF_KEY = 'yd.native.pushOff';
 
 /** 안드로이드 알림 채널 — AndroidManifest 의 default_notification_channel_id 와 같은 값으로 둔다 */
 export const ANDROID_CHANNEL_ID = 'yd_default';
@@ -54,7 +59,7 @@ export async function requestPushToken(): Promise<string | null> {
 /** 토큰을 서버(/push/tokens)에 등록. 세션이 없으면 건너뛰고, 같은 사용자·토큰이면 중복 등록하지 않는다 */
 export async function syncPushToken(token: string): Promise<void> {
   const { accessToken, user } = useSession.getState();
-  if (!token || !accessToken || !user) return;
+  if (!token || !accessToken || !user || storage.get(PUSH_OFF_KEY) === '1') return;
   const platform = storePlatform();
   const mark = `${user.id}|${platform}|${token}`;
   if (storage.get(PUSH_TOKEN_KEY) === mark) return;
@@ -76,6 +81,30 @@ async function syncIfGranted(): Promise<void> {
   } catch {
     /* Firebase 미설정 등 — 무시 */
   }
+}
+
+/** 이 기기에서 알림을 껐는지(마이 화면 토글의 처음 값) */
+export const pushOptedOut = (): boolean => storage.get(PUSH_OFF_KEY) === '1';
+
+/**
+ * 마이 화면 알림 토글 — 켜면 OS 권한을 받고 토큰을 지금 계정에 등록한다(등록 표시를 남겨 로그아웃 때 해제할 수 있게).
+ * 끄면 이 기기 토큰을 서버에서 해제하고 끈 표시를 남긴다. 켰는데 권한이 없으면 false
+ */
+export async function setPushEnabled(on: boolean): Promise<boolean> {
+  if (!on) {
+    storage.set(PUSH_OFF_KEY, '1');
+    const token = storage.get(PUSH_TOKEN_KEY)?.split('|').slice(2).join('|');
+    if (token) {
+      await api.unregisterPush(token).catch(() => undefined);
+      storage.remove(PUSH_TOKEN_KEY);
+    }
+    return true;
+  }
+  storage.remove(PUSH_OFF_KEY);
+  const token = await requestPushToken();
+  if (!token) return false;
+  await syncPushToken(token);
+  return true;
 }
 
 /** 알림 data.link (서버 push.sendToUser 의 link) */

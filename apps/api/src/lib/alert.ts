@@ -6,7 +6,11 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { AppConfig } from '../config/env.js';
 
-export type OpsAlert = (text: string) => Promise<void>;
+/**
+ * 알림 보내기 — 웹훅이 받았으면 true, 전송이 실패했으면 false. 웹훅 주소가 없으면 로그만 남기고 true(다시 보내도 갈 곳이 없다).
+ * 결과가 필요한 곳(결제 확인 지연처럼 보낸 뒤에 '보냄' 표시를 하는 곳)만 값을 본다
+ */
+export type OpsAlert = (text: string) => Promise<boolean>;
 
 const DISCORD_CONTENT_MAX = 1900;
 
@@ -14,7 +18,7 @@ export function createOpsAlert(config: Pick<AppConfig, 'OPS_ALERT_WEBHOOK_URL' |
   return async (text) => {
     console.warn(`[ops-alert] ${text}`);
     const url = config.OPS_ALERT_WEBHOOK_URL;
-    if (!url) return;
+    if (!url) return true;
     try {
       const res = await fetch(url, {
         method: 'POST',
@@ -23,8 +27,10 @@ export function createOpsAlert(config: Pick<AppConfig, 'OPS_ALERT_WEBHOOK_URL' |
         signal: AbortSignal.timeout(5_000),
       });
       if (!res.ok) console.warn(`[ops-alert] 알림 전송 실패 HTTP ${res.status}`);
+      return res.ok;
     } catch (e) {
       console.warn('[ops-alert] 알림 전송 실패', e instanceof Error ? e.message : String(e));
+      return false;
     }
   };
 }

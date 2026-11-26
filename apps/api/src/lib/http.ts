@@ -34,8 +34,10 @@ export interface RouteKit {
   authenticate: MiddlewareHandler<AppEnv>;
   /** 로그인했으면 사용자를 채운다 */
   optionalAuth: MiddlewareHandler<AppEnv>;
-  /** 무차별 대입·계정 대량 생성 방지용 엄격 제한(로그인·가입·게스트·비밀번호) */
+  /** 무차별 대입 방지용 엄격 제한(로그인·가입·소셜·토스 로그인·비밀번호) */
   authLimit: MiddlewareHandler<AppEnv>;
+  /** 세션 유지 경로 제한(게스트 시작·토큰 갱신) — 한 IP 를 여럿이 쓰는 곳(회사·학교)에서 막히지 않게 인증 제한보다 넉넉하다 */
+  sessionLimit: MiddlewareHandler<AppEnv>;
   /** 관리자 경로 제한 */
   adminLimit: MiddlewareHandler<AppEnv>;
 }

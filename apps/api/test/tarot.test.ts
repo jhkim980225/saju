@@ -6,14 +6,15 @@ import { loadConfig } from '../src/config/env.js';
 import { createDb, runMigrations } from '../src/db/local.js';
 import { seedProducts } from '../src/db/seed.js';
 import { calculateSaju } from '@saju/core';
-import { eq } from 'drizzle-orm';
-import { tarotReadings } from '../src/db/schema.js';
+import { and, eq } from 'drizzle-orm';
+import { entitlements, tarotReadings } from '../src/db/schema.js';
+import { newId } from '../src/lib/ids.js';
 import { TAROT_DRAW_SPREADS, TAROT_SPREADS, TAROT_SPREAD_TOPICS, TAROT_TOPICS, TAROT_YESNO_DAILY_FREE } from '@saju/shared';
 import { CATALOG } from '../src/modules/commerce/catalog.js';
 import { DECK } from '../src/modules/tarot/content/index.js';
 import { DECK_SIZE, dailyCard, drawAt, issueDeckToken, readDeckToken, shuffledDeck } from '../src/modules/tarot/deck.js';
 import { buildTarotReading, cardElement } from '../src/modules/tarot/reading.js';
-import { questionKey } from '../src/modules/tarot/service.js';
+import { TAROT_HISTORY_RECENT, questionKey } from '../src/modules/tarot/service.js';
 import { YES_NO_LABEL, yesNoLean } from '../src/modules/tarot/yesno.js';
 
 let app: App;
@@ -32,7 +33,7 @@ afterAll(async () => {
   await app.close();
 });
 
-const api = async (method: 'GET' | 'POST' | 'DELETE', url: string, opts: { token?: string; body?: unknown } = {}) => {
+const api = async (method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, opts: { token?: string; body?: unknown } = {}) => {
   const res = await app.inject({
     method,
     url: `/api/v1${url}`,
@@ -184,7 +185,8 @@ describe('타로 API', () => {
     const lockedSaju = res.body.sections.find((s: any) => s.key === 'saju');
     expect(lockedSaju.summary).toMatch(/카드예요$/);
     expect(lockedSaju.basis).toBeUndefined();
-    expect(res.body.basis).toContain('달달사주 방식');
+    // 응답 최상위 basis 도 잠긴 동안은 보내지 않는다(섹션과 같은 규칙)
+    expect(res.body.basis).toBeNull();
   });
 
   it('같은 날 같은 질문은 다시 뽑지 않는다 (셔플 단계 안내 + 409)', async () => {
@@ -500,7 +502,7 @@ describe('2차 펼침 방식 API', () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ spread: 'compat', productId: 'tarot_compat_5', locked: true, profileName: '민수', partnerName: '지은' });
     expect(res.body.cards).toHaveLength(5);
-    expect(res.body.basis).toMatch(/민수 일간 .+ · 지은 일간 .+/);
+    expect(res.body.basis).toBeNull(); // 잠긴 동안은 용어 근거를 보내지 않는다
     expect(res.body.sections.find((s: any) => s.key === 'pos-me').locked).toBeUndefined();
     expect(res.body.sections.find((s: any) => s.key === 'pos-partner').locked).toBe(true);
 
@@ -508,6 +510,7 @@ describe('2차 펼침 방식 API', () => {
     expect(paid.body.granted).toMatchObject({ credits: 1, entitlements: [`tarot:reading:${res.body.id}`] });
     const opened = await api('GET', `/tarot/readings/${res.body.id}`, { token: member });
     expect(opened.body.locked).toBe(false);
+    expect(opened.body.basis).toMatch(/민수 일간 .+ · 지은 일간 .+/);
     const openedSaju = opened.body.sections.find((s: any) => s.key === 'saju');
     expect(openedSaju.paragraphs.join(' ')).toContain('지은님');
     expect(openedSaju.basis).toMatch(/지은 일간 .+·용신/);
@@ -565,5 +568,153 @@ describe('계정 정리 — 타로 기록', () => {
     // 탈퇴하면 질문 글이 담긴 타로 기록도 지운다
     expect((await api('DELETE', '/auth/me', { token: login.body.accessToken })).status).toBe(204);
     expect(await readingsOf(member.user.id)).toBe(0);
+  });
+});
+
+describe('타로 — 지운 리딩·동시 요청·사주 섹션·기록 목록 (알려진 이슈 회귀)', () => {
+  const draw = async (token: string, body: Record<string, unknown>) => {
+    const { picks, profileId, ...shuffleBody } = body;
+    const s = await api('POST', '/tarot/shuffle', { token, body: shuffleBody });
+    if (s.status !== 200) return { shuffle: s, res: s };
+    return { shuffle: s, res: await api('POST', '/tarot/readings', { token, body: { deckToken: s.body.deckToken, picks, profileId, ...shuffleBody } }) };
+  };
+  const guestOf = async (deviceId: string) => (await api('POST', '/auth/guest', { body: { deviceId } })).body as { accessToken: string; user: { id: string } };
+
+  it('오늘 뽑은 예·아니오를 지워도 하루 횟수는 풀리지 않는다 — 내용은 지우고 기록·조회에서 사라진다', async () => {
+    const { accessToken: token, user } = await guestOf('tarot-delete-yesno-01');
+    const first = await draw(token, { spread: 'yesno', topic: 'yesno', question: '오늘 연락해 볼까요?', picks: [3] });
+    expect(first.res.status).toBe(200);
+    expect((await api('DELETE', `/tarot/readings/${first.res.body.id}`, { token })).status).toBe(204);
+    expect((await api('GET', `/tarot/readings/${first.res.body.id}`, { token })).status).toBe(404);
+    expect((await api('GET', '/tarot/readings', { token })).body.map((r: any) => r.id)).not.toContain(first.res.body.id);
+    // 남은 표지에는 질문 글·카드가 없다
+    const [row] = await testDb.select().from(tarotReadings).where(eq(tarotReadings.id, first.res.body.id));
+    expect(row).toMatchObject({ question: null, cards: [], userId: user.id });
+    expect(row!.questionKey).toMatch(/^deleted:[0-9a-f]{64}$/);
+
+    // 새 질문 — 여전히 하루 횟수에 걸린다(오늘 본 리딩이 지워졌으니 readingId 는 없다)
+    const other = await api('POST', '/tarot/shuffle', { token, body: { spread: 'yesno', topic: 'yesno', question: '모임에 나가 볼까요?' } });
+    expect(other.status).toBe(429);
+    expect(other.body.error.details.readingId).toBeUndefined();
+    // 같은 질문 — 지운 기록이라 다시 뽑지 않는다
+    const same = await api('POST', '/tarot/shuffle', { token, body: { spread: 'yesno', topic: 'yesno', question: '오늘 연락해 볼까요' } });
+    expect(same.status).toBe(409);
+    expect(same.body.error.details).toMatchObject({ reason: 'DELETED_TODAY' });
+  });
+
+  it('오늘 뽑은 질문 리딩을 지우고 같은 질문으로 다시 뽑을 수 없다(셔플을 건너뛰어도 409)', async () => {
+    const { accessToken: token } = await guestOf('tarot-delete-same-01');
+    const first = await draw(token, { spread: 'three', topic: 'career', question: '이직 준비를 시작할까요?', picks: [1, 2, 3] });
+    expect(first.res.status).toBe(200);
+    const spare = await api('POST', '/tarot/shuffle', { token, body: { spread: 'three', topic: 'career', question: '다른 질문' } });
+    expect((await api('DELETE', `/tarot/readings/${first.res.body.id}`, { token })).status).toBe(204);
+    expect((await api('POST', '/tarot/shuffle', { token, body: { spread: 'three', topic: 'career', question: '이직 준비를 시작할까요' } })).status).toBe(409);
+    const sneak = await api('POST', '/tarot/readings', { token, body: { deckToken: spare.body.deckToken, spread: 'three', topic: 'career', question: '이직 준비를 시작할까요?', picks: [4, 5, 6] } });
+    expect(sneak.status).toBe(409);
+    expect(sneak.body.error.details).toMatchObject({ reason: 'DELETED_TODAY' });
+  });
+
+  it('지난날 리딩은 행을 지우고, 지난날의 표지도 정리한다', async () => {
+    const { accessToken: token, user } = await guestOf('tarot-delete-old-01');
+    const r = await draw(token, { spread: 'three', topic: 'self', question: '지난 질문', picks: [7, 8, 9] });
+    const r2 = await draw(token, { spread: 'three', topic: 'love', question: '오늘 지울 질문', picks: [7, 8, 9] });
+    expect((await api('DELETE', `/tarot/readings/${r2.res.body.id}`, { token })).status).toBe(204);
+    // 둘 다 지난날 것으로 돌려 둔다
+    await testDb.update(tarotReadings).set({ dateKey: '2000-01-01' }).where(eq(tarotReadings.userId, user.id));
+    expect((await api('DELETE', `/tarot/readings/${r.res.body.id}`, { token })).status).toBe(204);
+    expect(await testDb.select().from(tarotReadings).where(eq(tarotReadings.userId, user.id))).toHaveLength(0);
+  });
+
+  it('서로 다른 예·아니오 질문을 동시에 보내도 하루 횟수만큼만 저장된다', async () => {
+    const { accessToken: token, user } = await guestOf('tarot-yesno-race-01');
+    const tokens = await Promise.all([0, 1, 2, 3].map((i) => api('POST', '/tarot/shuffle', { token, body: { spread: 'yesno', topic: 'yesno', question: `동시 질문 ${i}` } })));
+    expect(tokens.every((t) => t.status === 200)).toBe(true);
+    const results = await Promise.all(
+      tokens.map((t, i) => api('POST', '/tarot/readings', { token, body: { deckToken: t.body.deckToken, spread: 'yesno', topic: 'yesno', question: `동시 질문 ${i}`, picks: [i] } })),
+    );
+    expect(results.filter((r) => r.status === 200)).toHaveLength(TAROT_YESNO_DAILY_FREE);
+    expect(results.filter((r) => r.status === 429)).toHaveLength(4 - TAROT_YESNO_DAILY_FREE);
+    const saved = await testDb.select().from(tarotReadings).where(and(eq(tarotReadings.userId, user.id), eq(tarotReadings.spread, 'yesno')));
+    expect(saved).toHaveLength(TAROT_YESNO_DAILY_FREE);
+  });
+
+  it('사주 섹션은 뽑을 때의 프로필로만 — 프로필 없이 뽑은 리딩은 나중에 프로필을 저장해도 사주 섹션이 없고, 지운 프로필도 대신하지 않는다', async () => {
+    const { accessToken: token } = await guestOf('tarot-owner-01');
+    const before = await draw(token, { spread: 'three', topic: 'self', question: '프로필 없이', picks: [10, 11, 12] });
+    expect(before.res.status).toBe(200);
+    expect(before.res.body.profileName).toBeNull();
+    const pid = (await api('POST', '/profiles', { token, body: { name: '서윤', relation: 'self', birth: BIRTH } })).body.id;
+    const later = await api('GET', `/tarot/readings/${before.res.body.id}`, { token });
+    expect(later.body.profileName).toBeNull();
+    expect(later.body.sections.some((s: any) => s.key === 'saju')).toBe(false);
+
+    const withSaju = await draw(token, { spread: 'three', topic: 'love', question: '대표 프로필로', picks: [10, 11, 12] });
+    expect(withSaju.res.body.profileName).toBe('서윤');
+    const second = (await api('POST', '/profiles', { token, body: { name: '하준', relation: 'self', birth: { ...BIRTH, year: 1995 } } })).body.id;
+    expect(second).toBeTruthy();
+    expect((await api('DELETE', `/profiles/${pid}`, { token })).status).toBe(204);
+    const gone = await api('GET', `/tarot/readings/${withSaju.res.body.id}`, { token });
+    expect(gone.body.profileName).toBeNull();
+    expect(gone.body.sections.some((s: any) => s.key === 'saju')).toBe(false);
+  });
+
+  it(`기록 목록 — 최근 ${TAROT_HISTORY_RECENT}개 밖으로 밀린 구매 리딩도 싣고, 잠금 해제로 표시한다`, async () => {
+    const { accessToken: token, user } = await guestOf('tarot-history-many-01');
+    const old = newId();
+    const card = [{ index: 1, orientation: 'upright' as const }, { index: 2, orientation: 'upright' as const }, { index: 3, orientation: 'upright' as const }];
+    await testDb.insert(tarotReadings).values({ id: old, userId: user.id, spread: 'three', topic: 'self', question: '오래전 산 리딩', questionKey: 'three|self|오래전 산 리딩', dateKey: '2020-01-01', cards: card, createdAt: Date.UTC(2020, 0, 1) });
+    await testDb.insert(entitlements).values({ id: newId(), userId: user.id, key: `tarot:reading:${old}`, orderId: null });
+    for (let i = 0; i < TAROT_HISTORY_RECENT; i++) {
+      await testDb.insert(tarotReadings).values({ id: newId(), userId: user.id, spread: 'three', topic: 'self', question: `질문 ${i}`, questionKey: `three|self|질문 ${i}`, dateKey: '2021-01-01', cards: card, createdAt: Date.UTC(2021, 0, 1) + i });
+    }
+    const h = await api('GET', '/tarot/readings', { token });
+    expect(h.body).toHaveLength(TAROT_HISTORY_RECENT + 1);
+    expect(h.body.at(-1)).toMatchObject({ id: old, locked: false });
+    expect(h.body.slice(0, TAROT_HISTORY_RECENT).every((r: any) => r.locked)).toBe(true);
+  });
+});
+
+describe('타로 — 예·아니오 질문 필수·오늘의 카드 프로필 (알려진 이슈 회귀)', () => {
+  it('예·아니오는 서버에서도 빈 질문을 받지 않는다', async () => {
+    const token = (await api('POST', '/auth/guest', { body: { deviceId: 'tarot-yesno-empty-01' } })).body.accessToken;
+    expect((await api('POST', '/tarot/shuffle', { token, body: { spread: 'yesno', topic: 'yesno' } })).status).toBe(400);
+    expect((await api('POST', '/tarot/shuffle', { token, body: { spread: 'yesno', topic: 'yesno', question: '   ' } })).status).toBe(400);
+  });
+
+  it('오늘의 카드 — 다른 프로필로 열면 카드는 그대로, 사주 결합은 고른 사람 기준', async () => {
+    const token = (await api('POST', '/auth/guest', { body: { deviceId: 'tarot-daily-switch-01' } })).body.accessToken;
+    const a = (await api('POST', '/profiles', { token, body: { name: '민수', relation: 'self', birth: BIRTH } })).body.id;
+    const b = (await api('POST', '/profiles', { token, body: { name: '지은', relation: 'friend', birth: { ...BIRTH, year: 1993, month: 2, day: 11 } } })).body.id;
+    const first = await api('GET', `/tarot/daily?profileId=${a}`, { token });
+    expect(first.body.profileName).toBe('민수');
+    const switched = await api('GET', `/tarot/daily?profileId=${b}`, { token });
+    expect(switched.body.id).toBe(first.body.id);
+    expect(switched.body.cards[0].id).toBe(first.body.cards[0].id);
+    expect(switched.body.profileName).toBe('지은');
+    // profileId 없이 다시 열면 마지막으로 고른 사람
+    expect((await api('GET', '/tarot/daily', { token })).body.profileName).toBe('지은');
+  });
+});
+
+describe('타로 사주 스냅샷 — 뽑을 때의 출생 정보로 읽는다', () => {
+  it('프로필 출생 정보를 고쳐도 이미 연 리딩의 사주는 그대로, 프로필을 지우면 저장한 출생 정보도 비운다', async () => {
+    const token = (await api('POST', '/auth/guest', { body: { deviceId: 'tarot-snapshot-0001' } })).body.accessToken;
+    const pid = (await api('POST', '/profiles', { token, body: { name: '민수', relation: 'self', birth: BIRTH } })).body.id;
+    const first = await api('GET', '/tarot/daily', { token });
+    expect(first.body.basis).toContain('일간 庚金');
+
+    // 생일을 하루 옮기면 일간이 바뀐다 — 그래도 오늘 연 리딩은 뽑을 때의 사주로 읽는다
+    const moved = { ...BIRTH, day: BIRTH.day + 1 };
+    expect(calculateSaju(moved).pillars.day.stem).not.toBe(calculateSaju(BIRTH).pillars.day.stem);
+    expect((await api('PATCH', `/profiles/${pid}`, { token, body: { birth: moved } })).status).toBe(200);
+    const again = await api('GET', '/tarot/daily', { token });
+    expect(again.body.id).toBe(first.body.id);
+    expect(again.body.basis).toBe(first.body.basis);
+
+    // 프로필을 지우면 사주 섹션이 빠지고, 리딩에 저장한 출생 정보도 남지 않는다
+    expect((await api('DELETE', `/profiles/${pid}`, { token })).status).toBe(204);
+    const [row] = await testDb.select({ snap: tarotReadings.sajuSnapshot }).from(tarotReadings).where(eq(tarotReadings.id, first.body.id));
+    expect(row!.snap).toBeNull();
+    expect((await api('GET', '/tarot/daily', { token })).body.basis ?? null).toBeNull();
   });
 });

@@ -2,8 +2,8 @@
  * 커머스 코어 — 상품 / 주문 / 결제 승인 / 지급(fulfillment) / 질문권 원장 / 권한(entitlement).
  * 결제사 연동은 providers/* 게이트웨이가 담당하고, 여기서는 금액 검증과 지급의 원자성을 보장한다.
  */
-import { and, asc, count, desc, eq, gte, inArray, like, notInArray, sql } from 'drizzle-orm';
-import type { CheckoutDto, OrderCreateDto, OrderDto, PaymentProvider, PaymentResultDto, ProductDto, WalletDto } from '@saju/shared';
+import { and, asc, count, desc, eq, gte, inArray, like, ne, notInArray, sql } from 'drizzle-orm';
+import type { CheckoutDto, IapRejectDetails, OrderCreateDto, OrderDto, PaymentProvider, PaymentResultDto, ProductDto, WalletDto } from '@saju/shared';
 import { ERROR_CODES } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
 import { safeErrorText } from '../../lib/log.js';
@@ -38,6 +38,12 @@ export const startOfSeoulDay = (now = Date.now()) => Math.floor((now + KST_OFFSE
  * 그래서 같은 상품·같은 대상의 결제를 이 시간 안에 다시 시작하면 새 주문을 만들지 않고 진행 중인 주문으로 안내한다(409 PAYMENT_IN_PROGRESS)
  */
 export const CHECKOUT_RESUME_WINDOW_MS = 30 * 60_000;
+
+/**
+ * 결제 확인 화면에 이 시간 넘게 머문 그로블 대기 주문만 '결제를 기다리는 주문'(awaitingAt)으로 표시한다.
+ * 결제창 진입 페이지에서 결제하지 않고 돌아와 바로 떠난 주문에 결제 확인 지연 알림이 가지 않게 한다
+ */
+export const AWAITING_MARK_AFTER_MS = 20_000;
 
 /** AI 장애 환급 — 사용자마다 하루(KST) 최대 횟수. 장애가 아닌데 환급이 되풀이되는 경우(실패 유도 등)를 막는다 */
 export const AI_REFUND_DAILY_LIMIT = 5;
@@ -259,9 +265,11 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
     const keys = entitlementKeys(product, { id: '', metadata } as Order);
     if (keys.length === 0 || keys.some((k) => k.startsWith('ticket:') || k.includes('undefined'))) return false;
     const now = Date.now();
-    const rows = await db.select({ key: entitlements.key, expiresAt: entitlements.expiresAt }).from(entitlements).where(and(eq(entitlements.userId, userId), inArray(entitlements.key, keys)));
+    // 평생 사주분석서(report:lifetime)는 미니 리포트(report:mini)가 여는 섹션을 모두 연다 — 평생 권한이 있으면 미니도 가진 것으로 본다(계정당 1회 기회를 헛되이 쓰지 않게)
+    const covering = (k: string) => (k.startsWith('report:mini:') ? [k, `report:lifetime:${k.slice('report:mini:'.length)}`] : [k]);
+    const rows = await db.select({ key: entitlements.key, expiresAt: entitlements.expiresAt }).from(entitlements).where(and(eq(entitlements.userId, userId), inArray(entitlements.key, keys.flatMap(covering))));
     const owned = new Set(rows.filter((r) => r.expiresAt === null || r.expiresAt > now).map((r) => r.key));
-    return keys.every((k) => owned.has(k));
+    return keys.every((k) => covering(k).some((c) => owned.has(c)));
   };
 
   /**
@@ -292,7 +300,36 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
   };
 
   /**
-   * 지급분 회수 — 권한 삭제 + 유상 질문권 차감(남은 만큼).
+   * 회수할 주문의 권한 정리(묶음에 넣기). 권한 행은 (사용자, 키)마다 하나라 먼저 지급한 주문 ID 만 남는다.
+   * 평생 사주분석서를 산 뒤 신년 패키지를 산 경우처럼 두 주문이 같은 키를 주면, 먼저 산 주문을 환불해도
+   * 다른 유효(paid) 주문이 주는 권한은 지우지 않고 그 주문으로 넘긴다. 넘겨받을 주문이 없는 권한만 지운다.
+   * 넘겨받는 주문이 묶음 실행 시점에도 paid 여야 한다(두 주문이 동시에 환불되면 다시 판단해 둘 다 지운다)
+   */
+  const releaseEntitlements = async (u: Unit, order: Order) => {
+    const held = await db.select({ id: entitlements.id, key: entitlements.key }).from(entitlements).where(eq(entitlements.orderId, order.id));
+    if (held.length > 0) {
+      const others = await db
+        .select()
+        .from(orders)
+        .where(and(eq(orders.userId, order.userId), eq(orders.status, 'paid'), ne(orders.id, order.id)))
+        .orderBy(asc(orders.paidAt), asc(orders.id));
+      const productRows = others.length > 0 ? await db.select().from(products).where(inArray(products.id, [...new Set(others.map((o) => o.productId))])) : [];
+      const productById = new Map(productRows.map((p) => [p.id, p]));
+      for (const row of held) {
+        const heir = others.find((o) => {
+          const p = productById.get(o.productId);
+          return p ? entitlementKeys(p, o).includes(row.key) : false;
+        });
+        if (!heir) continue;
+        expectOrderStatus(u, heir.id, ['paid']);
+        u.write(db.update(entitlements).set({ orderId: heir.id }).where(and(eq(entitlements.id, row.id), eq(entitlements.orderId, order.id))));
+      }
+    }
+    u.write(db.delete(entitlements).where(eq(entitlements.orderId, order.id)));
+  };
+
+  /**
+   * 지급분 회수 — 권한 삭제(다른 유효 주문이 주는 권한은 그 주문으로 넘김) + 유상 질문권 차감(남은 만큼).
    * paid 주문일 때만 조건부로 바꾼다 → 관리자 환불·결제사 웹훅·스토어 알림이 겹쳐도 회수는 1회. 회수했으면 true
    */
   const revokeOrder = async (u: Unit, order: Order, status: 'refunded' | 'canceled', reason: string): Promise<boolean> => {
@@ -304,7 +341,7 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
         .set({ status, canceledAt: Date.now(), failureReason: reason, updatedAt: Date.now() })
         .where(and(eq(orders.id, order.id), eq(orders.status, 'paid'))),
     );
-    u.write(db.delete(entitlements).where(eq(entitlements.orderId, order.id)));
+    await releaseEntitlements(u, order);
     const [product] = await db.select().from(products).where(eq(products.id, order.productId));
     const credits = product ? creditsFor(product, order.provider === 'iap_toss') : 0;
     if (product && credits > 0) {
@@ -389,12 +426,13 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
     }
     return result;
   };
-  const notifyRevoked = (order: Order, status: 'refunded' | 'canceled', reason: string) =>
-    ops?.refunded({ productName: order.orderName, amount: order.amount, provider: order.provider, orderId: order.id, status, reason });
+  /** refundedAmount: 실제로 돌려준 금액이 주문 금액과 다를 때(관리자의 질문권 팩 부분 취소) — 운영 알림·하루 요약의 환불 금액 */
+  const notifyRevoked = (order: Order, status: 'refunded' | 'canceled', reason: string, refundedAmount?: number) =>
+    ops?.refunded({ productName: order.orderName, amount: order.amount, refundedAmount, provider: order.provider, orderId: order.id, status, reason });
   /** 회수(revokeOrder)를 한 묶음으로 실행하고, 실제로 회수했으면 운영 알림을 보낸다. 회수했으면 true */
-  const revokeAndNotify = async (order: Order, status: 'refunded' | 'canceled', reason: string): Promise<boolean> => {
+  const revokeAndNotify = async (order: Order, status: 'refunded' | 'canceled', reason: string, refundedAmount?: number): Promise<boolean> => {
     const done = await atomic(db, (u) => revokeOrder(u, order, status, reason));
-    if (done) notifyRevoked(order, status, reason);
+    if (done) notifyRevoked(order, status, reason, refundedAmount);
     return done;
   };
   const settleTx = (order: Order, pay: Payment, channel: Channel): Promise<Settled> =>
@@ -491,6 +529,77 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
     console.warn(`[commerce] 같은 결제창으로 한 번 더 결제한 질문권 팩 — 새 주문으로 지급 (${providerId} 원주문=${original.id} 새 주문=${id} key=${event.paymentKey})`);
   };
 
+  // ── 앱 인앱결제 ─────────────────────────────────────────────
+  type IapPlatform = 'ios' | 'android';
+  type IapRejectReason = IapRejectDetails['reason'];
+  const IAP_REJECT_BASE: Record<IapRejectReason, string> = {
+    PER_USER_LIMIT: '이미 구매한 상품이에요. (계정당 1회)',
+    ALREADY_OWNED: '이미 구매한 콘텐츠예요. 보관함에서 바로 볼 수 있어요.',
+    NOT_FOR_SALE: '지금은 판매하지 않는 상품이에요.',
+    REVOKED: '환불되었거나 취소된 구매예요.',
+  };
+  /**
+   * 인앱결제로 지급할 수 없는 구매 — 앱이 스토어 거래를 어떻게 마무리할지(details.finish) 함께 알린다.
+   * iOS 는 끝내지 않은 소모성 거래가 저절로 환불되지 않고 앱을 열 때마다 다시 검증되므로 거래를 끝내고 App Store 환불 요청을 안내한다.
+   * Android 는 3일 안에 확인하지 않은 구매를 Google 이 자동 환불하므로 거래를 그대로 둔다. 이미 환불된 거래(REVOKED)는 둘 다 끝낸다.
+   * checkOnly(결제 전 확인)는 아직 결제하지 않았으므로 환불 안내를 붙이지 않는다
+   */
+  const iapReject = (platform: IapPlatform, reason: IapRejectReason, checkOnly = false) => {
+    const finish = reason === 'REVOKED' || platform === 'ios';
+    const refund =
+      checkOnly || reason === 'REVOKED'
+        ? ''
+        : platform === 'ios'
+          ? ' 지급하지 않은 결제는 App Store 구매 내역(reportaproblem.apple.com)에서 환불을 요청해 주세요.'
+          : ' 스토어 결제를 확정하지 않았으니 3일 안에 자동으로 환불돼요.';
+    const details: IapRejectDetails & { code?: string } = { reason, finish, ...(reason === 'REVOKED' ? { code: 'REVOKED' } : {}) };
+    return reason === 'REVOKED' ? new AppError(402, ERROR_CODES.PAYMENT_FAILED, IAP_REJECT_BASE[reason], details) : conflict(`${IAP_REJECT_BASE[reason]}${refund}`, details);
+  };
+  /** 주문 실패 사유 → 인앱결제 거절 사유. 다시 검증해도 같은 답을 주는(멱등) 데 쓴다 */
+  const IAP_REJECT_REASONS = new Set<string>(['PER_USER_LIMIT', 'ALREADY_OWNED', 'NOT_FOR_SALE']);
+  /** iOS 에서 지급하지 않은 결제 — 고객이 App Store 에 환불을 요청해야 한다. 운영자가 문의에 대응할 수 있게 거래마다 한 번 알린다 */
+  const alertIapUnfulfilled = async (provider: string, orderId: string, transactionId: string, reason: IapRejectReason) => {
+    if (provider !== 'iap_apple') return; // Google 은 확인하지 않은 구매를 3일 안에 자동 환불한다
+    const inserted = await db
+      .insert(webhookEvents)
+      .values({ id: `${provider}:duplicate:${transactionId}`, provider, eventType: 'DUPLICATE_PAYMENT', payload: { orderId, reason }, processedAt: Date.now() })
+      .onConflictDoNothing()
+      .returning({ id: webhookEvents.id });
+    if (inserted.length > 0) await alert(`⚠️ 지급하지 않은 App Store 결제(${reason}) — 고객에게 App Store 환불 요청을 안내했어요. 주문 ${orderId}, 거래 ${transactionId}`);
+  };
+  /** 스토어 상품 ID → 카탈로그 상품(판매 중지 상품 포함 — 판매 여부는 호출하는 쪽이 판단한다) */
+  const productByStoreId = async (platform: IapPlatform, storeProductId: string) =>
+    (await db.select().from(products).where(platform === 'ios' ? eq(products.iosProductId, storeProductId) : eq(products.androidProductId, storeProductId)))[0];
+  /**
+   * 인앱결제 대상 확인 — 리포트 상품인데 대상 프로필이 오지 않았으면(앱의 끊긴 결제 복구에서 대상 기록을 잃은 경우) 대표 프로필로 채운다.
+   * 대상이 내 것인지, 리딩 상품이면 내 리딩인지 확인한다. 반환값은 주문 metadata 다
+   */
+  const resolveIapTarget = async (userId: string, product: Product, input: { profileId?: string; readingId?: string }) => {
+    let profileId = input.profileId;
+    if (requiresProfile(product)) {
+      if (!profileId) {
+        const [primary] = await db
+          .select({ id: profiles.id })
+          .from(profiles)
+          .where(eq(profiles.userId, userId))
+          .orderBy(desc(profiles.isPrimary), asc(profiles.createdAt))
+          .limit(1);
+        profileId = primary?.id;
+      }
+      if (!profileId) throw badRequest('리포트를 받을 사주를 먼저 저장해 주세요. 저장한 뒤 앱을 다시 열면 결제가 이어서 반영돼요.');
+      await assertOwnedProfile(userId, profileId);
+    }
+    await assertReading(userId, product, input.readingId);
+    return { profileId: requiresProfile(product) ? profileId : undefined, readingId: input.readingId };
+  };
+  /** 결제해도 지급할 수 없는 사유(판매 중지·출시 예정·한도 초과·이미 가진 콘텐츠). 없으면 null */
+  const iapBlocker = async (userId: string, product: Product, metadata: { profileId?: string; readingId?: string }): Promise<IapRejectReason | null> => {
+    if (!product.active || product.comingSoon) return 'NOT_FOR_SALE';
+    if (product.perUserLimit !== null && (await paidCount(userId, product.id)) >= product.perUserLimit) return 'PER_USER_LIMIT';
+    if (await ownsAllGrants(userId, product, metadata)) return 'ALREADY_OWNED';
+    return null;
+  };
+
   return {
     getProduct,
     productDto,
@@ -523,7 +632,7 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
       // 링크형 결제사(그로블)는 상품마다 결제창이 따로 있어야 한다 — 연결 안 된 상품은 주문을 만들기 전에 막는다
       if (gateway.checkoutUrl && !gateway.productRef?.(product.id)) throw notConfigured(`${product.name} 결제창`, gateway.envKeys);
 
-      const metadata = { profileId: dto.profileId, partnerProfileId: dto.partnerProfileId, year: dto.year, readingId: dto.readingId, couponCode: dto.couponCode };
+      const metadata = { profileId: dto.profileId, partnerProfileId: dto.partnerProfileId, readingId: dto.readingId };
       // 이미 가진 리포트·풀이를 다시 사는 것은 결제 전에 막는다(다시 결제해도 새로 받는 것이 없다)
       if (await ownsAllGrants(userId, product, metadata)) throw conflict('이미 구매한 콘텐츠예요. 보관함에서 바로 볼 수 있어요.', { reason: 'ALREADY_OWNED' });
 
@@ -574,17 +683,24 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
 
     /**
      * 주문 조회 — 결제 확인 화면이 결제 완료를 기다리며 부른다. 결제창 링크형 결제사(그로블)의 대기 주문이면
-     * 처음 조회한 시각(awaitingAt)을 남겨, 30분이 지나도 결제 알림이 오지 않을 때 운영자에게 알린다(ops.checkPendingPayments)
+     * 결제를 기다리는 주문이라는 표시(awaitingAt)를 남겨, 30분이 지나도 결제 알림이 오지 않을 때 운영자에게 알린다(ops.checkPendingPayments).
+     * 그로블 결제창의 진입 페이지도 결제 확인 화면이라 결제하지 않고 돌아온 사용자도 여기를 부른다. 그래서 처음 조회 시각(firstPolledAt)만
+     * 적어 두고, 그 뒤 AWAITING_MARK_AFTER_MS 넘게 화면에 남아 다시 조회할 때(결제했다고 보고 기다리는 경우)에만 awaitingAt 을 남긴다.
+     * 결제하지 않고 바로 떠난 주문과 '결제하지 않고 돌아가기'로 나간 주문(failed USER_CANCEL)은 알림 대상이 아니다
      */
     async getOrder(userId: string, orderId: string): Promise<OrderDto> {
       const order = await getOwnedOrder(userId, orderId);
-      const meta = (order.metadata ?? {}) as { awaitingAt?: number };
+      const meta = (order.metadata ?? {}) as { awaitingAt?: number; firstPolledAt?: number };
       const linkGateway = Boolean(gateways.byId[order.provider as keyof Gateways['byId']]?.checkoutUrl);
       if (order.status === 'pending' && linkGateway && meta.awaitingAt === undefined) {
-        await db
-          .update(orders)
-          .set({ metadata: sql`json_set(coalesce(${orders.metadata}, '{}'), '$.awaitingAt', ${Date.now()})` })
-          .where(and(eq(orders.id, order.id), eq(orders.status, 'pending'), sql`json_extract(${orders.metadata}, '$.awaitingAt') is null`));
+        const now = Date.now();
+        const mark = meta.firstPolledAt === undefined ? 'firstPolledAt' : now - meta.firstPolledAt >= AWAITING_MARK_AFTER_MS ? 'awaitingAt' : null;
+        if (mark) {
+          await db
+            .update(orders)
+            .set({ metadata: sql`json_set(coalesce(${orders.metadata}, '{}'), ${`$.${mark}`}, ${now})` })
+            .where(and(eq(orders.id, order.id), eq(orders.status, 'pending'), sql`json_extract(coalesce(${orders.metadata}, '{}'), ${`$.${mark}`}) is null`));
+        }
       }
       return orderDto(order);
     },
@@ -621,9 +737,22 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
       const settled = await settle(order, { paymentKey: confirmed.paymentKey, method: confirmed.method, paidAt: confirmed.approvedAt }, 'web');
       if (!settled.ok) {
         if (settled.reason === 'PER_USER_LIMIT') {
-          await gateway.cancel({ paymentKey: confirmed.paymentKey, reason: '계정당 구매 한도 초과' }).catch(() => undefined);
-          await db.update(orders).set({ status: 'canceled', canceledAt: Date.now(), failureReason: 'PER_USER_LIMIT', updatedAt: Date.now() }).where(and(eq(orders.id, order.id), inArray(orders.status, ['pending', 'failed'])));
-          throw conflict('이미 구매한 상품이라 결제를 취소했어요. (계정당 1회)');
+          // 한도 초과 미지급 주문의 상태 규칙(모든 결제 경로 공통): 결제사에서 결제를 취소했으면 canceled,
+          // 취소하지 못해 돈이 그대로 결제된 상태면 failed(운영자·스토어 환불 대상). 사유는 둘 다 PER_USER_LIMIT
+          const canceled = await gateway
+            .cancel({ paymentKey: confirmed.paymentKey, reason: '계정당 구매 한도 초과' })
+            .then(() => true)
+            .catch((e: unknown) => {
+              console.error('[commerce] 한도 초과 결제 자동 취소 실패', safeErrorText(e));
+              return false;
+            });
+          await db
+            .update(orders)
+            .set({ status: canceled ? 'canceled' : 'failed', canceledAt: canceled ? Date.now() : null, failureReason: 'PER_USER_LIMIT', updatedAt: Date.now() })
+            .where(and(eq(orders.id, order.id), inArray(orders.status, ['pending', 'failed'])));
+          if (canceled) throw conflict('이미 구매한 상품이라 결제를 취소했어요. (계정당 1회)', { reason: 'PER_USER_LIMIT' });
+          await alert(`⚠️ 환불 필요 — 계정당 구매 한도를 넘은 결제를 자동으로 취소하지 못했어요. 결제사 ${order.provider}, 주문 ${order.id}, 결제 ${confirmed.paymentKey}`);
+          throw conflict('이미 구매한 상품이라 지급하지 않았어요. (계정당 1회) 결제 취소는 고객센터에서 도와드려요.', { reason: 'PER_USER_LIMIT' });
         }
         return already();
       }
@@ -637,22 +766,36 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
       return orderDto(await getOwnedOrder(userId, orderId));
     },
 
-    /** 앱 인앱결제 영수증 검증 → 주문 생성 + 지급 (거래 ID 로 멱등) */
-    async verifyIap(userId: string, input: { platform: 'ios' | 'android'; productId: string; receipt: string; profileId?: string; readingId?: string }): Promise<PaymentResultDto> {
+    /**
+     * 앱 인앱결제 — 스토어 결제창을 띄우기 전 확인. 스토어는 결제가 끝난 뒤에야 서버가 검증하므로,
+     * 지급할 수 없는 구매(판매 중지·출시 예정·한도 초과·이미 가진 콘텐츠, 대상 프로필·리딩 오류)는 결제 전에 여기서 막는다
+     */
+    async checkIap(userId: string, input: { platform: IapPlatform; productId: string; profileId?: string; readingId?: string }): Promise<{ ok: true }> {
       const [user] = await db.select().from(users).where(eq(users.id, userId));
       if (!user || user.provider === 'guest') throw forbidden('구매 내역을 안전하게 보관하려면 로그인이 필요해요.');
       const verifier = gateways.iap[input.platform];
       if (!verifier.isConfigured()) throw notConfigured(input.platform === 'ios' ? 'App Store 결제' : 'Google Play 결제', verifier.envKeys);
-      const [product] = await db
-        .select()
-        .from(products)
-        .where(input.platform === 'ios' ? eq(products.iosProductId, input.productId) : eq(products.androidProductId, input.productId));
+      const product = await productByStoreId(input.platform, input.productId);
       if (!product) throw notFound('스토어 상품과 연결된 상품이 없어요.');
-      if (requiresProfile(product)) {
-        if (!input.profileId) throw badRequest('리포트를 받을 프로필을 선택해 주세요.');
-        await assertOwnedProfile(userId, input.profileId);
-      }
-      await assertReading(userId, product, input.readingId);
+      if (!product.active || product.comingSoon) throw iapReject(input.platform, 'NOT_FOR_SALE', true);
+      const metadata = await resolveIapTarget(userId, product, input);
+      const blocker = await iapBlocker(userId, product, metadata);
+      if (blocker) throw iapReject(input.platform, blocker, true);
+      return { ok: true };
+    },
+
+    /**
+     * 앱 인앱결제 영수증 검증 → 주문 생성 + 지급 (거래 ID 로 멱등).
+     * 같은 거래를 다시 검증하면 그 주문의 최종 상태로 같은 답을 준다 — 지급했으면 200, 지급하지 않았으면 같은 거절(details.finish 포함).
+     * 결제는 이미 끝난 뒤라, 이미 처리한 거래는 대상 확인보다 먼저 찾아 답한다(복구 때 대상 기록을 잃어도 이미 지급한 거래는 마무리된다)
+     */
+    async verifyIap(userId: string, input: { platform: IapPlatform; productId: string; receipt: string; profileId?: string; readingId?: string }): Promise<PaymentResultDto> {
+      const [user] = await db.select().from(users).where(eq(users.id, userId));
+      if (!user || user.provider === 'guest') throw forbidden('구매 내역을 안전하게 보관하려면 로그인이 필요해요.');
+      const verifier = gateways.iap[input.platform];
+      if (!verifier.isConfigured()) throw notConfigured(input.platform === 'ios' ? 'App Store 결제' : 'Google Play 결제', verifier.envKeys);
+      const product = await productByStoreId(input.platform, input.productId);
+      if (!product) throw notFound('스토어 상품과 연결된 상품이 없어요.');
       let v;
       try {
         v = await verifier.verify({ productId: input.productId, receipt: input.receipt });
@@ -661,35 +804,55 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
         throw e;
       }
       const provider = input.platform === 'ios' ? 'iap_apple' : 'iap_google';
-      const [existing] = await db.select().from(orders).where(and(eq(orders.provider, provider), eq(orders.providerPaymentKey, v.transactionId)));
-      if (existing) {
-        if (existing.userId !== userId) throw conflict('다른 계정에서 이미 사용된 구매예요.');
-        return { order: orderDto(existing), granted: { credits: 0, entitlements: [], premiumUntil: null }, creditsBalance: await balance(userId) };
-      }
-      if (await isVoided(provider, v.transactionId)) throw new AppError(402, ERROR_CODES.PAYMENT_FAILED, '환불되었거나 취소된 구매예요.', { code: 'REVOKED' });
-      const id = newOrderId();
+      const pay = { paymentKey: v.transactionId, method: 'IAP', paidAt: v.purchasedAt };
+      const findByTransaction = async () => (await db.select().from(orders).where(and(eq(orders.provider, provider), eq(orders.providerPaymentKey, v.transactionId))))[0];
+
+      /** 이 거래의 주문을 끝까지 처리하고 최종 상태로 답한다 — 대기 주문이면 지급을 시도한다(동시 요청끼리도 settle 이 1회만 지급) */
+      const answer = async (order: Order): Promise<PaymentResultDto> => {
+        if (order.userId !== userId) throw conflict('다른 계정에서 이미 사용된 구매예요.');
+        let granted: Granted = EMPTY_GRANT;
+        if (order.status === 'pending') {
+          const settled = await settle(order, pay, input.platform);
+          if (settled.ok) granted = settled.granted;
+          else if (settled.reason === 'PER_USER_LIMIT') await failIfPending(order.id, 'PER_USER_LIMIT');
+          else if (settled.reason === 'VOIDED') await failIfPending(order.id, 'REVOKED');
+        }
+        const current = await getOwnedOrder(userId, order.id);
+        if (current.status === 'paid') return { order: orderDto(current), granted, creditsBalance: await balance(userId) };
+        if (current.status === 'refunded' || current.status === 'canceled' || current.failureReason === 'REVOKED') throw iapReject(input.platform, 'REVOKED');
+        if (current.status === 'failed' && current.failureReason && IAP_REJECT_REASONS.has(current.failureReason)) {
+          const reason = current.failureReason as IapRejectReason;
+          await alertIapUnfulfilled(provider, current.id, v.transactionId, reason);
+          throw iapReject(input.platform, reason);
+        }
+        throw new AppError(402, ERROR_CODES.PAYMENT_FAILED, '결제를 확인하지 못했어요. 잠시 후 다시 시도해 주세요.');
+      };
+
+      const existing = await findByTransaction();
+      if (existing) return answer(existing);
+      if (await isVoided(provider, v.transactionId)) throw iapReject(input.platform, 'REVOKED');
+      const metadata = await resolveIapTarget(userId, product, input);
+      // 지급할 수 없는 구매(판매 중지·한도 초과·이미 가진 콘텐츠)도 주문을 failed 로 남긴다 — 다시 검증해도 같은 답을 주고, 환불 문의에 쓸 기록이 된다
+      const blocker = await iapBlocker(userId, product, metadata);
       try {
-        await db
-          .insert(orders)
-          .values({ id, userId, productId: product.id, orderName: product.name, amount: currentPrice(product), status: 'pending', provider, providerPaymentKey: v.transactionId, method: 'IAP', metadata: { profileId: input.profileId, readingId: input.readingId } });
-      } catch {
-        // 같은 거래가 동시에 검증되는 경우(유니크 인덱스) — 먼저 들어간 요청이 처리한다
-        const [dup] = await db.select().from(orders).where(and(eq(orders.provider, provider), eq(orders.providerPaymentKey, v.transactionId)));
-        if (dup && dup.userId === userId) return { order: orderDto(dup), granted: EMPTY_GRANT, creditsBalance: await balance(userId) };
-        throw conflict('다른 계정에서 이미 사용된 구매예요.');
+        await db.insert(orders).values({
+          id: newOrderId(),
+          userId,
+          productId: product.id,
+          orderName: product.name,
+          amount: currentPrice(product),
+          status: blocker ? 'failed' : 'pending',
+          failureReason: blocker,
+          provider,
+          providerPaymentKey: v.transactionId,
+          method: 'IAP',
+          metadata,
+        });
+      } catch (e) {
+        // 같은 거래가 동시에 검증되는 경우(유니크 인덱스) — 먼저 들어간 주문으로 답한다
+        if (!isUniqueViolation(e)) throw e;
       }
-      const [order] = await db.select().from(orders).where(eq(orders.id, id));
-      const settled = await settle(order!, { paymentKey: v.transactionId, method: 'IAP', paidAt: v.purchasedAt }, input.platform);
-      if (!settled.ok && settled.reason === 'PER_USER_LIMIT') {
-        await failIfPending(id, 'PER_USER_LIMIT');
-        throw conflict('이미 구매한 상품이에요. (계정당 1회) 스토어 결제는 완료 처리되지 않아 자동 환불돼요.');
-      }
-      if (!settled.ok && settled.reason === 'VOIDED') {
-        await failIfPending(id, 'REVOKED');
-        throw new AppError(402, ERROR_CODES.PAYMENT_FAILED, '환불되었거나 취소된 구매예요.', { code: 'REVOKED' });
-      }
-      const granted = settled.ok ? settled.granted : EMPTY_GRANT;
-      return { order: orderDto(await getOwnedOrder(userId, id)), granted, creditsBalance: await balance(userId) };
+      return answer((await findByTransaction())!);
     },
 
     /** 결제사 웹훅 처리 (가상계좌 입금, 결제 취소 등 비동기 상태 변경) */
@@ -734,7 +897,9 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
         if (event.partial) {
           // 부분 환불(질문권 팩 미사용분 등) — 얼마나 회수할지는 운영자가 정한다. 기록만 남긴다
           console.warn(`[commerce] 부분 환불 웹훅 — 자동 회수하지 않음 (${providerId} order=${order.id} amount=${event.amount ?? '-'})`);
-          await alert(`↩️ 부분 환불 · ${order.orderName} 중 ${event.amount ?? '?'}원 · ${providerId} · 자동으로 회수하지 않았어요. 회수할 질문권을 확인해 주세요 · 주문 ${order.id}`);
+          // 운영 알림 + 하루 요약의 부분 환불 건수·금액(ops.partialRefund)
+          if (ops) await ops.partialRefund({ productName: order.orderName, amount: event.amount ?? null, provider: providerId, orderId: order.id });
+          else await alert(`↩️ 부분 환불 · ${order.orderName} 중 ${event.amount ?? '?'}원 · ${providerId} · 자동으로 회수하지 않았어요. 회수할 질문권을 확인해 주세요 · 주문 ${order.id}`);
         } else {
           // 결제사 관리자 화면 등에서 취소·환불된 경우에도 지급분을 회수한다
           await revokeAndNotify(order, event.status === 'refunded' ? 'refunded' : 'canceled', `웹훅(${event.type})`);
@@ -803,13 +968,19 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
           console.warn(`[commerce] 환불·취소 알림이 먼저 처리된 결제라 지급하지 않음 (${providerId} order=${order.id} key=${event.paymentKey})`);
         }
         if (!settled.ok && settled.reason === 'PER_USER_LIMIT') {
-          if (event.paymentKey) await gateway.cancel({ paymentKey: event.paymentKey, reason: '계정당 구매 한도 초과' }).catch(() => undefined);
-          // 자동 취소가 안 되는 결제사(그로블)도 있으니 결제 키와 사유를 남겨 운영자가 환불할 수 있게 한다
+          // 상태 규칙은 웹 승인과 같다: 결제사에서 취소했으면 canceled, 취소하지 못했으면(그로블은 취소 API 가 없다) failed.
+          // 결제 키와 사유를 남겨 운영자가 환불할 수 있게 한다
+          const canceled = event.paymentKey
+            ? await gateway
+                .cancel({ paymentKey: event.paymentKey, reason: '계정당 구매 한도 초과' })
+                .then(() => true)
+                .catch(() => false)
+            : false;
           await db
             .update(orders)
-            .set({ status: 'failed', failureReason: 'PER_USER_LIMIT', providerPaymentKey: event.paymentKey ?? order.providerPaymentKey, updatedAt: Date.now() })
+            .set({ status: canceled ? 'canceled' : 'failed', canceledAt: canceled ? Date.now() : null, failureReason: 'PER_USER_LIMIT', providerPaymentKey: event.paymentKey ?? order.providerPaymentKey, updatedAt: Date.now() })
             .where(and(eq(orders.id, order.id), inArray(orders.status, ['pending', 'failed'])));
-          await alert(`⚠️ 환불 필요 — 계정당 구매 한도를 넘은 결제라 지급하지 않았어요. 결제사 ${providerId}, 주문 ${order.id}, 결제 ${event.paymentKey ?? '-'}`);
+          if (!canceled) await alert(`⚠️ 환불 필요 — 계정당 구매 한도를 넘은 결제라 지급하지 않았어요. 결제사 ${providerId}, 주문 ${order.id}, 결제 ${event.paymentKey ?? '-'}`);
         }
       }
       await markProcessed(eventKey);
@@ -874,7 +1045,7 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
         if (unused < product.credits) cancelAmount = Math.floor((order.amount * unused) / product.credits);
       }
       if (order.providerPaymentKey) await gateway.cancel({ paymentKey: order.providerPaymentKey, reason, amount: cancelAmount });
-      await revokeAndNotify(order, 'refunded', reason);
+      await revokeAndNotify(order, 'refunded', reason, cancelAmount);
       return orderDto((await db.select().from(orders).where(eq(orders.id, order.id)))[0]!);
     },
 
@@ -922,7 +1093,7 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
 
     // ── 질문권 ─────────────────────────────────────────────────
     /** 무상분부터 차감(유상분은 환불 대상으로 최대한 보존) */
-    async consumeCredits(userId: string, amount: number, memo: string, refId?: string): Promise<number> {
+    async consumeCredits(userId: string, amount: number, memo: string, refId?: string, refType: 'chat' | 'dream' = 'chat'): Promise<number> {
       await atomic(db, async (u) => {
         const [w] = await db.select({ credits: users.credits, paidCredits: users.paidCredits }).from(users).where(eq(users.id, userId));
         if (!w) throw notFound('사용자를 찾을 수 없어요.');
@@ -933,24 +1104,42 @@ export function createCommerceService(config: AppConfig, db: Db, gateways: Gatew
         u.expect(
           sql`exists (select 1 from ${users} where ${users.id} = ${userId} and ${users.credits} - ${users.paidCredits} >= ${fromFree} and ${users.paidCredits} >= ${fromPaid})`,
         );
-        if (fromFree > 0) addCredits(u, userId, -fromFree, { reason: 'consume', source: 'free', channel: 'system', memo, refType: 'chat', refId });
-        if (fromPaid > 0) addCredits(u, userId, -fromPaid, { reason: 'consume', source: 'paid', channel: 'system', memo, refType: 'chat', refId });
+        // refType 으로 어디에 썼는지(상담 chat · 꿈풀이 dream) 원장만 보고 구분한다
+        if (fromFree > 0) addCredits(u, userId, -fromFree, { reason: 'consume', source: 'free', channel: 'system', memo, refType, refId });
+        if (fromPaid > 0) addCredits(u, userId, -fromPaid, { reason: 'consume', source: 'paid', channel: 'system', memo, refType, refId });
       });
       return balance(userId);
     },
     /**
-     * AI 장애로 답하지 못한 상담·꿈풀이의 질문권 환급(무상) — 사용자마다 하루(KST) AI_REFUND_DAILY_LIMIT 번까지.
-     * 원장의 환급 기록(refType=ai_refund)으로 세고, 묶음 실행 시점에도 상한 안인지 다시 확인한다(동시 요청으로 넘지 않게).
+     * AI 장애로 답하지 못한 상담·꿈풀이의 질문권 환급 — 사용자마다 하루(KST) AI_REFUND_DAILY_LIMIT 번까지.
+     * 차감할 때와 같은 몫으로 돌려준다: 같은 refId 로 차감한 원장을 찾아 무상분은 무상으로, 유상분은 유상으로(환불할 수 있는 유상 잔액이 무상으로 바뀌지 않게).
+     * refId 가 없거나 차감 기록을 찾지 못하면 전부 무상으로 돌려준다.
+     * 원장의 환급 기록(refType=ai_refund)을 refId 단위로 세고(한 번 환급이 무상·유상 두 줄일 수 있다), 묶음 실행 시점에도 상한 안인지,
+     * 같은 refId 를 이미 돌려주지 않았는지 다시 확인한다(동시 요청으로 넘지 않게).
      * 돌려줬으면 true, 상한에 걸리면 false(차감한 채로 둔다)
      */
     async refundAiFailure(userId: string, amount: number, memo: string, refId?: string): Promise<boolean> {
       const since = startOfSeoulDay();
       const todayRefunds = and(eq(creditLedger.userId, userId), eq(creditLedger.refType, AI_REFUND_REF), gte(creditLedger.createdAt, since));
+      const refundCount = sql<number>`count(distinct coalesce(${creditLedger.refId}, ${creditLedger.id}))`;
       return atomic(db, async (u) => {
-        const used = (await db.select({ n: count() }).from(creditLedger).where(todayRefunds))[0]?.n ?? 0;
+        const used = (await db.select({ n: refundCount }).from(creditLedger).where(todayRefunds))[0]?.n ?? 0;
         if (used >= AI_REFUND_DAILY_LIMIT) return false;
-        u.expect(sql`(select count(*) from ${creditLedger} where ${todayRefunds}) < ${AI_REFUND_DAILY_LIMIT}`);
-        addCredits(u, userId, amount, { reason: 'bonus', source: 'free', channel: 'system', memo, refType: AI_REFUND_REF, refId });
+        u.expect(sql`(select ${refundCount} from ${creditLedger} where ${todayRefunds}) < ${AI_REFUND_DAILY_LIMIT}`);
+        let paid = 0;
+        if (refId) {
+          const refundedAlready = and(eq(creditLedger.userId, userId), eq(creditLedger.refType, AI_REFUND_REF), eq(creditLedger.refId, refId));
+          if ((await db.select({ id: creditLedger.id }).from(creditLedger).where(refundedAlready).limit(1)).length) return false;
+          u.expect(sql`not exists (select 1 from ${creditLedger} where ${refundedAlready})`);
+          const consumed = await db
+            .select({ source: creditLedger.source, delta: creditLedger.delta })
+            .from(creditLedger)
+            .where(and(eq(creditLedger.userId, userId), eq(creditLedger.reason, 'consume'), eq(creditLedger.refId, refId)));
+          paid = Math.min(amount, consumed.filter((r) => r.source === 'paid').reduce((n, r) => n - r.delta, 0));
+        }
+        const free = amount - paid;
+        if (free > 0) addCredits(u, userId, free, { reason: 'bonus', source: 'free', channel: 'system', memo, refType: AI_REFUND_REF, refId });
+        if (paid > 0) addCredits(u, userId, paid, { reason: 'bonus', source: 'paid', channel: 'system', memo, refType: AI_REFUND_REF, refId });
         return true;
       });
     },

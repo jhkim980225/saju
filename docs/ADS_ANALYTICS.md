@@ -27,6 +27,8 @@
 | `result_bottom` | 토정비결(무료) 결과 — 신년운세 추천 카드 **아래**·공유 버튼 위 (리서치의 `web_free_result_bottom`) | `TojeongPage.tsx` | 위와 같음 | 위와 같음 |
 | `web_content_mid` | SEO 콘텐츠 본문 중간 1개·하단 1개 — 꿈해몽 사전 첫 화면(`/dream`)·키워드 페이지(`/dream/:slug`). **AI 꿈풀이(`/dream/ask`)에는 넣지 않음** | `DreamPages.tsx` | AdSense 반응형(인아티클 단위 권장) / 애드핏 320×100 | 같음 |
 | `web_content_mid` | 띠별·별자리 운세(SEO 콘텐츠) 본문 중간 — 상세는 근거 카드 아래·년생별 목록 위, 허브는 12개 목록 아래. 같은 화면 하단(오늘의 운세 안내 카드 **아래**)은 `result_bottom` | `ZodiacPage.tsx`, `HoroscopePage.tsx` (키: `VITE_ADSENSE_SLOT_CONTENT_MID`, `VITE_ADFIT_UNIT_CONTENT_MID`) | 같음 | 같음 |
+| `result_bottom` | 띠별·별자리 상세 하단(오늘의 운세 안내 카드 아래) | `ZodiacPage.tsx`, `HoroscopePage.tsx` | 같음 | 같음 |
+| `result_bottom` | 타로 결과 하단(잠겼거나 무료 리딩일 때) | `TarotReadingView.tsx` | 같음 | 같음 |
 
 2차 후보(리서치 §5.7): ~~SEO 콘텐츠 본문 중간·하단(`web_content_mid`)~~ (2026-10-15 꿈해몽으로 도입, 키 `VITE_ADSENSE_SLOT_CONTENT_MID`·`VITE_ADFIT_UNIT_CONTENT_MID`), AdSense Offerwall(`web_offerwall_detail`, 하루 1~2회). 추가할 때는 `AdPlacement` 타입과 env 키를 함께 늘립니다.
 
@@ -61,13 +63,13 @@
 
 | slot | 위치 | 포맷 | 한도 |
 |---|---|---|---|
-| `app_banner_result` | 무료 결과 본문 하단(인라인 적응형 배너). 홈 하단 고정 배너는 쓰지 않음 | AdMob 배너 | — |
-| `app_rewarded_chat` | AI 질문권을 다 썼을 때 "광고 보고 1회 추가" | AdMob 보상형 + **SSV(서버 측 검증)** | **하루 3회**, 무상 버킷에 적립 |
-| `app_rewarded_detail` | 오늘의 운세 상세, 내일 운세 미리보기 | AdMob 보상형 | 하루 1회 |
-| `app_interstitial_result` | 무료 결과 진입 | AdMob 전면 (3차, 신중) | 세션당 1회, 첫 세션·결제 직후·구독자 제외 |
+| `app_banner_result` | 무료 결과 본문 하단(인라인 적응형 배너). 홈 하단 고정 배너는 쓰지 않음. **미구현**(`showBannerAd` 를 부르는 화면이 없음) | AdMob 배너 | — |
+| `app_rewarded_chat` | AI 질문권을 다 썼을 때 "광고 보고 1회 추가"(`RewardedAdCard`) | AdMob 보상형 + **SSV(서버 측 검증)** | 서버 `REWARDED_AD_DAILY_LIMIT`(기본 3, KST 0시 기준), 무상 버킷에 적립 |
+| `app_rewarded_detail` | 오늘의 운세 상세, 내일 운세 미리보기. **미구현** | AdMob 보상형 | 하루 1회 |
+| `app_interstitial_result` | 무료 결과 진입. **미구현** | AdMob 전면 (3차, 신중) | 세션당 1회, 첫 세션·결제 직후·구독자 제외 |
 
 - 보상형은 사용자가 **명시적으로 선택**해야 합니다(AdMob 정책). 유료 IAP 상품 자체를 광고로 대신 풀어주지 말고 '추가 무료 1회' 수준으로 제한합니다.
-- 키: `VITE_ADMOB_BANNER_ID_{ANDROID,IOS}`, `VITE_ADMOB_REWARDED_ID_{ANDROID,IOS}`. 앱 웹뷰에서는 `AdSlot` 이 항상 `null` 이므로 웹 광고와 겹치지 않습니다.
+- 키(앱 빌드 `.env.app`, `apps/web/src/native/env.ts`): `VITE_ADMOB_UNIT_REWARDED_CHAT_{IOS,ANDROID}`, `VITE_ADMOB_UNIT_BANNER_RESULT_{IOS,ANDROID}`, 테스트 단위를 강제하는 `VITE_ADMOB_TESTING`. 앱 웹뷰에서는 `AdSlot` 이 항상 `null` 이므로 웹 광고와 겹치지 않습니다.
 
 ---
 
@@ -133,11 +135,14 @@
 | `compatibility_viewed` | `CompatibilityPage` | `score` | `compatibility_viewed` | `ViewContent {content_name:'compatibility'}` | `viewContent({id:'compatibility'})` |
 | `paywall_viewed` | `PaywallSheet` | `products` | `paywall_viewed` | — | — |
 | `checkout_started` | `usePurchase` | `product`, `price` | `begin_checkout {value, currency:'KRW', items}` | `InitiateCheckout {value, currency:'KRW', content_ids}` | — |
-| `purchase` | `PaymentResultPages`(웹), `usePurchase`(IAP) | `product`, `price`, `channel`, (`orderId`) | `purchase {value, currency:'KRW', items, transaction_id}` | `Purchase {value, currency:'KRW', content_ids}` + `eventID` | `purchase({total_price, currency:'KRW', products})` |
-| `signup` | `AuthPages` | `method` | `sign_up {method}` | `CompleteRegistration` | `signUp()` |
+| `purchase` | `PaymentResultPages`(웹), `usePurchase`(IAP), `recoverWebPurchase`(결제 확인 화면을 닫아 빠진 그로블 결제, 다음 시작 때) | `product`, `price`, `channel`, (`orderId`) | `purchase {value, currency:'KRW', items, transaction_id}` | `Purchase {value, currency:'KRW', content_ids}` + `eventID` | `purchase({total_price, currency:'KRW', products})` |
+| `signup` | `AuthPages`(이메일 가입, 소셜 콜백의 `isNewUser` 가 참일 때) | `method` | `sign_up {method}` | `CompleteRegistration` | `signUp()` |
 | `login` | `AuthPages` | `method` | `login {method}` | — | — |
 | `share` | `share.ts` | `channel`(`kakao`/`system`/`clipboard`/`copy_link`) | `share {method}` | — | — |
 | `chat_sent` | `AskPage` | — | `chat_sent` | — | — |
+| `tarot_drawn` · `tarot_daily_drawn` · `tarot_result_viewed` | 타로 화면 | — | 같은 이름 | — | — |
+
+- **결제 전환 한 번만**: 같은 주문 ID 의 `purchase` 는 기기에서 한 번만 보냅니다(`yd.analytics.purchases`). 주문 ID 로 거르지 못하는 카카오 픽셀도 겹치지 않습니다.
 
 - **금액**: `price`(또는 `value`)는 **원 단위 정수**이고 `currency` 는 항상 `KRW` 입니다.
 - **SPA page_view**: GA4 는 `send_page_view:false` 로 자동 전송을 끄고 라우트마다 수동으로 보냅니다. Meta 는 `disablePushState` 로 history 자동 PageView 를 끕니다.
@@ -147,9 +152,9 @@
 
 ---
 
-## 4. 개인정보 처리방침에 추가할 문구 (초안, 법무 검토 필요)
+## 4. 개인정보 처리방침 문구 (초안, 법무 검토 필요)
 
-현재 처리방침(`apps/web/src/pages/MiscPages.tsx` 의 `privacy`)에는 분석·광고 도구 고지가 없습니다. 키를 넣기 **전에** 아래 내용을 추가해야 합니다.
+아래 내용은 처리방침(`apps/web/src/lib/legal.ts` 의 `webPrivacy`)에 이미 들어 있습니다. 7번(행태정보와 쿠키), 8번(카카오톡 공유), 5번 위탁·6번 국외 이전(분석·광고 측정, FCM, AdMob)입니다. 아래는 처음 작성할 때의 초안이고, 실제 문구는 `legal.ts` 가 기준입니다.
 
 > **행태정보의 수집·이용 및 거부 방법**
 > 회사는 서비스 이용 통계 분석, 광고 성과 측정, 관심 기반 맞춤형 광고 제공을 위해 아래와 같이 행태정보를 수집·이용합니다.
@@ -164,7 +169,7 @@
 > Google LLC(미국), Meta Platforms, Inc.(미국)에 쿠키·온라인 식별자와 서비스 이용 기록이 서비스 이용 시점에 네트워크를 통해 전송됩니다. 목적은 이용 통계 분석과 광고 성과 측정이고, 보유 기간은 위와 같습니다. 이용자는 위 거부 방법으로 이전을 거부할 수 있습니다.
 >
 > **카카오톡 공유**
-> 카카오톡 공유를 이용하면 공유 내용(결과 제목·요약 문구·링크)이 주식회사 카카오를 통해 전달됩니다. 생년월일과 태어난 시간은 공유되지 않습니다.
+> 카카오톡 공유를 이용하면 공유 내용(결과 제목·요약 문구·링크)이 주식회사 카카오를 통해 전달됩니다. 이름과 생년월일, 태어난 시간은 공유되지 않습니다.
 
 - 근거: 개인정보 보호법 제28조의8(국외 이전 고지), 방송통신위원회·행정안전부 「온라인 맞춤형 광고 개인정보보호 가이드라인」(행태정보 수집·이용 고지)
 - AdSense·Meta 정책도 쿠키 사용과 제3자 광고 사업자 고지를 요구합니다(AdSense 승인 조건).
@@ -197,7 +202,7 @@ AdSense 승인 후 **루트 도메인**에 `ads.txt` 를 게시해야 수익이 
 - [ ] GA4 향상된 측정의 "방문 기록 기반 페이지 변경" 꺼짐(page_view 중복 방지)
 - [ ] Meta 자동 고급 매칭 꺼짐, 도메인 인증 완료
 - [ ] 카카오 디벨로퍼스 Web 플랫폼에 운영·스테이징·개발 도메인 등록
-- [ ] 개인정보 처리방침에 4장 문구 반영(법무 검토)
+- [x] 개인정보 처리방침에 4장 문구 반영(`legal.ts`, 법무 검토는 남음)
 - [ ] AdSense 승인 후 `public/ads.txt` 게시
 - [ ] CSP 를 도입한다면 허용 목록에 추가할 도메인
   - script-src: `pagead2.googlesyndication.com`, `www.googletagmanager.com`, `connect.facebook.net`, `t1.daumcdn.net`, `t1.kakaocdn.net`

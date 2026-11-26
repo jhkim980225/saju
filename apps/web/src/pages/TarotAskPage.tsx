@@ -1,4 +1,4 @@
-import { TAROT_OPTION_MAX, TAROT_QUESTION_MAX, TAROT_SPREADS, TAROT_TOPICS, type ProfileDto, type TarotTopic } from '@saju/shared';
+import { CRISIS_PATTERN, TAROT_OPTION_MAX, TAROT_QUESTION_MAX, TAROT_SPREADS, TAROT_TOPICS, type ProfileDto, type TarotTopic } from '@saju/shared';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
@@ -15,7 +15,6 @@ import { TAROT_DRAFT_KEY, draftError, type TarotDraft } from '@/lib/tarot';
 
 
 const EXPERT = /병원|아프|건강|수술|임신|소송|재판|법적|투자|주식|코인|대출|부동산/;
-const CRISIS = /죽고\s*싶|자살|자해|살기\s*싫|사라지고\s*싶/;
 
 /** 궁합 타로 — 나 × 상대 고르기 (궁합 화면과 같은 저장된 사주 목록·상대 추가 흐름) */
 function PairPicker({ me, partner, onChange }: { me?: string; partner?: string; onChange: (slot: 'me' | 'partner', id: string) => void }) {
@@ -109,7 +108,7 @@ export function TarotAskPage() {
   // t() 는 없는 키를 그대로 돌려준다
   const examples = [0, 1, 2].map((i) => t(`tarot.question.examples.${topic}.${i}`)).filter((x) => !x.startsWith('tarot.'));
   const notes = [
-    CRISIS.test(question) && t('tarot.question.sensitive.crisis'),
+    CRISIS_PATTERN.test(question) && t('tarot.question.sensitive.crisis'),
     EXPERT.test(question) && t('tarot.question.sensitive.expert'),
     (topic === 'feelings' || topic === 'reunion' || topic === 'compat') && t('tarot.question.sensitive.thirdParty'),
   ].filter(Boolean) as string[];

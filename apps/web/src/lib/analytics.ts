@@ -8,7 +8,10 @@
  * - 개인정보(생년월일·이메일·이름·전화번호 등)는 보내지 않는다: sanitize() 가 키 이름/값 형태로 걸러내고,
  *   page_location 은 utm_* 등 캠페인 파라미터만 남기고 나머지 쿼리(OAuth code, 결제키 등)와 해시를 지운다.
  * - purchase / checkout_started 는 props.price(또는 value, 원 단위)를 value 로, currency 는 항상 'KRW'.
- *   props.orderId 가 있으면 GA4 transaction_id · Meta eventID 로 써서 중복 집계를 막는다.
+ *   props.orderId 가 있으면 GA4 transaction_id · Meta eventID 로 쓰고, 같은 주문의 purchase 는 이 기기에서 한 번만 보낸다
+ *   (결제 확인 화면을 다시 열어도 중복 없음 — 주문 ID 로 거르지 못하는 카카오 픽셀 포함).
+ * - 그로블 결제는 결제 확인 화면이 결제 완료를 보기 전에 닫히면 전환이 빠진다. 그래서 다음 시작 때 recoverWebPurchase 가
+ *   이 기기에 남은 결제 대기 주문(하루 안)을 주문 목록으로 한 번 확인해, 결제됐으면 그때 purchase 를 보낸다.
  *
  * 이벤트 매핑 표
  * | AnalyticsEvent       | GA4 (gtag)                     | Meta Pixel (fbq)                | Kakao Pixel                   |
@@ -45,6 +48,8 @@ export type AnalyticsEvent =
   | 'tarot_drawn'
   | 'tarot_daily_drawn'
   | 'tarot_result_viewed';
+
+import { STORAGE_KEYS, storage } from './storage';
 
 type Props = Record<string, string | number | boolean | undefined>;
 type Params = Record<string, unknown>;
@@ -143,6 +148,46 @@ export function initAnalytics(): void {
   if (ids.ga4) initGa4(ids.ga4);
   if (ids.meta) initMeta(ids.meta);
   if (ids.kakao) initKakao();
+  // 지난번에 결제 확인 화면을 닫아 빠진 웹 결제 전환 — 첫 화면을 막지 않게 조금 뒤에 확인한다
+  if (ids.ga4 || ids.meta || ids.kakao) setTimeout(() => void recoverWebPurchase(), 3_000);
+}
+
+/** 이미 보낸 purchase 의 주문 ID(이 기기, 최근 50개) */
+const SENT_PURCHASES_KEY = 'yd.analytics.purchases';
+const SENT_PURCHASES_MAX = 50;
+
+const sentPurchases = (): string[] => storage.getJSON<string[]>(SENT_PURCHASES_KEY) ?? [];
+
+/** 이 주문의 purchase 를 처음 보내는 것이면 기록하고 true */
+function firstPurchase(orderId: string): boolean {
+  const sent = sentPurchases();
+  if (sent.includes(orderId)) return false;
+  storage.setJSON(SENT_PURCHASES_KEY, [...sent, orderId].slice(-SENT_PURCHASES_MAX));
+  return true;
+}
+
+/** 결제 대기 주문을 다시 확인하는 기한 — 이보다 오래된 주문은 결제했더라도 확인하지 않는다 */
+const RECOVER_WINDOW_MS = 24 * 3_600_000;
+
+/**
+ * 빠진 웹 결제 전환 복구 — 결제 확인 화면이 남겨 둔 그로블 결제 대기 주문(STORAGE_KEYS.pendingCheckout)이 있으면
+ * 주문 목록(GET /orders)에서 그 주문을 찾아, 결제됐는데 아직 보내지 않았으면 purchase 를 보낸다.
+ * 주문 하나 조회(GET /orders/:id)는 서버가 결제를 기다리는 표시로 쓰므로 부르지 않는다. 결제 대기 정보는 지우지 않는다(결제 화면 몫)
+ */
+export async function recoverWebPurchase(): Promise<boolean> {
+  if (!state.initialized) return false;
+  const pending = storage.getJSON<{ orderId?: string; provider?: string }>(STORAGE_KEYS.pendingCheckout);
+  if (!pending?.orderId || pending.provider !== 'groble' || sentPurchases().includes(pending.orderId)) return false;
+  try {
+    const [{ api }, { useSession }] = await Promise.all([import('./api'), import('./session')]);
+    if (!useSession.getState().accessToken) return false;
+    const order = (await api.orders()).find((o) => o.id === pending.orderId);
+    if (!order || order.status !== 'paid' || Date.now() - Date.parse(order.createdAt) > RECOVER_WINDOW_MS) return false;
+    track('purchase', { product: order.productId, price: order.amount, orderId: order.id, channel: 'web' });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function initGa4(id: string) {
@@ -317,6 +362,8 @@ function toDispatch(event: AnalyticsEvent, raw: Props): Dispatch {
 
 export function track(event: AnalyticsEvent, props: Props = {}): void {
   if (!state.initialized) return;
+  // 같은 주문의 결제 전환은 한 번만(결제 확인 화면을 다시 열거나 복구 확인과 겹쳐도)
+  if (event === 'purchase' && typeof props.orderId === 'string' && !firstPurchase(props.orderId)) return;
   const d = toDispatch(event, props);
 
   if (state.debug) {

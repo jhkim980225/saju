@@ -39,8 +39,16 @@ export type { AppContext, AuthUser } from './lib/http.js';
 export interface RateLimiters {
   general?: RateLimiter;
   auth?: RateLimiter;
+  /** 세션 유지(게스트 시작·토큰 갱신) — 비밀번호를 맞히는 경로가 아니라 인증 제한보다 넉넉하다 */
+  session?: RateLimiter;
   admin?: RateLimiter;
 }
+
+/**
+ * 접속 IP 요청 수 제한에서 빼는 서버 간 호출 — 결제사·스토어 웹훅, AdMob 보상 확인(SSV).
+ * 한 결제사·Google 의 IP 에서 몰려 오므로 IP 제한에 걸리면 재전송에 기대게 된다. 이 경로들은 서명·재조회로 따로 검증한다
+ */
+export const RATE_LIMIT_EXEMPT = [/^\/api\/v1\/payments\/webhooks\//, /^\/api\/v1\/payments\/iap\/notifications\//, /^\/api\/v1\/rewards\/admob-ssv$/];
 
 export interface InjectResponse {
   statusCode: number;
@@ -90,6 +98,7 @@ export function buildApp(opts: { config: AppConfig; db: Db; deps?: ServiceDeps; 
       await next();
     },
     authLimit: rateLimit(limits.auth, 'auth'),
+    sessionLimit: rateLimit(limits.session, 'session'),
     adminLimit: rateLimit(limits.admin, 'admin'),
   };
 
@@ -142,7 +151,8 @@ export function buildApp(opts: { config: AppConfig; db: Db; deps?: ServiceDeps; 
   app.get('/health', (c) => c.json({ ok: true, time: new Date().toISOString() }));
 
   const api = new Hono<AppEnv>();
-  api.use('*', rateLimit(limits.general, 'api'));
+  const generalLimit = rateLimit(limits.general, 'api');
+  api.use('*', (c, next) => (RATE_LIMIT_EXEMPT.some((re) => re.test(c.req.path)) ? next() : generalLimit(c, next)));
   // 로그인한 요청의 응답(내 사주·리포트·결제 내역 등)은 브라우저·중간 캐시에 남기지 않는다
   api.use('*', async (c, next) => {
     await next();

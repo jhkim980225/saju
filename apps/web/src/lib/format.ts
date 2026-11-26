@@ -2,11 +2,8 @@ import type { Element } from '@saju/core';
 
 export const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
 
-/** 신년운세·"올해 운세"의 대상 연도 (KST 기준 10월부터는 다음 해) — 서버 reading.ts 와 같은 규칙 */
-export function targetFortuneYear(now = new Date()): number {
-  const kst = new Date(now.getTime() + 9 * 3_600_000);
-  return kst.getUTCFullYear() + (kst.getUTCMonth() >= 9 ? 1 : 0);
-}
+/** 신년운세·"올해 운세"의 대상 연도 (KST 기준 10월부터는 다음 해) — 서버와 같은 정의(packages/shared/src/fortuneYear.ts) */
+export { targetFortuneYear } from '@saju/shared/fortune-year';
 
 export const ELEMENT_META: Record<Element, { name: string; hanja: string; label: string; cls: { solid: string; soft: string; ink: string; bg: string } }> = {
   wood: { name: '목', hanja: '木', label: '나무', cls: { solid: 'text-wood', soft: 'bg-wood-soft', ink: 'text-wood-ink', bg: 'bg-wood' } },

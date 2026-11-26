@@ -47,7 +47,7 @@ sequenceDiagram
 ```
 
 - **상품 연결:** 그로블은 결제창마다 가격이 고정이라, 우리 상품마다 결제창을 하나씩 만들고 `GROBLE_PRODUCT_LINKS` 에 `상품ID=결제 링크` 로 적습니다. 연결 안 된 상품은 주문을 만들지 않고 501 을 돌려줍니다.
-- **가격 동기화:** 웹훅의 `pricing.finalAmount` 가 우리 주문 금액과 다르면 지급하지 않습니다(주문 `failed`, 사유 `WEBHOOK_AMOUNT_MISMATCH`). 그로블에서 쿠폰·할인을 켜거나, 신년운세 프로모션 종료(`saleEndsAt`)처럼 우리 가격이 바뀔 때 그로블 가격을 같은 날 바꾸지 않으면 이렇게 됩니다. 자동 취소 API 가 없으니 이때는 운영자가 그로블에서 환불합니다(주문에 `merchantUid` 가 남아 있음).
+- **가격 동기화:** 웹훅의 `pricing.finalAmount` 가 우리 주문 금액과 다르면 지급하지 않습니다(주문 `failed`, 사유 `WEBHOOK_AMOUNT_MISMATCH`). 그로블에서 쿠폰·할인을 켜거나, 우리 가격(`catalog.ts`)을 바꿀 때 그로블 가격을 같은 날 바꾸지 않으면 이렇게 됩니다. 지금은 날짜에 따라 가격이 바뀌는 상품(`saleEndsAt`)이 없습니다. 자동 취소 API 가 없으니 이때는 운영자가 그로블에서 환불합니다(주문에 `merchantUid` 가 남아 있음).
 - **결제창 대조:** 다른 결제창으로 결제한 알림에 이 주문의 ref 를 붙여도 `content.id` 가 다르면 지급하지 않습니다(`WEBHOOK_PRODUCT_MISMATCH`). 웹훅의 `content.id` 가 결제 링크의 ID 와 다르면, 첫 테스트 결제의 실패 사유에 찍힌 값을 `상품ID=링크|콘텐츠ID` 로 적습니다.
 - **환불:** 그로블 판매자 화면에서 환불하면 `payment.refunded` 웹훅이 와서 지급분을 회수합니다(이 알림에는 ref 가 없어 `merchantUid` 로 주문을 찾음). 관리자 환불 API(`/admin/orders/:id/refund`)는 그로블 주문에 400 으로 안내만 합니다. 그로블은 알림 순서를 보장하지 않아 **환불 알림이 결제 완료 알림보다 먼저** 올 수 있습니다 — 그때는 그 `merchantUid` 를 무효(`webhook_events` 의 `groble:voided:<merchantUid>`, 인앱결제와 같은 장치)로 표시해 두고, 뒤에 온 완료 알림은 지급하지 않고 주문을 `refunded`(`failureReason=REFUNDED_BEFORE_PAID`)로 닫습니다. **부분 환불**(`refund.partialRefund`)은 자동 회수하지 않고 로그만 남깁니다 — 질문권 팩 미사용분 환불처럼 얼마를 회수할지는 운영자가 정합니다.
 - **기록만 하는 알림:** `payment.cancel_requested`(구매자 취소 요청, 판매자가 그로블에서 승인·반려), 정기결제 이벤트. ref 없이 링크로 바로 산 결제·모르는 주문도 200 으로 받고 로그만 남깁니다(재전송 방지).
@@ -343,7 +343,7 @@ sequenceDiagram
     |---|---|---:|
     | `report_saju_mini` | 첫 사주 미니 리포트 | 990원 |
     | `report_saju_lifetime` | 평생 사주분석서 | 9,900원 |
-    | `report_newyear_2027` | 2027 丁未년 신년운세 | 5,900원 (2027-01-01부터 7,900원) |
+    | `report_newyear_2027` | 2027 丁未년 신년운세 | 5,900원 (기한 없음) |
     | `report_compat` | 사주 궁합 리포트 | 5,900원 |
     | `report_love` | 연애·결혼운 리포트 | 4,900원 |
     | `report_career_wealth` | 재물·직업운 리포트 | 4,900원 |
@@ -357,7 +357,7 @@ sequenceDiagram
 - [ ] 연동 화면의 **테스트 발송** → 서버가 200(ref 없는 테스트는 기록만)
 - [ ] **실결제 1건**(가장 싼 상품) → 웹 화면이 완료로 바뀌는지, 주문에 `merchantUid` 가 저장됐는지 확인 → 그로블에서 환불 → 주문 `refunded`·권한 회수 확인
   - 이때 주문이 `failed` 이고 사유가 `WEBHOOK_PRODUCT_MISMATCH: <값> != <링크 ID>` 면, 웹훅의 `content.id` 가 링크 ID 와 다른 것 → `상품ID=링크|<값>` 으로 고침
-- [ ] 우리 가격이 바뀌는 날(신년운세 프로모션 `saleEndsAt` 등)에 그로블 결제창 가격도 함께 바꾸기
+- [ ] 우리 가격(`catalog.ts`)을 바꾸는 날 그로블 결제창 가격도 함께 바꾸기(지금은 날짜에 따라 가격이 바뀌는 상품이 없다)
 - [ ] 환불 규정: 그로블은 구매 후 7일 안에 구매자가 취소를 요청하고 판매자가 승인·반려합니다. 우리 환불 정책(§7)과 같은 기준으로 처리합니다
 
 ---

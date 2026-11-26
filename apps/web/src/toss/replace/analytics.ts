@@ -90,6 +90,11 @@ export function initAnalytics(): void {
   /* SDK 가 스스로 준비한다 — 따로 불러올 것이 없다 */
 }
 
+/** 웹 그로블 결제 전환 복구 — 토스는 인앱결제라 해당하지 않는다 */
+export async function recoverWebPurchase(): Promise<boolean> {
+  return false;
+}
+
 export function track(event: AnalyticsEvent, props: Props = {}): void {
   const mapped = toTossEvent(event, props);
   if (!mapped) return;

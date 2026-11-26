@@ -41,6 +41,10 @@ export interface NativeBridge {
   share?: (data: { title: string; text: string; url: string }) => Promise<boolean>;
   setStatusBar?: (theme: 'light' | 'dark') => void;
   requestPush?: () => Promise<string | null>;
+  /** 알림 켜기·끄기 — 켜면 권한·토큰 등록(권한이 없으면 false), 끄면 이 기기 토큰 해제(src/native/push.ts setPushEnabled) */
+  setPush?: (on: boolean) => Promise<boolean>;
+  /** 이 기기에서 알림을 껐는지 */
+  pushOptedOut?: () => boolean;
   /** 인앱결제 — 성공 시 서버 검증용 영수증 반환 */
   purchase?: (storeProductId: string) => Promise<{ receipt: string } | null>;
   openExternal?: (url: string) => Promise<void>;

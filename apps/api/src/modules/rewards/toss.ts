@@ -4,6 +4,8 @@
  *  - 토큰은 사용자·종류에 묶이고 10분 안에 한 번만 쓸 수 있다(webhook_events 에 기록해 재사용을 막는다).
  *  - 시작 직후의 지급 요청(TOO_EARLY)은 거절한다 — 광고를 보지 않고 바로 요청하는 것을 줄인다.
  *  - credit: 무상 질문권. AdMob 보상과 같은 하루 한도(REWARDED_AD_DAILY_LIMIT)를 함께 쓴다.
+ *    토스 첫 버전은 AI 상담·꿈풀이를 빼서 이 보상을 부르는 화면이 없다. 광고 시청을 서버가 확인할 수 없는 지급 경로를
+ *    쓰지도 않으면서 열어 두지 않도록 기본은 꺼 두고(403 CREDIT_REWARD_OFF), 화면을 붙일 때 deps.creditRewards 로 켠다.
  *  - unlock: 무료 콘텐츠 열기(내일 운세 미리 보기). 슬롯마다 하루 1회.
  * 한계: 앱이 광고를 실제로 끝까지 보여 줬는지는 서버가 확인할 수 없다 — 그래서 한도를 작게 둔다.
  */
@@ -11,11 +13,11 @@ import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { SignJWT, jwtVerify } from 'jose';
 import type { TossRewardClaimDto, TossRewardSlot, TossRewardStartDto, TossRewardStartRequestDto } from '@saju/shared';
-import { TOSS_REWARD_SLOTS } from '@saju/shared';
+import { ERROR_CODES, TOSS_REWARD_SLOTS } from '@saju/shared';
 import type { AppConfig } from '../../config/env.js';
 import type { Db } from '../../db/client.js';
 import { users, webhookEvents } from '../../db/schema.js';
-import { badRequest, conflict, forbidden, notConfigured } from '../../lib/errors.js';
+import { AppError, badRequest, conflict, forbidden, notConfigured } from '../../lib/errors.js';
 import type { CommerceService } from '../commerce/service.js';
 import type { TossClient } from '../toss/client.js';
 import type { RewardsService } from './service.js';
@@ -28,6 +30,8 @@ const PROVIDER = 'toss_ad';
 
 export interface TossRewardsDeps {
   now?: () => number;
+  /** 질문권 광고 보상(kind credit)을 받을지 — 부르는 화면이 생길 때 services.ts 에서 켠다(기본 꺼짐) */
+  creditRewards?: boolean;
 }
 
 export function createTossRewardsService(config: AppConfig, db: Db, commerce: CommerceService, rewards: RewardsService, client: TossClient, deps: TossRewardsDeps = {}) {
@@ -45,6 +49,8 @@ export function createTossRewardsService(config: AppConfig, db: Db, commerce: Co
     if (user?.provider !== 'toss') throw forbidden('토스 앱에서만 받을 수 있는 보상이에요.');
   };
 
+  const creditOff = () => new AppError(403, ERROR_CODES.FORBIDDEN, '토스 앱에서는 질문권 광고 보상을 아직 받을 수 없어요.', { reason: 'CREDIT_REWARD_OFF' });
+
   const unlockedToday = async (userId: string, slot: string) =>
     (await db.select({ id: webhookEvents.id }).from(webhookEvents).where(eq(webhookEvents.id, unlockId(userId, slot, dateKeyKst())))).length > 0;
 
@@ -55,6 +61,7 @@ export function createTossRewardsService(config: AppConfig, db: Db, commerce: Co
     async start(userId: string, req: TossRewardStartRequestDto): Promise<TossRewardStartDto> {
       await requireTossUser(userId);
       const limitReached = () => conflict('오늘 받을 수 있는 광고 보상을 모두 받았어요.', { reason: 'DAILY_LIMIT' });
+      if (req.kind === 'credit' && !deps.creditRewards) throw creditOff();
       if (req.kind === 'credit') {
         if ((await rewards.todayCount(userId)) >= config.REWARDED_AD_DAILY_LIMIT) throw limitReached();
       } else if (await unlockedToday(userId, req.slot)) {
@@ -88,6 +95,7 @@ export function createTossRewardsService(config: AppConfig, db: Db, commerce: Co
       if (payload.sub !== userId || !jti || (kind !== 'credit' && kind !== 'unlock') || (kind === 'unlock' && !(slot && TOSS_REWARD_SLOTS.includes(slot)))) {
         throw badRequest('광고 보상을 확인하지 못했어요. 광고를 다시 봐 주세요.');
       }
+      if (kind === 'credit' && !deps.creditRewards) throw creditOff();
       if (now() - startedAt < TOSS_REWARD_MIN_WATCH_MS) return { granted: false, reason: 'TOO_EARLY' };
 
       if (kind === 'unlock') {
@@ -95,7 +103,7 @@ export function createTossRewardsService(config: AppConfig, db: Db, commerce: Co
         // 하루 1회 — 같은 날 다시 요청해도 이미 열린 상태를 그대로 알려 준다
         await db
           .insert(webhookEvents)
-          .values({ id: unlockId(userId, slot!, dateKey), provider: PROVIDER, eventType: `unlock:${slot}`, payload: { userId, dateKey, jti }, processedAt: now() })
+          .values({ id: unlockId(userId, slot!, dateKey), provider: PROVIDER, eventType: `unlock:${slot}`, payload: { dateKey, jti }, processedAt: now() })
           .onConflictDoNothing();
         return { granted: true, kind: 'unlock', slot: slot!, dateKey };
       }
@@ -103,7 +111,7 @@ export function createTossRewardsService(config: AppConfig, db: Db, commerce: Co
       // 같은 토큰이 동시에 두 번 와도 먼저 기록한 쪽만 지급한다
       const recorded = await db
         .insert(webhookEvents)
-        .values({ id: `tossad:${jti}`, provider: PROVIDER, eventType: 'credit', payload: { userId }, processedAt: now() })
+        .values({ id: `tossad:${jti}`, provider: PROVIDER, eventType: 'credit', payload: {}, processedAt: now() })
         .onConflictDoNothing()
         .returning({ id: webhookEvents.id });
       if (recorded.length === 0) return { granted: false, reason: 'DUPLICATE' };

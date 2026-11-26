@@ -5,18 +5,19 @@
  */
 import { createHmac } from 'node:crypto';
 import Anthropic from '@anthropic-ai/sdk';
-import { eq, like } from 'drizzle-orm';
+import { eq, like, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { App } from '../src/app.js';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
 import { createDb, runMigrations, type Db } from '../src/db/local.js';
-import { opsCounters, orders, users } from '../src/db/schema.js';
+import { loginFailures, opsCounters, orders, users, webhookEvents } from '../src/db/schema.js';
 import { seedProducts } from '../src/db/seed.js';
 import { flushBackground } from '../src/lib/alert.js';
 import { aiFailureKind } from '../src/modules/ai/service.js';
 import { LOGIN_MAX_FAILURES } from '../src/modules/auth/loginThrottle.js';
-import { ERROR_ALERT_WINDOW_MS, kstDate, PAYMENT_DELAY_MS, routeOf } from '../src/modules/ops/service.js';
+import { createOpsService, ERROR_ALERT_WINDOW_MS, EVENT_RETENTION_MS, kstDate, PAYMENT_DELAY_MS, routeOf } from '../src/modules/ops/service.js';
+import { AWAITING_MARK_AFTER_MS } from '../src/modules/commerce/service.js';
 
 const SECRET = 'groble-ops-secret';
 const ALERT_URL = 'https://alerts.example.com/ops';
@@ -26,6 +27,8 @@ let app: App;
 let db: Db;
 let close: () => Promise<void>;
 const alerts: string[] = [];
+/** true 면 운영 알림 웹훅이 500 으로 실패한다 */
+let failAlerts = false;
 const realFetch = globalThis.fetch;
 
 beforeAll(async () => {
@@ -46,6 +49,7 @@ beforeAll(async () => {
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input).startsWith(ALERT_URL)) {
+        if (failAlerts) return new Response(null, { status: 500 });
         alerts.push((JSON.parse(String(init?.body)) as { content: string }).content);
         return new Response(null, { status: 204 });
       }
@@ -61,6 +65,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await flushBackground();
   alerts.length = 0;
+  failAlerts = false;
 });
 
 const ops = () => app.ctx.services.ops;
@@ -180,8 +185,12 @@ describe('결제 확인 지연', () => {
   it('결제 확인 화면에 들어온 뒤 30분이 지나도 결제 알림이 없으면 한 번 알린다', async () => {
     const m = await member();
     const order = (await api('POST', '/orders', { token: m.token, body: { productId: 'chat_pack_10' } })).body.order;
-    // 결제 확인 화면이 주문을 조회한다(처음 조회 시각을 남긴다)
+    // 결제 확인 화면이 주문을 조회한다(처음 조회 시각만 남긴다 — 결제하지 않고 돌아와 바로 떠난 주문과 구분)
     expect((await api('GET', `/orders/${order.id}`, { token: m.token })).status).toBe(200);
+    const [first] = await db.select().from(orders).where(eq(orders.id, order.id));
+    expect((first!.metadata as { awaitingAt?: number }).awaitingAt).toBeUndefined();
+    // 화면에 남아 계속 기다리면(결제했다고 보고 기다리는 경우) 결제 대기 표시를 남긴다
+    await later(AWAITING_MARK_AFTER_MS, () => api('GET', `/orders/${order.id}`, { token: m.token }));
     const [row] = await db.select().from(orders).where(eq(orders.id, order.id));
     expect((row!.metadata as { awaitingAt?: number }).awaitingAt).toBeTypeOf('number');
     alerts.length = 0;
@@ -205,6 +214,36 @@ describe('결제 확인 지연', () => {
     const out = (await sent()).filter((a) => a.includes('결제 확인 지연'));
     expect(out.join('\n')).not.toContain(open.id);
     expect(out.join('\n')).not.toContain(done.id);
+  });
+});
+
+describe('결제 확인 지연 — 알림이 전달된 뒤에만 표시', () => {
+  /** 결제 확인 화면에 머물러 결제를 기다리는 주문 */
+  async function awaitingOrder() {
+    const m = await member();
+    const order = (await api('POST', '/orders', { token: m.token, body: { productId: 'chat_pack_10' } })).body.order;
+    await api('GET', `/orders/${order.id}`, { token: m.token });
+    await later(AWAITING_MARK_AFTER_MS + 1_000, () => api('GET', `/orders/${order.id}`, { token: m.token }));
+    return { m, order };
+  }
+
+  it('알림 전송이 실패하면 표시하지 않고 다음 실행에서 다시 알린다', async () => {
+    const { order } = await awaitingOrder();
+    failAlerts = true;
+    expect(await later(PAYMENT_DELAY_MS + 60_000, () => ops().checkPendingPayments())).toBe(0);
+    const [row] = await db.select().from(orders).where(eq(orders.id, order.id));
+    expect((row!.metadata as { delayAlerted?: number }).delayAlerted).toBeUndefined();
+    failAlerts = false;
+    expect(await later(PAYMENT_DELAY_MS + 120_000, () => ops().checkPendingPayments())).toBeGreaterThanOrEqual(1);
+    expect((await sent()).filter((a) => a.includes('결제 확인 지연')).join('\n')).toContain(order.id);
+  });
+
+  it('결제하지 않고 돌아가기로 실패 처리한 주문은 알리지 않는다', async () => {
+    const { m, order } = await awaitingOrder();
+    expect((await api('POST', '/payments/fail', { token: m.token, body: { orderId: order.id, code: 'USER_CANCEL' } })).status).toBe(200);
+    alerts.length = 0;
+    await later(PAYMENT_DELAY_MS + 60_000, () => ops().checkPendingPayments());
+    expect((await sent()).join('\n')).not.toContain(order.id);
   });
 });
 
@@ -241,9 +280,33 @@ describe('웹훅 검증 실패·서버 오류·AI 장애 — 몰리면 묶어서
     expect(more.some((a) => a.includes('2건 더') && a.includes('서버 오류'))).toBe(true);
   });
 
-  it('주소의 주문 번호·ID 는 :id 로 바꿔 같은 오류로 묶는다', () => {
+  it('주소의 주문 번호·ID 는 :id 로 바꿔 같은 오류로 묶고, 긴 고정 이름은 그대로 둔다', () => {
     expect(routeOf('/api/v1/orders/ORD-20261015-GROBLE0001')).toBe('/api/v1/orders/:id');
+    expect(routeOf('/api/v1/profiles/0193a2b4-5c6d-7e8f-9a0b-1c2d3e4f5a6b')).toBe('/api/v1/profiles/:id');
     expect(routeOf('/api/v1/profiles')).toBe('/api/v1/profiles');
+    expect(routeOf('/api/v1/compatibility')).toBe('/api/v1/compatibility');
+    expect(routeOf('/api/v1/payments/iap/notifications/google')).toBe('/api/v1/payments/iap/notifications/google');
+  });
+
+  it('DB 를 쓸 수 없을 때 메모리로 센 묶음 창도 끝나면 "N건 더"로 알린다', async () => {
+    const broken = new Proxy(db, {
+      get(target, prop, receiver) {
+        if (prop === 'insert' || prop === 'select' || prop === 'batch') {
+          return () => {
+            throw new Error('D1 unavailable');
+          };
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+    const svc = createOpsService({ OPS_ALERT_WEBHOOK_URL: ALERT_URL, APP_NAME: '달달사주' }, broken);
+    for (let i = 0; i < 3; i++) svc.serverError('GET', '/api/v1/profiles', new Error('db down'));
+    expect((await sent()).filter((a) => a.includes('서버 오류'))).toHaveLength(1);
+    alerts.length = 0;
+    // DB 조회가 실패해도 메모리 창은 정리하고, 실패는 예약 실행 로그로 드러난다
+    await expect(later(ERROR_ALERT_WINDOW_MS + 1_000, () => svc.flushWindows())).rejects.toThrow('D1 unavailable');
+    const more = await sent();
+    expect(more.some((a) => a.includes('2건 더') && a.includes('DB 장애 중'))).toBe(true);
   });
 
   it('AI 잔액 부족은 30분 창에 한 번 알린다', async () => {
@@ -264,6 +327,33 @@ describe('웹훅 검증 실패·서버 오류·AI 장애 — 몰리면 묶어서
     expect(aiFailureKind(err(529, 'overloaded'))).toBe('outage');
     expect(aiFailureKind(new Anthropic.APIConnectionError({ message: 'Connection error.' }))).toBe('outage');
     expect(aiFailureKind(new Error('not an API error'))).toBeNull();
+  });
+});
+
+describe('설정 — 운영 알림 웹훅 주소', () => {
+  it('https:// 가 아닌 값이면 서버를 멈추지 않고 알림만 끈다(주소는 로그에 남기지 않는다)', () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const config = loadConfig({ __SKIP_ENV_FILE: '1', NODE_ENV: 'test', OPS_ALERT_WEBHOOK_URL: 'discord.com/api/webhooks/x' });
+    expect(config.OPS_ALERT_WEBHOOK_URL).toBeUndefined();
+    const logged = errors.mock.calls.flat().join(' ');
+    expect(logged).toContain('OPS_ALERT_WEBHOOK_URL');
+    expect(logged).not.toContain('discord.com');
+    errors.mockRestore();
+  });
+
+  it('서비스 공지(SERVICE_NOTICES)는 /config 의 notices 로 나가고, 형식이 틀리면 공지 없이 기동한다', async () => {
+    const notice = { id: 'terms-2027-01', title: '이용약관이 바뀌어요', body: '2027년 1월 8일부터 적용돼요.' };
+    const ok = loadConfig({ __SKIP_ENV_FILE: '1', NODE_ENV: 'test', SERVICE_NOTICES: JSON.stringify([notice]) });
+    expect(ok.notices).toEqual([notice]);
+    const configApp = buildApp({ config: ok, db });
+    const res = await configApp.inject({ method: 'GET', url: '/api/v1/config' });
+    expect((res.json() as { notices: unknown }).notices).toEqual([notice]);
+
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect(loadConfig({ __SKIP_ENV_FILE: '1', NODE_ENV: 'test', SERVICE_NOTICES: '{not json' }).notices).toEqual([]);
+    expect(loadConfig({ __SKIP_ENV_FILE: '1', NODE_ENV: 'test', SERVICE_NOTICES: '[{"title":"id 없음"}]' }).notices).toEqual([]);
+    expect(errors.mock.calls.flat().join(' ')).toContain('SERVICE_NOTICES');
+    errors.mockRestore();
   });
 });
 
@@ -300,9 +390,62 @@ describe('하루 요약(08:00 KST)', () => {
     expect((await sent()).some((a) => a.includes('📊 어제'))).toBe(true);
   });
 
+  it('탈퇴는 회원 수로 세고, 환불은 실제로 돌려준 금액, 부분 환불·택일 AI·푸시 결과를 따로 적는다', async () => {
+    const DAY = 24 * 3_600_000;
+    const m = await member();
+    const del = await app.inject({ method: 'DELETE', url: '/api/v1/auth/me', headers: { authorization: `Bearer ${m.token}` } });
+    expect(del.statusCode).toBe(204);
+    ops().refunded({ productName: '질문권 10회', amount: 3900, refundedAmount: 1950, provider: 'toss', orderId: 'ORD-X', status: 'refunded', reason: '관리자' });
+    await ops().partialRefund({ productName: '질문권 10회', amount: 1000, provider: 'groble', orderId: 'ORD-Y' });
+    ops().aiUsage('taekil', 'claude-haiku-5-5', { input_tokens: 10, output_tokens: 10 });
+    await ops().pushResult({ users: 3, skipped: 1, sent: 4, failed: 1, removed: 1 });
+    const out = await sent();
+    expect(out.some((a) => a.includes('질문권 10회 3,900원 중 1,950원'))).toBe(true);
+    expect(out.some((a) => a.includes('부분 환불') && a.includes('ORD-Y'))).toBe(true);
+
+    const text = await later(DAY, () => ops().dailySummaryText());
+    expect(text).toMatch(/탈퇴 [1-9]\d*명/);
+    expect(text).toMatch(/환불·취소 [1-9]\d*건 [\d,]+원/);
+    expect(text).toContain('부분 환불 1건 1,000원');
+    expect(text).toContain('택일 상세 1');
+    expect(text).toContain('🔔 오늘의 운세 푸시 · 대상 3명 · 보냄 4 · 실패 1 · 지운 토큰 1 · 건너뜀 1명');
+  });
+
   it('오래된 하루 집계는 지운다', async () => {
     await ops().cleanup(); // 지울 것이 없어도 오류 없이 끝난다
     await later(41 * 24 * 3_600_000, () => ops().cleanup());
     expect(await db.select().from(opsCounters).where(like(opsCounters.key, 'd:%'))).toHaveLength(0);
+  });
+
+  it('요청 ID 선점·광고 보상·결제 웹훅 기록과 지난 로그인 실패 집계를 보관 기간이 지나면 지운다', async () => {
+    const DAY = 24 * 3_600_000;
+    const now = Date.now();
+    const at = (ago: number) => now - ago;
+    await db.insert(webhookEvents).values([
+      { id: 'dream:u-old:req-1', provider: 'app', eventType: 'dream_request', payload: { paragraphs: ['풀이'] }, processedAt: at(3 * DAY), createdAt: at(3 * DAY) },
+      { id: 'dream:u-new:req-2', provider: 'app', eventType: 'dream_request', payload: {}, processedAt: at(DAY / 2), createdAt: at(DAY / 2) },
+      { id: 'admob:tx-old', provider: 'admob', eventType: 'reward', payload: {}, processedAt: at(31 * DAY), createdAt: at(31 * DAY) },
+      { id: 'admob:tx-new', provider: 'admob', eventType: 'reward', payload: {}, processedAt: at(DAY), createdAt: at(DAY) },
+      { id: 'groble:evt-old', provider: 'groble', eventType: 'payment.completed', payload: {}, processedAt: at(181 * DAY), createdAt: at(181 * DAY) },
+      { id: 'groble:evt-new', provider: 'groble', eventType: 'payment.completed', payload: {}, processedAt: at(100 * DAY), createdAt: at(100 * DAY) },
+    ]);
+    await db.insert(loginFailures).values([
+      { emailHash: 'old-hash', count: 3, windowStart: at(2 * DAY) },
+      { emailHash: 'new-hash', count: 3, windowStart: at(60_000) },
+    ]);
+    expect(EVENT_RETENTION_MS.request).toBeLessThan(3 * DAY);
+    await ops().cleanup();
+    const ids = (
+      await db
+        .select({ id: webhookEvents.id })
+        .from(webhookEvents)
+        .where(sql`${webhookEvents.id} in ('dream:u-old:req-1','dream:u-new:req-2','admob:tx-old','admob:tx-new','groble:evt-old','groble:evt-new')`)
+    )
+      .map((r) => r.id)
+      .sort();
+    expect(ids).toEqual(['admob:tx-new', 'dream:u-new:req-2', 'groble:evt-new']);
+    const hashes = (await db.select({ h: loginFailures.emailHash }).from(loginFailures)).map((r) => r.h);
+    expect(hashes).toContain('new-hash');
+    expect(hashes).not.toContain('old-hash');
   });
 });

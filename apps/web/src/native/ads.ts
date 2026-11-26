@@ -19,8 +19,12 @@ import { nativePlatform } from '../lib/platform';
 import { useSession } from '../lib/session';
 import { adUnitId } from './env';
 
+/**
+ * 하루 보상 한도의 기본값 — 서버 GET /rewards/status 의 limit(REWARDED_AD_DAILY_LIMIT)을 받으면 그 값을 쓴다(RewardedAdCard).
+ * 서버가 지급 여부를 정하므로 이 기기 카운트는 광고를 쓸데없이 띄우지 않기 위한 보조 장치다
+ */
 export const REWARDED_DAILY_LIMIT = 3;
-/** Preferences 키 — { date: 'YYYY-MM-DD'(기기 현지 날짜), count } */
+/** Preferences 키 — { date: 'YYYY-MM-DD'(한국 시간 날짜, 서버 한도와 같은 기준), count } */
 export const REWARDED_COUNT_KEY = 'yd.native.rewardedAds';
 /** 광고를 닫은 뒤 보상 콜백이 늦게 오는 경우를 기다리는 시간 */
 const REWARD_GRACE_MS = 500;
@@ -53,13 +57,13 @@ async function nonPersonalized(): Promise<boolean> {
   }
 }
 
-function localDate(d = new Date()): string {
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+/** 한국 시간(KST) 날짜 — 서버가 광고 보상 하루 한도를 KST 0시 기준으로 세므로 해외 시간대 기기도 같은 날짜로 센다 */
+function kstDate(t = Date.now()): string {
+  return new Date(t + 9 * 3_600_000).toISOString().slice(0, 10);
 }
 
 async function readCount(): Promise<{ date: string; count: number }> {
-  const today = localDate();
+  const today = kstDate();
   try {
     const { value } = await Preferences.get({ key: REWARDED_COUNT_KEY });
     const parsed = value ? (JSON.parse(value) as { date?: string; count?: number }) : null;
@@ -70,10 +74,10 @@ async function readCount(): Promise<{ date: string; count: number }> {
   return { date: today, count: 0 };
 }
 
-/** 오늘 남은 보상형 광고 횟수 */
-export async function rewardedAdsRemaining(): Promise<number> {
+/** 오늘(KST) 남은 보상형 광고 횟수 — dailyLimit 은 서버가 알려 준 한도 */
+export async function rewardedAdsRemaining(dailyLimit = REWARDED_DAILY_LIMIT): Promise<number> {
   const { count } = await readCount();
-  return Math.max(0, REWARDED_DAILY_LIMIT - count);
+  return Math.max(0, dailyLimit - count);
 }
 
 /** 광고를 띄우고 보상 획득 여부를 반환. (showRewardVideoAd 는 보상 시에만 resolve 되므로 닫힘 이벤트로 끝을 판단) */
@@ -115,12 +119,12 @@ let showing: Promise<boolean> | null = null;
 
 /**
  * 보상형 광고 1회 — 보상을 받았으면 true. 웹·한도 초과·로드 실패·중도 닫기는 false.
- * 하루 3회(기기 현지 날짜 기준, Preferences 에 카운트). 보상을 받은 경우에만 횟수를 차감한다.
- * ssvCustomData 는 AdMob SSV 콜백으로 서버에 전달된다(예: 'chat:<profileId>').
+ * 하루 한도(dailyLimit, 서버 값. 없으면 3)를 KST 날짜 기준으로 Preferences 에 센다. 보상을 받은 경우에만 횟수를 차감한다.
+ * ssvCustomData 는 AdMob SSV 콜백의 custom_data 로 전달되지만 서버는 읽지 않는다(지급은 사용자 ID 로만 한다).
  */
-export function showRewardedAd(opts: { ssvCustomData?: string } = {}): Promise<boolean> {
+export function showRewardedAd(opts: { ssvCustomData?: string; dailyLimit?: number } = {}): Promise<boolean> {
   showing ??= (async () => {
-    if ((await readCount()).count >= REWARDED_DAILY_LIMIT) return false;
+    if ((await readCount()).count >= (opts.dailyLimit ?? REWARDED_DAILY_LIMIT)) return false;
     if (!(await ensureAdMob())) return false;
     const { adId, isTesting } = adUnitId('rewarded', storePlatform());
     const userId = useSession.getState().user?.id;

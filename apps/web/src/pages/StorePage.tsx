@@ -2,6 +2,7 @@ import type { ProductDto } from '@saju/shared';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { TermsConsent } from '@/components/TermsConsent';
 import { Page } from '@/components/AppShell';
 import { BottomSheet } from '@/components/BottomSheet';
 import { useOpenReport } from '@/components/OpenReportCard';
@@ -47,10 +48,9 @@ export function StorePage() {
       setTarget(null);
     }
   };
+  // 타로·택일처럼 결과 하나를 여는 상품(requiresReading)은 아래 목록에서 빼므로 여기에 오지 않는다
   const onClick = (p: ProductDto) => {
-    // 택일 상세는 택일 결과 화면에서 그 결과에 대해 연다
-    if (p.grants.includes('taekil:reading')) navigate('/taekil');
-    else if (p.requiresProfile) setTarget(p);
+    if (p.requiresProfile) setTarget(p);
     else void buy(p);
   };
 
@@ -114,7 +114,7 @@ export function StorePage() {
             </section>
           );
         })}
-        <p className="text-xs leading-relaxed text-ink-3">{t('paywall.terms')} 결제 금액은 부가세 포함이에요.</p>
+        <TermsConsent className="text-xs leading-relaxed text-ink-3"> 결제 금액은 부가세 포함이에요.</TermsConsent>
       </Page>
 
       <BottomSheet open={target !== null} onClose={() => setTarget(null)} title="누구의 리포트를 볼까요?">

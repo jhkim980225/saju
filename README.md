@@ -55,7 +55,10 @@ npm run dev                                  # API :4000 + Web :5173 동시 실�
 | 문서 | 내용 |
 |---|---|
 | [`docs/PRD.md`](docs/PRD.md) | 제품 결정 — 기능 범위, 상품·가격, 광고 정책, UX 원칙, 출시 체크리스트 |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 시스템 구조, 흐름(게스트→회원, 결제, IAP, 권한), 데이터 모델, D1 동시성 처리·배포 구조 |
+| [`CLAUDE.md`](CLAUDE.md) | 개요·명령어·컨벤션과 전체 문서 인덱스 (작업 전에 먼저 읽는 문서) |
+| [`docs/architecture.md`](docs/architecture.md) | 시스템 구조, 요청·데이터 흐름(게스트→회원, 결제, IAP, 권한), 데이터 모델, D1 동시성 처리, 외부 연동 상태 |
+| [`docs/features/`](docs/features) | 기능 도메인별 명세(목적·흐름·관련 파일·규칙·알려진 이슈) |
+| [`docs/decisions/`](docs/decisions) | 설계 결정 기록 |
 | [`docs/DEPLOY.md`](docs/DEPLOY.md) | Cloudflare Workers 배포 절차 · 갱신 · 백업(Time Travel) |
 | [`docs/SAJU_ENGINE.md`](docs/SAJU_ENGINE.md) | 사주 계산 방법론과 검증(KASI 절입 시각, 3,000건 교차 검증) |
 | [`docs/API.md`](docs/API.md) | REST API 레퍼런스 |

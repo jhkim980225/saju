@@ -105,13 +105,18 @@ const schema = z.object({
   RESEND_API_KEY: opt,
   /** 발신자. 예: `달달사주 <no-reply@daldalsaju.com>` (Resend 에 도메인 인증 필요) */
   MAIL_FROM: opt,
-  /** 고객 문의 주소 — 메일 연동이 없을 때 비밀번호 찾기 화면에 안내 */
+  /** 고객 문의 주소 — 결제 내역·비밀번호 찾기 화면과 약관·처리방침 본문의 문의처(사업자 이메일보다 먼저) */
   SUPPORT_EMAIL: opt,
   /**
-   * 운영 알림 웹훅(Discord 웹훅 주소 등, {"content": "..."} 를 POST) — 중복 결제·금액 불일치처럼 운영자가 환불해야 하는 일이 생기면 바로 알린다.
-   * 비어 있으면 로그만 남긴다
+   * 서비스 공지(약관·처리방침 변경 안내 등) — JSON 배열 `[{"id":"terms-2027-01","title":"…","body":"…"}]`.
+   * GET /config 의 notices 로 나가고, 웹·앱이 화면 위쪽에 띄운다(닫으면 그 기기에서 다시 띄우지 않는다). 형식이 틀리면 공지 없이 기동한다
    */
-  OPS_ALERT_WEBHOOK_URL: opt.refine((v) => v === undefined || /^https:\/\//.test(v), 'https:// 로 시작하는 주소를 적어 주세요.'),
+  SERVICE_NOTICES: opt,
+  /**
+   * 운영 알림 웹훅(Discord 웹훅 주소 등, {"content": "..."} 를 POST) — 중복 결제·금액 불일치처럼 운영자가 환불해야 하는 일이 생기면 바로 알린다.
+   * 비어 있으면 로그만 남긴다. https:// 로 시작하지 않는 값은 서버를 멈추지 않고 알림만 끈다(loadConfig)
+   */
+  OPS_ALERT_WEBHOOK_URL: opt,
 
   // 광고 (서버 주도 노출 제어)
   ADS_ENABLED: bool,
@@ -133,8 +138,28 @@ const schema = z.object({
   TOSS_DEV_MOCK: bool,
 });
 
+const noticeSchema = z
+  .array(z.object({ id: z.string().trim().min(1).max(64), title: z.string().trim().min(1).max(100), body: z.string().trim().max(1000).default('') }))
+  .max(5);
+export type ServiceNotice = z.infer<typeof noticeSchema>[number];
+
+/** SERVICE_NOTICES 읽기 — 틀린 값은 공지 없이 넘어간다(설정 오류 하나로 서버를 멈추지 않는다) */
+function parseNotices(raw: string | undefined): ServiceNotice[] {
+  if (!raw) return [];
+  try {
+    const parsed = noticeSchema.safeParse(JSON.parse(raw));
+    if (parsed.success) return parsed.data;
+  } catch {
+    /* 아래에서 알린다 */
+  }
+  console.error('[config] SERVICE_NOTICES 형식이 틀려 공지를 띄우지 않아요. [{"id","title","body"}] 형식의 JSON 배열(최대 5개)로 적어 주세요.');
+  return [];
+}
+
 export type AppConfig = z.infer<typeof schema> & {
   corsOrigins: string[];
+  /** 서비스 공지(SERVICE_NOTICES) */
+  notices: ServiceNotice[];
   isProd: boolean;
   isTest: boolean;
   features: {
@@ -189,10 +214,18 @@ export function loadConfig(overrides: Record<string, string | undefined> = {}): 
     console.error('[config] ADMIN_API_TOKEN 이 32자보다 짧아 관리자 API 를 껐어요. openssl rand -hex 24 로 다시 만들어 주세요.');
     c.ADMIN_API_TOKEN = undefined;
   }
+  // 운영 알림 웹훅 주소가 틀리면 알림만 끈다 — 설정 오류 하나로 API·예약 실행 전체를 멈추지 않는다(주소 값은 비밀이라 로그에 적지 않는다)
+  if (c.OPS_ALERT_WEBHOOK_URL && !/^https:\/\//.test(c.OPS_ALERT_WEBHOOK_URL)) {
+    console.error('[config] OPS_ALERT_WEBHOOK_URL 이 https:// 로 시작하지 않아 운영 알림을 껐어요. 알림은 [ops-alert] 로그로만 남아요. 시크릿 값을 확인해 주세요.');
+    c.OPS_ALERT_WEBHOOK_URL = undefined;
+  } else if (isProd && !c.OPS_ALERT_WEBHOOK_URL) {
+    console.warn('[config] OPS_ALERT_WEBHOOK_URL 이 없어 운영 알림(결제·환불·장애·하루 요약)이 [ops-alert] 로그로만 남아요.');
+  }
   const googleIap = Boolean(c.GOOGLE_PLAY_PACKAGE_NAME && c.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON);
   return {
     ...c,
     corsOrigins: c.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean),
+    notices: parseNotices(c.SERVICE_NOTICES),
     isProd,
     isTest: c.NODE_ENV === 'test',
     features: {

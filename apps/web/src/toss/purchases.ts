@@ -1,7 +1,7 @@
 /**
  * 토스 인앱 결제 — lib/payments 의 startCheckout / recoverInAppPurchases 가 토스 빌드에서 부른다.
  *
- * 흐름(계약 4·5번):
+ * 흐름(docs/API.md 토스 미니앱 절의 주문 의도·검증):
  *  1) 결제 전 주문 의도 등록(POST /payments/iap/toss/orders) — 살 수 없는 경우(계정당 1회, 대상 프로필 누락)를 결제 전에 막는다.
  *  2) IAP.createOneTimePurchaseOrder — processProductGrant 안에서 서버 검증(POST /payments/iap/verify)을 부르고,
  *     서버가 200 을 줄 때만 true 를 돌려준다(30초 제한). true 가 아니면 토스가 주문을 '미지급'으로 남긴다.

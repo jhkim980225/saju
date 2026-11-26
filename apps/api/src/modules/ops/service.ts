@@ -1,9 +1,9 @@
 /**
  * 운영 알림·집계 — 운영 채널(OPS_ALERT_WEBHOOK_URL)에 보내는 알림을 한곳에서 만든다.
  *
- * 바로 보내는 알림: 회원 가입, 결제 완료, 환불·결제 취소, 환불이 필요한 결제(commerce), 결제 확인 지연,
+ * 바로 보내는 알림: 회원 가입, 결제 완료, 환불·결제 취소, 부분 환불, 환불이 필요한 결제(commerce), 결제 확인 지연,
  * AI 장애(잔액 부족·키 오류·요청 한도·서버 장애), 서버 오류(5분 창으로 묶음), 서명이 틀린 결제 웹훅.
- * 하루 한 번(08:00 KST): 어제의 가입·탈퇴, 매출·환불, 이용량, AI 호출·예상 비용, 보안 지표 요약.
+ * 하루 한 번(08:00 KST): 어제의 가입·탈퇴, 매출·환불, 이용량, AI 호출·예상 비용, 푸시 발송 결과, 보안 지표 요약.
  *
  * 알림에는 이메일·이름·생년월일·질문 내용을 넣지 않는다 — 가입 방식, 상품, 금액, 주문 번호만 적는다.
  * 사용자 응답을 기다리게 하지 않도록 요청 처리 중의 알림은 응답 뒤에 보낸다(lib/alert.ts background).
@@ -11,9 +11,10 @@
 import { and, eq, gte, inArray, isNotNull, lt, sql } from 'drizzle-orm';
 import type { AppConfig } from '../../config/env.js';
 import type { Db } from '../../db/client.js';
-import { chatMessages, opsCounters, orders, reports, tarotReadings, users } from '../../db/schema.js';
+import { chatMessages, loginFailures, opsCounters, orders, reports, tarotReadings, users, webhookEvents } from '../../db/schema.js';
 import { background, createOpsAlert } from '../../lib/alert.js';
 import { safeErrorText } from '../../lib/log.js';
+import { REQUEST_CLAIM_PROVIDER } from '../../lib/requestClaim.js';
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -25,8 +26,19 @@ export const ERROR_ALERT_WINDOW_MS = 5 * 60_000;
 export const INCIDENT_ALERT_WINDOW_MS = 30 * 60_000;
 /** 결제 확인 화면에 들어온 뒤 이만큼 지나도 결제 알림이 없으면 운영자에게 알린다 */
 export const PAYMENT_DELAY_MS = 30 * 60_000;
-/** 하루 집계·묶음 창 행 보관 기간 */
+/** 하루 집계 행 보관 기간 */
 const COUNTER_RETENTION_MS = 40 * DAY;
+
+/**
+ * webhook_events 보관 기간(정리 작업 cleanup 이 지운다)
+ *  - 요청 ID 선점(provider app): 같은 요청의 재전송은 몇 초~몇 분 안에 온다. 꿈풀이 결과 전체·프로필 이름이 담기므로 짧게 둔다
+ *  - 광고 보상(admob, toss_ad): 거래 ID 중복 차단용. AdMob 재전송과 토스 날짜 열기(당일만 읽음)에 30일이면 충분하다
+ *  - 결제 웹훅·스토어 알림·환불 표시: 재전송·늦은 환불(카드 이의 제기 등)을 막아야 하므로 180일
+ */
+export const EVENT_RETENTION_MS = { request: 2 * DAY, reward: 30 * DAY, payment: 180 * DAY } as const;
+const REWARD_PROVIDERS = ['admob', 'toss_ad'];
+/** 로그인 실패 집계 보관 기간 — 집계 창(15분)이 지난 행은 없는 것과 같다 */
+const LOGIN_FAILURE_RETENTION_MS = DAY;
 
 /** AI 단가(달러 / 100만 토큰: 입력, 출력). 캐시 쓰기는 입력의 1.25배, 캐시 읽기는 0.1배로 어림한다 */
 const AI_PRICES: [prefix: string, input: number, output: number][] = [
@@ -55,7 +67,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   iap_apple: 'App Store',
   iap_google: 'Google Play',
 };
-const AI_KIND_LABELS: Record<string, string> = { report: '리포트 다듬기', chat: 'AI 상담', tarot: '타로 이야기', dream: 'AI 꿈풀이' };
+const AI_KIND_LABELS: Record<string, string> = { report: '리포트 다듬기', taekil: '택일 상세', chat: 'AI 상담', tarot: '타로 이야기', dream: 'AI 꿈풀이' };
 
 export type AiFailureKind = 'credit' | 'auth' | 'rate' | 'outage';
 const AI_FAILURE_TEXT: Record<AiFailureKind, string> = {
@@ -81,17 +93,21 @@ const hhmm = (t: number) => new Date(t + KST_OFFSET).toISOString().slice(11, 16)
 export const providerLabel = (p: string) => PROVIDER_LABELS[p] ?? p;
 export const paymentLabel = (p: string) => PAYMENT_LABELS[p] ?? p;
 
-/** 주소의 ID 부분(주문 번호·프로필 ID 등)을 :id 로 바꿔 같은 종류의 오류를 같은 글로 묶는다 */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/**
+ * 주소의 ID 부분(주문 번호·프로필 ID 등)을 :id 로 바꿔 같은 종류의 오류를 같은 글로 묶는다.
+ * ID 로 보는 것: UUID, 숫자가 3개 이상 이어진 조각, 숫자가 섞인 12자 이상 조각. /compatibility 같은 긴 고정 이름은 그대로 둔다
+ */
 export const routeOf = (path: string) =>
   path
     .split('/')
-    .map((seg) => (seg.length >= 12 || /\d{3,}/.test(seg) ? ':id' : seg))
+    .map((seg) => (UUID.test(seg) || /\d{3,}/.test(seg) || (seg.length >= 12 && /\d/.test(seg)) ? ':id' : seg))
     .join('/');
 
 export function createOpsService(config: Pick<AppConfig, 'OPS_ALERT_WEBHOOK_URL' | 'APP_NAME'>, db: Db, now: () => number = () => Date.now()) {
   const alert = createOpsAlert(config);
-  /** DB 를 쓸 수 없을 때(그것 자체가 장애) 묶음 창을 이 인스턴스 메모리로 대신한다 */
-  const memoryWindows = new Map<string, number>();
+  /** DB 를 쓸 수 없을 때(그것 자체가 장애) 묶음 창을 이 인스턴스 메모리로 대신한다 — 끝난 창은 flushWindows 가 'N건 더'로 알린다 */
+  const memoryWindows = new Map<string, { count: number; note: string }>();
 
   const dayKey = (name: string, t = now()) => `d:${kstDate(t)}:${name}`;
 
@@ -126,15 +142,17 @@ export function createOpsService(config: Pick<AppConfig, 'OPS_ALERT_WEBHOOK_URL'
         .returning({ value: opsCounters.value });
       first = row?.value === 1;
     } catch {
-      first = (memoryWindows.get(key) ?? 0) === 0;
-      memoryWindows.set(key, (memoryWindows.get(key) ?? 0) + 1);
+      const w = memoryWindows.get(key) ?? { count: 0, note: text.slice(0, 300) };
+      w.count++;
+      memoryWindows.set(key, w);
+      first = w.count === 1;
     }
     if (first) await alert(`${text}\n(같은 알림은 ${hhmm(end)}까지 묶어서 보내요)`);
     return first;
   };
 
-/** 어제(KST) 하루 요약 글 */
-const dailySummaryText = async (): Promise<string> => {
+  /** 어제(KST) 하루 요약 글 */
+  const dailySummaryText = async (): Promise<string> => {
     const today = kstDate(now());
     const end = kstDayStart(today);
     const start = end - DAY;
@@ -142,15 +160,12 @@ const dailySummaryText = async (): Promise<string> => {
     const inDay = (col: Parameters<typeof gte>[0]) => and(gte(col, start), lt(col, end));
     const n = sql<number>`count(*)`.mapWith(Number);
 
-    const [signups, withdrawals, members, paid, refunds, byProduct, tarot, chat, reportRows, counters] = await Promise.all([
+    const [signups, withdrawals, members, paid, byProduct, tarot, chat, reportRows, counters] = await Promise.all([
       db.select({ provider: users.provider, n }).from(users).where(inDay(users.registeredAt)).groupBy(users.provider),
-      db.select({ n }).from(users).where(and(inDay(users.deletedAt), eq(users.nickname, '탈퇴한 사용자'))),
+      // 탈퇴는 회원(registered_at 있음)만 센다 — 로그인으로 합쳐져 정리된 게스트는 registered_at 이 없어 빠진다
+      db.select({ n }).from(users).where(and(inDay(users.deletedAt), isNotNull(users.registeredAt))),
       db.select({ n }).from(users).where(and(isNotNull(users.registeredAt), sql`${users.deletedAt} is null`)),
       db.select({ n, sum: sql<number>`coalesce(sum(${orders.amount}), 0)`.mapWith(Number) }).from(orders).where(inDay(orders.paidAt)),
-      db
-        .select({ n, sum: sql<number>`coalesce(sum(${orders.amount}), 0)`.mapWith(Number) })
-        .from(orders)
-        .where(and(inDay(orders.canceledAt), inArray(orders.status, ['refunded', 'canceled']), isNotNull(orders.paidAt))),
       db.select({ name: orders.orderName, n }).from(orders).where(inDay(orders.paidAt)).groupBy(orders.orderName).orderBy(sql`count(*) desc`),
       db.select({ n }).from(tarotReadings).where(inDay(tarotReadings.createdAt)),
       db.select({ n }).from(chatMessages).where(and(inDay(chatMessages.createdAt), eq(chatMessages.role, 'assistant'))),
@@ -186,21 +201,33 @@ const dailySummaryText = async (): Promise<string> => {
       usd += ((inp + cw * 1.25 + cr * 0.1) * price[1] + out * price[2]) / 1_000_000;
     }
     const cost = calls === 0 ? '' : ` · 예상 비용 약 ${won(Math.round(usd * USD_KRW))} ($${usd.toFixed(2)})${unpriced ? ' · 단가를 모르는 모델 제외' : ''}`;
+    const byKind = Object.keys(AI_KIND_LABELS)
+      .filter((k) => get(`ai.kind.${k}`) > 0)
+      .map((k) => `${AI_KIND_LABELS[k]} ${get(`ai.kind.${k}`)}`)
+      .join(' · ');
+
+    // 환불 — 실제로 회수한 환불·취소(전액·관리자 부분 취소는 돌려준 금액)와 자동 회수하지 않은 부분 환불 웹훅을 나눠 센다
+    const partial = get('refund.partial.count') > 0 ? ` · 부분 환불 ${get('refund.partial.count')}건 ${won(get('refund.partial.amount'))}(자동 회수 안 함)` : '';
+    const push =
+      get('push.users') + get('push.skipped') + get('push.sent') + get('push.failed') + get('push.removed') > 0
+        ? [`🔔 오늘의 운세 푸시 · 대상 ${get('push.users')}명 · 보냄 ${get('push.sent')} · 실패 ${get('push.failed')} · 지운 토큰 ${get('push.removed')} · 건너뜀 ${get('push.skipped')}명`]
+        : [];
 
     const lines = [
       `📊 어제(${date}) 요약`,
       `👤 가입 ${signupTotal}명${signupBy ? ` (${signupBy})` : ''} · 탈퇴 ${withdrawals[0]?.n ?? 0}명 · 전체 회원 ${(members[0]?.n ?? 0).toLocaleString('ko-KR')}명`,
-      `💰 결제 ${paid[0]?.n ?? 0}건 ${won(paid[0]?.sum ?? 0)} · 환불·취소 ${refunds[0]?.n ?? 0}건 ${won(refunds[0]?.sum ?? 0)}`,
+      `💰 결제 ${paid[0]?.n ?? 0}건 ${won(paid[0]?.sum ?? 0)} · 환불·취소 ${get('refund.count')}건 ${won(get('refund.amount'))}${partial}`,
       ...(byProduct.length > 0 ? [`   └ ${byProduct.map((p) => `${p.name} ${p.n}건`).join(', ')}`] : []),
       `🔮 타로 ${tarot[0]?.n ?? 0}회 · AI 꿈풀이 ${get('ai.kind.dream')}회 · 상담 답변 ${chat[0]?.n ?? 0}회 · 리포트 ${reportRows[0]?.n ?? 0}건`,
-      `🧾 AI 호출 ${calls}회 · 입력 ${tokens(inTok)} / 출력 ${tokens(outTok)} 토큰${cost}${get('ai.fail') > 0 ? ` · 실패 ${get('ai.fail')}회` : ''}`,
+      `🧾 AI 호출 ${calls}회${byKind ? ` (${byKind})` : ''} · 입력 ${tokens(inTok)} / 출력 ${tokens(outTok)} 토큰${cost}${get('ai.fail') > 0 ? ` · 실패 ${get('ai.fail')}회` : ''}`,
+      ...push,
       `🛡️ 로그인 잠금 ${get('auth.locked')}회 · 검증 실패 웹훅 ${get('webhook.rejected')}건 · 서버 오류 ${get('server.error')}건`,
     ];
     return lines.join('\n');
   };
 
   return {
-    /** 바로 보내고 끝날 때까지 기다린다(웹훅·예약 실행처럼 사용자가 기다리지 않는 곳) */
+    /** 바로 보내고 끝날 때까지 기다린다(웹훅·예약 실행처럼 사용자가 기다리지 않는 곳). 전달됐으면(또는 웹훅이 없어 로그만 남겼으면) true */
     alert,
     /** 응답 뒤에 보낸다(사용자 요청 처리 중) */
     later(text: string) {
@@ -227,9 +254,27 @@ const dailySummaryText = async (): Promise<string> => {
     paid(input: { productName: string; amount: number; provider: string; orderId: string; repeat?: boolean }) {
       background(alert(`💳 결제 완료 · ${input.productName} ${won(input.amount)} · ${paymentLabel(input.provider)}${input.repeat ? ' · 같은 결제창으로 한 번 더 결제(새 주문으로 지급)' : ''} · 주문 ${input.orderId}`));
     },
-    refunded(input: { productName: string; amount: number; provider: string; orderId: string; status: 'refunded' | 'canceled'; reason: string }) {
+    /**
+     * 환불·결제 취소로 지급분을 회수했을 때. refundedAmount 는 실제로 돌려준 금액(관리자의 질문권 팩 부분 취소처럼 주문 금액과 다를 때만 넘긴다).
+     * 하루 요약의 환불 건수·금액도 여기서 센다
+     */
+    refunded(input: { productName: string; amount: number; refundedAmount?: number; provider: string; orderId: string; status: 'refunded' | 'canceled'; reason: string }) {
       const what = input.status === 'refunded' ? '환불' : '결제 취소';
-      background(alert(`↩️ ${what} · ${input.productName} ${won(input.amount)} · ${paymentLabel(input.provider)} · 지급분 회수 완료 · 주문 ${input.orderId} · ${input.reason}`));
+      const money = input.refundedAmount ?? input.amount;
+      const shown = money === input.amount ? won(input.amount) : `${won(input.amount)} 중 ${won(money)}`;
+      background(
+        Promise.all([
+          bump({ 'refund.count': 1, 'refund.amount': money }),
+          alert(`↩️ ${what} · ${input.productName} ${shown} · ${paymentLabel(input.provider)} · 지급분 회수 완료 · 주문 ${input.orderId} · ${input.reason}`),
+        ]),
+      );
+    },
+    /** 결제사가 부분 환불을 알렸을 때 — 자동으로 회수하지 않으니 운영자가 회수할 질문권을 정한다. 웹훅 안에서 부르므로 보낼 때까지 기다린다 */
+    async partialRefund(input: { productName: string; amount: number | null; provider: string; orderId: string }) {
+      await Promise.all([
+        bump({ 'refund.partial.count': 1, 'refund.partial.amount': input.amount ?? 0 }).catch(() => undefined),
+        alert(`↩️ 부분 환불 · ${input.productName} 중 ${input.amount === null ? '?' : won(input.amount)} · ${paymentLabel(input.provider)} · 자동으로 회수하지 않았어요. 회수할 질문권을 확인해 주세요 · 주문 ${input.orderId}`),
+      ]);
     },
     /** 처리하지 못한 서버 오류(500) — 5분 창으로 묶는다 */
     serverError(method: string, path: string, error: unknown) {
@@ -264,24 +309,44 @@ const dailySummaryText = async (): Promise<string> => {
     loginLocked() {
       background(bump({ 'auth.locked': 1 }));
     },
+    /** 오늘의 운세 푸시 발송 결과 — 다음 날 하루 요약에 나온다. 예약 실행 안이라 기록할 때까지 기다린다 */
+    async pushResult(result: { users: number; skipped: number; sent: number; failed: number; removed: number }) {
+      await bump({ 'push.users': result.users, 'push.skipped': result.skipped, 'push.sent': result.sent, 'push.failed': result.failed, 'push.removed': result.removed });
+    },
 
     // ── 예약 실행 ───────────────────────────────────────────
-    /** 끝난 묶음 창 정리 — 창 안에서 같은 알림이 더 있었으면 'N건 더'를 알린다 */
+    /**
+     * 끝난 묶음 창 정리 — 창 안에서 같은 알림이 더 있었으면 'N건 더'를 알린다.
+     * DB 장애 중 메모리로 센 창도 같은 방식으로 알린다(그 인스턴스에서 센 만큼만)
+     */
     async flushWindows() {
       const t = now();
-      const rows = await db.select().from(opsCounters).where(sql`${opsCounters.key} like 'b:%'`);
-      for (const row of rows) {
-        const end = Number(row.key.slice(row.key.lastIndexOf(':') + 1));
-        if (!Number.isFinite(end) || end > t) continue;
-        if (row.value > 1) await alert(`↪︎ 같은 알림 ${row.value - 1}건 더 (${hhmm(end)}까지) · ${row.note ?? row.key}`);
-        await db.delete(opsCounters).where(eq(opsCounters.key, row.key));
+      let dbError: unknown;
+      try {
+        const rows = await db.select().from(opsCounters).where(sql`${opsCounters.key} like 'b:%'`);
+        for (const row of rows) {
+          const end = Number(row.key.slice(row.key.lastIndexOf(':') + 1));
+          if (!Number.isFinite(end) || end > t) continue;
+          if (row.value > 1) await alert(`↪︎ 같은 알림 ${row.value - 1}건 더 (${hhmm(end)}까지) · ${row.note ?? row.key}`);
+          await db.delete(opsCounters).where(eq(opsCounters.key, row.key));
+        }
+      } catch (e) {
+        dbError = e;
       }
-      for (const [key] of memoryWindows) if (Number(key.slice(key.lastIndexOf(':') + 1)) <= t) memoryWindows.delete(key);
+      for (const [key, w] of memoryWindows) {
+        const end = Number(key.slice(key.lastIndexOf(':') + 1));
+        if (end > t) continue;
+        if (w.count > 1) await alert(`↪︎ 같은 알림 ${w.count - 1}건 더 (${hhmm(end)}까지, DB 장애 중 이 인스턴스에서 센 수) · ${w.note}`);
+        memoryWindows.delete(key);
+      }
+      if (dbError) throw dbError;
     },
 
     /**
-     * 결제 확인 지연 — 결제 확인 화면에 들어왔는데(결제했다고 보고 기다리는 중) 30분이 지나도 결제 알림이 오지 않은 주문.
-     * 웹훅 전달이 끊겼거나 결제창에서 결제하지 않고 돌아온 경우다. 주문마다 한 번만 알린다
+     * 결제 확인 지연 — 결제를 기다리는 주문(awaitingAt, commerce getOrder 가 결제 확인 화면에 머문 주문에만 남긴다)인데
+     * 30분이 지나도 결제 알림이 오지 않은 주문. 웹훅 전달이 끊긴 경우를 잡으려는 것이다.
+     * '결제하지 않고 돌아가기'로 나간 주문은 failed 라 여기 걸리지 않는다. 주문마다 알림이 전달된 뒤에만 표시(delayAlerted)해서,
+     * 전송이 실패하면 다음 실행에서 다시 알린다
      */
     async checkPendingPayments() {
       const t = now();
@@ -297,12 +362,15 @@ const dailySummaryText = async (): Promise<string> => {
         )
         .limit(20);
       if (stale.length === 0) return 0;
+      const lines = stale.map((o) => `· ${o.orderName} ${won(o.amount)} · ${paymentLabel(o.provider)} · 주문 ${o.id}`);
+      const delivered = await alert(
+        `⏳ 결제 확인 지연 · 결제 확인 화면에서 기다렸지만 30분 넘게 결제 알림이 오지 않은 주문 ${stale.length}건이에요. 결제사 판매자 화면에서 결제됐는지 확인하고, 결제됐으면 웹훅 설정을 점검해 주세요\n${lines.join('\n')}`,
+      );
+      if (!delivered) return 0;
       await db
         .update(orders)
         .set({ metadata: sql`json_set(coalesce(${orders.metadata}, '{}'), '$.delayAlerted', ${t})` })
         .where(and(inArray(orders.id, stale.map((o) => o.id)), eq(orders.status, 'pending')));
-      const lines = stale.map((o) => `· ${o.orderName} ${won(o.amount)} · ${paymentLabel(o.provider)} · 주문 ${o.id}`);
-      await alert(`⏳ 결제 확인 지연 · 결제 확인 화면에 들어왔지만 30분 넘게 결제 알림이 오지 않은 주문 ${stale.length}건이에요. 결제사 판매자 화면에서 결제됐는지 확인해 주세요(결제하지 않고 돌아온 경우일 수도 있어요)\n${lines.join('\n')}`);
       return stale.length;
     },
 
@@ -310,9 +378,22 @@ const dailySummaryText = async (): Promise<string> => {
     async sendDailySummary() {
       await alert(await dailySummaryText());
     },
-    /** 오래된 하루 집계 행 지우기 */
+    /**
+     * 오래된 기록 지우기(매일 08:00 KST) — 하루 집계 40일, 요청 ID 선점 2일, 광고 보상 기록 30일, 결제 웹훅·스토어 알림 기록 180일,
+     * 지난 로그인 실패 집계(1일). 개인정보가 담길 수 있는 기록이 끝없이 쌓이지 않게 한다
+     */
     async cleanup() {
-      await db.delete(opsCounters).where(and(sql`${opsCounters.key} like 'd:%'`, lt(opsCounters.updatedAt, now() - COUNTER_RETENTION_MS)));
+      const t = now();
+      const old = (ms: number) => lt(webhookEvents.createdAt, t - ms);
+      await db.batch([
+        db.delete(opsCounters).where(and(sql`${opsCounters.key} like 'd:%'`, lt(opsCounters.updatedAt, t - COUNTER_RETENTION_MS))),
+        db.delete(webhookEvents).where(and(eq(webhookEvents.provider, REQUEST_CLAIM_PROVIDER), old(EVENT_RETENTION_MS.request))),
+        db.delete(webhookEvents).where(and(inArray(webhookEvents.provider, REWARD_PROVIDERS), old(EVENT_RETENTION_MS.reward))),
+        db.delete(webhookEvents).where(
+          and(sql`${webhookEvents.provider} not in (${sql.join([REQUEST_CLAIM_PROVIDER, ...REWARD_PROVIDERS].map((p) => sql`${p}`), sql`, `)})`, old(EVENT_RETENTION_MS.payment)),
+        ),
+        db.delete(loginFailures).where(lt(loginFailures.windowStart, t - LOGIN_FAILURE_RETENTION_MS)),
+      ]);
     },
   };
 }

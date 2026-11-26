@@ -1,13 +1,17 @@
 /**
  * AI 꿈풀이 — 꿈 이야기에서 사전 상징을 찾아(규칙 기반 근거) AI 가 맞춤 풀이를 쓴다.
  *
- * - 질문권: AI 상담과 같은 장치·같은 단가(AI_CHAT_CREDIT_COST). AI 호출 전에 먼저 차감하고, 서비스 쪽 장애(unavailable)로 실패하면
- *   무상으로 돌려준다(하루 상한 안에서). 거절(refused)은 차감한 채 규칙 기반 풀이를 준다.
+ * - 질문권: AI 상담과 같은 장치·같은 단가(AI_CHAT_CREDIT_COST). AI 호출 전에 먼저 차감하고, 서비스 쪽 장애(unavailable)나
+ *   문체 검사 탈락(filtered)으로 쓰지 못하면 차감한 몫 그대로 돌려준다(하루 상한 안에서). 거절(refused)은 차감한 채 규칙 기반 풀이를 준다.
  * - AI 미설정(ANTHROPIC_API_KEY 없음): 사전 해석을 규칙으로 엮은 기본 풀이를 주고, 질문권은 차감하지 않는다.
  * - 사주: 프로필이 있으면(또는 지정하면) 사주 요약을 AI 에 함께 준다. 규칙 기반 풀이에는 쓰지 않는다.
- * - 꿈 이야기는 저장하지 않는다(민감할 수 있는 내용 — 응답으로만 돌려준다).
+ * - 꿈 이야기는 저장하지 않는다(민감할 수 있는 내용 — 응답으로만 돌려준다). requestId 선점 기록(webhook_events)에도
+ *   풀이 문단·상징·프로필 이름을 남기지 않고 생성 방식과 차감 수만 적는다. 그래서 응답을 잃고 같은 요청 ID 로 다시 보내면
+ *   다시 차감하지 않고, 사전 해석으로 엮은 기본 풀이를 돌려준다(AI 를 다시 부르지 않는다).
+ * - 질문권 원장에는 ref_type='dream' 으로 남겨 상담(chat)과 구분한다.
  */
 import type { SajuChart } from '@saju/core';
+import { CRISIS_LINE } from '@saju/shared';
 import {
   DREAM_CRISIS_PATTERN,
   DREAM_DISCLAIMER,
@@ -22,7 +26,7 @@ import type { AppConfig } from '../../config/env.js';
 import { badRequest, conflict } from '../../lib/errors.js';
 import type { RequestClaims } from '../../lib/requestClaim.js';
 import { newId } from '../../lib/ids.js';
-import { isAiFailure, type AiService } from '../ai/service.js';
+import { isAiFailure, isRefundableAiFailure, type AiService } from '../ai/service.js';
 import { chartSummary } from '../chat/service.js';
 import type { CommerceService } from '../commerce/service.js';
 import type { ProfileService } from '../profiles/service.js';
@@ -31,8 +35,6 @@ export const DREAM_NOTICE = {
   ai: 'AI가 꿈 이야기와 사전의 전통 해석을 바탕으로 쓴 풀이예요. 같은 꿈이라도 표현은 조금씩 달라질 수 있어요.',
   rule: '사전에 정리한 전통 해석을 정해진 규칙으로 엮은 기본 풀이예요.',
 } as const;
-
-const CRISIS_LINE = '혼자 감당하기 어려운 마음이라면 지금 전문 상담을 받아 보세요. 자살예방상담전화 109는 24시간 열려 있어요.';
 
 /** 상징들의 결 — 길몽이 많으면 good, 흉몽이 많으면 bad, 아니면 neutral */
 function overallTone(matches: DreamMatch[]): DreamTone {
@@ -93,6 +95,25 @@ export function composeRuleBased(matches: DreamMatch[], crisis: boolean): { head
   };
 }
 
+/** requestId 선점 기록에 남기는 값 — 꿈 내용·풀이·이름은 넣지 않는다 */
+type DreamClaim = { generator: DreamInterpretationDto['generator']; creditsCharged: number };
+
+/** 사전 해석만으로 엮은 풀이(차감 정보 제외) — AI 미설정·실패, 같은 요청 ID 재전송 때 */
+function ruleBasedResult(text: string): Omit<DreamInterpretationDto, 'creditsCharged' | 'creditsLeft'> {
+  const matches = extractDreamSymbols(text, 6);
+  const out = composeRuleBased(matches, DREAM_CRISIS_PATTERN.test(text));
+  return {
+    symbols: matches.map(toDreamSymbolDto),
+    headline: out.headline,
+    paragraphs: out.paragraphs,
+    generator: 'rule',
+    profileName: null,
+    crisis: DREAM_CRISIS_PATTERN.test(text),
+    notice: DREAM_NOTICE.rule,
+    disclaimer: DREAM_DISCLAIMER,
+  };
+}
+
 export function createDreamService(config: AppConfig, profiles: ProfileService, commerce: CommerceService, ai: AiService, claims?: RequestClaims) {
   /** 사주를 함께 볼 원국 — 지정 프로필(없으면 대표 프로필). 사주 없이 보기를 고르면 null */
   const chartFor = async (userId: string, dto: DreamInterpretDto): Promise<{ chart: SajuChart; name: string } | null> => {
@@ -112,18 +133,19 @@ export function createDreamService(config: AppConfig, profiles: ProfileService, 
   return {
     /**
      * 꿈풀이. requestId 가 있으면 같은 요청이 두 번 와도(응답 유실 뒤 재시도·두 번 누름) 한 번만 차감하고,
-     * 두 번째 요청에는 처음 풀이를 그대로 돌려준다(처리 중이면 409)
+     * 두 번째 요청에는 같은 꿈 이야기로 엮은 기본 풀이를 돌려준다(처음 풀이는 저장하지 않는다, 처리 중이면 409)
      */
     async interpret(userId: string, dto: DreamInterpretDto): Promise<DreamInterpretationDto> {
       if (!dto.requestId || !claims) return this.compose(userId, dto);
-      const claim = await claims.claim<DreamInterpretationDto>('dream', userId, dto.requestId);
+      const claim = await claims.claim<DreamClaim>('dream', userId, dto.requestId);
       if (!claim.claimed) {
         if (!claim.result) throw conflict('같은 꿈풀이를 처리하고 있어요. 잠시 후 다시 확인해 주세요.', { reason: 'REQUEST_IN_PROGRESS' });
-        return { ...claim.result, creditsLeft: (await commerce.wallet(userId)).credits };
+        // 처음 풀이는 저장하지 않았다 — 같은 꿈 이야기로 기본 풀이를 다시 엮고, 차감 수는 처음 요청 것을 알린다
+        return { ...ruleBasedResult(dto.text.trim()), creditsCharged: claim.result.creditsCharged ?? 0, creditsLeft: (await commerce.wallet(userId)).credits };
       }
       try {
         const out = await this.compose(userId, dto);
-        await claims.complete(claim.key, out);
+        await claims.complete(claim.key, { generator: out.generator, creditsCharged: out.creditsCharged } satisfies DreamClaim);
         return out;
       } catch (e) {
         await claims.release(claim.key).catch(() => undefined);
@@ -141,7 +163,7 @@ export function createDreamService(config: AppConfig, profiles: ProfileService, 
       // AI 호출 전에 질문권을 먼저 차감(동시 요청으로 AI 비용을 부풀리는 것 방지) — 서비스 쪽 장애로 실패하면 무상으로 돌려준다
       const charged = ai.enabled && cost > 0;
       const refId = newId();
-      if (charged) await commerce.consumeCredits(userId, cost, 'AI 꿈풀이', refId);
+      if (charged) await commerce.consumeCredits(userId, cost, 'AI 꿈풀이', refId, 'dream');
       const result = ai.enabled
         ? await ai.dreamInterpret({
             dream: text,
@@ -156,7 +178,7 @@ export function createDreamService(config: AppConfig, profiles: ProfileService, 
           })
         : null;
       const aiOut = result && !isAiFailure(result) ? result : null;
-      const refunded = charged && isAiFailure(result) && result.failed === 'unavailable' && (await commerce.refundAiFailure(userId, cost, 'AI 꿈풀이 실패 환급', refId));
+      const refunded = charged && isRefundableAiFailure(result) && (await commerce.refundAiFailure(userId, cost, 'AI 꿈풀이 실패 환급', refId));
       const out = aiOut ?? composeRuleBased(matches, crisis);
       return {
         symbols: matches.map(toDreamSymbolDto),

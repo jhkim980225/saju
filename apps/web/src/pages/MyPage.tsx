@@ -33,8 +33,9 @@ export function MyPage() {
   const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
   const [changePassword, setChangePassword] = useState(false);
   const closeChangePassword = useCallback(() => setChangePassword(false), []);
-  // 서버에 저장된 값으로 시작한다(값이 없는 예전 응답·게스트는 기본값 켜짐)
-  const [pushOn, setPushOn] = useState(user?.pushEnabled ?? true);
+  const setUser = useSession((s) => s.setUser);
+  // 서버에 저장된 값(게스트 포함, 값이 없는 예전 응답은 켜짐)으로 시작하고, 이 기기에서 끈 적이 있으면 꺼짐이다
+  const [pushOn, setPushOn] = useState(() => (user?.pushEnabled ?? true) && !native.pushOptedOut?.());
   // 푸시는 앱에서만 받는다 — 웹에는 푸시 토큰을 등록하는 경로가 없어서 토글을 보이지 않는다
   const canPush = nativePlatform() !== 'web';
 
@@ -64,14 +65,21 @@ export function MyPage() {
     toast('탈퇴했어요. 그동안 이용해 주셔서 고마워요.');
     navigate('/', { replace: true });
   };
+  /**
+   * 알림 토글 — 앱 계층(native/push.ts)이 켜면 권한을 받아 토큰을 등록하고(로그아웃 때 해제할 수 있게 등록 표시를 남긴다),
+   * 끄면 이 기기 토큰을 해제한다. 수신 동의는 게스트도 서버에 저장한다(PATCH /auth/me 는 게스트 토큰도 받는다)
+   */
   const togglePush = async (on: boolean) => {
     setPushOn(on);
-    if (on && native.requestPush) {
-      const token = await native.requestPush();
-      const platform = nativePlatform();
-      if (token && platform !== 'web') await api.registerPush(token, platform).catch(() => undefined);
+    if (native.setPush && !(await native.setPush(on))) {
+      setPushOn(false);
+      toast('알림 권한이 꺼져 있어요. 기기 설정에서 달달사주 알림을 허용해 주세요.');
+      return;
     }
-    if (member) await api.updateMe({ pushEnabled: on }).catch(() => undefined);
+    if (user) {
+      const updated = await api.updateMe({ pushEnabled: on }).catch(() => null);
+      if (updated) setUser(updated);
+    }
   };
 
   return (

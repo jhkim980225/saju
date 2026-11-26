@@ -215,7 +215,8 @@ export function OAuthCallbackPage() {
       .oauthCallback(provider!, { code, state, redirectUri: callbackUri(provider!), name: params.get('name') ?? undefined })
       .then(async (tokens) => {
         setTokens(tokens);
-        track('login', { method: provider });
+        // 소셜로 처음 가입했으면 가입 전환(signup)으로 센다(서버가 isNewUser 로 알려 준다)
+        track(tokens.isNewUser ? 'signup' : 'login', { method: provider });
         await qc.invalidateQueries();
         navigate(saved.next || '/today', { replace: true });
       })

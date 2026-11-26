@@ -11,19 +11,24 @@
  *   시도 횟수·다음 시도 시각은 택일 행에서 쓰지 않는 reports.polish_done·polish_lease_until 에 둔다(조건부 갱신으로 한 곳만 맡는다).
  * - 생성 상한: 사용자마다 하루(KST) TAEKIL_DAILY_CREATE_LIMIT 건 — 무료로 무제한 쌓이지 않게. 같은 입력(저장본 안내)은 세지 않는다.
  *   같은 입력 판정은 content.key 식 인덱스(reports_taekil_key_idx)로 찾아 행 전체를 읽지 않는다. 저장된 결과는 지우지 않는다.
+ * - 같은 입력 판정 키에는 두 사람의 출생 정보 지문(birthPrint)을 넣는다 — 프로필의 출생 정보를 고친 뒤에는 고치기 전 원국으로 계산한
+ *   저장본을 돌려주지 않고 새로 계산한다(예전 저장본은 기록에 그대로 남는다).
+ * - AI 다듬기는 사용자가 기다리는 호출이라 호출별 제한 시간(AI_INTERACTIVE_TIMEOUT_MS)으로 부르고, 리포트 다듬기의 동시 호출 자리를 기다리지 않는다.
+ * - 목록은 최근 TAEKIL_LIST_RECENT 건에 더해 그보다 오래된 구매 결과(taekil:reading 권한)도 싣는다.
  */
-import { and, count, desc, eq, gte, isNull, lt, lte, ne, or, sql } from 'drizzle-orm';
+import { createHash } from 'node:crypto';
+import { and, count, desc, eq, gte, inArray, isNull, like, lt, lte, ne, or, sql } from 'drizzle-orm';
 import { TAEKIL_PURPOSES, TaekilInputError, parseYmd, selectTaekilDays, taekilDateRange, ymdKey, type SajuChart, type TaekilPurpose, type TaekilSelection } from '@saju/core';
 import { ERROR_CODES, TAEKIL_LIMITS, TAEKIL_PRODUCT_ID, type ReadingSection, type TaekilCreateDto, type TaekilResultDto, type TaekilSummaryDto } from '@saju/shared';
 import type { Db } from '../../db/client.js';
 import { safeErrorText } from '../../lib/log.js';
-import { reports, type Report } from '../../db/schema.js';
+import { entitlements, reports, type Profile, type Report } from '../../db/schema.js';
 import { atomic } from '../../db/atomic.js';
 import { AppError, badRequest, notFound } from '../../lib/errors.js';
 import { newId } from '../../lib/ids.js';
 import type { AiService } from '../ai/service.js';
 import { startOfSeoulDay, type CommerceService } from '../commerce/service.js';
-import type { ProfileService } from '../profiles/service.js';
+import { profileToBirth, type ProfileService } from '../profiles/service.js';
 import { todayInSeoul } from '../saju/routes.js';
 import { AI_SECTION_KEYS, TAEKIL_DISCLAIMER, basisOf, buildSections, dayDtos, headlineOf, lockedSections, type TaekilTextContext } from './content.js';
 
@@ -35,6 +40,12 @@ export const TAEKIL_DAILY_CREATE_LIMIT = 30;
 export const AI_POLISH_MAX_ATTEMPTS = 3;
 /** AI 다듬기 — 직전 시도(실패)에서 다음 시도까지 기다리는 시간. 시도를 맡는 동안의 담당 기한도 겸한다 */
 export const AI_POLISH_RETRY_MS = 10 * 60_000;
+/** 목록에 기본으로 싣는 최근 결과 수 — 구매한 결과는 이보다 오래되어도 함께 싣는다 */
+export const TAEKIL_LIST_RECENT = 100;
+/** D1 은 문장 하나에 바인딩 값을 100개까지 받는다 — IN 목록을 나눠 묻는다 */
+const IN_CHUNK = 90;
+/** 출생 정보 지문 — 같은 입력 판정 키에 넣는다(출생 정보를 고치면 키가 달라진다). 출생 정보 자체는 키에 그대로 쓰지 않는다 */
+export const birthPrint = (p: Profile) => createHash('sha256').update(JSON.stringify(profileToBirth(p))).digest('hex').slice(0, 16);
 /** 같은 입력 판정 키 — reports_taekil_key_idx 인덱스 식과 글자까지 같아야 인덱스를 탄다 */
 const storedKey = sql`json_extract("content", '$.key')`;
 /**
@@ -110,7 +121,7 @@ export function createTaekilService(db: Db, profiles: ProfileService, commerce: 
         return fresh ? (stored(fresh).ai?.sections ?? null) : null;
       }
       try {
-        const res = await ai.enhanceSections({ title: r.title, chart: s.chart, draft: draft.filter((x) => AI_SECTION_KEYS.includes(x.key)) });
+        const res = await ai.enhanceSections({ title: r.title, chart: s.chart, draft: draft.filter((x) => AI_SECTION_KEYS.includes(x.key)), interactive: true });
         if (res.generator === 'ai') {
           const [fresh] = await db.select().from(reports).where(eq(reports.id, r.id));
           if (fresh) {
@@ -179,7 +190,7 @@ export function createTaekilService(db: Db, profiles: ProfileService, commerce: 
     };
   };
 
-  const summary = async (userId: string, r: Report): Promise<TaekilSummaryDto> => {
+  const summary = (r: Report, isLocked: boolean): TaekilSummaryDto => {
     const s = stored(r);
     return {
       id: r.id,
@@ -190,7 +201,7 @@ export function createTaekilService(db: Db, profiles: ProfileService, commerce: 
       from: s.from,
       to: s.to,
       top: s.selection.top,
-      locked: !(await unlocked(userId, r)),
+      locked: isLocked,
       createdAt: new Date(r.createdAt).toISOString(),
     };
   };
@@ -202,11 +213,11 @@ export function createTaekilService(db: Db, profiles: ProfileService, commerce: 
       const profile = await profiles.getOwned(userId, dto.profileId);
       const chart = profiles.chartOf(profile);
       const purpose = dto.purpose as TaekilPurpose;
-      let partner: { id: string; name: string; chart: SajuChart } | null = null;
+      let partner: { id: string; name: string; chart: SajuChart; print: string } | null = null;
       if (purpose === 'wedding' && dto.partnerProfileId) {
         if (dto.partnerProfileId === profile.id) throw badRequest('서로 다른 두 사람을 골라 주세요.');
         const p = await profiles.getOwned(userId, dto.partnerProfileId);
-        partner = { id: p.id, name: p.name, chart: profiles.chartOf(p) };
+        partner = { id: p.id, name: p.name, chart: profiles.chartOf(p), print: birthPrint(p) };
       }
 
       // 날짜 — 오늘(KST)부터, 너무 먼 날은 받지 않는다
@@ -232,8 +243,8 @@ export function createTaekilService(db: Db, profiles: ProfileService, commerce: 
       if (dates[0]! < today) throw badRequest('지난 날짜는 고를 수 없어요. 오늘 이후 날짜로 골라 주세요.');
       if (dates[dates.length - 1]! > last) throw badRequest('택일은 앞으로 2년 안의 날짜만 볼 수 있어요.');
 
-      // 같은 입력이면 저장본으로 안내(이미 산 결과를 다시 사지 않게)
-      const key = [purpose, profile.id, partner?.id ?? '', mode, dates.join(',')].join('|');
+      // 같은 입력이면 저장본으로 안내(이미 산 결과를 다시 사지 않게). 출생 정보 지문을 넣어 고친 출생 정보에는 새로 계산한다
+      const key = [purpose, `${profile.id}~${birthPrint(profile)}`, partner ? `${partner.id}~${partner.print}` : '', mode, dates.join(',')].join('|');
       const [existing] = await taekilByKey(db, userId, key);
       if (existing) return view(userId, existing);
 
@@ -268,14 +279,29 @@ export function createTaekilService(db: Db, profiles: ProfileService, commerce: 
       return view(userId, await ownedRow(userId, id));
     },
 
+    /**
+     * 목록 — 최근 TAEKIL_LIST_RECENT 건에 더해 그보다 오래된 구매 결과도 싣는다(산 결과가 보관함·목록에서 사라지지 않게).
+     * 잠금 여부는 플러스 구독 1번, 권한 목록 1번만 조회해서 정한다(결과마다 따로 묻지 않는다)
+     */
     async list(userId: string): Promise<TaekilSummaryDto[]> {
-      const rows = await db
-        .select()
-        .from(reports)
-        .where(and(eq(reports.userId, userId), eq(reports.type, TAEKIL_REPORT_TYPE)))
-        .orderBy(desc(reports.createdAt), desc(reports.id))
-        .limit(100);
-      return Promise.all(rows.map((r) => summary(userId, r)));
+      const mine = and(eq(reports.userId, userId), eq(reports.type, TAEKIL_REPORT_TYPE));
+      const recent = await db.select().from(reports).where(mine).orderBy(desc(reports.createdAt), desc(reports.id)).limit(TAEKIL_LIST_RECENT);
+      const now = Date.now();
+      const prefix = taekilKey('');
+      const bought = new Set(
+        (await db.select({ key: entitlements.key, expiresAt: entitlements.expiresAt }).from(entitlements).where(and(eq(entitlements.userId, userId), like(entitlements.key, `${prefix}%`))))
+          .filter((e) => e.expiresAt === null || e.expiresAt > now)
+          .map((e) => e.key.slice(prefix.length)),
+      );
+      const shown = new Set(recent.map((r) => r.id));
+      const missing = [...bought].filter((id) => !shown.has(id));
+      const older: Report[] = [];
+      for (let i = 0; i < missing.length; i += IN_CHUNK) {
+        older.push(...(await db.select().from(reports).where(and(mine, inArray(reports.id, missing.slice(i, i + IN_CHUNK))))));
+      }
+      older.sort((a, b) => b.createdAt - a.createdAt || (a.id < b.id ? 1 : -1));
+      const premium = await commerce.isPremium(userId);
+      return [...recent, ...older].map((r) => summary(r, !(premium || bought.has(r.id))));
     },
 
     /** 결제 전 확인 — 내 택일 결과이고 이 상품으로 열 수 있는가 */

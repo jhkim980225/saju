@@ -80,6 +80,7 @@ import {
   yearBriefSection,
 } from './reading.js';
 import { LUCKY_COLOR_PLAIN } from './content/plainFortune.js';
+import { kstYear as sharedKstYear } from '@saju/shared/fortune-year';
 import { daeunEval, dominantGroup, groupShare, heesinCaveat, isLowGrade, natalShinsal, strengthCaveat, tgLabel, topTenGods, yearHeadline } from './verdicts.js';
 
 export const ELEMENTS: Element[] = ['wood', 'fire', 'earth', 'metal', 'water'];
@@ -94,7 +95,8 @@ export const elp = (el: Element, withBatchim: string, without: string) => partic
 export const ieyo = (word: string) => particle(word, '이에요', '예요');
 /** 목록 + 마지막 낱말에 맞춘 조사 */
 export const list = (items: string[], withBatchim: string, without: string) => items.join(', ') + particle(items[items.length - 1] ?? '', withBatchim, without);
-export const kstYear = (now: Date) => new Date(now.getTime() + 9 * 3_600_000).getUTCFullYear();
+/** KST 기준 연도 — 웹과 같은 정의(packages/shared/src/fortuneYear.ts) */
+export const kstYear = (now: Date) => sharedKstYear(now);
 export const pct = (n: number) => Math.round(n);
 
 /** 오행의 정식 이름 — '목' */

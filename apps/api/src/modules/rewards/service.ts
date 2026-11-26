@@ -93,10 +93,11 @@ export function createRewardsService(config: AppConfig, db: Db, commerce: Commer
       const userId = params.get('user_id');
       if (!transactionId || !userId) return { granted: false, reason: 'MISSING_PARAMS' };
       const eventId = `admob:${transactionId}`;
-      // 같은 거래가 동시에 두 번 와도 먼저 기록한 쪽만 지급한다
+      // 같은 거래가 동시에 두 번 와도 먼저 기록한 쪽만 지급한다.
+      // 기록에는 사용자 ID·SSV 쿼리 전체를 두지 않는다 — 누구에게 줬는지는 질문권 원장에 있고, 이 행은 거래 ID 중복 차단에만 쓴다(30일 뒤 정리)
       const recorded = await db
         .insert(webhookEvents)
-        .values({ id: eventId, provider: 'admob', eventType: 'reward', payload: Object.fromEntries(params), processedAt: now() })
+        .values({ id: eventId, provider: 'admob', eventType: 'reward', payload: { adUnit, rewardAmount: params.get('reward_amount'), timestamp: params.get('timestamp') }, processedAt: now() })
         .onConflictDoNothing()
         .returning({ id: webhookEvents.id });
       if (recorded.length === 0) return { granted: false, reason: 'DUPLICATE' };

@@ -2,12 +2,13 @@ import { useQuery } from '@tanstack/react-query';
 import type { ProductDto } from '@saju/shared';
 import { ArrowLeft, Lock } from 'lucide-react';
 import { useState } from 'react';
-import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
 import { Page } from '@/components/AppShell';
 import { KeyPointsCard } from '@/components/KeyPointsCard';
 import { OpenReportCard } from '@/components/OpenReportCard';
 import { PaywallSheet } from '@/components/PaywallSheet';
 import { ReadingSectionCard } from '@/components/ReadingSection';
+import { toast } from '@/components/Toast';
 import { Badge, Button, Card, ErrorState, IconButton, PageHeader, Spinner, cx } from '@/components/ui';
 import { useProducts, useProfiles } from '@/hooks/queries';
 import { usePurchase } from '@/hooks/usePurchase';
@@ -42,7 +43,13 @@ export function YearlyPage() {
   const purchase = usePurchase();
   const { data: products } = useProducts();
   const productId = `report_newyear_${year}`;
+  const bundleId = `bundle_newyear_${year}`;
   const product = products?.find((p) => p.id === productId);
+  // ?year= 로 상품이 없는 해(지난해·먼 미래)를 열었다 — 무료 미리보기만 보여 주고 결제 시트 대신 판매 중인 해로 안내한다
+  const currentYear = targetFortuneYear();
+  const notForSale = Boolean(products) && !product && !products!.some((p) => p.id === bundleId);
+  const notForSaleText = year === currentYear ? `${year}년 신년운세는 아직 판매를 시작하지 않았어요.` : `${year}년 신년운세는 판매하지 않아요. 지금은 ${currentYear}년 신년운세를 볼 수 있어요.`;
+  const openPaywall = () => (notForSale ? toast(notForSaleText) : setPaywall(true));
   const d = q.data;
   // '나'·'본인' 같은 이름은 부르지 않는다(서버 displayName 과 같은 기준)
   const callName = profile && !['나', '본인', ''].includes(profile.name.trim()) ? profile.name.trim() : null;
@@ -85,7 +92,7 @@ export function YearlyPage() {
                 <ReadingSectionCard
                   key={s.key}
                   section={s}
-                  onUnlock={() => setPaywall(true)}
+                  onUnlock={openPaywall}
                   price={product?.purchasable ? won(product.price) : undefined}
                   compactLock={d.sections.findIndex((x) => x.locked) < i}
                 />
@@ -122,7 +129,17 @@ export function YearlyPage() {
                 </ol>
                 {firstLocked && <p className="mt-4 text-sm text-ink-3">{firstLocked.label.split(' ')[0]}부터는 전체 보기에서 볼 수 있어요.</p>}
               </Card>
-              {d.locked && (
+              {d.locked && notForSale && (
+                <p className="mt-6 rounded-xl bg-subtle p-3 text-sm text-ink-2">
+                  {notForSaleText}{' '}
+                  {year !== currentYear && (
+                    <Link to={`/yearly/${profileId}`} className="font-semibold underline">
+                      {currentYear} 신년운세 보기
+                    </Link>
+                  )}
+                </p>
+              )}
+              {d.locked && !notForSale && (
                 <Button block size="lg" className="mt-6" onClick={() => setPaywall(true)}>
                   {product ? `${year} 신년운세 전체 보기 · ${won(product.price)}` : '전체 보기'}
                 </Button>
@@ -139,7 +156,7 @@ export function YearlyPage() {
           </div>
         )}
       </Page>
-      <PaywallSheet open={paywall} onClose={() => setPaywall(false)} productIds={[productId, `bundle_newyear_${year}`]} name={profile?.name} subtitle="총운 · 재물 · 애정 · 직장 · 건강 · 열두 달 흐름" onPurchase={onPurchase} />
+      <PaywallSheet open={paywall} onClose={() => setPaywall(false)} productIds={[productId, bundleId]} name={profile?.name} subtitle="총운 · 재물 · 애정 · 직장 · 건강 · 열두 달 흐름" onPurchase={onPurchase} />
     </div>
   );
 }

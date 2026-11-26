@@ -22,6 +22,8 @@ describe('토스 보상형 광고 지급 (일회용 토큰)', () => {
     clock += ms;
   };
   let svc: ReturnType<typeof createTossRewardsService>;
+  /** 질문권 보상을 켜지 않은 기본 설정 */
+  let svcDefault: ReturnType<typeof createTossRewardsService>;
 
   beforeAll(async () => {
     await runMigrations(db);
@@ -35,7 +37,8 @@ describe('토스 보상형 광고 지급 (일회용 토큰)', () => {
     ]);
     const commerce = createCommerceService(config, db, createGateways(config));
     const rewards = createRewardsService(config, db, commerce);
-    svc = createTossRewardsService(config, db, commerce, rewards, createTossClient(config, createFakeToss().fetch), { now: () => clock });
+    svc = createTossRewardsService(config, db, commerce, rewards, createTossClient(config, createFakeToss().fetch), { now: () => clock, creditRewards: true });
+    svcDefault = createTossRewardsService(config, db, commerce, rewards, createTossClient(config, createFakeToss().fetch), { now: () => clock });
   });
 
   it('광고를 본 뒤 토큰으로 무상 질문권을 받는다 — 같은 토큰은 한 번만', async () => {
@@ -103,6 +106,16 @@ describe('토스 보상형 광고 지급 (일회용 토큰)', () => {
     // 같은 날 다시 요청해도 열린 상태를 그대로 알려 준다
     expect(await svc.claim('toss-1', start.token)).toEqual({ granted: true, kind: 'unlock', slot: 'tomorrow_fortune', dateKey });
     await expect(svc.start('toss-1', { kind: 'unlock', slot: 'tomorrow_fortune' })).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it('질문권 보상은 부르는 화면이 없어 기본으로 꺼져 있다(토큰 발급·지급 모두 403)', async () => {
+    await expect(svcDefault.start('toss-1', { kind: 'credit' })).rejects.toMatchObject({ statusCode: 403, details: { reason: 'CREDIT_REWARD_OFF' } });
+    // 켜 둔 설정에서 받은 토큰이라도 꺼진 설정에서는 지급하지 않는다
+    const token = (await svc.start('toss-3', { kind: 'credit' }).catch(() => null))?.token;
+    if (token) {
+      watch();
+      await expect(svcDefault.claim('toss-3', token)).rejects.toMatchObject({ statusCode: 403 });
+    }
   });
 
   it('토스 계정이 아니면 받을 수 없다', async () => {

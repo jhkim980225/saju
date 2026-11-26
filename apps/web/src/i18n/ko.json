@@ -321,6 +321,9 @@
     "priceLabel": "결제 금액",
     "payButton": "{{price}} 결제하기",
     "terms": "결제하면 이용약관(제5조 청약 철회와 환불 포함)에 동의한 것으로 봐요.",
+    "termsBefore": "결제하면 ",
+    "termsLink": "이용약관(제5조 청약 철회와 환불 포함)",
+    "termsAfter": "에 동의한 것으로 봐요.",
     "restore": "구매 내역 복원",
     "previewKept": "결제하지 않아도 지금까지 읽은 무료 풀이는 계속 볼 수 있어요."
   },
@@ -373,14 +376,6 @@
     "title": "궁합",
     "pickTitle": "누구와의 궁합이 궁금하세요?",
     "pickPerson": "사람 고르기",
-    "relationLabel": "어떤 사이인가요?",
-    "relations": {
-      "lover": "연인",
-      "crush": "알아 가는 사이",
-      "friend": "친구",
-      "family": "가족",
-      "coworker": "동료"
-    },
     "sections": {
       "match": "잘 맞는 점",
       "clash": "부딪히는 점",
@@ -408,7 +403,14 @@
     "followUpTitle": "이어서 물어보기",
     "limitReached": "오늘 질문할 수 있는 횟수를 모두 사용했어요. 내일 다시 이용할 수 있습니다.",
     "crisisNote": "혼자 감당하기 어려운 마음이라면 지금 전문 상담을 받아 보세요. 자살예방상담전화 109는 24시간 열려 있어요.",
-    "segmentSaju": "사주로 묻기"
+    "segmentSaju": "사주로 묻기",
+    "clear": {
+      "button": "대화 지우기",
+      "title": "대화를 모두 지울까요?",
+      "body": "{{name}}님의 사주로 나눈 질문과 답변이 모두 지워지고 되돌릴 수 없어요. 이미 쓴 질문권은 돌아오지 않아요.",
+      "confirm": "지우기",
+      "done": "대화를 지웠어요"
+    }
   },
   "my": {
     "savedProfiles": "저장한 사주",
@@ -544,25 +546,25 @@
     "copyLink": "링크 복사",
     "moreOptions": "더보기",
     "includeName": "이름 넣기",
-    "privacyNote": "생년월일과 태어난 시간은 공유되지 않아요.",
+    "privacyNote": "이름과 생년월일, 태어난 시간은 공유되지 않아요.",
     "imageSaved": "이미지를 저장했어요",
     "card": {
       "keywordsLabel": "나의 키워드",
       "footer": "여덟 글자로 읽는 나라는 사람"
     },
     "kakaoResult": {
-      "title": "{{name}}님은 {{ilju}}일주, '{{alias}}'",
+      "title": "여덟 글자로 읽은 사주, '{{alias}}'",
       "description": "여덟 글자로 읽은 나라는 사람. 내 사주도 무료로 확인해 보세요.",
       "buttonPrimary": "내 사주 보기",
       "buttonSecondary": "결과 보기"
     },
     "kakaoCompatibility": {
       "title": "우리 둘, 어디가 잘 맞을까요?",
-      "description": "{{nameA}} × {{nameB}} 궁합 풀이. 두 사람의 사주로 잘 맞는 점과 조율할 점을 확인해 보세요.",
+      "description": "두 사람의 사주로 잘 맞는 점과 조율할 점을 확인해 보세요.",
       "buttonPrimary": "궁합 보기"
     },
     "kakaoToday": {
-      "title": "{{name}}님의 오늘: {{headline}}",
+      "title": "오늘의 한 줄: {{headline}}",
       "description": "매일 아침 한 줄, 달달사주 오늘의 운세",
       "buttonPrimary": "오늘의 운세"
     }
@@ -1180,7 +1182,7 @@
       "delete": "기록 지우기",
       "deleteConfirm": {
         "title": "이 기록을 지울까요?",
-        "body": "지운 기록은 되돌릴 수 없어요. 깊은 풀이 결제 내역은 결제 내역에 그대로 남아요.",
+        "body": "지운 기록은 되돌릴 수 없어요. 오늘 뽑은 카드는 지워도 같은 질문으로 다시 뽑을 수 없고, 예·아니오 하루 횟수에도 그대로 들어가요. 깊은 풀이 결제 내역은 결제 내역에 그대로 남아요.",
         "confirm": "지우기"
       },
       "deleted": "기록을 지웠어요"

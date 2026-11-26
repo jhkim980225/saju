@@ -147,6 +147,43 @@ describe('analytics', () => {
     expect(fbq).not.toHaveBeenCalled();
   });
 
+  it('같은 주문의 purchase 는 한 번만 보낸다(결제 확인 화면을 다시 열어도 — 카카오 픽셀 포함)', async () => {
+    stubAnalyticsKeys();
+    const { storage, setStorageAdapter } = await import('../storage');
+    const mem = new Map<string, string>();
+    setStorageAdapter({ get: (k) => mem.get(k) ?? null, set: (k, v) => void mem.set(k, v), remove: (k) => void mem.delete(k) });
+    const a = await import('../analytics');
+    a.initAnalytics();
+    const gtag = vi.fn();
+    w().gtag = gtag;
+    a.track('purchase', { product: 'chat_pack_10', price: 3900, orderId: 'ord_dup' });
+    a.track('purchase', { product: 'chat_pack_10', price: 3900, orderId: 'ord_dup' });
+    expect(gtag.mock.calls.filter((c) => c[1] === 'purchase')).toHaveLength(1);
+    expect(storage.getJSON<string[]>('yd.analytics.purchases')).toEqual(['ord_dup']);
+  });
+
+  it('결제 확인 화면을 닫아 빠진 그로블 결제 전환을 다음 시작 때 주문 목록으로 확인해 보낸다', async () => {
+    stubAnalyticsKeys();
+    const { storage, setStorageAdapter, STORAGE_KEYS } = await import('../storage');
+    const mem = new Map<string, string>();
+    setStorageAdapter({ get: (k) => mem.get(k) ?? null, set: (k, v) => void mem.set(k, v), remove: (k) => void mem.delete(k) });
+    storage.setJSON(STORAGE_KEYS.pendingCheckout, { orderId: 'ORD-LATE', productId: 'chat_pack_10', amount: 3900, provider: 'groble', returnTo: '/ask' });
+    const orders = vi.fn(async () => [{ id: 'ORD-LATE', productId: 'chat_pack_10', amount: 3900, status: 'paid', createdAt: new Date().toISOString() }]);
+    vi.doMock('../api', () => ({ api: { orders } }));
+    vi.doMock('../session', () => ({ useSession: { getState: () => ({ accessToken: 'a' }) } }));
+    const a = await import('../analytics');
+    a.initAnalytics();
+    const gtag = vi.fn();
+    w().gtag = gtag;
+    expect(await a.recoverWebPurchase()).toBe(true);
+    expect(gtag).toHaveBeenCalledWith('event', 'purchase', expect.objectContaining({ transaction_id: 'ORD-LATE', value: 3900 }));
+    // 이미 보낸 주문은 다시 확인하지도 않는다
+    expect(await a.recoverWebPurchase()).toBe(false);
+    expect(orders).toHaveBeenCalledTimes(1);
+    vi.doUnmock('../api');
+    vi.doUnmock('../session');
+  });
+
   it('page_view 는 수동 전송하고 page_location 에서 캠페인 파라미터 외 쿼리를 지운다', async () => {
     stubAnalyticsKeys();
     window.history.replaceState({}, '', '/auth/callback/kakao?code=SECRET&state=abc&utm_source=kakao&utm_campaign=newyear#x');

@@ -23,5 +23,7 @@ export async function runDailyPush(services: Services) {
     };
   });
   console.info('[push] 오늘의 운세 푸시 발송 완료', result);
+  // 다음 날 운영 하루 요약에 대상·성공·실패·지운 토큰 수가 나온다(modules/ops/service.ts)
+  await services.ops.pushResult(result).catch((e: unknown) => console.warn('[push] 발송 결과 집계 실패', e instanceof Error ? e.message : String(e)));
   return result;
 }

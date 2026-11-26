@@ -8,26 +8,51 @@
  *  - 앱(IAP): native.purchase → 서버 영수증 검증
  * 결제 승인은 /payments/success 페이지에서 서버 confirm API 로 처리한다(그로블 제외).
  */
-import type { CheckoutDto, PaymentResultDto, ProductDto } from '@saju/shared';
+import type { CheckoutDto, IapRejectDetails, PaymentResultDto, ProductDto } from '@saju/shared';
 import { ApiError, api } from '../api';
 import { IS_TOSS, isNativeApp, native, nativePlatform } from '../platform';
 import { STORAGE_KEYS, storage } from '../storage';
 import { finishPurchase, recoverUnfinishedPurchases } from '../../native';
+import { attachIapReceipt, findIapTarget, forgetIapTarget, rememberIapTarget } from './iapTargets';
 import { openPortOne, openToss } from './providers';
 
-const IAP_PENDING_KEY = 'yd.iapPendingProfiles';
-/** 끊긴 결제 복구용 대상 — 프로필 ID 또는 'reading:<타로 리딩 ID>' */
-const pendingTarget = (v: string | undefined): { profileId?: string; readingId?: string } =>
-  !v ? {} : v.startsWith('reading:') ? { readingId: v.slice('reading:'.length) } : { profileId: v };
+/** 예전 형식(스토어 상품 ID → 대상)의 복구 기록 — 같은 상품을 연달아 사면 덮어써져서 iapTargets 로 바꿨다. 남아 있으면 지운다 */
+const LEGACY_IAP_PENDING_KEY = 'yd.iapPendingProfiles';
+
+/**
+ * 서버가 지급을 거절한 인앱결제의 스토어 거래 마무리 — 거절 응답의 details.finish 가 true 면 지급 없이 거래를 끝낸다
+ * (iOS 는 끝내지 않은 소모성 거래가 저절로 환불되지 않고 앱을 열 때마다 다시 검증된다. Android 는 그대로 두면 3일 안에 자동 환불된다).
+ * 이 거래의 대상 기록도 지운다. 거래를 끝냈으면 true
+ */
+async function closeRejectedPurchase(e: unknown, receipt: string): Promise<boolean> {
+  if (!(e instanceof ApiError)) return false;
+  const details = e.details as Partial<IapRejectDetails> | undefined;
+  if (!details?.reason) return false;
+  forgetIapTarget({ receipt });
+  if (details.finish !== true) return false;
+  await finishPurchase(receipt);
+  return true;
+}
 
 /** 끊긴 인앱결제 복구 — 앱 시작·복귀 시(회원 로그인 상태) 호출. 검증 성공 건은 native 계층이 finish 까지 처리한다 */
 export async function recoverInAppPurchases(): Promise<number> {
   if (IS_TOSS) return (await import('@/toss/purchases')).recoverTossPurchases();
   if (!isNativeApp()) return 0;
-  const pending = storage.getJSON<Record<string, string>>(IAP_PENDING_KEY) ?? {};
-  const { recovered } = await recoverUnfinishedPurchases((p) =>
-    api.verifyIap({ platform: p.platform, productId: p.productId, receipt: p.receipt, ...pendingTarget(pending[p.productId]) }),
-  );
+  storage.remove(LEGACY_IAP_PENDING_KEY);
+  const used = new Set<string>();
+  const { recovered } = await recoverUnfinishedPurchases(async (p) => {
+    // 대상 기록을 잃었으면 대상 없이 보낸다 — 서버가 이미 처리한 거래는 그대로 마무리하고, 리포트 상품은 대표 프로필로 채운다
+    const target = findIapTarget(p.productId, p.receipt, used);
+    if (target) used.add(target.id);
+    try {
+      const result = await api.verifyIap({ platform: p.platform, productId: p.productId, receipt: p.receipt, profileId: target?.profileId, readingId: target?.readingId });
+      forgetIapTarget({ id: target?.id, receipt: p.receipt });
+      return result;
+    } catch (e) {
+      await closeRejectedPurchase(e, p.receipt);
+      throw e;
+    }
+  });
   return recovered;
 }
 
@@ -54,12 +79,24 @@ export async function startCheckout(input: { product: ProductDto; profileId?: st
     const platform = nativePlatform() === 'ios' ? 'ios' : 'android';
     const storeId = platform === 'ios' ? input.product.iosProductId : input.product.androidProductId;
     if (!storeId) throw new Error('이 상품은 앱에서 아직 구매할 수 없어요.');
-    // 앱이 검증 전에 종료돼도 복구할 수 있도록 대상 프로필을 기억해 둔다
-    const target = input.readingId ? `reading:${input.readingId}` : (input.profileId ?? '');
-    storage.setJSON(IAP_PENDING_KEY, { ...(storage.getJSON<Record<string, string>>(IAP_PENDING_KEY) ?? {}), [storeId]: target });
+    // 결제 전에 서버에 살 수 있는지 묻는다 — 스토어는 결제 뒤에야 검증하므로 판매 중지·한도 초과·이미 가진 콘텐츠를 여기서 막는다
+    await api.checkIap({ platform, productId: storeId, profileId: input.profileId, readingId: input.readingId });
+    // 앱이 검증 전에 종료돼도 복구할 수 있도록 이 결제의 대상을 기억해 둔다(결제마다 한 건)
+    const targetId = rememberIapTarget(storeId, { profileId: input.profileId, readingId: input.readingId });
     const purchased = await native.purchase(storeId);
-    if (!purchased) throw new Error('결제를 취소했어요.');
-    const result = await api.verifyIap({ platform, productId: storeId, receipt: purchased.receipt, profileId: input.profileId, readingId: input.readingId });
+    if (!purchased) {
+      forgetIapTarget({ id: targetId });
+      throw new Error('결제를 취소했어요.');
+    }
+    attachIapReceipt(targetId, purchased.receipt);
+    let result: PaymentResultDto;
+    try {
+      result = await api.verifyIap({ platform, productId: storeId, receipt: purchased.receipt, profileId: input.profileId, readingId: input.readingId });
+    } catch (e) {
+      await closeRejectedPurchase(e, purchased.receipt);
+      throw e;
+    }
+    forgetIapTarget({ id: targetId });
     // 서버 검증 성공 후에만 거래 완료(iOS finish / Android consume) — 안 하면 Google Play 가 3일 후 자동 환불
     await finishPurchase(purchased.receipt);
     return result;

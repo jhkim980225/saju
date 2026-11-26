@@ -10,6 +10,7 @@ import { loadConfig } from '../src/config/env.js';
 import { createDb, runMigrations, type Db } from '../src/db/local.js';
 import { reports } from '../src/db/schema.js';
 import { seedProducts } from '../src/db/seed.js';
+import { POLISH_HEARTBEAT_MS, POLISH_LEASE_MS } from '../src/modules/reports/service.js';
 
 interface DraftSection {
   key: string;
@@ -100,6 +101,7 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
 });
 afterEach(() => {
+  vi.useRealTimers();
   // 다음 테스트에 남은 호출이 새지 않게 모두 끝낸다
   h.auto = true;
   h.calls.splice(0).forEach((c) => c.resolve());
@@ -255,6 +257,66 @@ describe('사주분석서 — 결제 직후 미리 만들고, 규칙 기반 본�
   });
 });
 
+describe('담당 기한과 대기열', () => {
+  it('덩어리가 오래 걸려도 다듬는 동안에는 담당 기한을 주기적으로 늘린다(다른 요청이 다시 맡지 않는다)', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const token = await member();
+    const profileId = await profile(token);
+    await buy(token, 'report_saju_lifetime', { profileId });
+    const id = (await api('GET', '/reports', { token })).body[0].id;
+    const n = h.calls.length;
+    // 어떤 덩어리도 끝나지 않은 채 기한이 거의 다 됐다 — 진행 기록만으로는 기한이 늘지 않는 상황
+    await db.update(reports).set({ polishLeaseUntil: Date.now() + 1000 }).where(eq(reports.id, id));
+    vi.advanceTimersByTime(POLISH_HEARTBEAT_MS);
+    vi.useRealTimers();
+    await vi.waitFor(async () => expect((await db.select().from(reports).where(eq(reports.id, id)))[0]!.polishLeaseUntil).toBeGreaterThan(Date.now() + POLISH_LEASE_MS - 60_000));
+    // 열어도 다시 맡지 않는다(AI 를 두 번 부르지 않는다)
+    await api('GET', `/reports/${id}`, { token });
+    await progressOf(token, id);
+    expect(h.calls).toHaveLength(n);
+    settle();
+    await vi.waitFor(async () => expect((await progressOf(token, id)).status).toBe('ready'));
+  });
+
+  it('대기열에 넣지 못해도 규칙 기반 본문으로 응답하고, 다음 진행률 조회 때 다시 맡긴다', async () => {
+    let fail = true;
+    const sent: string[] = [];
+    const via = await buildApp({
+      config: app.ctx.config,
+      db,
+      deps: {
+        startJob: async (job) => {
+          sent.push(job.reportId);
+          if (fail) throw new Error('queue down');
+        },
+      },
+    });
+    try {
+      const token = await member();
+      const profileId = await profile(token);
+      // 결제 확정의 미리 만들기도 대기열 실패로 끝나지만 결제는 그대로다
+      const o = await api('POST', '/orders', { token, via, body: { productId: 'report_saju_lifetime', profileId } });
+      expect((await api('POST', '/payments/confirm', { token, via, body: { provider: 'mock', orderId: o.body.order.id, amount: o.body.order.amount } })).status).toBe(200);
+      const opened = await api('POST', '/reports', { token, via, body: { type: 'lifetime', profileId } });
+      expect(opened.status).toBe(201);
+      expect(opened.body).toMatchObject({ status: 'polishing', generator: 'rule' });
+      expect((await db.select().from(reports).where(eq(reports.id, opened.body.id)))[0]!.polishLeaseUntil).toBeNull();
+      expect(sent).toHaveLength(2);
+      // 대기열이 돌아오면 다음 진행률 조회가 다시 맡긴다
+      fail = false;
+      expect((await api('GET', `/reports/${opened.body.id}/progress`, { token, via })).body.status).toBe('polishing');
+      expect(sent).toHaveLength(3);
+      expect((await db.select().from(reports).where(eq(reports.id, opened.body.id)))[0]!.polishLeaseUntil).toBeGreaterThan(Date.now());
+      // 맡은 뒤에는 다시 보내지 않는다
+      await api('GET', `/reports/${opened.body.id}/progress`, { token, via });
+      expect(sent).toHaveLength(3);
+      expect(h.calls).toHaveLength(0);
+    } finally {
+      await via.close();
+    }
+  });
+});
+
 describe('주제별 리포트(연애·결혼운 · 재물·직업운) — 같은 방식으로 미리 만들고 다듬는다', () => {
   it('결제 확정 → 규칙 기반 본문을 바로 저장하고, 덩어리 단위 진행률과 함께 AI 가 다듬는다', async () => {
     const token = await member();
@@ -321,5 +383,11 @@ describe('신년 패키지 · 궁합 1회권', () => {
     expect(list).toHaveLength(1);
     const opened = await api('POST', '/reports', { token, body: { type: 'compatibility', profileId: me, partnerProfileId: partner } });
     expect(opened.body.id).toBe(list[0].id);
+    // 두 사람을 바꿔 열어도 같은 리포트 — 새로 만들거나 AI 로 다시 다듬지 않는다
+    const calls = h.calls.length;
+    const swapped = await api('POST', '/reports', { token, body: { type: 'compatibility', profileId: partner, partnerProfileId: me } });
+    expect(swapped.body.id).toBe(list[0].id);
+    expect(h.calls).toHaveLength(calls);
+    expect((await api('GET', '/reports', { token })).body).toHaveLength(1);
   });
 });

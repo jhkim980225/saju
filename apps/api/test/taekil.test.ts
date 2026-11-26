@@ -7,7 +7,7 @@ import { seedProducts } from '../src/db/seed.js';
 import { and, eq, sql } from 'drizzle-orm';
 import { entitlements, reports } from '../src/db/schema.js';
 import { CATALOG } from '../src/modules/commerce/catalog.js';
-import { TAEKIL_DAILY_CREATE_LIMIT, taekilByKey } from '../src/modules/taekil/service.js';
+import { TAEKIL_DAILY_CREATE_LIMIT, TAEKIL_LIST_RECENT, taekilByKey } from '../src/modules/taekil/service.js';
 
 let app: App;
 const BIRTH = { calendar: 'solar', year: 1990, month: 5, day: 15, hour: 14, minute: 30, gender: 'male' } as const;
@@ -24,7 +24,7 @@ afterAll(async () => {
   await app.close();
 });
 
-const api = async (method: 'GET' | 'POST' | 'DELETE', url: string, opts: { token?: string; body?: unknown } = {}) => {
+const api = async (method: 'GET' | 'POST' | 'DELETE' | 'PATCH', url: string, opts: { token?: string; body?: unknown } = {}) => {
   const res = await app.inject({
     method,
     url: `/api/v1${url}`,
@@ -252,5 +252,46 @@ describe('택일 — 하루 생성 상한·같은 입력 판정', () => {
     });
     const plan = (await app.ctx.db.all(sql.raw(`explain query plan ${inlined}`))) as { detail: string }[];
     expect(plan.map((p) => p.detail).join(' ')).toContain('reports_taekil_key_idx');
+  });
+});
+
+describe('택일 — 출생 정보 수정 뒤 저장본·목록 (알려진 이슈 회귀)', () => {
+  it('프로필 출생 정보를 고치면 같은 조건이라도 고치기 전 원국의 저장본을 돌려주지 않고 새로 계산한다', async () => {
+    const guest = (await api('POST', '/auth/guest', { body: { deviceId: 'taekil-birth-edit-01' } })).body;
+    const token = guest.accessToken as string;
+    const profileId = (await api('POST', '/profiles', { token, body: { name: '민수', relation: 'self', birth: BIRTH } })).body.id;
+    const body = { profileId, purpose: 'move', dates: [kstDay(3), kstDay(9), kstDay(15)] };
+    const first = await api('POST', '/taekil', { token, body });
+    expect(first.status).toBe(201);
+    // 출생 정보를 바꾸지 않으면 같은 저장본
+    expect((await api('POST', '/taekil', { token, body })).body.id).toBe(first.body.id);
+
+    const edited = await api('PATCH', `/profiles/${profileId}`, { token, body: { birth: { ...BIRTH, year: 1985, month: 2, day: 3 } } });
+    expect(edited.status).toBe(200);
+    const after = await api('POST', '/taekil', { token, body });
+    expect(after.status).toBe(201);
+    expect(after.body.id).not.toBe(first.body.id);
+    expect(after.body.basis).not.toBe(first.body.basis);
+    // 예전 저장본은 그대로 남아 주소로 열 수 있다
+    expect((await api('GET', `/taekil/${first.body.id}`, { token })).body.basis).toBe(first.body.basis);
+  });
+
+  it(`목록 — 최근 ${TAEKIL_LIST_RECENT}건 밖으로 밀린 구매 결과도 싣고, 잠금 해제로 표시한다`, async () => {
+    const guest = (await api('POST', '/auth/guest', { body: { deviceId: 'taekil-list-many-01' } })).body;
+    const token = guest.accessToken as string;
+    const userId = guest.user.id as string;
+    const profileId = (await api('POST', '/profiles', { token, body: { name: '민수', relation: 'self', birth: BIRTH } })).body.id;
+    const bought = await api('POST', '/taekil', { token, body: { profileId, purpose: 'travel', dates: [kstDay(4), kstDay(8)] } });
+    expect(bought.status).toBe(201);
+    await app.ctx.db.insert(entitlements).values({ id: `ent-${bought.body.id}`, userId, key: `taekil:reading:${bought.body.id}`, orderId: null });
+    const [row] = await app.ctx.db.select().from(reports).where(eq(reports.id, bought.body.id));
+    // 그보다 나중에 만든 결과 100건(같은 내용을 복사해 빠르게 채운다)
+    for (let i = 0; i < TAEKIL_LIST_RECENT; i++) {
+      await app.ctx.db.insert(reports).values({ ...row!, id: `${bought.body.id}-${String(i).padStart(3, '0')}`, createdAt: row!.createdAt + 1 + i });
+    }
+    const list = (await api('GET', '/taekil', { token })).body;
+    expect(list).toHaveLength(TAEKIL_LIST_RECENT + 1);
+    expect(list.at(-1)).toMatchObject({ id: bought.body.id, locked: false });
+    expect(list.slice(0, TAEKIL_LIST_RECENT).every((x: any) => x.locked)).toBe(true);
   });
 });

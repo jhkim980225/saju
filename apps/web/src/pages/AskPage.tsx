@@ -1,12 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ChatMessageDto, ProductDto } from '@saju/shared';
-import { SendHorizontal } from 'lucide-react';
+import { CRISIS_PATTERN, type ChatMessageDto, type ProductDto } from '@saju/shared';
+import { SendHorizontal, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Page } from '@/components/AppShell';
 import { AskSegment } from '@/components/AskSegment';
+import { BottomSheet } from '@/components/BottomSheet';
 import { PaywallSheet } from '@/components/PaywallSheet';
 import { RewardedAdCard } from '@/components/RewardedAdCard';
+import { toast } from '@/components/Toast';
 import { Button, Chip, EmptyState, PageHeader, Spinner, cx } from '@/components/ui';
 import { qk, useConfig, useProfiles, useWallet } from '@/hooks/queries';
 import { SessionGateError, useSessionGate } from '@/hooks/useSessionGate';
@@ -18,7 +20,6 @@ import { t } from '@/lib/copy';
 import { STORAGE_KEYS, storage } from '@/lib/storage';
 
 const SUGGESTIONS = ['career', 'money', 'workStyle', 'relationship'] as const;
-const CRISIS = /죽고\s*싶|자살|자해|살기\s*싫|사라지고\s*싶/;
 
 export function AskPage() {
   const navigate = useNavigate();
@@ -33,6 +34,7 @@ export function AskPage() {
   const [text, setText] = useState('');
   const [paywall, setPaywall] = useState(false);
   const [optimistic, setOptimistic] = useState<ChatMessageDto | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
   const purchase = usePurchase();
 
@@ -51,6 +53,17 @@ export function AskPage() {
     onSettled: () => setOptimistic(null),
   });
 
+  /** 이 프로필과 나눈 대화 지우기(서버 DELETE /chat) */
+  const clear = useMutation({
+    mutationFn: () => api.chatClear(profile!.id),
+    onSuccess: async () => {
+      setConfirmClear(false);
+      qc.setQueryData(['chat', profile?.id], []);
+      await qc.invalidateQueries({ queryKey: ['chat', profile?.id] });
+      toast(t('ask.clear.done'));
+    },
+  });
+
   const messages = [...(history.data ?? []), ...(optimistic ? [optimistic] : [])];
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -63,6 +76,8 @@ export function AskPage() {
     send.mutate(m);
   };
   const aiEnabled = config.data?.ai.enabled ?? false;
+  // 한 번 묻는 데 드는 질문권(AI_CHAT_CREDIT_COST) — 잔액이 이보다 적으면 질문할 수 없으니 보상형 광고 카드를 보여 준다
+  const creditCost = config.data?.ai.creditCost ?? 1;
   const lastUser = [...messages].reverse().find((m) => m.role === 'user');
 
   const onPurchase = async (product: ProductDto) => {
@@ -135,9 +150,17 @@ export function AskPage() {
                 </li>
               )}
             </ol>
-            {aiEnabled && wallet.data && wallet.data.credits < 1 && <RewardedAdCard />}
-            {lastUser && CRISIS.test(lastUser.content) && <p className="mt-4 rounded-xl bg-subtle p-3 text-sm text-info">{t('ask.crisisNote')}</p>}
+            {aiEnabled && wallet.data && wallet.data.credits < creditCost && <RewardedAdCard />}
+            {lastUser && CRISIS_PATTERN.test(lastUser.content) && <p className="mt-4 rounded-xl bg-subtle p-3 text-sm text-info">{t('ask.crisisNote')}</p>}
             {send.error && !(send.error instanceof ApiError && send.error.code === 'INSUFFICIENT_CREDITS') && <p className="mt-3 text-sm text-danger">{send.error.message}</p>}
+            {(history.data?.length ?? 0) > 0 && (
+              <div className="mt-6 text-center">
+                <button type="button" onClick={() => setConfirmClear(true)} disabled={send.isPending} className="inline-flex items-center gap-1.5 text-sm text-ink-3 underline disabled:opacity-40">
+                  <Trash2 className="size-4" aria-hidden />
+                  {t('ask.clear.button')}
+                </button>
+              </div>
+            )}
             <div ref={bottom} />
           </>
         )}
@@ -171,6 +194,24 @@ export function AskPage() {
           </div>
         </form>
       )}
+      <BottomSheet
+        open={confirmClear}
+        onClose={() => setConfirmClear(false)}
+        title={t('ask.clear.title')}
+        footer={
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="secondary" onClick={() => setConfirmClear(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={() => clear.mutate()} disabled={clear.isPending}>
+              {t('ask.clear.confirm')}
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-[15px] leading-relaxed text-ink-2">{t('ask.clear.body', { name: profile?.name ?? '' })}</p>
+        {clear.error && <p className="mt-2 text-sm text-danger">{clear.error.message}</p>}
+      </BottomSheet>
       <PaywallSheet open={paywall} onClose={() => setPaywall(false)} productIds={['chat_pack_30', 'chat_pack_10']} subtitle="저장한 사주의 계산 결과를 바탕으로 AI가 답변합니다. 질문권은 유효기간이 없어요." onPurchase={onPurchase} />
     </div>
   );
