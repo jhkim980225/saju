@@ -96,6 +96,7 @@
 - 같은 대상으로 이미 가진 리포트·풀이는 409 `ALREADY_OWNED` 다. 리포트에 덤으로 딸린 질문권은 따지지 않고, 질문권 팩과 1회권이 든 상품(신년 패키지·상대 없는 궁합)은 해당하지 않는다.
 - 결제창 링크형 결제사(그로블)에서만, 같은 상품·같은 대상·같은 금액의 미결 주문이 30분(`CHECKOUT_RESUME_WINDOW_MS`) 안에 있으면 409 `PAYMENT_IN_PROGRESS { orderId, amount, productId }` 다. `resumeOrderId` 가 그 주문이면 같은 주문의 결제창을 다시 준다. 이어서 결제하려던 주문이 그사이 확정됐으면 409 `ALREADY_PAID` 다.
 - 두 탭에서 동시에 주문하면 주문을 넣은 뒤 다시 조회해 가장 먼저 만든 것만 남기고 나머지는 `canceled(DUPLICATE_CHECKOUT)` 와 409 로 끝낸다.
+- 가격은 고정이다(2026-11-26 사용자 결정). 어떤 상품에도 정가 취소선(`listPrice`)·할인 배지·기한 있는 가격을 두지 않는다. `apps/api/test/catalog.test.ts` 가 이를 검사한다.
 - 금액은 `currentPrice` 다. `saleEndsAt` 이 지나면 정가(`listPrice`)로 파는 장치는 남아 있지만, 지금 카탈로그에 `saleEndsAt` 이 있는 상품은 없다(날짜에 따라 가격이 오르는 상품이 없어 그로블 결제창 가격을 날짜에 맞춰 바꿀 일이 없다). `catalog.test.ts` 가 이것을 확인한다.
 
 **지급(`settle`)**: 웹 승인·웹훅·인앱결제가 모두 이 함수를 지난다. `atomic` 하나에서 아래 조건을 실행 시점에 다시 확인하고, 하나라도 깨지면 batch 전체를 취소하고 처음부터 다시 판단한다([../architecture.md](../architecture.md) 「D1 동시성」).

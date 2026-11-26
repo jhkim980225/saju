@@ -21,6 +21,14 @@ describe('seedProducts', () => {
     expect(CATALOG.some((c) => c.type === 'subscription')).toBe(false);
   });
 
+  it('가격은 고정 — 어떤 상품에도 정가 취소선·할인 배지·기한 있는 가격이 없다', () => {
+    for (const p of CATALOG) {
+      expect(p.listPrice, p.id).toBeUndefined();
+      expect(p.saleEndsAt, p.id).toBeUndefined();
+      expect(p.badge ?? '', p.id).not.toMatch(/할인|특가|얼리버드|%/);
+    }
+  });
+
   it('2027 신년운세는 기한 없이 5,900원 — 정가·할인 마감·얼리버드 표시가 없고 해가 바뀌어도 값이 같다', async () => {
     const item = CATALOG.find((c) => c.id === 'report_newyear_2027')!;
     expect(item).toMatchObject({ price: 5900 });

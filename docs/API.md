@@ -116,7 +116,7 @@
 ## 커머스
 | 메서드 | 경로 | 인증 | 설명 |
 |---|---|---|---|
-| GET | `/products` | opt | 상품 카탈로그(현재가·할인 표시용 정가·계정당 구매 가능 여부. `saleEndsAt` 필드는 있지만 지금 기한이 있는 상품은 없어 `null`) |
+| GET | `/products` | opt | 상품 카탈로그(판매가·계정당 구매 가능 여부. 가격은 고정이라 `listPrice`·`saleEndsAt` 은 모든 상품에서 `null`) |
 | POST | `/orders` | ✓(회원) | `{ productId, profileId?, partnerProfileId?, readingId?, resumeOrderId? }` → 결제창 파라미터(`CheckoutDto`). 409 `details.reason`: `PAYMENT_IN_PROGRESS`(같은 상품·대상의 결제를 30분 안에 시작함, `orderId` 를 `resumeOrderId` 로 보내면 같은 주문의 결제창), `ALREADY_OWNED`(이미 가진 리포트·풀이), `ALREADY_PAID`(이어서 결제하려던 주문이 결제 확인됨). 결제창 링크형 결제사(그로블)만 진행 중 확인을 한다 |
 | GET | `/orders`, `/orders/:id` | ✓ | 주문 내역. 그로블 미결 주문을 `/orders/:id` 로 조회하면 첫 조회 시각을 남기고, 20초 넘게 지나 다시 조회하면 결제 확인 대기 표시(`awaitingAt`)를 남긴다(결제 확인 지연 알림 대상) |
 | POST | `/payments/confirm` | ✓ | `{ provider, orderId, amount, paymentKey? }` 서버 승인 + 금액 검증 + 지급 (멱등). 계정당 한도 초과는 409 `PER_USER_LIMIT`(결제사 취소에 성공하면 주문 `canceled`, 실패하면 `failed` + 운영 알림) |

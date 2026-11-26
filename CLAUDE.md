@@ -46,6 +46,7 @@ Node 22.13 이상, npm workspaces. 구조와 흐름은 [docs/architecture.md](do
 
 ### 데이터와 결제
 - 유료 범위는 서버에서 잘라서 응답한다. 클라이언트에서 가리는 방식으로 만들지 않는다.
+- 가격은 고정이다. 정가 취소선(`listPrice`)·할인 배지·기한 있는 가격(`saleEndsAt`)을 두지 않는다.
 - 금액은 서버(`apps/api/src/modules/commerce/catalog.ts`)가 정한다. 상품·가격을 바꾸면 그로블 결제창 링크(`GROBLE_PRODUCT_LINKS`)도 같이 맞춰야 한다. 그로블의 기존 상품·정산·쿠폰 설정은 건드리지 않는다.
 - 동시에 실행될 수 있는 쓰기(지급·차감·구매 한도·1회권)는 `apps/api/src/db/atomic.ts` 의 `atomic()` 과 guard 로 쓴다. D1 batch 안에서는 인자가 있는 원시 `sql` 을 실행할 수 없으므로 쿼리 빌더로 쓴다([architecture.md §5.1](docs/architecture.md)).
 - 스키마를 바꾸면 `db:generate` 로 마이그레이션을 만들고, 운영 적용은 배포 전에 한다. 식 유니크 인덱스 `reports_target_uq` 는 생성된 SQL 을 손으로 확인한다.

@@ -14,18 +14,18 @@
 
 | 상품 ID | 이름 | 가격 | 함께 주는 질문권 | 지급 권한 | 제한 |
 |---|---|---|---|---|---|
-| `report_saju_mini` | 첫 사주 미니 리포트 | 990원(정가 2,900) | 없음 | `report:mini:<프로필>` | 계정당 1회 |
-| `report_saju_lifetime` | 평생 사주분석서 | 9,900원(정가 19,800) | 3회 | `report:lifetime:<프로필>` | |
+| `report_saju_mini` | 첫 사주 미니 리포트 | 990원 | 없음 | `report:mini:<프로필>` | 계정당 1회 |
+| `report_saju_lifetime` | 평생 사주분석서 | 9,900원 | 3회 | `report:lifetime:<프로필>` | |
 | `report_newyear_2027` | 2027 신년운세 | 5,900원(기한 없음, 2026-11-26 결정으로 연말 인상 없음) | 없음 | `report:yearly:<프로필>:2027` | |
 | `report_compat` | 사주 궁합 리포트 | 5,900원 | 없음 | `report:compatibility:<A>:<B>`(정렬), 상대가 없으면 1회권 | |
 | `report_love` | 연애·결혼운 리포트 | 4,900원 | 없음 | `report:love:<프로필>` | |
 | `report_career_wealth` | 재물·직업운 리포트 | 4,900원 | 없음 | `report:career_wealth:<프로필>` | |
-| `bundle_newyear_2027` | 2027 신년 패키지 | 16,900원(정가 21,700) | 10회 | 평생 + 2027 신년운세 + 궁합 1회권(`ticket:compatibility:<주문>`) | |
+| `bundle_newyear_2027` | 2027 신년 패키지 | 16,900원 | 10회 | 평생 + 2027 신년운세 + 궁합 1회권(`ticket:compatibility:<주문>`) | |
 
 - "리포트 5종"은 보관함에 저장되는 `lifetime`·`yearly`·`compatibility`·`love`·`career_wealth` 다(`REPORT_TYPES`).
 - **미니 리포트**는 문서가 아니라 결과·내 사주 화면의 재물·연애·직업 섹션을 여는 권한이다. 보관함에 아무것도 만들지 않는다. 잠금 범위는 [saju.md](saju.md).
 - 서버가 켜질 때 카탈로그를 DB 로 덮어쓰고(`ensureCatalog`, 해시가 바뀐 경우만), 카탈로그에서 뺀 상품은 지우지 않고 판매 중지한다.
-- 할인 마감(`saleEndsAt`)이 지나면 서버가 정가(`listPrice`)로 파는 장치(`currentPrice`)가 있지만, 지금 기한이 있는 상품은 없다([payments.md](./payments.md)).
+- 가격은 고정이다(2026-11-26 결정). 정가 취소선·할인 배지·기한 있는 가격을 두지 않는다. 할인 마감(`saleEndsAt`)이 지나면 정가(`listPrice`)로 파는 장치(`currentPrice`)는 코드에 남아 있지만 쓰는 상품이 없다([payments.md](./payments.md)).
 
 ### 사는 곳과 여는 곳
 
